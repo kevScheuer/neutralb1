@@ -14,11 +14,12 @@ Architecture of process:
 	info. The fit results are then sent to an output dir on the volatile dir
 	
 TODO:    
+    ensure this process will be independent of jobs
     edit argparse to not have an ugly "usage" help output`
     I think overwrite_template is actually useless now?
         Might make it part of the original commit, that way if I need it in the future
         I can see how run_fit.sh behaved alongside it
-    mails broken (says 'requsted node config is not avialable')
+    mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
@@ -38,12 +39,9 @@ import time
 import write_config_loop
 
 # Constants
-TIMELIMIT = "2:00:00"  # Max walltime
-N_CPUS = 32  # Number of CPUs used by MPI (only if n_gpus=0)
 USER = pwd.getpwuid(os.getuid())[0]
 VOLATILE_DIR = f"/volatile/halld/home/{USER}"
-USER_PATH = f"/w/halld-scshelf2101/{USER}/"
-CODE_DIR = f"{USER_PATH}neutralb1/submission/batch_scripts/"
+CODE_DIR = f"/w/halld-scshelf2101/{USER}/neutralb1/submission/batch_scripts/"
 
 
 def main(
@@ -79,7 +77,7 @@ def main(
     if "ALL" in orientations:
         orientations = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
 
-    # checks
+    # error checks
     if truth_file and data_version not in truth_file:
         raise ValueError("MC and truth versions must match!")
     if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
@@ -103,6 +101,7 @@ def main(
     low_t_edges, high_t_edges = make_bins(t_args)
     low_mass_edges, high_mass_edges = make_bins(m_args)
 
+    # create ROOT data files with cuts if not yet done
     create_data_files(
         low_t_edges,
         high_t_edges,
@@ -140,11 +139,6 @@ def main(
         orientations,
     )
 
-    # setting up directories
-    source_file_parent = "/".join(
-        (f"{VOLATILE_DIR}", "TMPDIR", "ampToolsFits", reaction, "data_files")
-    )
-
     # when True, will always skip asking user input if they want to overwrite files
     is_skip_all = False
 
@@ -175,7 +169,11 @@ def main(
 
                 source_file_dir = "/".join(
                     (
-                        f"{source_file_parent}",
+                        f"{VOLATILE_DIR}",
+                        "TMPDIR",
+                        "ampToolsFits",
+                        reaction,
+                        "data_files",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"E_{energy_min:.2f}-{energy_max:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
@@ -208,7 +206,7 @@ def main(
                             continue
 
                 # prepare names for batch submission
-                JOBNAME = "_".join(
+                job_name = "_".join(
                     (
                         reaction,
                         run_period,
@@ -222,7 +220,7 @@ def main(
                 )
 
                 # prepare bash script to be run on slurm node
-                SCRIPT_COMMAND = " ".join(
+                script_command = " ".join(
                     (
                         f"{CODE_DIR}run_fit.sh",
                         orientations_str,
@@ -242,54 +240,15 @@ def main(
                         "\n",
                     )
                 )
-
-                # Write the slurm file for this job bin
-                slurm_out = open("tempSlurm.txt", "w")
-                slurm_out.write(
-                    "#!/bin/sh \n"
-                    "#SBATCH -A halld\n"
-                    f"#SBATCH --time={TIMELIMIT} \n"
-                    f"#SBATCH --chdir={running_dir}\n"
-                    f"#SBATCH --error={log_dir}log.err \n"
-                    f"#SBATCH --output={log_dir}log.out \n"
-                    f"#SBATCH --job-name={JOBNAME} \n"
-                    "#SBATCH --mem-per-cpu=5000M \n"
-                    "#SBATCH --cpus-per-task=1 \n"
-                    "#SBATCH --ntasks-per-core=1 \n"
-                    "#SBATCH --threads-per-core=1 \n"
+                submit_slurm_job(
+                    job_name,
+                    script_command,
+                    running_dir,
+                    log_dir,
+                    gpu_type,
+                    n_gpus,
+                    is_send_mail,
                 )
-                # send user mail when job starts/ends/fails (off by default)
-                if is_send_mail:
-                    slurm_out.write(
-                        f"#SBATCH --mail-user={USER}@jlab.org \n"
-                        "#SBATCH --mail-type=begin \n"
-                        "#SBATCH --mail-type=end \n "
-                        "#SBATCH --mail-type=fail \n "
-                    )
-                # different requirements for GPU and CPU fits
-                if n_gpus > 0:
-                    slurm_out.write(
-                        "#SBATCH --partition=gpu \n"
-                        f"#SBATCH --gres=gpu:{gpu_type}:{n_gpus} \n"
-                        f"#SBATCH --ntasks={n_gpus+1} \n"
-                        "#SBATCH --constraint=el7 \n"
-                    )
-                else:
-                    slurm_out.write(
-                        f"#SBATCH --partition=ifarm \n#SBATCH --ntasks={N_CPUS} \n"
-                    )
-
-                slurm_out.write(f"{SCRIPT_COMMAND}")
-
-                slurm_out.close()
-
-                time.sleep(0.5)
-                subprocess.call(["sbatch", "tempSlurm.txt"])
-
-                # remove temporary submission file
-                # os.remove("tempSlurm.txt")
-
-                print(SCRIPT_COMMAND)
 
     return
 
@@ -335,6 +294,8 @@ def create_data_files(
         FileExistsError: Accepted phasespace file not found
         FileExistsError: Data File not found
     """
+
+    # first check if ROOT is loaded into the shell environment
     if not os.environ["ROOTSYS"]:
         raise EnvironmentError("ROOTSYS path is not loaded\n")
 
@@ -392,8 +353,11 @@ def create_data_files(
                     ")'"
                 )
 
+                # create PhasespaceGen file if it doesn't exist
                 if not os.path.isfile(f"{dir}/{gen_file}"):
                     os.system(command)
+                # TODO: check if this will accidentally skip making a Acc file if thrown
+                #   is selected
                 if "mcthrown" not in data_ver and not os.path.isfile(
                     f"{dir}/{acc_file}"
                 ):
@@ -404,6 +368,77 @@ def create_data_files(
                     if not os.path.isfile(f"{dir}/{data_file}"):
                         os.system(command.replace(gen_src, data_src))
 
+    return
+
+
+def submit_slurm_job(
+    job_name: str,
+    script_command: str,
+    running_dir: str,
+    log_dir: str,
+    gpu_type: str,
+    n_gpus: int,
+    is_send_mail: bool,
+    time_limit: str = "0:30:00",
+    mem_per_cpu: str = "5000M",
+    n_cpus: int = 32,
+) -> None:
+    """Submit a slurm job to the ifarm using an mpi+gpu build
+
+    Args:
+        job_name (str): shown on the scicomp webpage
+        script_command (str): bash script with its arguments
+        running_dir (str): /volatile/TMPDIR location
+        log_dir (str): where slurm log files are stored
+        gpu_type (str): card type to be used
+        n_gpus (int): how many gpu cards to use (supported by mpi)
+        is_send_mail (bool): send user mail when job submits/fails/succeeds
+        time_limit (str, optional): Max wall-time in Hour:Min:Sec. Defaults to "1:00:00"
+        mem_per_cpu (str, optional): Default of 5GB appear to be min needed for fit
+            jobs, though small jobs like phasespace generation can use less
+        n_cpus (int, optional): Number of mpi cpus to use (only used if n_gpus=0).
+            Defaults to 32.
+    """
+
+    with open("tempSlurm.txt", "w") as slurm_out:
+        slurm_out.write(
+            "#!/bin/sh \n"
+            "#SBATCH -A halld\n"
+            f"#SBATCH --time={time_limit} \n"
+            f"#SBATCH --chdir={running_dir}\n"
+            f"#SBATCH --error={log_dir}log.err \n"
+            f"#SBATCH --output={log_dir}log.out \n"
+            f"#SBATCH --job-name={job_name} \n"
+            f"#SBATCH --mem-per-cpu={mem_per_cpu} \n"
+            "#SBATCH --cpus-per-task=1 \n"
+            "#SBATCH --ntasks-per-core=1 \n"
+            "#SBATCH --threads-per-core=1 \n"
+            "#SBATCH -w sciml2402\n"  # temp: issue with sciml2401 node
+            "#SBATCH --constraint=el9 \n"
+        )
+        if is_send_mail:
+            slurm_out.write(
+                f"#SBATCH --mail-user={USER}@jlab.org \n"
+                "#SBATCH --mail-type=begin \n"
+                "#SBATCH --mail-type=end \n "
+                "#SBATCH --mail-type=fail \n "
+            )
+        # different requirements for GPU and CPU fits
+        if n_gpus > 0:
+            slurm_out.write(
+                "#SBATCH --partition=gpu \n"
+                f"#SBATCH --gres=gpu:{gpu_type}:{n_gpus} \n"
+                f"#SBATCH --ntasks={n_gpus+1} \n"  # mpigpu always needs n_gpus+1
+            )
+        else:
+            slurm_out.write(f"#SBATCH --partition=ifarm \n#SBATCH --ntasks={n_cpus} \n")
+        slurm_out.write(script_command)
+
+    time.sleep(0.5)  # jobs can be skipped if too many submitted quickly
+    subprocess.call(["sbatch", "tempSlurm.txt"])
+
+    # remove temporary submission file
+    os.remove("tempSlurm.txt")
     return
 
 

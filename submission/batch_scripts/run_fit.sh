@@ -1,16 +1,53 @@
 #!/bin/sh
+#TODO Overwrite template just acts as a file linker, which can be done in this script
+#   instead
 echo -e "\nhost: \t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
 rm ./*
 
-# variables labelled with "my" to avoid conflicts
-export my_orientations=$1
-export my_run_period=$2
-export my_num_rand_fits=$3
+# get command line arguments with optarg
+usage() {
+    echo "Usage $0 []"
+    echo "Options:"        
+}
 
-export my_data_version=$4
-export my_phasespace_version=$5
+# variables labelled with "my" to avoid conflicts and not have to unset globals
+while getopts ":ornd:" opt; do
+    case "${opt}" in
+    o)
+        echo -e "orientations: \t\t$OPTARG\n"        
+        # replace "-" with " " in orientations so it can be handed off to overwrite_template
+        my_orientations=${OPTARG//[-]/ }
+    ;;
+    r)
+        echo -e "run period: \t\t$OPTARG\n"
+        my_run_period=$OPTARG
+    ;;
+    n)
+        echo -e "num rand fits: \t\t$OPTARG\n"
+        my_num_rand_fits=$OPTARG
+    ;;
+    d)
+        echo -e "data version: \t\t$my_data_version\n"
+        my_data_version=$OPTARG
+    ;;
+    p)
+        echo -e "phasespace version: \t\t$my_phasespace_version\n"
+        my_phasespace_version=$OPTARG
+    ;;
+    h) # help message
+        usage
+        exit 0
+    ;;
+    \?) # invalid option
+        echo "Invalid option: -$OPTARG"
+        usage
+        exit 1
+    ;;
+    esac
+done
+        
 export my_source_file_dir=$6
 export my_data_out_dir=$7
 export my_code_dir=$8
@@ -23,14 +60,8 @@ export my_high_t=${12}
 export my_reaction=${13}
 export truth_file=${14}
 
-# replace "-" with " " in orientations so it can be handed off to overwrite_template
-my_orientations=${my_orientations//[-]/ }
+echo -e "
 
-echo -e "orientations: \t\t$my_orientations\n
-run period: \t\t$my_run_period\n
-num rand fits: \t\t$my_num_rand_fits\n
-data version: \t\t$my_data_version\n
-phasespace version: \t$my_phasespace_version\n
 source file dir: \t$my_source_file_dir\n
 data out dir: \t\t$my_data_out_dir\n
 code dir: \t\t$my_code_dir\n

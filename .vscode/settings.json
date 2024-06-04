@@ -88,5 +88,8 @@
       "/usr/local/include",
       "/usr/include"
     ],
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "cSpell.words": [
+      "phaselock"
+    ]
 }
