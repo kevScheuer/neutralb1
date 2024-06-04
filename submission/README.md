@@ -1,0 +1,1 @@
+Discuss the general architecture of the submission process (after removing overwrite template)

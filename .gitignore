@@ -1,0 +1,18 @@
+# data and changing config files
+**/*.root
+**/*.csv
+gen_signal.cfg
+fit.cfg
+bin_template.cfg
+
+# data output
+*.pdf
+
+
+# caches
+__pycache__/
+.ipynb_checkpoints
+.conda
+
+# other
+*.so
