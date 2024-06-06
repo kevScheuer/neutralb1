@@ -73,7 +73,7 @@ def main(
     template_data = ftemplate.read()
     ftemplate.close()
     template_data = template_data.replace("FITNAME", reaction)
-    fout = open("submission/batch_scripts/bin_template.cfg", "w")
+    fout = open("submission/batch_scripts/fit.cfg", "w")
     fout.write(template_data)
 
     # Write LOOP over polarization orientations and setup corresponding reaction names

@@ -1,24 +1,10 @@
 """ Main batch script to set parameters for amplitude analysis fits.
 
-Architecture of process:
-	Submit.py creates necessary dirs, and calls write_config_loop.py to produce 
-	a template cfg file for all the binned fits to overwrite on. This file is 
-	produced with the user parameters passed below.
-
-	Binned fits are then performed by looping over all bins, and creating a 
-	slurm job for each one. This job has a single command, run_fit.sh, which 
-	receives all the necessary file locations and variables
-
-	run_fit.sh is then executed on a temporary slurm node. It executes
-	overwrite_template.py, which overwrites the template cfg file with the bin
-	info. The fit results are then sent to an output dir on the volatile dir
+See README for process architecture
 	
 TODO:    
     ensure this process will be independent of jobs
     edit argparse to not have an ugly "usage" help output`
-    I think overwrite_template is actually useless now?
-        Might make it part of the original commit, that way if I need it in the future
-        I can see how run_fit.sh behaved alongside it
     mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
@@ -122,7 +108,7 @@ def main(
     waveset = " ".join(waveset)  # spaced version, so it can be used in below command
     orientations_str = "-".join(sorted(orientations))
 
-    # Create config file template "bin_template.cfg" that works for any bin
+    # Create config file template "fit.cfg" that works for any bin
     write_config_loop.main(
         waveset,
         phase_reference,

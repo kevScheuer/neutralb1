@@ -1,23 +1,31 @@
 #!/bin/sh
-#TODO Overwrite template just acts as a file linker, which can be done in this script
-#   instead
 echo -e "\nhost: \t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
 rm ./*
 
-# get command line arguments with optarg
+# get command line arguments with optarg 
 usage() {
-    echo "Usage $0 []"
-    echo "Options:"        
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-c] [-R] [-t]"
+    echo "Options:"
+    echo " -o       polarization orientations with '-' delimeter" 
+    echo " -r       GlueX run period"
+    echo " -n       number of randomized fits to perform"
+    echo " -d       version # of data trees"
+    echo " -p       version # of phasespace trees"
+    echo " -D       Data output directory on \volatile"
+    echo " -s       directory where data Source files are stored"
+    echo " -c       directory where scripts are stored"
+    echo " -R       reaction name of fit"
+    echo " -t       (optional) truth file for thrown MC"
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":ornd:" opt; do
+while getopts ":ornvpdscxt:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
-        # replace "-" with " " in orientations so it can be handed off to overwrite_template
+        # replace "-" with " " in orientations so it can be looped over
         my_orientations=${OPTARG//[-]/ }
     ;;
     r)
@@ -29,12 +37,32 @@ while getopts ":ornd:" opt; do
         my_num_rand_fits=$OPTARG
     ;;
     d)
-        echo -e "data version: \t\t$my_data_version\n"
+        echo -e "data version: \t\t$OPTARG\n"
         my_data_version=$OPTARG
     ;;
     p)
-        echo -e "phasespace version: \t\t$my_phasespace_version\n"
+        echo -e "phasespace version: \t\t$OPTARG\n"
         my_phasespace_version=$OPTARG
+    ;;
+    D)
+        echo -e "data out dir: \t\t$OPTARG\n"
+        my_data_out_dir=$OPTARG
+    ;;
+    s)
+        echo -e "source file dir: \t\t$OPTARG\n"
+        my_source_file_dir=$OPTARG
+    ;;
+    c)
+        echo -e "code dir: \t\t$OPTARG\n"
+        my_code_dir=$OPTARG
+    ;;
+    R)
+        echo -e "reaction: \t\t$OPTARG\n"
+        my_reaction=$OPTARG
+    ;;
+    t)
+        echo -e "truth file: \t\t$OPTARG\n"
+        my_truth_file=$OPTARG
     ;;
     h) # help message
         usage
@@ -47,59 +75,56 @@ while getopts ":ornd:" opt; do
     ;;
     esac
 done
-        
-export my_source_file_dir=$6
-export my_data_out_dir=$7
-export my_code_dir=$8
-
-export my_low_mass=$9
-export my_high_mass=${10}
-export my_low_t=${11}
-export my_high_t=${12}
-
-export my_reaction=${13}
-export truth_file=${14}
-
-echo -e "
-
-source file dir: \t$my_source_file_dir\n
-data out dir: \t\t$my_data_out_dir\n
-code dir: \t\t$my_code_dir\n
-low mass: \t\t$my_low_mass\n
-high mass: \t\t$my_high_mass\n
-low t: \t\t\t$my_low_t\n
-high t: \t\t$my_high_t\n
-reaction: \t\t$my_reaction\n
-truth file: \t\t$truth_file\n
-"
 
 source $my_code_dir/setup_gluex.sh
-alias python="/w/halld-scshelf2101/kscheuer/miniforge3/envs/neutralb1/bin/python"
 
 # print some details to log
 echo -e "check if GPU Card is active for GPU fits:\n"
 nvidia-smi
 pwd
 
-# copy script to working directory and write config file that will be template 
-# for each binned fit
-rsync -aq $my_code_dir/bin_template.cfg ./
-rsync -aq $my_code_dir/overwrite_template.py ./
-if [[ ! -z "$truth_file" ]]; then
-    rsync -aq $my_code_dir/$truth_file ./
+# copy in needed files
+rsync -aq $my_code_dir/fit.cfg ./
+if [[ ! -z "$my_truth_file" ]]; then
+    rsync -aq $my_code_dir/$my_truth_file ./
 fi
 
-# replace template file with bin info, and link in data/phasespace files
-python overwrite_template.py\
- --data $my_data_version $my_source_file_dir\
- --phasespace $my_phasespace_version $my_source_file_dir\
- --data_out_dir $my_data_out_dir\
- -o $my_orientations -r $my_run_period\
- --mass_range $my_low_mass $my_high_mass --t_range $my_low_t $my_high_t
+# LINK FILES TO THIS RUNNING DIRECTORY AND THE OUTPUT DIRECTORY
+tree="AmpToolsInputTree_sum"
+amp_string="anglesOmegaPiAmplitude"
+ph_string="anglesOmegaPiPhasespace"
 
-ls -al
+# link data files
+for ont in ${my_orientations}; do
+    ont_num="$(cut -d'_' -f2 <<<"$ont")" # get the angle integer e.g. PARA_90 -> 90
 
-### run fit ###
+    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}.root\
+     ./${amp_string}_${ont_num}.root
+    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}.root\
+     ${my_data_out_dir}/${amp_string}_${ont_num}.root
+done
+
+# link generated phasespace
+ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_version}.root\
+ ./${ph_string}.root
+ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_version}.root\
+ ${my_data_out_dir}/${ph_string}.root
+
+# link accepted phasespace
+if [[ $my_data_version == *"_mcthrown"* ]]; then
+    acc_string="Gen" # when using thrown MC, this means no detector effects are applied
+else
+    acc_string="Acc"
+fi
+ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}.root\
+ ./${ph_string}Acc.root
+ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}.root\
+ ${my_data_out_dir}/${ph_string}Acc.root
+
+
+ls -al 
+
+### RUN FIT ###
 
 # if AmpTools has been built for MPI, these libraries show up, meaning fitMPI should run
 if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
