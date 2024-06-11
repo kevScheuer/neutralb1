@@ -21,7 +21,7 @@ usage() {
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":ornvpdscxt:" opt; do
+while getopts ":orndpDscRth:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -145,7 +145,7 @@ if ! [ -f "$my_reaction.fit" ]; then
     exit
 fi
 
-# run vecps_plotter and plot_plotter to get diagnostic plots
+# run vecps_plotter and angle_plotter to get diagnostic plots
 mv $my_reaction.fit best.fit
 vecps_plotter best.fit
 
@@ -157,7 +157,7 @@ elif [[ $my_data_version == *"_mc" ]]; then
 elif [[ $my_data_version == *"_mcthrown" ]]; then
     data_type="Thrown MC"
 fi
-root -l -b -q "$my_code_dir/plot_plotter.C(\"vecps_plot.root\", \"\", \"$data_type\")"
+root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$data_type\")"
 
 ls -al
 
