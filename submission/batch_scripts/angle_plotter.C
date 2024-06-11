@@ -19,6 +19,9 @@ TODO: separate the 1D plots into their own function, and make a separate functio
 #include "TFile.h"
 #include "TLegend.h"
 
+void plot1D(TFile *f, TString dir, TString data_title, TString reac);
+void plot2D(TFile *f, TString dir, TString reac);
+
 void angle_plotter(TString file_name = "vecps_plot.root",
                    TString dir = "./", TString data_title = "GlueX Data",
                    TString reac = "")
@@ -33,6 +36,15 @@ void angle_plotter(TString file_name = "vecps_plot.root",
         exit(1);
     }
 
+    plot1D(f, dir, data_title, reac);
+
+    return;
+}
+
+void plot1D(TFile *f, TString dir, TString data_title, TString reac)
+{
+    /* Make the 1D histograms of interest from vecps_plotter
+     */
     std::vector<TString> plot_names = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
                                        "Prod_Ang", "MVecPs", "MProtonPs"};
     std::map<TString, std::map<TString, TString>> amp_map;
@@ -137,6 +149,43 @@ void angle_plotter(TString file_name = "vecps_plot.root",
 
     // save file
     cc->Print(dir + "fit.pdf");
+
+    return;
+}
+
+void plot2D(TFile *f, TString dir, TString reac)
+{
+    /* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
+    so no legend is required here
+    */
+
+    // Note Psi = phi - Prod_Ang (Phi)
+    std::vector<std::pair<TString, TString>> plot_pairs = {
+        {"Phi-Prod_Ang", "CosTheta"}, 
+        {"Phi-Prod_Ang", "CosTheta_H"}, 
+        {"Phi-Prod_Ang", "Phi_H"}, 
+        {"Prod_Ang", "Phi"}, 
+        {"Phi", "CosTheta"}, 
+        {"Phi_H", "CosTheta_H"}, 
+        {"MProtonPs", "CosTheta"}, 
+        {"MVecPs", "CosTheta"}
+    };
+
+    TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
+    cc->Divide(4, 4);
+
+    int pair_count = 0;
+    for (auto pair : plot_pairs)
+    {
+        cc->cd(pair_count + 1);
+
+        // TODO: plot pairs of histograms here, but they have to be made in the actual
+        // vecps_plotter first unfortunately
+        
+        pair_count += 1;
+    }
+
+    cc->Print(dir + "fit2D.pdf");
 
     return;
 }
