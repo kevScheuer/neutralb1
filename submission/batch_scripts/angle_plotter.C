@@ -37,6 +37,7 @@ void angle_plotter(TString file_name = "vecps_plot.root",
     }
 
     plot1D(f, dir, data_title, reac);
+    plot2D(f, dir, reac);
 
     return;
 }
@@ -161,31 +162,86 @@ void plot2D(TFile *f, TString dir, TString reac)
 
     // Note Psi = phi - Prod_Ang (Phi)
     std::vector<std::pair<TString, TString>> plot_pairs = {
-        {"Phi-Prod_Ang", "CosTheta"}, 
-        {"Phi-Prod_Ang", "CosTheta_H"}, 
-        {"Phi-Prod_Ang", "Phi_H"}, 
-        {"Prod_Ang", "Phi"}, 
-        {"Phi", "CosTheta"}, 
-        {"Phi_H", "CosTheta_H"}, 
-        {"MProtonPs", "CosTheta"}, 
-        {"MVecPs", "CosTheta"}
+        {"Psi", "CosTheta"},
+        {"Psi", "CosTheta_H"},
+        {"Psi", "Phi_H"},
+        {"Prod_Ang", "Phi"},
+        {"Phi", "CosTheta"},
+        {"Phi_H", "CosTheta_H"},
+        {"MProtonPs", "CosTheta"},
+        {"MVecPs", "CosTheta"}};
+
+    std::vector<TString> plot_titles = {
+        ";#Psi [rad.];cos#theta",
+        ";#Psi [rad.];cos#theta_{H}",
+        ";#Psi [rad.];#phi_{H} [rad.]",
+        ";Prod_Ang [rad.];#phi [rad.]",
+        ";#phi [rad.];cos#theta",
+        ";#phi_{H} [rad.];cos#theta_{H}",
+        ";p+bachelor Ps [GeV];cos#theta",
+        ";Vec+Ps [GeV];cos#theta",
     };
 
-    TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
-    cc->Divide(4, 4);
+    // make 2d hists for just data first
+    TCanvas *cdat = new TCanvas("cdat", "cdat", 1800, 1000);
+
+    cdat->Divide(4, 2);
 
     int pair_count = 0;
     for (auto pair : plot_pairs)
     {
-        cc->cd(pair_count + 1);
+        cdat->cd(pair_count + 1);
 
-        // TODO: plot pairs of histograms here, but they have to be made in the actual
-        // vecps_plotter first unfortunately
-        
+        TString plot_name = pair.first + "Vs" + pair.second;
+
+        TH2F *hdat = (TH2F *)f->Get(reac + plot_name + "dat");
+        if (!hdat)
+        {
+            cout << Form("hdat Plot %s doesn't exist! exiting", (reac + plot_name + "dat").Data()) << "\n";
+            exit(1);
+        }
+        hdat->SetLabelSize(0.06, "xy");
+        hdat->SetTitleSize(0.08, "xy");
+        hdat->SetTitleOffset(0.88, "x");
+        hdat->SetTitleOffset(0.9, "y");
+        hdat->SetMinimum(0);
+        hdat->SetTitle(plot_titles[pair_count]);
+        hdat->Draw("colz");
+
+        pair_count += 1;
+    }
+    cdat->Print(dir + "fit2D_dat.pdf");
+
+    // now do the same for the accepted fit result. Note that these have to be done in
+    // a separate for-loop to void the canvases interfering with each other
+    TCanvas *cacc = new TCanvas("cacc", "cacc", 1800, 1000);
+    cacc->Divide(4, 2);
+
+    pair_count = 0;
+    for (auto pair : plot_pairs)
+    {
+        TString plot_name = pair.first + "Vs" + pair.second;
+        cacc->cd(pair_count + 1);
+
+        TH2F *hacc = (TH2F *)f->Get(reac + plot_name + "acc");
+
+        if (!hacc)
+        {
+            cout << Form("hacc Plot %s doesn't exist! exiting", plot_name.Data()) << "\n";
+            exit(1);
+        }
+        hacc->SetLabelSize(0.06, "xy");
+        hacc->SetTitleSize(0.08, "xy");
+        hacc->SetTitleOffset(0.88, "x");
+        hacc->SetTitleOffset(0.9, "y");
+        hacc->SetMinimum(0);
+        hacc->SetTitle(plot_titles[pair_count]);
+        hacc->Draw("colz");
+
         pair_count += 1;
     }
 
-    cc->Print(dir + "fit2D.pdf");
+    cacc->Print(dir + "fit2D_acc.pdf");
 
     return;
 }
