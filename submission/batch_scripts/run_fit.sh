@@ -1,4 +1,6 @@
 #!/bin/sh
+
+#TODO: Add bootstrapping for better uncertainties
 echo -e "\nhost: \t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
@@ -21,7 +23,7 @@ usage() {
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":orndpDscRth:" opt; do
+while getopts ":orndpDscRh:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -60,10 +62,6 @@ while getopts ":orndpDscRth:" opt; do
         echo -e "reaction: \t\t$OPTARG\n"
         my_reaction=$OPTARG
     ;;
-    t)
-        echo -e "truth file: \t\t$OPTARG\n"
-        my_truth_file=$OPTARG
-    ;;
     h) # help message
         usage
         exit 0
@@ -82,12 +80,6 @@ source $my_code_dir/setup_gluex.sh
 echo -e "check if GPU Card is active for GPU fits:\n"
 nvidia-smi
 pwd
-
-# copy in needed files
-rsync -aq $my_code_dir/fit.cfg ./
-if [[ ! -z "$my_truth_file" ]]; then
-    rsync -aq $my_code_dir/$my_truth_file ./
-fi
 
 # LINK FILES TO THIS RUNNING DIRECTORY AND THE OUTPUT DIRECTORY
 tree="AmpToolsInputTree_sum"
@@ -170,4 +162,4 @@ mv -f best.fit $my_data_out_dir
 mv -f omegapi_*.fit $my_data_out_dir
 mv -f omegapi.ni $my_data_out_dir
 mv -f vecps_* $my_data_out_dir
-mv -f fit.pdf $my_data_out_dir
+mv -f *.pdf $my_data_out_dir

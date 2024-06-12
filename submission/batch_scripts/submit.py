@@ -3,7 +3,6 @@
 See README for process architecture
 	
 TODO:    
-    ensure this process will be independent of jobs
     edit argparse to not have an ugly "usage" help output`
     mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
@@ -22,7 +21,7 @@ import pwd
 import subprocess
 import time
 
-import write_config_loop
+import write_config
 
 # Constants
 USER = pwd.getpwuid(os.getuid())[0]
@@ -109,7 +108,7 @@ def main(
     orientations_str = "-".join(sorted(orientations))
 
     # Create config file template "fit.cfg" that works for any bin
-    write_config_loop.main(
+    write_config.main(
         waveset,
         phase_reference,
         is_phaselock,
@@ -125,7 +124,8 @@ def main(
         orientations,
     )
 
-    # when True, will always skip asking user input if they want to overwrite files
+    # when set True in the loop, will always skip asking the user if they want to
+    # overwrite files
     is_skip_all = False
 
     # These loops create a job submission for every combination of
@@ -190,6 +190,11 @@ def main(
                                 print("Please answer yes, no, or skip_all")
                         if ans == "no" or ans == "n":
                             continue
+
+                # copy in needed files
+                os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
+                if truth_file:
+                    os.system(f"cp -f {CODE_DIR}{truth_file} {running_dir}")
 
                 # prepare names for batch submission
                 job_name = "_".join(
@@ -429,12 +434,6 @@ def check_positive_float(val) -> float:
     if fl < 0.0:
         raise argparse.ArgumentTypeError(f"{fl} must be >= 0")
     return fl
-
-
-# change argparse to give list of targs and margs. Then make functions for each. If
-# its a linear space list, the last argument cannot be greater than the difference
-# between the 2nd to last and the 1st element. If its not, then the last arg 'always' has to be
-# greater than the 2nd to last (the first point already handles this, but this is a raise check)
 
 
 def make_bins(args: list) -> tuple[float, float]:
