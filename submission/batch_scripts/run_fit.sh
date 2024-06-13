@@ -4,11 +4,11 @@
 echo -e "\nhost: \t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
-rm ./*
+rm ./*.fit 
 
 # get command line arguments with optarg 
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-c] [-R] [-t]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-c] [-R]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
@@ -18,12 +18,11 @@ usage() {
     echo " -D       Data output directory on \volatile"
     echo " -s       directory where data Source files are stored"
     echo " -c       directory where scripts are stored"
-    echo " -R       reaction name of fit"
-    echo " -t       (optional) truth file for thrown MC"
+    echo " -R       reaction name of fit"    
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":orndpDscRh:" opt; do
+while getopts ":o:r:n:d:p:D:s:c:R:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -43,7 +42,7 @@ while getopts ":orndpDscRh:" opt; do
         my_data_version=$OPTARG
     ;;
     p)
-        echo -e "phasespace version: \t\t$OPTARG\n"
+        echo -e "phasespace version: \t$OPTARG\n"
         my_phasespace_version=$OPTARG
     ;;
     D)
@@ -51,7 +50,7 @@ while getopts ":orndpDscRh:" opt; do
         my_data_out_dir=$OPTARG
     ;;
     s)
-        echo -e "source file dir: \t\t$OPTARG\n"
+        echo -e "source file dir: \t$OPTARG\n"
         my_source_file_dir=$OPTARG
     ;;
     c)
@@ -84,7 +83,7 @@ pwd
 # LINK FILES TO THIS RUNNING DIRECTORY AND THE OUTPUT DIRECTORY
 tree="AmpToolsInputTree_sum"
 amp_string="anglesOmegaPiAmplitude"
-ph_string="anglesOmegaPiPhasespace"
+ph_string="anglesOmegaPiPhaseSpace"
 
 # link data files
 for ont in ${my_orientations}; do

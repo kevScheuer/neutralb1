@@ -223,7 +223,6 @@ def main(
                         f" -D {data_out_dir}",
                         f" -c {CODE_DIR}",
                         f" -R {reaction}",
-                        f" -t {truth_file}",
                         "\n",
                     )
                 )
@@ -332,7 +331,7 @@ def create_data_files(
                 # to a specified directory (arg 2)
                 command = (
                     "root -l -b -q"
-                    f" 'copy_tree_with_cuts.C("
+                    f" '{CODE_DIR}copy_tree_with_cuts.C("
                     f'"{gen_src}", "{dir}",'
                     f' "{low_t}", "{high_t}",'
                     f' "{energy_min}", "{energy_max}",'
