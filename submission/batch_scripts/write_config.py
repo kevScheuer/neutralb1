@@ -219,14 +219,20 @@ def write_orientation_loop(
 
     fout.write(f"\n\n{'#'*8} LOOP OVER POLARIZATION STATES {'#'*8}\n")
 
-    for ont in orientations:  # potential for arg that changes these / fixes them
+    fix_string = "fixed"
+    for ont in orientations:
         pol_scales = {
-            "PARA_0": "1.0 fixed",
+            "PARA_0": "1.0",  # potential for arg that changes these values
             "PERP_45": "1.0",
             "PERP_90": "1.0",
             "PARA_135": "1.0",
         }
-        fout.write(f"parameter parScale_{POL_DICT[ont]['angle']} {pol_scales[ont]}\n")
+        fout.write(
+            f"parameter parScale_{POL_DICT[ont]['angle']}"
+            f" {pol_scales[ont]} {fix_string}\n"
+        )
+        if fix_string == "fixed":  # effectively "fixes" the first ont in orientations
+            fix_string = ""
 
     # write necessary starting loops
     reaction_and_angles = ""
