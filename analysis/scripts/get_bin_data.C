@@ -15,12 +15,13 @@ the "Weight" leaf of the Tree.
 #include "TCut.h"
 #include "TH1F.h"
 
-void get_bin_data(std::string t_low = "0.4", std::string t_high = "0.5",
+void get_bin_data(TString file,
+                  std::string t_low = "0.4", std::string t_high = "0.5",
                   std::string E_low = "8.2", std::string E_high = "8.8",
                   std::string m_low = "1.0", std::string m_high = "1.5")
 {
     // get file and tree
-    std::unique_ptr<TFile> f(TFile::Open("submission/source_files/data/All.root"));
+    std::unique_ptr<TFile> f(TFile::Open(file));
     if (!f)
     {
         cout << "File DNE" << "\n";
@@ -54,7 +55,7 @@ void get_bin_data(std::string t_low = "0.4", std::string t_high = "0.5",
 
     // draw histogram with correct bins & cuts, then grab it from pad
     tree->Draw(("M4Pi>>" + h_str).c_str(), selection.c_str());
-    TH1F *h = (TH1F *)gPad->GetPrimitive("h");    
+    TH1F *h = (TH1F *)gPad->GetPrimitive("h");
 
     // loop over the mass bins to get the bin average and rms
     double bin_low = std::stod(mass_range[0]);
@@ -82,10 +83,10 @@ void get_bin_data(std::string t_low = "0.4", std::string t_high = "0.5",
     // write header of bins to csv
     csv << "bin_contents,bin_error,mean,rms\n";
 
-    // write bin contents to csv    
+    // write bin contents to csv
     for (int bin = 1; bin <= h->GetNbinsX(); bin++)
     {
-        csv << h->GetBinContent(bin) << "," << h->GetBinError(bin) << "," << bin_average_vec[bin - 1] << "," << bin_rms_vec[bin - 1] << "\n";        
+        csv << h->GetBinContent(bin) << "," << h->GetBinError(bin) << "," << bin_average_vec[bin - 1] << "," << bin_rms_vec[bin - 1] << "\n";
     }
 
     return;
