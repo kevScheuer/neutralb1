@@ -268,7 +268,7 @@ def create_data_files(
         low_mass_edges (list): values of low mass bin edges
         high_mass_edges (list): values of high mass bin edges
         orientations (list): diamond orientation settings
-        run_period (list): string in file name, e.g. 2017_01, GlueXI
+        run_period (list): string in file name, e.g. 2017_01, allPeriods
         data_ver (str): version string in file name, e.g. data, mc_thrown
         data_dir (str): directory of original data files
         phasespace_ver (str): MC version string in file name, e.g. ver03
@@ -605,8 +605,8 @@ if __name__ == "__main__":
         "-r",
         "--runs",
         nargs="*",
-        default=["GlueXI"],
-        choices=["GlueXI", "2017_01", "2018_01", "2018_08"],
+        default=["allPeriods"],
+        choices=["allPeriods", "2017_01", "2018_01", "2018_08"],
         help="run periods of data/MC to fit",
     )
     parser.add_argument(

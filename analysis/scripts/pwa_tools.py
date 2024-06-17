@@ -21,13 +21,14 @@ class Plotter:
         data_df = pd.read_csv(data_file)
 
         wrap_phases(df)
-        # commonly used variables in all methods
-        _bin_centers = data_df["bin_centers"]
+
+        _bin_centers = data_df["mean"]
+        _bin_centers_err = data_df["rms"]
         _fit_result = df["detected_events"]
         _fit_result_err = df["detected_events_err"]
 
         _coherent_sums = get_coherent_sums(df)
-        phase_differences = get_phase_differences(df, _coherent_sums["eJPmL"])
+        _phase_differences = get_phase_differences(df)
         pass
 
 
@@ -53,8 +54,9 @@ def wrap_phases(
 
     if not series.empty:
         if not df.empty:
-            print("Only dataframe or series should be passed, NOT both. Exiting")
-            return
+            raise ValueError(
+                "Only dataframe or series should be passed, NOT both. Exiting"
+            )
         new_phases = []
         for phase in series:
             if phase < np.pi and phase > -np.pi:
@@ -66,14 +68,9 @@ def wrap_phases(
         return pd.Series(new_phases)
 
     if df.empty:
-        print("Parameters are both empty. Exiting")
-        return
+        raise ValueError("Parameters are both empty. Exiting")
 
-    jp_list = []
-    # find what JP's are present in dataframe
-    for col in df.columns:
-        if len(col) == 2:
-            jp_list.append(col)
+    jp_list = get_coherent_sums(df)["JP"]
 
     for col in df.columns:
         # if column isn't two of the same or different jp's, skip it
@@ -100,38 +97,67 @@ def wrap_phases(
     return
 
 
+def parse_amplitude(amp: str) -> dict:
+    """parse 'eJPmL' style amplitude string into its individual quantum numbers
+
+    Args:
+        amp (str): string like eJPmL, JPmL, JPm, JPL, eJPm, eJPL, eJP, JP
+
+    Returns:
+        dict: keys = quantum numbers (e, J, P, m, l). values = found values from string,
+        or "" if not found
+    """
+    re_dict = {
+        "e": r"(?<![0-9]{1}[pm]{1})(?<!\d)[pm]",
+        "jp": r"[0-9]{1}[pm]{1}",  # j and p always appear together
+        "m": r"([0-9]{1}[pm]{1})+[pm0]",  # assumes always form of 'JPm'
+        "l": r"[SPDF]",
+    }
+
+    result_dict = {"e": "", "j": "", "p": "", "m": "", "l": ""}
+
+    for quantum_number, expression in re_dict.items():
+        search = re.search(expression, amp)
+        if search is not None:
+            # the search actually returns "JPm", so grab the last char if found
+            if quantum_number == "m":
+                result_dict["m"] = search.group()[-1]
+            elif quantum_number == "jp":
+                result_dict["j"] = search.group()[0]
+                result_dict["p"] = search.group()[1]
+            else:
+                result_dict[quantum_number] = search.group()
+
+    return result_dict
+
+
 def get_coherent_sums(df: pd.DataFrame) -> dict:
     """Returns a dict of coherent sums from a fit results dataframe
-
-    TODO: Add handling of more than just eJPml type sums
-        use regex flagging like done in convert_amp_name
 
     Args:
         df (pd.DataFrame): dataframe of fit results loaded from csv
     Returns:
         dict: Is of the form
-        {Coherent sum : [amplitudes]} e.g. {"eJPmL", ["p1p0S", "m1mpP",...]}
+        {Coherent sum : set(amplitudes)} e.g. {"eJPmL", ["p1p0S", "m1mpP",...]}
     """
     # create an empty list for every type of coherent sum
-    jp_values = []
     sum_types = ["eJPmL", "JPmL", "JPm", "JPL", "eJPm", "eJPL", "eJP", "JP"]
-    coherent_sums = {d: [] for d in sum_types}
-
-    # find what JP's are present in dataframe
-    for column in df.columns:
-        if len(column) == 2:
-            jp_values.append(column)
+    coherent_sums = {d: set() for d in sum_types}
 
     # grab all eJPml columns
     for column in df.columns:
-        if not any([x in column for x in jp_values]):
+        # skip the phase difference columns and any status columns
+        if "_" in column or len(column) > 5:
             continue
-        if "err" in column:
-            continue
-        if len(column) == 5:
-            coherent_sums["eJPmL"].append(column)
-        if len(column) == 4 and column[0] == "1":
-            coherent_sums["JPmL"].append(column)
+
+        res = parse_amplitude(column)
+        # only add to key if all elements of key are in the column
+        for key in coherent_sums.keys():
+            split_key = list(key.lower())
+            if True in [res[char] == "" for char in split_key]:
+                continue
+            coh_sum = "".join([res[char] for char in split_key])
+            coherent_sums[key].add(coh_sum)
 
     return coherent_sums
 
@@ -142,8 +168,8 @@ def convert_amp_name(amp: str) -> str:
     Args:
         amp (str): amplitude string in eJPmL format
     Returns:
-        str: Prettier LaTeX style amplitude in J^P L_m^(e) format. If phase difference
-            is then J^P L_m^(e) - J^P L_m^(e)
+        str: Prettier LaTeX style amplitude in J^P L_m^(e) format. If it's a phase
+            difference it's then J^P L_m^(e) - J^P L_m^(e)
     """
 
     pm_dict = {"m": "-", "p": "+", "": ""}
@@ -175,34 +201,19 @@ def convert_amp_name(amp: str) -> str:
         )
 
     # CASE 2: typical amplitude coherent sum
-    amp_dict = {
-        "e": r"(?<![0-9]{1}[pm]{1})(?<!\d)[pm]",
-        "jp": r"[0-9]{1}[pm]{1}",
-        "m": r"([0-9]{1}[pm]{1})+[pm0]",  # assumes always form of 'JPm'
-        "l": r"[SPDF]",
-    }
-
-    for quantum_number, expression in amp_dict.items():
-        search = re.search(expression, amp)
-        if search is not None:
-            if quantum_number == "m":  # the search actually returns JPm
-                amp_dict[quantum_number] = search.group()[-1]
-            else:
-                amp_dict[quantum_number] = search.group()
-        else:
-            amp_dict[quantum_number] = ""
+    amp_dict = parse_amplitude(amp)
 
     # set each quantum number to its found value. If not found, denote it with a sum
     e = r"\Sigma\varepsilon" if amp_dict["e"] == "" else pm_dict[amp_dict["e"]]
-    j = r"\Sigma J" if amp_dict["jp"] == "" else amp_dict["jp"][0]
-    p = "" if amp_dict["jp"] == "" else pm_dict[amp_dict["jp"][1]]
+    j = r"\Sigma J" if amp_dict["j"] == "" else amp_dict["j"]
+    p = "" if amp_dict["p"] == "" else pm_dict[amp_dict["p"]]
     m = r"\Sigma m" if amp_dict["m"] == "" else m_proj_dict[amp_dict["m"]]
     l = r"\Sigma \ell" if amp_dict["l"] == "" else amp_dict["l"]
 
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
 
 
-def get_phase_differences(df: pd.DataFrame, eJPmL_cols: list) -> dict:
+def get_phase_differences(df: pd.DataFrame) -> dict:
     """Returns dict of all the phase difference columns in the dataframe
 
     The keys are specifically like (eJPmL_1, eJPmL_2), and there is no way to
@@ -215,11 +226,8 @@ def get_phase_differences(df: pd.DataFrame, eJPmL_cols: list) -> dict:
     reflectivities, but its kept generalized for potential future cases of using
     intensities that mix reflectivities
 
-    TODO: Implement the needed regex matching to find the eJPmL columns within this func
-
     Args:
         df (pd.DataFrame): dataframe of fit results loaded from csv
-        eJPmL_cols (list): all columns of coherent sum type eJPmL
     Returns:
         dict: dictionary where value is the phase difference column name in the df, and
         corresponding key is the sorted list of the 2 amplitudes in the phase difference
@@ -228,14 +236,14 @@ def get_phase_differences(df: pd.DataFrame, eJPmL_cols: list) -> dict:
 
     # get all possible combinations of eJPmL columns, and remove those that
     #   don't exist in the dataframe
-    all_combos = list(itertools.combinations(eJPmL_cols, 2))
-    phase_dif_columns = df.columns.values.tolist()
+    all_combos = list(itertools.combinations(get_coherent_sums(df)["eJPmL"], 2))
+    columns = df.columns.values.tolist()
     for combo in all_combos:
         name = "_".join(combo)
         reverse_name = "_".join(reversed(combo))
-        if name in phase_dif_columns:
+        if name in columns:
             phase_differences[tuple(sorted(combo))] = name
-        if reverse_name in phase_dif_columns:
+        if reverse_name in columns:
             phase_differences[tuple(sorted(combo))] = reverse_name
 
     return phase_differences

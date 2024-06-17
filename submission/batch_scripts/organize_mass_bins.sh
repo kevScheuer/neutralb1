@@ -6,7 +6,7 @@
 # this file will be deprecated if fitsToCsv becomes python and handles directories
 # better
 
-fit_dir="/lustre19/expphy/volatile/halld/home/kscheuer/ampToolsFits/omegapi/GlueXI/PARA_0-PARA_135-PERP_45-PERP_90/data/ver03/1m_1p_iso/"
+fit_dir="/lustre19/expphy/volatile/halld/home/kscheuer/ampToolsFits/omegapi/allPeriods/PARA_0-PARA_135-PERP_45-PERP_90/data/ver03/1m_1p_iso/"
 mass_bin="mass_1.200-1.250"
 
 for t_dir in ${fit_dir}t*/; do

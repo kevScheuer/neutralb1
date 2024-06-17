@@ -20,7 +20,7 @@ void plot_prod_angle() {
     gStyle->SetOptStat(0);    
 
     TString parent_dir = "/lustre19/expphy/volatile/halld/home/kscheuer/ampToolsFits/"
-    "omegapi/GlueXI/PARA_0-PARA_135-PERP_45-PERP_90/data/ver03/1m_1p_iso/";
+    "omegapi/allPeriods/PARA_0-PARA_135-PERP_45-PERP_90/data/ver03/1m_1p_iso/";
     
     TFile *t1 = TFile::Open(parent_dir+"t_0.10-0.20/mass_1.200-1.250/vecps_plot.root");
     TFile *t2 = TFile::Open(parent_dir+"t_0.20-0.30/mass_1.200-1.250/vecps_plot.root");

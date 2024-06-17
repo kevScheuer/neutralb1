@@ -6,8 +6,6 @@ diagnostic purposes, to check that the grey "Fit Result" reasonably matches the 
 data points. Each total J^P contribution is also plotted, to observe any interference
 effects those waves create.
 
-TODO: separate the 1D plots into their own function, and make a separate function for
-    the 2D plots I want to make
 */
 
 #include <iostream>

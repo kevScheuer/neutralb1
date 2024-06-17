@@ -35,6 +35,8 @@ void copy_tree_with_cuts(TString file, TString target_dir,
 
     TString selection = t_cut + " && " + E_cut + " && " + m_cut;
 
+    // TODO: optional proton pi0 mass cut here
+
     TTree *T2 = T->CopyTree(selection.Data());
 
     T2->Write();

@@ -7,7 +7,6 @@ it, and writes the necessary AmpTools cfg file lines to fit using that waveset
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
 TODO:     
-    change this module's name and its output to 'fit.cfg' to match ambiguities
     Make refl_dict a constant and handle appropriately in each function
     Have phaselock function handle dominant eJPmL arg
 """
