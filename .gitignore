@@ -1,6 +1,7 @@
 # data and changing config files
 **/*.root
 **/*.csv
+*.txt
 gen_signal.cfg
 fit.cfg
 bin_template.cfg
