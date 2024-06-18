@@ -51,8 +51,9 @@ class Plotter:
             "3m": {"color": colors[6], "marker": "d"},
         }
 
+        fig, ax = plt.subplots()
         # plot data
-        plt.errorbar(
+        ax.errorbar(
             self._mass_bins,
             self.data_df["bin_contents"],
             self.data_df["bin_error"],
@@ -63,7 +64,7 @@ class Plotter:
         )
 
         # Plot Fit Result
-        plt.bar(
+        ax.bar(
             self._mass_bins,
             self._fit_result,
             width=self._bin_width,
@@ -71,7 +72,7 @@ class Plotter:
             alpha=0.15,
             label="Fit Result",
         )
-        plt.errorbar(
+        ax.errorbar(
             self._mass_bins,
             self._fit_result,
             self._fit_result_err,
@@ -82,23 +83,68 @@ class Plotter:
         )
         # plot each jp contribution
         for jp in self._coherent_sums["JP"]:
-            plt.errorbar(
+            ax.errorbar(
                 self._mass_bins,
                 self.df[jp],
                 self.df[f"{jp}_err"],
                 self._bin_width / 2,
                 label=convert_amp_name(jp),
-                color=jp_map[jp]["color"],
-                marker=jp_map[jp]["marker"],
                 markersize=4,
                 linestyle="",
+                **jp_map[jp],
             )
 
-        plt.xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=14)
-        plt.ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=14)
-        plt.ylim(bottom=0.0)
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
+        ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=18)
+        ax.set_ylim(bottom=0.0)
 
-        plt.legend(fontsize=10)
+        ax.legend(fontsize=10)
+
+        ax.grid(True, alpha=0.8)
+
+        plt.show()
+        pass
+
+    def phase(self, amp1: str, amp2: str) -> None:
+
+        # first check that the amplitudes actually exist in the dataframe
+        if amp1 not in self._coherent_sums["eJPmL"]:
+            raise ValueError(f"Amplitude {amp1} not found in dataset")
+        if amp2 not in self._coherent_sums["eJPmL"]:
+            raise ValueError(f"Amplitude {amp2} not found in dataset")
+
+        phase_dif = self._phase_differences[(amp1, amp2)]
+        color = "red" if amp1[0] == "p" else "blue"
+
+        fig, ax = plt.subplots()
+        ax.errorbar(
+            self._mass_bins,
+            self.df[phase_dif].apply(np.rad2deg),
+            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self._bin_width / 2,
+            label=convert_amp_name(phase_dif),
+            linestyle="",
+            marker=".",
+            color=color,
+        )
+        # plot the negative as well (natural sign ambiguity in the model)
+        ax.errorbar(
+            self._mass_bins,
+            -self.df[phase_dif].apply(np.rad2deg),
+            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self._bin_width / 2,
+            linestyle="",
+            marker=".",
+            color=color,
+        )
+
+        ax.legend(fontsize=10)
+
+        ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
+        ax.set_ylim([-180, 180])
+        ax.set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="top", fontsize=18)
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
+        ax.grid(True, alpha=0.8)
 
         plt.show()
         pass
@@ -290,9 +336,8 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
 
     The keys are specifically like (eJPmL_1, eJPmL_2), and there is no way to
     know how those will be ordered in the dataframe a priori. We avoid this by
-    using sorted tuple keys, so that when accessing the values of those keys
-    there is no concern about the ordering of the tuple so long as its accessed
-    like "dict.get(tuple(sorted(key)))".
+    creating keys for either ordering and setting both of their values to the order
+    found in the dataframe.
 
     This function could be sped up by ignoring phase differences from separate
     reflectivities, but its kept generalized for potential future cases of using
@@ -301,8 +346,8 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
     Args:
         df (pd.DataFrame): dataframe of fit results loaded from csv
     Returns:
-        dict: dictionary where value is the phase difference column name in the df, and
-        corresponding key is the sorted list of the 2 amplitudes in the phase difference
+        dict: key = tuple of both possible combinations of each amplitude, val = the
+            phase difference combination found in the dataframe
     """
     phase_differences = {}
 
@@ -313,9 +358,12 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
     for combo in all_combos:
         name = "_".join(combo)
         reverse_name = "_".join(reversed(combo))
+
         if name in columns:
-            phase_differences[tuple(sorted(combo))] = name
+            phase_differences[combo] = name
+            phase_differences[tuple(reversed(combo))] = name
         if reverse_name in columns:
-            phase_differences[tuple(sorted(combo))] = reverse_name
+            phase_differences[combo] = reverse_name
+            phase_differences[tuple(reversed(combo))] = reverse_name
 
     return phase_differences
