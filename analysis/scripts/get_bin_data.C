@@ -1,7 +1,7 @@
 /*Output bin content of data to a csv file
 
 This circumvents the need to edit the data reader of vecps_plotter to handle
-the mass binning. This file insteads reads the AmpTools Tree, and makes the same TEM
+the mass binning. This file instead reads the AmpTools Tree, and makes the same TEM
 cuts I used (set in the script). I then bin it to match the fit bins, and weight using
 the "Weight" leaf of the Tree.
 */
@@ -15,7 +15,7 @@ the "Weight" leaf of the Tree.
 #include "TCut.h"
 #include "TH1F.h"
 
-void get_bin_data(TString file,
+void get_bin_data(TString file, double bin_width,
                   std::string t_low = "0.4", std::string t_high = "0.5",
                   std::string E_low = "8.2", std::string E_high = "8.8",
                   std::string m_low = "1.0", std::string m_high = "1.5")
@@ -43,7 +43,6 @@ void get_bin_data(TString file,
 
     // setup mass bin details
     std::string mass_range[2] = {m_low, m_high};
-    double bin_width = 0.02;
     int n_bins = (std::stod(mass_range[1]) -
                   std::stod(mass_range[0])) /
                  bin_width;
@@ -81,12 +80,12 @@ void get_bin_data(TString file,
     csv.open(f_name);
 
     // write header of bins to csv
-    csv << "bin_contents,bin_error,mean,rms\n";
+    csv << "low_edge,high_edge,bin_contents,bin_error,mean,rms\n";
 
     // write bin contents to csv
     for (int bin = 1; bin <= h->GetNbinsX(); bin++)
     {
-        csv << h->GetBinContent(bin) << "," << h->GetBinError(bin) << "," << bin_average_vec[bin - 1] << "," << bin_rms_vec[bin - 1] << "\n";
+        csv << h->GetBinLowEdge(bin) << "," << h->GetBinLowEdge(bin) + h->GetBinWidth(bin) << "," << h->GetBinContent(bin) << "," << h->GetBinError(bin) << "," << bin_average_vec[bin - 1] << "," << bin_rms_vec[bin - 1] << "\n";
     }
 
     return;

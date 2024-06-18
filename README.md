@@ -9,3 +9,23 @@ To create the environment and activate it, run:
 conda env create --file environment.yml
 conda activate neutralb1
 ```
+
+You will also need to load the load the AmpTools libraries on ROOT startup. This is done with 2 files placed in your home directory. The first is a `.rootrc` file:
+```
+Proof.MaxOldSessions 500
+ProofLite.Sandbox /YOUR_WORK_DIRECTORY/proof/
+Unix.*.Root.MacroPath:   .:$(AMPTOOLS):$(AMPTOOLS)/ROOT:
+Rint.Logon: ~/rootlogon.C
+```
+
+The second is the `rootlogon.C` script mentioned above:
+```
+{
+  printf("Load AmpTools Classes");
+  // below line needs macropath edited in .rootrc file
+  gROOT->ProcessLine(".x loadAmpTools.C");
+
+  if(getenv("ROOT_ANALYSIS_HOME"))       
+  	gROOT->ProcessLine(".x $(ROOT_ANALYSIS_HOME)/programs/MakePROOFPackage/SETUP.C");
+}
+```

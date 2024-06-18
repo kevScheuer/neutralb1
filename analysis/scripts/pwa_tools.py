@@ -1,9 +1,13 @@
 """Collection of tools useful for analyzing PWA fit results
+
+NOTE: Remember to use red=pos refl, blue=neg refl standard now
 """
 
 import itertools
 import re
 
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -17,18 +21,86 @@ class Plotter:
             fit_file (str): path to csv that holds all FitResults, made by fitsToCsv.C
             data_file (str): path to csv describing the raw data that is being fit to
         """
-        df = pd.read_csv(fit_file, index_col="index")
-        data_df = pd.read_csv(data_file)
+        self.df = pd.read_csv(fit_file, index_col="index")
+        self.data_df = pd.read_csv(data_file)
 
-        wrap_phases(df)
+        wrap_phases(self.df)
 
-        _bin_centers = data_df["mean"]
-        _bin_centers_err = data_df["rms"]
-        _fit_result = df["detected_events"]
-        _fit_result_err = df["detected_events_err"]
+        self._mass_bins = self.data_df["mean"]
+        self._mass_bins_err = self.data_df["rms"]
+        self._fit_result = self.df["detected_events"]
+        self._fit_result_err = self.df["detected_events_err"]
+        self._bin_width = (self.data_df["high_edge"] - self.data_df["low_edge"])[0]
 
-        _coherent_sums = get_coherent_sums(df)
-        _phase_differences = get_phase_differences(df)
+        self._coherent_sums = get_coherent_sums(self.df)
+        self._phase_differences = get_phase_differences(self.df)
+        pass
+
+    def jp(self) -> None:
+        """Plot each JP contribution to the total intensity"""
+
+        # a map ensures consistency no matter the # of jps
+        colors = matplotlib.colormaps["Dark2"].colors
+        jp_map = {
+            "0m": {"color": colors[0], "marker": "."},
+            "1p": {"color": colors[1], "marker": "o"},
+            "1m": {"color": colors[2], "marker": "s"},
+            "2p": {"color": colors[3], "marker": "p"},
+            "2m": {"color": colors[4], "marker": "h"},
+            "3p": {"color": colors[5], "marker": "x"},
+            "3m": {"color": colors[6], "marker": "d"},
+        }
+
+        # plot data
+        plt.errorbar(
+            self._mass_bins,
+            self.data_df["bin_contents"],
+            self.data_df["bin_error"],
+            self._mass_bins_err,
+            "k.",
+            label="Total (GlueX Phase-I)",
+            markersize=4,
+        )
+
+        # Plot Fit Result
+        plt.bar(
+            self._mass_bins,
+            self._fit_result,
+            width=self._bin_width,
+            color="0.1",
+            alpha=0.15,
+            label="Fit Result",
+        )
+        plt.errorbar(
+            self._mass_bins,
+            self._fit_result,
+            self._fit_result_err,
+            fmt=",",
+            color="0.1",
+            alpha=0.2,
+            markersize=0,
+        )
+        # plot each jp contribution
+        for jp in self._coherent_sums["JP"]:
+            plt.errorbar(
+                self._mass_bins,
+                self.df[jp],
+                self.df[f"{jp}_err"],
+                self._bin_width / 2,
+                label=convert_amp_name(jp),
+                color=jp_map[jp]["color"],
+                marker=jp_map[jp]["marker"],
+                markersize=4,
+                linestyle="",
+            )
+
+        plt.xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=14)
+        plt.ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=14)
+        plt.ylim(bottom=0.0)
+
+        plt.legend(fontsize=10)
+
+        plt.show()
         pass
 
 
@@ -159,7 +231,7 @@ def get_coherent_sums(df: pd.DataFrame) -> dict:
             coh_sum = "".join([res[char] for char in split_key])
             coherent_sums[key].add(coh_sum)
 
-    return coherent_sums
+    return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
 
 
 def convert_amp_name(amp: str) -> str:
