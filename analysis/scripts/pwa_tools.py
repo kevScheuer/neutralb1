@@ -28,8 +28,6 @@ class Plotter:
 
         self._mass_bins = self.data_df["mean"]
         self._mass_bins_err = self.data_df["rms"]
-        self._fit_result = self.df["detected_events"]
-        self._fit_result_err = self.df["detected_events_err"]
         self._bin_width = (self.data_df["high_edge"] - self.data_df["low_edge"])[0]
 
         self._coherent_sums = get_coherent_sums(self.df)
@@ -66,7 +64,7 @@ class Plotter:
         # Plot Fit Result
         ax.bar(
             self._mass_bins,
-            self._fit_result,
+            self.df["detected_events"],
             width=self._bin_width,
             color="0.1",
             alpha=0.15,
@@ -74,8 +72,8 @@ class Plotter:
         )
         ax.errorbar(
             self._mass_bins,
-            self._fit_result,
-            self._fit_result_err,
+            self.df["detected_events"],
+            self.df["detected_events_err"],
             fmt=",",
             color="0.1",
             alpha=0.2,
@@ -148,6 +146,9 @@ class Plotter:
 
         plt.show()
         pass
+
+    # TODO: add plot intensities method, but think about Jo's comment about the total
+    #   data looking weird with it. Maybe remove data points all together?
 
 
 def wrap_phases(

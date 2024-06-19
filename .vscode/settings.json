@@ -1,6 +1,6 @@
 {
     "python.analysis.extraPaths":[
-      "${workspaceFolder}/submission/batch_scripts/"
+      "${workspaceFolder}"
     ],
     "[python]": {
       "editor.insertSpaces": true,
