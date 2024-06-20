@@ -2,8 +2,7 @@
 
 See README for process architecture
 	
-TODO:    
-    edit argparse to not have an ugly "usage" help output`
+TODO:        
     mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
@@ -56,6 +55,7 @@ def main(
     n_gpus: int,
     gpu_type: str,
     is_send_mail: bool,
+    time_limit: str,
 ):
     """Main function. Run file with "--help" to understand variable usage"""
 
@@ -234,6 +234,7 @@ def main(
                     gpu_type,
                     n_gpus,
                     is_send_mail,
+                    time_limit,
                 )
 
     return
@@ -365,7 +366,7 @@ def submit_slurm_job(
     gpu_type: str,
     n_gpus: int,
     is_send_mail: bool,
-    time_limit: str = "0:30:00",
+    time_limit: str,
     mem_per_cpu: str = "5000M",
     n_cpus: int = 32,
 ) -> None:
@@ -699,6 +700,12 @@ if __name__ == "__main__":
             "USER@jlab.org"
         ),
     )
+    parser.add_argument(
+        "--time_limit",
+        type=str,
+        default="00:30:00",
+        help=("Max walltime for each slurm job. Default assumes quick jobs (30 mins)"),
+    )
 
     args = parser.parse_args()
 
@@ -725,6 +732,7 @@ if __name__ == "__main__":
     template_name = args.template_name
     n_gpus, gpu_type = int(args.gpu[0]), args.gpu[1]
     is_send_mail = args.mail
+    time_limit = args.time_limit
 
     main(
         waveset,
@@ -753,4 +761,5 @@ if __name__ == "__main__":
         n_gpus,
         gpu_type,
         is_send_mail,
+        time_limit,
     )

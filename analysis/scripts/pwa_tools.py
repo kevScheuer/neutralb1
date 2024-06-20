@@ -14,6 +14,7 @@ import pandas as pd
 
 class Plotter:
     # TODO: finish importing all the class methods
+    # TODO: add kwargs in init for figsize, dpi, and fontsizes (legend, axes, etc)
     def __init__(self, fit_file: str, data_file: str) -> None:
         """Initialize object with paths to csv files
 
@@ -35,7 +36,7 @@ class Plotter:
         pass
 
     def jp(self) -> None:
-        """Plot each JP contribution to the total intensity"""
+        """Plot each JP contribution to the total intensity as a function of mass"""
 
         # a map ensures consistency no matter the # of jps
         colors = matplotlib.colormaps["Dark2"].colors
@@ -103,7 +104,41 @@ class Plotter:
         plt.show()
         pass
 
+    def intensities(self) -> None:
+
+        m_projections = {m for m in self._coherent_sums["JPm"][-1]}
+
+        fig, axs = plt.subplots(
+            len(m_projections),
+            len(self._coherent_sums("JPL")),
+            sharex=True,
+            sharey=True,
+        )
+
+        # to make sure the right amplitudes are being plotted, make a grid where cols =
+        # m-projections and rows = JPL values. Each point on the grid is the JPmL string
+        JPmL_grid = np.empty(
+            shape=(len(self._coherent_sums("JPL")), len(m_projections)), dtype="<U10"
+        )
+        # TODO: the way its done locally is not generalized very well, it assumes the L
+        # uniquely defines the JP. Need to come up with something new to make sure L and
+        # m's are sorted
+
+        pass
+
     def phase(self, amp1: str, amp2: str) -> None:
+        """Plots the phase difference as a function of mass
+
+        Order of amplitudes does not matter
+
+        Args:
+            amp1 (str): amplitude string in eJPmL format
+            amp2 (str): amplitude string in eJPmL format
+
+        Raises:
+            ValueError: amp1 is not in the dataframe
+            ValueError: amp2 is not in the dataframe
+        """
 
         # first check that the amplitudes actually exist in the dataframe
         if amp1 not in self._coherent_sums["eJPmL"]:
