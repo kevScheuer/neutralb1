@@ -106,24 +106,77 @@ class Plotter:
 
     def intensities(self) -> None:
 
-        m_projections = {m for m in self._coherent_sums["JPm"][-1]}
+        char_to_int = {"m": -1, "0": 0, "p": +1, "S": 0, "P": 1, "D": 2, "F": 3}
+        int_to_char = {-1: "m", 0: "0", +1: "p"}
+        pm_dict = {"m": "-", "p": "+"}
+
+        # need to sort on the integer versions of the m-projections
+        m_ints = sorted({char_to_int[JPm[-1]] for JPm in self._coherent_sums["JPm"]})
 
         fig, axs = plt.subplots(
-            len(m_projections),
-            len(self._coherent_sums("JPL")),
+            len(m_ints),
+            len(self._coherent_sums["JPL"]),
             sharex=True,
             sharey=True,
+            figsize=(15, 10),
+            dpi=100,
         )
 
-        # to make sure the right amplitudes are being plotted, make a grid where cols =
-        # m-projections and rows = JPL values. Each point on the grid is the JPmL string
-        JPmL_grid = np.empty(
-            shape=(len(self._coherent_sums("JPL")), len(m_projections)), dtype="<U10"
-        )
-        # TODO: the way its done locally is not generalized very well, it assumes the L
-        # uniquely defines the JP. Need to come up with something new to make sure L and
-        # m's are sorted
+        # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
+        for row, jpl in enumerate(
+            sorted(self._coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]])
+        ):
+            for col, m in enumerate(m_ints):
+                JPmL = f"{jpl[0:2]}{int_to_char[m]}{jpl[-1]}"
 
+                if row == 0:
+                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}", fontsize=16)
+                if col == 0:
+                    axs[row, col].set_ylabel(
+                        rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$",
+                        fontsize=16,
+                    )
+
+                if "m" + JPmL in self._coherent_sums["eJPmL"]:
+                    neg_plot = axs[row, col].errorbar(
+                        self._mass_bins,
+                        self.df["m" + JPmL],
+                        self.df[f"m{JPmL}_err"],
+                        self._bin_width / 2,
+                        "o",
+                        color="blue",
+                        markersize=2,
+                        label=r"$\epsilon=-1$",
+                    )
+                if "p" + JPmL in self._coherent_sums["eJPmL"]:
+                    pos_plot = axs[row, col].errorbar(
+                        self._mass_bins,
+                        self.df["p" + JPmL],
+                        self.df[f"p{JPmL}_err"],
+                        self._bin_width / 2,
+                        "o",
+                        color="red",
+                        markersize=2,
+                        label=r"$\epsilon=+1$",
+                    )
+
+        # plot grids
+        for ax in axs.reshape(-1):
+            ax.grid(True, alpha=0.8)
+            ax.set_ylim(bottom=0)
+
+            # figure cosmetics
+        fig.text(0.5, 0.04, r"$\omega\pi^0$ inv. mass (GeV)", ha="center", fontsize=18)
+        fig.text(
+            0.04,
+            0.5,
+            f"Events / {self._bin_width:.3f} GeV",
+            ha="center",
+            fontsize=18,
+            rotation="vertical",
+        )
+        fig.legend(handles=[pos_plot, neg_plot], fontsize=18, loc="upper right")
+        plt.show()
         pass
 
     def phase(self, amp1: str, amp2: str) -> None:
