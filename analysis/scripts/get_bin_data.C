@@ -15,7 +15,7 @@ the "Weight" leaf of the Tree.
 #include "TCut.h"
 #include "TH1F.h"
 
-void get_bin_data(TString file, double bin_width,
+void get_bin_data(TString file, double bin_width, std::string f_name = "",
                   std::string t_low = "0.4", std::string t_high = "0.5",
                   std::string E_low = "8.2", std::string E_high = "8.8",
                   std::string m_low = "1.0", std::string m_high = "1.5")
@@ -74,9 +74,12 @@ void get_bin_data(TString file, double bin_width,
 
     // create csv file
     ofstream csv;
-    std::string f_name = "bin_data_t_" + t_range[0] + "-" + t_range[1] + "_" +
-                         "m_" + mass_range[0] + "-" + mass_range[1] + "-" +
-                         std::to_string(bin_width) + ".csv";
+    if (f_name == "")
+    {
+        std::string f_name = "bin_data_t_" + t_range[0] + "-" + t_range[1] + "_" +
+                             "m_" + mass_range[0] + "-" + mass_range[1] + "-" +
+                             std::to_string(bin_width) + ".csv";
+    }
     csv.open(f_name);
 
     // write header of bins to csv

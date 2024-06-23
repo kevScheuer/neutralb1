@@ -15,15 +15,16 @@ import pandas as pd
 class Plotter:
     # TODO: finish importing all the class methods
     # TODO: add kwargs in init for figsize, dpi, and fontsizes (legend, axes, etc)
-    def __init__(self, fit_file: str, data_file: str) -> None:
+    # TODO: Add methods for plotting cross section results
+    def __init__(self, df: pd.DataFrame, data_df: pd.DataFrame) -> None:
         """Initialize object with paths to csv files
 
         Args:
-            fit_file (str): path to csv that holds all FitResults, made by fitsToCsv.C
-            data_file (str): path to csv describing the raw data that is being fit to
+            df (pd.DataFrame): dataframe that holds all FitResults, made by fitsToCsv.C
+            data_df (pd.DataFrame): dataframe of the raw data that is being fit to
         """
-        self.df = pd.read_csv(fit_file, index_col="index")
-        self.data_df = pd.read_csv(data_file)
+        self.df = df
+        self.data_df = data_df
 
         wrap_phases(self.df)
 
@@ -104,7 +105,18 @@ class Plotter:
         plt.show()
         pass
 
-    def intensities(self) -> None:
+    def intensities(self, is_fit_fraction: bool = False) -> None:
+        """Plot all the amplitude intensities in a grid format
+
+        Since the matrix plot is generally too small to see bin to bin features, this
+        method plots every amplitude's intensity contribution in a grid format.
+        Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
+        together on each subplot
+
+        Args:
+            is_fit_fraction (bool, optional): Scales all values by dividing them by the
+                total intensity in each bin. Defaults to False.
+        """
 
         char_to_int = {"m": -1, "0": 0, "p": +1, "S": 0, "P": 1, "D": 2, "F": 3}
         int_to_char = {-1: "m", 0: "0", +1: "p"}
@@ -122,6 +134,9 @@ class Plotter:
             dpi=100,
         )
 
+        total = self.data_df["bin_contents"] if is_fit_fraction else 1
+        total_err = self.data_df["bin_error"] if is_fit_fraction else 0
+
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(
             sorted(self._coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]])
@@ -138,10 +153,16 @@ class Plotter:
                     )
 
                 if "m" + JPmL in self._coherent_sums["eJPmL"]:
+                    neg_refl = self.df["m" + JPmL] / total
+                    neg_refl_err = neg_refl * np.sqrt(
+                        np.square(self.df[f"m{JPmL}_err"] / self.df["m" + JPmL])
+                        + np.square(total_err / total)
+                    )
+
                     neg_plot = axs[row, col].errorbar(
                         self._mass_bins,
-                        self.df["m" + JPmL],
-                        self.df[f"m{JPmL}_err"],
+                        neg_refl,
+                        neg_refl_err,
                         self._bin_width / 2,
                         "o",
                         color="blue",
@@ -149,10 +170,16 @@ class Plotter:
                         label=r"$\epsilon=-1$",
                     )
                 if "p" + JPmL in self._coherent_sums["eJPmL"]:
+                    pos_refl = self.df["p" + JPmL] / total
+                    pos_refl_err = pos_refl * np.sqrt(
+                        np.square(self.df[f"p{JPmL}_err"] / self.df["p" + JPmL])
+                        + np.square(total_err / total)
+                    )
+
                     pos_plot = axs[row, col].errorbar(
                         self._mass_bins,
-                        self.df["p" + JPmL],
-                        self.df[f"p{JPmL}_err"],
+                        pos_refl,
+                        pos_refl_err,
                         self._bin_width / 2,
                         "o",
                         color="red",
@@ -189,8 +216,8 @@ class Plotter:
             amp2 (str): amplitude string in eJPmL format
 
         Raises:
-            ValueError: amp1 is not in the dataframe
-            ValueError: amp2 is not in the dataframe
+            ValueError: amp1 or amp2 is not in the dataframe
+            ValueError: amplitudes are not from the same reflectivity
         """
 
         # first check that the amplitudes actually exist in the dataframe
@@ -198,6 +225,8 @@ class Plotter:
             raise ValueError(f"Amplitude {amp1} not found in dataset")
         if amp2 not in self._coherent_sums["eJPmL"]:
             raise ValueError(f"Amplitude {amp2} not found in dataset")
+        if amp1[0] != amp2[0]:
+            raise ValueError(f"Amplitudes must be from same reflectivity")
 
         phase_dif = self._phase_differences[(amp1, amp2)]
         color = "red" if amp1[0] == "p" else "blue"
@@ -235,8 +264,99 @@ class Plotter:
         plt.show()
         pass
 
-    # TODO: add plot intensities method, but think about Jo's comment about the total
-    #   data looking weird with it. Maybe remove data points all together?
+    def mass_phase(self, amp1: str, amp2: str) -> None:
+        """Plot the amplitude intensities with their phase difference together
+
+        Args:
+            amp1 (str): amplitude string in eJPmL format
+            amp2 (str): amplitude string in eJPmL format
+
+        Raises:
+            ValueError: amp1 or amp2 is not in the dataframe
+            ValueError: amplitudes are not from the same reflectivity
+        """
+
+        # first check that the amplitudes actually exist in the dataframe
+        if amp1 not in self._coherent_sums["eJPmL"]:
+            raise ValueError(f"Amplitude {amp1} not found in dataset")
+        if amp2 not in self._coherent_sums["eJPmL"]:
+            raise ValueError(f"Amplitude {amp2} not found in dataset")
+        if amp1[0] != amp2[0]:
+            raise ValueError(f"Amplitudes must be from same reflectivity")
+
+        # setup colors for phase and intensity plot
+        if amp1[0] == "p":
+            phase_color = "red"
+            color1 = "lightcoral"
+            color2 = "orangered"
+        else:
+            phase_color = "blue"
+            color1 = "darkturquoise"
+            color2 = "darkblue"
+
+        fig, axs = plt.subplots(
+            2,
+            1,
+            sharex=True,
+            gridspec_kw={"wspace": 0.0, "hspace": 0.07},
+            height_ratios=[3, 1],
+        )
+
+        axs[0].errorbar(
+            self._mass_bins,
+            self.df[amp1],
+            self.df[f"{amp1}_err"],
+            self._bin_width / 2,
+            "o",
+            color=color1,
+            label=convert_amp_name(amp1),
+        )
+        axs[0].errorbar(
+            self._mass_bins,
+            self.df[amp2],
+            self.df[f"{amp2}_err"],
+            self._bin_width / 2,
+            "s",
+            color=color2,
+            label=convert_amp_name(amp2),
+        )
+
+        phase_dif = self._phase_differences[(amp1, amp2)]
+        axs[1].errorbar(
+            self._mass_bins,
+            self.df[phase_dif].apply(np.rad2deg),
+            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self._bin_width / 2,
+            linestyle="",
+            marker=".",
+            color=phase_color,
+        )
+        axs[1].errorbar(
+            self._mass_bins,
+            -self.df[phase_dif].apply(np.rad2deg),
+            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self._bin_width / 2,
+            linestyle="",
+            marker=".",
+            color=phase_color,
+        )
+
+        # cosmetics
+        for ax in axs.reshape(-1):
+            ax.grid(True, alpha=0.8)
+
+        axs[0].set_ylim(bottom=0.0)
+        axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=12)
+
+        axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
+        axs[1].set_ylim([-180, 180])
+        axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center", fontsize=12)
+        axs[1].set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
+
+        fig.legend(fontsize=14, loc="upper right")
+
+        plt.show()
+        pass
 
 
 def wrap_phases(
