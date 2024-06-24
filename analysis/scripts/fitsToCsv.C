@@ -521,7 +521,7 @@ string ConvertFullAmplitudeName(string full_amp)
 
 // Write values from maps to csv file.
 // NOTE: NaNs are currently treated as 0's to avoid issues when reading into
-// ROOT Tree. Amplitudes give their "generated" intensity when "false" is passed to 
+// ROOT Tree. Amplitudes give their "detected" intensity when "false" is passed to 
 // results.intensity()
 void WriteValueToCsv(ofstream &csv_file, FitResults &results,
                      std::map<string, vector<string>> &mapCohSum)

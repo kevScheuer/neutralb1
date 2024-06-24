@@ -45,7 +45,7 @@ def main():
         }
     )
 
-    new_df.to_csv("GlueX_results")
+    new_df.to_csv("GlueX_results.csv")
 
     # plot coherent sum of negative refl m-projections
     plt.errorbar(
@@ -78,7 +78,6 @@ def main():
     plt.savefig(
         f"cross_section_theory_comparison.pdf", format="pdf", bbox_inches="tight"
     )
-    plt.show()
 
     return
 

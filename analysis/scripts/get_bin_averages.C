@@ -19,7 +19,7 @@ void get_bin_averages(TString file_name) {
     // setup details of selection
     std::vector<std::string> t_bins = {"0.1", "0.2", "0.3", "0.5", "0.9"};        
     std::string E_range[2]    = {"8.2", "8.8"};
-    std::string mass_range[2] = {"1.20", "1.25"};    
+    std::string mass_range[2] = {"1.22", "1.24"};    
 
     std::string E_cut = "E_Beam>"+E_range[0] + " && E_Beam<"+E_range[1];
     std::string m_cut = "M4Pi>"+mass_range[0] + " && M4Pi<"+mass_range[1];
