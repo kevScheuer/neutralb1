@@ -717,7 +717,7 @@ if __name__ == "__main__":
         help=(
             "mails user when a job starts/stops/fails."
             " NOTE this assumes the ifarm username matches the username of"
-            "USER@jlab.org"
+            " USER@jlab.org"
         ),
     )
     parser.add_argument(

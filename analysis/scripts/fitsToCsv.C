@@ -4,6 +4,8 @@
    directory, or combine .fit files with a particular name in many
    subdirectories. Execute script with "-h" or "--help" to see options
 
+ NOTE: If adding columns, be very careful since the header line and value line are
+ separate, and so they must be done in the same order in the code
  */
 
 #include <algorithm>
@@ -18,37 +20,44 @@
 #include "IUAmpTools/FitResults.h"
 #include "TMath.h"
 
-// Forward declarations of functions. Comments in main should make clear how
+// Forward declarations of functions. Comments in main should hopefully make clear how
 // the program executes.
 void GetListOfFitFiles(std::vector<std::string> &file_list,
                        std::string parent_dir, std::string search_for_file);
 float GetLastNumOfString(std::string str);
 bool NaturalComp(std::string s1, string s2);
 std::string ConvertFullAmplitudeName(std::string full_amp);
-void WriteValueToCsv(ofstream &csv_file, FitResults &results,
-                     std::map<std::string,
-                              std::vector<std::string>> &mapCohSum);
+void WriteToCsv(ofstream &csv_file, FitResults &results,
+                std::map<std::string,
+                         std::vector<std::string>> &mapCohSum,
+                bool is_header,
+                bool is_acceptance_corrected);
+void WriteToCsv(ofstream &csv_file, FitResults &results,
+                std::map<std::string,
+                         std::pair<std::string, std::string>> &mapCohSum,
+                bool is_header,
+                bool is_acceptance_corrected);
 
-void fitsToCsv(string args = "")
+void fitsToCsv(std::string args = "")
 {
+    // initialize default arguments
     std::string search_for_file = "";
     std::string parent_dir = "./";
     std::string output_csv_name = "combinedFitPars.csv";
+    bool is_acceptance_corrected = false;
 
-    // PARSE COMMAND LINE ARGS
+    // ==== PARSE COMMAND LINE ARGS ====
     size_t flag_pos = 0;
     size_t arg_pos = 0;
     while (args.length() != 0)
     {
-
         // get positions of flag (-flag) and argument that follows the flag
         flag_pos = args.find(" ");
         arg_pos = args.find(" ", flag_pos + 1);
 
-        if (flag_pos == string::npos && (args != "-h" && args != "--help"))
+        if (flag_pos == std::string::npos && (args != "-h" && args != "--help"))
         {
-            cout << "Invalid input. Use \"--help\" to see options"
-                 << "\n";
+            cout << "Invalid input. Use \"--help\" to see options" << "\n";
             exit(1);
         }
 
@@ -78,13 +87,20 @@ void fitsToCsv(string args = "")
             if (parent_dir.back() != '/')
                 parent_dir += '/';
         }
+        if (flag == "-a" || flag == "--acceptance_corrected")
+        {
+            // convert string into bool and assign
+            std::istringstream(arg) >> std::boolalpha >> is_acceptance_corrected;
+        }
         if (flag == "-h" || flag == "--help")
         {
-            cout << "usage: analyzeFitResults [-h] [-f FILE_NAME] "
-                 << "[-o OUTPUT_FILE_NAME] [-d PARENT_DIRECTORY]"
+            cout << "usage: root -l 'fitsToCsv.C(\"[args]\")' [-h] [-f FILE_NAME] "
+                 << "[-o OUTPUT_FILE_NAME] [-d PARENT_DIRECTORY] [-a BOOL]"
                  << "\n\n"
                  << "Aggregate results from many .fit files into a CSV.\n"
-                 << "Running without argument combines .fit files in current dir."
+                 << "Running without argument combines .fit files in current dir.\n"
+                 << " Files will be sorted by the last integer in the full path and\n"
+                 << " the csv's index will match this sorting.\n"
                  << "\n\n"
                  << "optional arguments:\n"
                  << "\t-h, --help"
@@ -95,53 +111,59 @@ void fitsToCsv(string args = "")
                  << "\t-o, --output OUTPUT_FILE_NAME\n"
                  << "\t\tchange output file name (default: combinedFitPars.csv)\n"
                  << "\t-d, --directory PARENT_DIRECTORY\n"
-                 << "\t\tspecify parent dir (default: ./)\n";
+                 << "\t\tspecify parent dir (default: ./)\n"
+                 << "\t-a, --acceptance_corrected BOOL\n"
+                 << "\t\tControls if amplitudes are detector effects are accepted for\n"
+                 << "\t\tDefaults to False i.e. uses 'detected values";
             exit(0);
         }
         args.erase(0, arg_pos);
         args.erase(0, 1);
     }
+    // ==== END COMMAND LINE PARSING ====
 
-    // GET FILES AND SORT THEM IF INDEXED
-    vector<string> file_list;
+    // make list of all .fit files
+    std::vector<std::string> file_list;
     GetListOfFitFiles(file_list, parent_dir, search_for_file);
 
     if (file_list.size() == 0)
     {
-        cout << "No files found!"
-             << "\n";
+        cout << "No files found!" << "\n";
         exit(1);
     }
 
-    // sort vector using last integer in element
+    // sort file vector using last integer in element
+    // This ensures the first row/index in the csv corresponds to the file with the
+    // smallest last integer in it. So files can be sorted by mass bin, rand fit index,
+    // t bin, etc.
     std::sort(file_list.begin(), file_list.end(), NaturalComp);
 
-    // index at 0, unless files begin indexing at 1
-    int index = 0;
-
+    int index = 0; // setup index and create csv file
     ofstream csv_file;
     csv_file.open(output_csv_name);
 
-    // INITIALIZE CONTAINERS
-    vector<string> amp_list;
-    vector<string> par_list;
+    // initialize containers
+    std::vector<std::string> amp_list;
+    std::vector<std::string> par_list;
 
     // setup map of eJPmL based header name, to a vector that stores the full
     // amplitude name. Excluded variables mean they are summed over
     // ex: sum of JP=1+,l=0 waves is:
-    // < 1ps , < xx::ImagNegSign::1pps, xx::RealPosSign:1pms, ... > >
-    std::map<string, vector<string>> amp_sum_eJPmL;
-    std::map<string, vector<string>> amp_sum_JPmL;
-    std::map<string, vector<string>> amp_sum_JPm;
-    std::map<string, vector<string>> amp_sum_JPL;
-    std::map<string, vector<string>> amp_sum_eJPm;
-    std::map<string, vector<string>> amp_sum_eJPL;
-    std::map<string, vector<string>> amp_sum_eJP;
-    std::map<string, vector<string>> amp_sum_JP;
-    std::map<string, pair<string, string>> ampPhaseDiffs; // eJPmL_eJPmL
-    // TODO: add 2 coherent sums for total reflectivity 
+    // < 1pS , < xx::ImagNegSign::1pps, xx::RealPosSign:1pms, ... > >
+    // note that all reactions will be included in each container
+    std::map<std::string, std::vector<std::string>> amp_sum_eJPmL;
+    std::map<std::string, std::vector<std::string>> amp_sum_JPmL;
+    std::map<std::string, std::vector<std::string>> amp_sum_JPm;
+    std::map<std::string, std::vector<std::string>> amp_sum_JPL;
+    std::map<std::string, std::vector<std::string>> amp_sum_eJPm;
+    std::map<std::string, std::vector<std::string>> amp_sum_eJPL;
+    std::map<std::string, std::vector<std::string>> amp_sum_eJP;
+    std::map<std::string, std::vector<std::string>> amp_sum_JP;
+    std::map<std::string, std::vector<std::string>> amp_sum_e;
+    std::map<std::string, std::pair<std::string, std::string>> amp_phase_diffs; // eJPmL_eJPmL
 
-    for (string file : file_list)
+    // Iterate over each file, and add their results as a row in the csv
+    for (std::string file : file_list)
     {
         // load .fit file
         cout << "Analyzing File: " << file << "\n";
@@ -149,17 +171,16 @@ void fitsToCsv(string args = "")
         FitResults results(file);
         if (!results.valid())
         {
-            cout << "Invalid fit results in file:  " << file << "\n";
+            cout << "Invalid fit results in file: " << file << "\n";
             continue;
         }
 
-        cout << "Fit results loaded"
-             << "\n";
+        cout << "Fit results loaded" << "\n";
 
         // WRITE HEADER LINE
         if (amp_list.size() == 0)
         {
-            vector<string> reactions = results.reactionList();
+            std::vector<std::string> reactions = results.reactionList();
             for (auto reaction : reactions)
             {
                 for (std::string amp : results.ampList(reaction))
@@ -180,21 +201,21 @@ void fitsToCsv(string args = "")
                      << ",generated_events_err";
 
             // write parameter headers
-            for (string par : par_list)
+            for (std::string par : par_list)
             {
                 // only want Parameters, not reaction-based ones
-                if (par.find("::") != string::npos)
+                if (par.find("::") != std::string::npos)
                 {
                     continue;
                 }
                 csv_file << "," << par << "," << par + "_err";
 
                 // write covariance between any D/S params if they exist
-                if (par.find("dsratio") != string::npos)
+                if (par.find("dsratio") != std::string::npos)
                 {
                     // get refl of ratio param if it exists
-                    string ratio_refl = "";
-                    if (par.find("_") != string::npos)
+                    std::string ratio_refl = "";
+                    if (par.find("_") != std::string::npos)
                     {
                         ratio_refl = par.back();
                     }
@@ -215,18 +236,18 @@ void fitsToCsv(string args = "")
             // add full amplitude name (value) to corresponding eJPmL key
             for (unsigned int i = 0; i < amp_list.size(); i++)
             {
-                string full_amp = amp_list[i];
+                std::string full_amp = amp_list[i];
 
                 // add bkgd to "eJPmL" vector once
-                if (full_amp.find("Bkgd") != string::npos)
+                if (full_amp.find("Bkgd") != std::string::npos)
                 {
                     amp_sum_eJPmL["Bkgd"].push_back(full_amp);
                     continue;
                 }
 
-                string eJPmL = ConvertFullAmplitudeName(full_amp);
-                string e = eJPmL.substr(0, 1), JP = eJPmL.substr(1, 2),
-                       m = eJPmL.substr(3, 1), L = eJPmL.substr(4, 1);
+                std::string eJPmL = ConvertFullAmplitudeName(full_amp);
+                std::string e = eJPmL.substr(0, 1), JP = eJPmL.substr(1, 2),
+                            m = eJPmL.substr(3, 1), L = eJPmL.substr(4, 1);
 
                 amp_sum_eJPmL[eJPmL].push_back(full_amp);
                 amp_sum_JPmL[JP + m + L].push_back(full_amp);
@@ -236,71 +257,54 @@ void fitsToCsv(string args = "")
                 amp_sum_eJPL[e + JP + L].push_back(full_amp);
                 amp_sum_eJP[e + JP].push_back(full_amp);
                 amp_sum_JP[JP].push_back(full_amp);
+                amp_sum_e[e].push_back(full_amp);
 
                 // second loop to get phase difference headers
                 for (unsigned int j = i + 1; j < amp_list.size(); j++)
                 {
-                    string pd_full_amp = amp_list[j];
+                    std::string pd_full_amp = amp_list[j];
 
-                    if (pd_full_amp.find("isotropic") != string::npos)
+                    if (pd_full_amp.find("isotropic") != std::string::npos)
                     {
-                        continue;
+                        continue; // avoid trying to get phase diff with background
                     }
 
-                    string pd_eJPmL = ConvertFullAmplitudeName(pd_full_amp);
+                    std::string pd_eJPmL = ConvertFullAmplitudeName(pd_full_amp);
 
-                    // keep amplitudes from same coherent sum
+                    // only make phase differences between the same coherent sum
                     if (pd_eJPmL.substr(0, 1) != eJPmL.substr(0, 1))
                     {
                         continue;
                     }
+                    // avoid making phase differences between same amplitudes from
+                    // different reactions (they're constrained to be the same
+                    // at the config level)
+                    if (pd_eJPmL == eJPmL)
+                    {
+                        continue;
+                    }
 
-                    ampPhaseDiffs[eJPmL + "_" + pd_eJPmL] = std::make_pair(full_amp, pd_full_amp);
+                    amp_phase_diffs[eJPmL + "_" + pd_eJPmL] = std::make_pair(full_amp, pd_full_amp);
                 }
             } // end mapping for-loop
 
-            // write amplitude headers !! KEEP ORDER WHEN WRITING VALUES LATER!!
-            for (auto iter = amp_sum_eJPmL.begin(); iter != amp_sum_eJPmL.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_JPmL.begin(); iter != amp_sum_JPmL.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_JPm.begin(); iter != amp_sum_JPm.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_JPL.begin(); iter != amp_sum_JPL.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_eJPm.begin(); iter != amp_sum_eJPm.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_eJPL.begin(); iter != amp_sum_eJPL.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_eJP.begin(); iter != amp_sum_eJP.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = amp_sum_JP.begin(); iter != amp_sum_JP.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
-            for (auto iter = ampPhaseDiffs.begin(); iter != ampPhaseDiffs.end(); iter++)
-            {
-                csv_file << "," << iter->first << "," << iter->first + "_err";
-            }
+            // write amplitude headers
+            WriteToCsv(csv_file, results, amp_sum_eJPmL, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_JPmL, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_JPm, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_JPL, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_eJPm, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_eJPL, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_eJP, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_JP, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_e, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_phase_diffs, true, is_acceptance_corrected);
 
-            csv_file << "\n";
+            csv_file
+                << "\n";
         } // end header line
 
-        // WRITE VALUES TO CSV
+        // WRITE VALUES TO CSV !! MUST BE IN SAME ORDER AS HEADERS !!
         double detected_events = results.intensity(false).first;
         double detected_events_err = results.intensity(false).second;
         double generated_events = results.intensity().first;
@@ -332,10 +336,10 @@ void fitsToCsv(string args = "")
         csv_file << "," << generated_events
                  << "," << generated_events_err;
 
-        for (string par : par_list)
+        for (std::string par : par_list)
         {
             // only want Parameters, not reaction-based ones
-            if (par.find("::") != string::npos)
+            if (par.find("::") != std::string::npos)
             {
                 continue;
             }
@@ -343,19 +347,19 @@ void fitsToCsv(string args = "")
                      << "," << results.parError(par);
 
             // write D/S ratio phase covariance if it exists
-            if (par.find("dsratio") != string::npos)
+            if (par.find("dsratio") != std::string::npos)
             {
                 // get refl of ratio param if exists
-                string ratio_refl = "";
-                if (par.find("_") != string::npos)
+                std::string ratio_refl = "";
+                if (par.find("_") != std::string::npos)
                 {
                     ratio_refl = par.back();
                 }
 
                 if (ratio_refl != "")
                 {
-                    string r = "dsratio_" + ratio_refl;
-                    string ph = "dphase_" + ratio_refl;
+                    std::string r = "dsratio_" + ratio_refl;
+                    std::string ph = "dphase_" + ratio_refl;
                     csv_file << "," << results.covariance(r, ph);
                 }
                 else
@@ -367,31 +371,16 @@ void fitsToCsv(string args = "")
 
         // finally write the sums
         // MUST be in same order as for-loops when writing headers
-        WriteValueToCsv(csv_file, results, amp_sum_eJPmL);
-        WriteValueToCsv(csv_file, results, amp_sum_JPmL);
-        WriteValueToCsv(csv_file, results, amp_sum_JPm);
-        WriteValueToCsv(csv_file, results, amp_sum_JPL);
-        WriteValueToCsv(csv_file, results, amp_sum_eJPm);
-        WriteValueToCsv(csv_file, results, amp_sum_eJPL);
-        WriteValueToCsv(csv_file, results, amp_sum_eJP);
-        WriteValueToCsv(csv_file, results, amp_sum_JP);
-
-        // results.rotateResults(); // TEMP
-        for (auto iter = ampPhaseDiffs.begin(); iter != ampPhaseDiffs.end(); iter++)
-        {
-            pair<double, double> phaseDiff = results.phaseDiff((iter->second).first,
-                                                               (iter->second).second);
-            if (TMath::IsNaN(phaseDiff.first))
-            {
-                phaseDiff.first = 0;
-            }
-            if (TMath::IsNaN(phaseDiff.second))
-            {
-                phaseDiff.second = 0;
-            }
-
-            csv_file << "," << phaseDiff.first << "," << phaseDiff.second;
-        }
+        WriteToCsv(csv_file, results, amp_sum_eJPmL, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_JPmL, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_JPm, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_JPL, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_eJPm, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_eJPL, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_eJP, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_JP, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_e, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_phase_diffs, false, is_acceptance_corrected);
 
         csv_file << "\n";
         index += 1;
@@ -432,7 +421,7 @@ void GetListOfFitFiles(std::vector<std::string> &file_list,
             GetListOfFitFiles(file_list, path, search_for_file);
         }
 
-        string file = ent->d_name;
+        std::string file = ent->d_name;
         if (file.size() < 4)
         {
             continue;
@@ -452,12 +441,12 @@ void GetListOfFitFiles(std::vector<std::string> &file_list,
 // Returns last integer in string. If none is found, returns maximum int
 // allowed. This ensures in "NaturalComp" that files not indexed by an
 // integer at the end of the csv
-float GetLastNumOfString(string str)
+float GetLastNumOfString(std::string str)
 {
     float last_num = 2147483647;
     size_t begin = 0, end = 0;
 
-    string numbers = ".0123456789";
+    std::string numbers = ".0123456789";
 
     begin = str.find_first_of(numbers);
 
@@ -473,7 +462,7 @@ float GetLastNumOfString(string str)
         }
 
         end = str.find_first_not_of(numbers, begin);
-        string num = str.substr(begin, end - begin);
+        std::string num = str.substr(begin, end - begin);
         last_num = std::atof(num.c_str());
         str = str.substr(end, str.length() - end);
         begin = str.find_first_of(numbers);
@@ -482,23 +471,23 @@ float GetLastNumOfString(string str)
     return last_num;
 }
 
-bool NaturalComp(string s1, string s2)
+bool NaturalComp(std::string s1, std::string s2)
 {
     return (GetLastNumOfString(s1) < GetLastNumOfString(s2));
 }
 
 // Converts full amplitude named "reaction::reflectivity::JPmL" to
 // "eJPmL" format, where reaction name is dropped
-string ConvertFullAmplitudeName(string full_amp)
+std::string ConvertFullAmplitudeName(std::string full_amp)
 {
-    string eJPmL;
-    string delim = "::";
+    std::string eJPmL;
+    std::string delim = "::";
 
     // extract reflectivity and eJPmL amplitude
     // assumes amplitude always in "reaction::refl::amp" format
     size_t positionRefl = full_amp.find(delim) + delim.length();
     size_t positionAmp = full_amp.find(delim, positionRefl);
-    string refl = full_amp.substr(positionRefl, positionAmp - positionRefl);
+    std::string refl = full_amp.substr(positionRefl, positionAmp - positionRefl);
     eJPmL = full_amp.substr(positionAmp + delim.length(),
                             full_amp.length() - positionAmp + delim.length());
 
@@ -521,25 +510,62 @@ string ConvertFullAmplitudeName(string full_amp)
 
 // Write values from maps to csv file.
 // NOTE: NaNs are currently treated as 0's to avoid issues when reading into
-// ROOT Tree. Amplitudes give their "detected" intensity when "false" is passed to 
+// ROOT Tree. Amplitudes give their "detected" intensity when "false" is passed to
 // results.intensity()
-void WriteValueToCsv(ofstream &csv_file, FitResults &results,
-                     std::map<string, vector<string>> &mapCohSum)
+void WriteToCsv(ofstream &csv_file, FitResults &results,
+                std::map<std::string, std::vector<std::string>> &mapCohSum,
+                bool is_header, bool is_acceptance_corrected)
 {
     for (auto iter = mapCohSum.begin(); iter != mapCohSum.end(); iter++)
     {
-        double val = results.intensity(iter->second, false).first;
-        double err = results.intensity(iter->second, false).second;
-
-        if (TMath::IsNaN(val))
+        if (is_header) // write the keys to the csv if writing the header line
         {
-            val = 0;
+            csv_file << "," << iter->first << "," << iter->first + "_err";
         }
-        if (TMath::IsNaN(err))
+        else
         {
-            err = 0;
-        }
+            double val = results.intensity(iter->second, is_acceptance_corrected).first;
+            double err = results.intensity(iter->second, is_acceptance_corrected).second;
 
-        csv_file << "," << val << "," << err;
+            if (TMath::IsNaN(val))
+            {
+                val = 0;
+            }
+            if (TMath::IsNaN(err))
+            {
+                err = 0;
+            }
+            csv_file << "," << val << "," << err;
+        }
+    }
+}
+
+// overloaded function to handle when map is for phase differences
+void WriteToCsv(ofstream &csv_file, FitResults &results,
+                std::map<std::string, pair<std::string, std::string>> &mapCohSum,
+                bool is_header, bool is_acceptance_corrected)
+{
+    for (auto iter = mapCohSum.begin(); iter != mapCohSum.end(); iter++)
+    {
+        if (is_header) // write the keys to the csv if writing the header line
+        {
+            csv_file << "," << iter->first << "," << iter->first + "_err";
+        }
+        else
+        {
+            pair<double, double> phaseDiff = results.phaseDiff((iter->second).first,
+                                                               (iter->second).second);
+
+            if (TMath::IsNaN(phaseDiff.first))
+            {
+                phaseDiff.first = 0;
+            }
+            if (TMath::IsNaN(phaseDiff.second))
+            {
+                phaseDiff.second = 0;
+            }
+
+            csv_file << "," << phaseDiff.first << "," << phaseDiff.second;
+        }
     }
 }
