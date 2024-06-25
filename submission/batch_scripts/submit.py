@@ -50,6 +50,7 @@ def main(
     data_dir: str,
     phasespace_version: str,
     phasespace_dir: str,
+    cut_recoil_pi_mass: float,
     template_name: str,
     truth_file: str,
     n_gpus: int,
@@ -100,6 +101,7 @@ def main(
         data_dir,
         phasespace_version,
         phasespace_dir,
+        cut_recoil_pi_mass,
     )
 
     # make strings for directory creation
@@ -145,6 +147,7 @@ def main(
                         data_version,
                         phasespace_version,
                         waveset_str,
+                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}/",
                     )
@@ -160,6 +163,7 @@ def main(
                         "ampToolsFits",
                         reaction,
                         "data_files",
+                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"E_{energy_min:.2f}-{energy_max:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
@@ -186,6 +190,8 @@ def main(
                             elif ans == "skip_all":
                                 is_skip_all = True
                                 break
+                            elif ans == "exit" or ans == "exit()":
+                                exit()
                             else:
                                 print("Please answer yes, no, or skip_all")
                         if ans == "no" or ans == "n":
@@ -205,6 +211,7 @@ def main(
                         data_version,
                         phasespace_version,
                         waveset_str,
+                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                     )
@@ -221,9 +228,8 @@ def main(
                         f" -p {phasespace_version}",
                         f" -s {source_file_dir}",
                         f" -D {data_out_dir}",
-                        f" -c {CODE_DIR}",
+                        f" -C {CODE_DIR}",
                         f" -R {reaction}",
-                        "\n",
                     )
                 )
                 submit_slurm_job(
@@ -253,6 +259,7 @@ def create_data_files(
     data_dir: str,
     phasespace_ver: str,
     phasespace_dir: str,
+    cut_recoil_pi_mass: float,
 ) -> None:
     """Create data files with TEM region pre-selected
 
@@ -266,15 +273,15 @@ def create_data_files(
         high_t_edges (list): values of high t bin edges
         energy_min (float): minimum beam energy value
         energy_max (float): maximum beam energy value
-        low_mass_edges (list): values of low mass bin edges
-        high_mass_edges (list): values of high mass bin edges
+        low_mass_edges (list): values of low omega pi mass bin edges
+        high_mass_edges (list): values of high omega pi mass bin edges
         orientations (list): diamond orientation settings
         run_period (list): string in file name, e.g. 2017_01, allPeriods
         data_ver (str): version string in file name, e.g. data, mc_thrown
         data_dir (str): directory of original data files
         phasespace_ver (str): MC version string in file name, e.g. ver03
         phasespace_dir (str): directory of original phasespace files
-
+        cut_recoil_pi_mass (float): removes events below the given recoil-pion mass
     Raises:
         EnvironmentError: ROOT isn't loaded, and so scripts can't run
         FileExistsError: Generated phasespace file not found
@@ -320,6 +327,7 @@ def create_data_files(
                         "ampToolsFits",
                         reaction,
                         "data_files",
+                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"E_{energy_min:.2f}-{energy_max:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
@@ -334,6 +342,7 @@ def create_data_files(
                     "root -l -b -q"
                     f" '{CODE_DIR}copy_tree_with_cuts.C("
                     f'"{gen_src}", "{dir}",'
+                    f' "{cut_recoil_pi_mass}",'
                     f' "{low_t}", "{high_t}",'
                     f' "{energy_min}", "{energy_max}",'
                     f' "{low_mass}", "{high_mass}"'
@@ -673,6 +682,17 @@ if __name__ == "__main__":
         metavar=("TYPE", "DIR"),
         help="specify phasespace version and directory.",
     )
+    parser.add_argument(
+        "-c",
+        "--cut_recoil_pi_mass",
+        type=float,
+        default=0.0,
+        help=(
+            "Cuts events below the given value in the recoil-pion mass spectrum, i.e."
+            " a value of 1.3 selects events like 'MRecoilPi > 1.3' when the trees are"
+            " copied. This flag assumes the ROOT data files has an 'MRecoilPi' leaf"
+        ),
+    )
 
     # other arguments
     parser.add_argument(
@@ -703,8 +723,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--time_limit",
         type=str,
-        default="00:30:00",
-        help=("Max walltime for each slurm job. Default assumes quick jobs (30 mins)"),
+        default="01:00:00",
+        help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),
     )
 
     args = parser.parse_args()
@@ -728,6 +748,7 @@ if __name__ == "__main__":
     truth_file = args.truth
     data_version, data_dir = args.data
     phasespace_version, phasespace_dir = args.phasespace
+    cut_recoil_pi_mass = args.cut_recoil_pi_mass
 
     template_name = args.template_name
     n_gpus, gpu_type = int(args.gpu[0]), args.gpu[1]
@@ -756,6 +777,7 @@ if __name__ == "__main__":
         data_dir,
         phasespace_version,
         phasespace_dir,
+        cut_recoil_pi_mass,
         template_name,
         truth_file,
         n_gpus,

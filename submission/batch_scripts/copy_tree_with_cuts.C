@@ -6,10 +6,11 @@ M = invariant mass
 */
 
 void copy_tree_with_cuts(TString file, TString target_dir,
+                         TString min_recoil_pi_mass,
                          TString t_low, TString t_high,
                          TString E_low, TString E_high,
                          TString m_low, TString m_high)
-{    
+{
     gROOT->Reset();
 
     cout << "Copying Tree for: " << file << "\n";
@@ -18,24 +19,27 @@ void copy_tree_with_cuts(TString file, TString target_dir,
     TFile f(file);
     TTree *T = (TTree *)f.Get("kin");
 
-    // open new file at new path    
+    // get basename by splitting the file path by the "/" delimeter and getting the
+    // last element
     TString tok;
     TString file_name;
     Ssiz_t this_is_painful = 0;
-    while (file.Tokenize(tok, this_is_painful, "/")) {file_name = tok;}    
-    
+    while (file.Tokenize(tok, this_is_painful, "/"))
+    {
+        file_name = tok;
+    }
+
+    // open new file at new pat
     TString new_file = target_dir + "/" + file_name;
-    
-    TFile *f2 = new TFile(new_file, "new");    
+    TFile *f2 = new TFile(new_file, "new");
 
     // setup selection regions
+    TString m_recoil_pi_cut = "MRecoilPi>" + min_recoil_pi_mass;
     TString t_cut = "t>" + t_low + " && t<" + t_high;
     TString E_cut = "E_Beam>" + E_low + " && E_Beam<" + E_high;
     TString m_cut = "M4Pi>" + m_low + " && M4Pi<" + m_high;
 
-    TString selection = t_cut + " && " + E_cut + " && " + m_cut;
-
-    // TODO: optional proton pi0 mass cut here
+    TString selection = m_recoil_pi_cut + " && " + t_cut + " && " + E_cut + " && " + m_cut;
 
     TTree *T2 = T->CopyTree(selection.Data());
 

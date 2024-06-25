@@ -6,9 +6,9 @@ echo -e "\nhost: \t\t\t$HOSTNAME\n"
 # cleanup local running directory
 rm ./*.fit 
 
-# get command line arguments with optarg 
+# ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-c] [-R]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-C] [-R]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
@@ -17,12 +17,12 @@ usage() {
     echo " -p       version # of phasespace trees"
     echo " -D       Data output directory on \volatile"
     echo " -s       directory where data Source files are stored"
-    echo " -c       directory where scripts are stored"
-    echo " -R       reaction name of fit"    
+    echo " -C       Code directory where scripts are stored"
+    echo " -R       Reaction name of fit"        
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:p:D:s:c:R:h:" opt; do
+while getopts ":o:r:n:d:p:D:s:C:R:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -53,7 +53,7 @@ while getopts ":o:r:n:d:p:D:s:c:R:h:" opt; do
         echo -e "source file dir: \t$OPTARG\n"
         my_source_file_dir=$OPTARG
     ;;
-    c)
+    C)
         echo -e "code dir: \t\t$OPTARG\n"
         my_code_dir=$OPTARG
     ;;
@@ -72,6 +72,7 @@ while getopts ":o:r:n:d:p:D:s:c:R:h:" opt; do
     ;;
     esac
 done
+# ==== END GETTING ARGUMENTS ====
 
 source $my_code_dir/setup_gluex.sh
 
