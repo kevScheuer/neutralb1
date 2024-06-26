@@ -1,1 +1,2 @@
-Mention here the .rootrc file lines needed for AmpTools to be loaded into ROOT on startup
+Fill in file structure description later
+TODO: Mention how to load in scripts/ directory stuff from notebooks dir

@@ -1,6 +1,8 @@
 """Collection of tools useful for analyzing PWA fit results
 
 NOTE: Remember to use red=pos refl, blue=neg refl standard now
+
+TODO: As cross section scripts get developed, maybe make a second plot class for them
 """
 
 import itertools
@@ -15,7 +17,6 @@ import pandas as pd
 class Plotter:
     # TODO: finish importing all the class methods
     # TODO: add kwargs in init for figsize, dpi, and fontsizes (legend, axes, etc)
-    # TODO: Add methods for plotting cross section results
     def __init__(self, df: pd.DataFrame, data_df: pd.DataFrame) -> None:
         """Initialize object with paths to csv files
 
@@ -358,6 +359,396 @@ class Plotter:
         plt.show()
         pass
 
+    def matrix(self) -> None:
+        """Scatterplot-like matrix of subplots, for intensities and phase differences
+
+        The diagonal of the plot contains the intensity of each wave, in both
+        reflectivities, with the total data. The off diagonals are the phase difference
+        between each wave, with positive reflectivity on the upper triangle and negative
+        on the lower. Amplitude names are labelled on the first row and column.
+
+        NOTE: This plot will become cramped for large models, may need dpi adjusted
+        """
+
+        fig, axs = plt.subplots(
+            len(self._coherent_sums["JPmL"]),
+            len(self._coherent_sums["JPmL"]),
+            sharex=True,
+            figsize=(13, 8),
+            dpi=100,
+        )
+        # only the top left corner plot will have ticks for the data scale
+        data_y_ticks = np.linspace(0, self.data_df["bin_contents"].max(), 4)
+        axs[0, 0].set_yticks(data_y_ticks, [human_format(num) for num in data_y_ticks])
+        for i, JPmL in enumerate(self._coherent_sums["JPmL"]):
+            for j, JPmL_dif in enumerate(self._coherent_sums["JPmL"]):
+                # change tick label sizes for all plots
+                axs[i, j].tick_params("both", labelsize=6)
+
+                # write mass ticks for only the bottom row
+                if i == len(self._coherent_sums["JPmL"]) - 1:
+                    axs[i, j].xaxis.set_tick_params(labelbottom=True)
+
+                # PLOT DIAGONALS
+                if i == j:
+                    # make outline of the plot thick to set them apart
+                    spines = ["left", "right", "top", "bottom"]
+                    for sp in spines:
+                        axs[i, j].spines[sp].set_linewidth(2)
+                        axs[i, j].spines[sp].set_color("black")
+
+                    # top left corner plot needs both title and ylabel amplitude labels
+                    if i == 0:
+                        axs[i, j].set_title(
+                            convert_amp_name(JPmL_dif).replace(
+                                r"^{(\Sigma\varepsilon)}", ""
+                            ),
+                            fontsize=10,
+                        )
+                        axs[i, j].set_ylabel(
+                            convert_amp_name(JPmL).replace(
+                                r"^{(\Sigma\varepsilon)}", ""
+                            ),
+                            fontsize=10,
+                        )
+                    # otherwise remove the y ticks on the diagonal, not enough room
+                    else:
+                        axs[i, j].set_yticks(data_y_ticks, [""] * 4)
+
+                    # first plot the data with its error
+                    data_plot = axs[i, j].errorbar(
+                        self._mass_bins,
+                        self.data_df["bin_contents"],
+                        self.data_df["bin_error"],
+                        self._bin_width / 2,
+                        "k.",
+                        label="Data",
+                        markersize=4,
+                    )
+
+                    # plot the reflectivity contributions
+                    neg_plot = axs[i, j].errorbar(
+                        self._mass_bins,
+                        self.df[f"m{JPmL}"],
+                        self.df[f"m{JPmL}_err"],
+                        self._bin_width / 2,
+                        "s",
+                        color="blue",
+                        markersize=2,
+                        label=r"$\epsilon=-1$",
+                    )
+                    pos_plot = axs[i, j].errorbar(
+                        self._mass_bins,
+                        self.df[f"p{JPmL}"],
+                        self.df[f"p{JPmL}_err"],
+                        self._bin_width / 2,
+                        "o",
+                        color="red",
+                        markersize=2,
+                        label=r"$\epsilon=+1$",
+                    )
+
+                # PLOT POSITIVE REFLECTIVITY PHASE DIFFERENCES (UPPER TRIANGLE)
+                elif j > i:
+                    # give same yticks as lower triangle, but with no label
+                    axs[i, j].set_yticks(np.linspace(-180, 180, 5), [""] * 5)
+                    axs[i, j].set_ylim([-180, 180])
+
+                    # write amplitude titles for the top row
+                    if i == 0:
+                        axs[i, j].set_title(
+                            convert_amp_name(JPmL_dif).replace(
+                                r"^{(\Sigma\varepsilon)}", ""
+                            ),
+                            fontsize=10,
+                        )
+
+                    phase_dif = self._phase_differences[(f"p{JPmL}", f"p{JPmL_dif}")]
+
+                    axs[i, j].errorbar(
+                        self._mass_bins,
+                        self.df[phase_dif].apply(np.rad2deg),
+                        abs(self.df[f"{phase_dif}_err"]).apply(np.rad2deg),
+                        self._bin_width / 2,
+                        linestyle="",
+                        color="red",
+                        marker="o",
+                        ms=3,
+                    )
+                    # plot flipped sign due to sign ambiguity
+                    axs[i, j].errorbar(
+                        self._mass_bins,
+                        -self.df[phase_dif].apply(np.rad2deg),
+                        abs(self.df[f"{phase_dif}_err"]).apply(np.rad2deg),
+                        self._bin_width / 2,
+                        linestyle="",
+                        color="red",
+                        marker="o",
+                        ms=3,
+                    )
+
+                # PLOT NEGATIVE REFLECTIVITY PHASE DIFFERENCES
+                elif j < i:
+                    axs[i, j].set_ylim([-180, 180])
+                    # write amplitude titles and y-tick labels on 1st column
+                    if j == 0:
+                        axs[i, j].set_ylabel(
+                            convert_amp_name(JPmL).replace(
+                                r"^{(\Sigma\varepsilon)}", ""
+                            ),
+                            fontsize=10,
+                        )
+                        axs[i, j].set_yticks(np.linspace(-180, 180, 5))
+                    else:
+                        axs[i, j].set_yticks(np.linspace(-180, 180, 5), [""] * 5)
+
+                    phase_dif = self._phase_differences[(f"m{JPmL}", f"m{JPmL_dif}")]
+
+                    axs[i, j].errorbar(
+                        self._mass_bins,
+                        self.df[phase_dif].apply(np.rad2deg),
+                        self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+                        self._bin_width / 2,
+                        linestyle="",
+                        color="blue",
+                        marker="s",
+                        ms=3,
+                    )
+                    # plot flipped sign due to sign ambiguity
+                    axs[i, j].errorbar(
+                        self._mass_bins,
+                        -self.df[phase_dif].apply(np.rad2deg),
+                        self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+                        self._bin_width / 2,
+                        linestyle="",
+                        color="blue",
+                        marker="s",
+                        ms=3,
+                    )
+
+        for ax in axs.reshape(-1):
+            ax.grid(True, axis="both", alpha=0.8)
+
+        # Last edits to figure before printing
+        fig.text(
+            0.5, 0.06, r"$\omega\pi^0$ inv. mass $(GeV)$", ha="center", fontsize=15
+        )
+        fig.text(
+            0.06,
+            0.5,
+            r"Phase Differences $(^{\circ})$",
+            ha="center",
+            fontsize=15,
+            rotation="vertical",
+        )
+        fig.legend(
+            handles=[data_plot, pos_plot, neg_plot], fontsize=12, loc="upper right"
+        )
+
+        plt.show()
+        pass
+
+    def ds_ratio(self) -> None:
+        """_summary_
+        Whats plotted changes depending on whether the model had a defined D/S ratio.
+        """
+        #
+        if "dsratioTEMP" in self.df.columns:
+            fig, axs = plt.subplots(
+                3, 1, sharex=True, gridspec_kw={"wspace": 0.0, "hspace": 0.12}
+            )
+            ax_ratio, ax_phase, ax_corr = axs
+            # RATIO PLOT
+            ax_ratio.plot(  # plot the nominal ratio
+                self._mass_bins,
+                np.full_like(self._mass_bins, 0.27),
+                "k-",
+                label="E852 ratio (0.27)",
+            )
+            ax_ratio.errorbar(
+                self._mass_bins,
+                self.df["dsratio"],
+                self.df["dsratio_err"],
+                self._bin_width / 2,
+                marker=".",
+                linestyle="",
+                color="gray",
+            )
+            # PHASE PLOT
+            ax_phase.plot(  # plot the nominal phase (in degrees)
+                self._mass_bins,
+                np.full_like(self._mass_bins, 10.54),
+                "k--",
+                label=r"E852 phase $(10.54^\circ)$",
+            )
+            ax_phase.plot(self._mass_bins, np.full_like(self._mass_bins, -10.54), "k--")
+            ax_phase.errorbar(
+                self._mass_bins,
+                self.df["dphase"].apply(np.rad2deg),
+                self.df["dphase_err"].abs().apply(np.rad2deg),
+                self._bin_width / 2,
+                marker=".",
+                linestyle="",
+                color="gray",
+            )
+            ax_phase.errorbar(
+                self._mass_bins,
+                -self.df["dphase"].apply(np.rad2deg),
+                self.df["dphase_err"].abs().apply(np.rad2deg),
+                self._bin_width / 2,
+                marker=".",
+                linestyle="",
+                color="gray",
+            )
+            # CORRELATION PLOT
+            ax_corr.plot(
+                self._mass_bins,
+                (
+                    self.df["cov_dsratio_dphase"]
+                    / (self.df["dsratio_err"] * self.df["dphase_err"])
+                ).fillna(0),
+                marker="8",
+                linestyle="",
+                color="gray",
+            )
+
+            # COSMETICS
+            ax_ratio.set_ylabel("D/S ratio", loc="top")
+            ax_ratio.set_ylim(0, 1)
+
+            ax_phase.set_ylabel(r"D-S (${{}}^\circ$)", loc="top")
+            ax_phase.set_yticks(np.linspace(-180.0, 180.0, 5))
+            ax_phase.set_ylim(-180.0, 180.0)
+
+            ax_corr.set_xlabel(r"$\omega\pi^0$ mass inv. mass $(GeV)$", loc="right")
+            ax_corr.set_ylabel(r"$\rho$ (D/S, D-S)", loc="top")
+            ax_corr.set_ylim(-1, 1)
+
+        else:
+            marker_map = {"p": "^", "0": ".", "m": "v"}
+            color_map = {"p": "fuchsia", "0": "hotpink", "m": "darkmagenta"}
+            fig = plt.figure(figsize=(11, 4))
+            subfigs = fig.subfigures(1, 2)
+
+            ax_ratio, ax_phase = subfigs[0].subplots(2, 1, sharex=True)
+            ax_corr = subfigs[1].subplots()
+
+            # plot the nominal E852 values first
+            ax_ratio.plot(self._mass_bins, np.full_like(self._mass_bins, 0.27), "k-")
+            ax_phase.plot(self._mass_bins, np.full_like(self._mass_bins, 10.54), "k--")
+            ax_phase.plot(self._mass_bins, np.full_like(self._mass_bins, -10.54), "k--")
+            ax_corr.plot(
+                np.full_like(np.linspace(-180.0, 180.0, 5), 0.27),
+                np.linspace(-180.0, 180.0, 5),
+                "k-",
+                label="E852 ratio (0.27)",
+            )
+            ax_corr.plot(
+                np.linspace(0, 1, 2),
+                np.full_like(np.linspace(0, 1, 2), 10.54),
+                "k--",
+                label=r"E852 phase $(10.54^\circ)$",
+            )
+            for eJPmL in self._coherent_sums["eJPmL"]:
+                e = eJPmL[0]
+                m = eJPmL[-2]
+                L = eJPmL[-1]
+                if L != "D" or e == "m":
+                    continue  # negative reflectivity is too unstable
+                D_wave = eJPmL
+                S_wave = eJPmL[:-1] + "S"
+
+                # get ratio and phase difference
+                ratio = self.df[D_wave] / self.df[S_wave]
+                ratio_err = ratio * np.sqrt(
+                    np.square(self.df[D_wave + "_err"] / self.df[D_wave])
+                    + np.square(self.df[S_wave + "_err"] / self.df[S_wave])
+                )
+                phase = self.df[self._phase_differences[(D_wave, S_wave)]].apply(
+                    np.rad2deg
+                )
+                phase_err = self.df[
+                    f"{self._phase_differences[(D_wave, S_wave)]}_err"
+                ].apply(np.rad2deg)
+
+                # label = rf"$1^{{+}}(S/D)_{{{m}}}^{{(+)}}$"
+                label = convert_amp_name(eJPmL).replace("D", "(D/S)")
+
+                ax_ratio.errorbar(
+                    self._mass_bins,
+                    ratio,
+                    ratio_err,
+                    self._bin_width / 2,
+                    marker=marker_map[m],
+                    color=color_map[m],
+                    linestyle="",
+                )
+                ax_phase.errorbar(
+                    self._mass_bins,
+                    phase,
+                    phase_err,
+                    self._bin_width / 2,
+                    marker=marker_map[m],
+                    color=color_map[m],
+                    linestyle="",
+                )
+                ax_phase.errorbar(
+                    self._mass_bins,
+                    -phase,
+                    phase_err,
+                    self._bin_width / 2,
+                    marker=marker_map[m],
+                    color=color_map[m],
+                    linestyle="",
+                )
+                ax_corr.errorbar(
+                    ratio,
+                    phase,
+                    phase_err,
+                    ratio_err,
+                    marker=marker_map[m],
+                    color=color_map[m],
+                    linestyle="",
+                    label=label,
+                )
+                ax_corr.errorbar(
+                    ratio,
+                    -phase,
+                    abs(phase_err),
+                    ratio_err,
+                    marker=marker_map[m],
+                    color=color_map[m],
+                    linestyle="",
+                    label=label,
+                )
+            ax_ratio.set_ylabel("D/S ratio", loc="top")
+            ax_ratio.set_ylim(0, 1)
+
+            ax_phase.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
+            ax_phase.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
+            ax_phase.set_yticks(np.linspace(-180.0, 180.0, 5))
+            ax_phase.set_ylim(-180.0, 180.0)
+
+            ax_corr.set_xlabel("D/S ratio", loc="right")
+            ax_corr.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
+            ax_corr.set_xlim(0, 1)
+            ax_corr.set_ylim(-180.0, 180)
+            ax_corr.set_yticks(np.linspace(-180.0, 180.0, 5))
+
+            subfigs[1].subplots_adjust(right=0.65)
+
+            handles, labels = ax_corr.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            fig.legend(
+                by_label.values(),
+                by_label.keys(),
+                fontsize=9,
+                loc="center right",
+                bbox_to_anchor=(1, 0.5),
+            )
+            plt.show()
+        pass
+
 
 def wrap_phases(
     df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
@@ -576,3 +967,21 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
             phase_differences[tuple(reversed(combo))] = reverse_name
 
     return phase_differences
+
+
+def human_format(num: float) -> str:
+    """Converts orders of magnitude to letters i.e. 12369 -> 12.4K
+
+    Args:
+        num (float): positive floating point number
+
+    Returns:
+        str: first 3 significant digits with a character denoting its magnitude
+    """
+    num = float(f"{num:.3g}")
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    orders = ["", "K", "M", "B", "T"]
+    return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
