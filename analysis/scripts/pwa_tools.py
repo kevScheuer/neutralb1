@@ -553,7 +553,7 @@ class Plotter:
         Whats plotted changes depending on whether the model had a defined D/S ratio.
         """
         #
-        if "dsratioTEMP" in self.df.columns:
+        if "dsratio" in self.df.columns:
             fig, axs = plt.subplots(
                 3, 1, sharex=True, gridspec_kw={"wspace": 0.0, "hspace": 0.12}
             )

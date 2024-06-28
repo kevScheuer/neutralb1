@@ -410,6 +410,7 @@ def submit_slurm_job(
             "#SBATCH --ntasks-per-core=1 \n"
             "#SBATCH --threads-per-core=1 \n"
             "#SBATCH --constraint=el9 \n"
+            "#SBATCH -w sciml2402\n"  # temp: issue with sciml2401 node
         )
         if is_send_mail:
             slurm_out.write(

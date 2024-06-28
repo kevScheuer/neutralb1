@@ -15,7 +15,11 @@ the "Weight" leaf of the Tree.
 #include "TCut.h"
 #include "TH1F.h"
 
+/*
+    bin_width: in GeV
+*/
 void get_bin_data(TString file, double bin_width, std::string f_name = "",
+                  std::string min_recoil_pi_mass = "0.0",
                   std::string t_low = "0.4", std::string t_high = "0.5",
                   std::string E_low = "8.2", std::string E_high = "8.8",
                   std::string m_low = "1.0", std::string m_high = "1.5")
@@ -37,9 +41,11 @@ void get_bin_data(TString file, double bin_width, std::string f_name = "",
     // Create list of cuts and apply to tree
     std::string t_range[2] = {t_low, t_high};
     std::string E_range[2] = {E_low, E_high};
+    std::string m_recoil_pi_cut = "MRecoilPi>" + min_recoil_pi_mass;
     std::string t_cut = "t>" + t_range[0] + " && t<" + t_range[1];
     std::string E_cut = "E_Beam>" + E_range[0] + " && E_Beam<" + E_range[1];
-    std::string selection = "Weight*(" + t_cut + " && " + E_cut + ")";
+    std::string selection = "Weight*(" +
+                            m_recoil_pi_cut + " && " + t_cut + " && " + E_cut + ")";
 
     // setup mass bin details
     std::string mass_range[2] = {m_low, m_high};
