@@ -549,8 +549,13 @@ class Plotter:
         pass
 
     def ds_ratio(self) -> None:
-        """_summary_
-        Whats plotted changes depending on whether the model had a defined D/S ratio.
+        """Plot the ratio and phase between the D and S waves
+
+        The plots chang depending on whether the model had a defined D/S ratio. If it is
+        defined then the covariance of the ratio and phase parameters are plotted, but
+        if not then its the correlation.
+
+        TODO: Add a raise if D or S wave are not present, and the reflectivities
         """
         #
         if "dsratio" in self.df.columns:
@@ -626,7 +631,7 @@ class Plotter:
 
         else:
             marker_map = {"p": "^", "0": ".", "m": "v"}
-            color_map = {"p": "fuchsia", "0": "hotpink", "m": "darkmagenta"}
+            color_map = {"p": "red", "m": "blue"}
             fig = plt.figure(figsize=(11, 4))
             subfigs = fig.subfigures(1, 2)
 
@@ -653,8 +658,8 @@ class Plotter:
                 e = eJPmL[0]
                 m = eJPmL[-2]
                 L = eJPmL[-1]
-                if L != "D" or e == "m":
-                    continue  # negative reflectivity is too unstable
+                if L != "D":
+                    continue
                 D_wave = eJPmL
                 S_wave = eJPmL[:-1] + "S"
 
@@ -667,9 +672,11 @@ class Plotter:
                 phase = self.df[self._phase_differences[(D_wave, S_wave)]].apply(
                     np.rad2deg
                 )
-                phase_err = self.df[
-                    f"{self._phase_differences[(D_wave, S_wave)]}_err"
-                ].apply(np.rad2deg)
+                phase_err = (
+                    self.df[f"{self._phase_differences[(D_wave, S_wave)]}_err"]
+                    .apply(np.rad2deg)
+                    .abs()
+                )
 
                 # label = rf"$1^{{+}}(S/D)_{{{m}}}^{{(+)}}$"
                 label = convert_amp_name(eJPmL).replace("D", "(D/S)")
@@ -680,7 +687,7 @@ class Plotter:
                     ratio_err,
                     self._bin_width / 2,
                     marker=marker_map[m],
-                    color=color_map[m],
+                    color=color_map[e],
                     linestyle="",
                 )
                 ax_phase.errorbar(
@@ -689,7 +696,7 @@ class Plotter:
                     phase_err,
                     self._bin_width / 2,
                     marker=marker_map[m],
-                    color=color_map[m],
+                    color=color_map[e],
                     linestyle="",
                 )
                 ax_phase.errorbar(
@@ -698,7 +705,7 @@ class Plotter:
                     phase_err,
                     self._bin_width / 2,
                     marker=marker_map[m],
-                    color=color_map[m],
+                    color=color_map[e],
                     linestyle="",
                 )
                 ax_corr.errorbar(
@@ -707,7 +714,7 @@ class Plotter:
                     phase_err,
                     ratio_err,
                     marker=marker_map[m],
-                    color=color_map[m],
+                    color=color_map[e],
                     linestyle="",
                     label=label,
                 )
@@ -717,12 +724,12 @@ class Plotter:
                     abs(phase_err),
                     ratio_err,
                     marker=marker_map[m],
-                    color=color_map[m],
+                    color=color_map[e],
                     linestyle="",
                     label=label,
                 )
             ax_ratio.set_ylabel("D/S ratio", loc="top")
-            ax_ratio.set_ylim(0, 1)
+            ax_ratio.set_yscale("log")
 
             ax_phase.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
             ax_phase.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
@@ -730,8 +737,8 @@ class Plotter:
             ax_phase.set_ylim(-180.0, 180.0)
 
             ax_corr.set_xlabel("D/S ratio", loc="right")
+            ax_corr.set_xscale("log")
             ax_corr.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
-            ax_corr.set_xlim(0, 1)
             ax_corr.set_ylim(-180.0, 180)
             ax_corr.set_yticks(np.linspace(-180.0, 180.0, 5))
 
