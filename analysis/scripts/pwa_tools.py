@@ -43,13 +43,14 @@ class Plotter:
         # a map ensures consistency no matter the # of jps
         colors = matplotlib.colormaps["Dark2"].colors
         jp_map = {
-            "0m": {"color": colors[0], "marker": "."},
-            "1p": {"color": colors[1], "marker": "o"},
-            "1m": {"color": colors[2], "marker": "s"},
-            "2p": {"color": colors[3], "marker": "p"},
-            "2m": {"color": colors[4], "marker": "h"},
-            "3p": {"color": colors[5], "marker": "x"},
-            "3m": {"color": colors[6], "marker": "d"},
+            "Bkgd": {"color": colors[0], "marker": "."},
+            "0m": {"color": colors[1], "marker": "1"},
+            "1p": {"color": colors[2], "marker": "o"},
+            "1m": {"color": colors[3], "marker": "s"},
+            "2p": {"color": colors[4], "marker": "p"},
+            "2m": {"color": colors[5], "marker": "h"},
+            "3p": {"color": colors[6], "marker": "x"},
+            "3m": {"color": colors[7], "marker": "d"},
         }
 
         fig, ax = plt.subplots()
@@ -58,10 +59,9 @@ class Plotter:
             self._mass_bins,
             self.data_df["bin_contents"],
             self.data_df["bin_error"],
-            self._mass_bins_err,
+            self._bin_width / 2,
             "k.",
             label="Total (GlueX Phase-I)",
-            markersize=4,
         )
 
         # Plot Fit Result
@@ -82,6 +82,17 @@ class Plotter:
             alpha=0.2,
             markersize=0,
         )
+        # plot isotropic background if there
+        if "Bkgd" in self.df.columns:
+            ax.errorbar(
+                self._mass_bins,
+                self.df["Bkgd"],
+                self.df[f"Bkgd_err"],
+                self._bin_width / 2,
+                label="Iso. Background",
+                linestyle="",
+                **jp_map["Bkgd"],
+            )
         # plot each jp contribution
         for jp in self._coherent_sums["JP"]:
             ax.errorbar(
@@ -90,19 +101,17 @@ class Plotter:
                 self.df[f"{jp}_err"],
                 self._bin_width / 2,
                 label=convert_amp_name(jp),
-                markersize=4,
                 linestyle="",
                 **jp_map[jp],
             )
 
-        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
-        ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=18)
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
+        ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
         ax.set_ylim(bottom=0.0)
 
-        ax.legend(fontsize=10)
+        ax.legend()
 
         ax.grid(True, alpha=0.8)
-
         plt.show()
         pass
 
@@ -167,7 +176,6 @@ class Plotter:
                         self._bin_width / 2,
                         "o",
                         color="blue",
-                        markersize=2,
                         label=r"$\epsilon=-1$",
                     )
                 if "p" + JPmL in self._coherent_sums["eJPmL"]:
@@ -184,7 +192,6 @@ class Plotter:
                         self._bin_width / 2,
                         "o",
                         color="red",
-                        markersize=2,
                         label=r"$\epsilon=+1$",
                     )
 
@@ -265,12 +272,13 @@ class Plotter:
         plt.show()
         pass
 
-    def mass_phase(self, amp1: str, amp2: str) -> None:
+    def mass_phase(self, amp1: str, amp2: str, color: str = "black") -> None:
         """Plot the amplitude intensities with their phase difference together
 
         Args:
             amp1 (str): amplitude string in eJPmL format
             amp2 (str): amplitude string in eJPmL format
+            color (str, optional): color to plot. Defaults to 'black'
 
         Raises:
             ValueError: amp1 or amp2 is not in the dataframe
@@ -284,16 +292,6 @@ class Plotter:
             raise ValueError(f"Amplitude {amp2} not found in dataset")
         if amp1[0] != amp2[0]:
             raise ValueError(f"Amplitudes must be from same reflectivity")
-
-        # setup colors for phase and intensity plot
-        if amp1[0] == "p":
-            phase_color = "red"
-            color1 = "lightcoral"
-            color2 = "orangered"
-        else:
-            phase_color = "blue"
-            color1 = "darkturquoise"
-            color2 = "darkblue"
 
         fig, axs = plt.subplots(
             2,
@@ -309,7 +307,7 @@ class Plotter:
             self.df[f"{amp1}_err"],
             self._bin_width / 2,
             "o",
-            color=color1,
+            color=color,
             label=convert_amp_name(amp1),
         )
         axs[0].errorbar(
@@ -318,7 +316,7 @@ class Plotter:
             self.df[f"{amp2}_err"],
             self._bin_width / 2,
             "s",
-            color=color2,
+            color=color,
             label=convert_amp_name(amp2),
         )
 
@@ -330,7 +328,7 @@ class Plotter:
             self._bin_width / 2,
             linestyle="",
             marker=".",
-            color=phase_color,
+            color=color,
         )
         axs[1].errorbar(
             self._mass_bins,
@@ -339,7 +337,7 @@ class Plotter:
             self._bin_width / 2,
             linestyle="",
             marker=".",
-            color=phase_color,
+            color=color,
         )
 
         # cosmetics
@@ -354,7 +352,8 @@ class Plotter:
         axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center", fontsize=12)
         axs[1].set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
 
-        fig.legend(fontsize=14, loc="upper right")
+        axs[0].legend(fontsize=14, loc="upper right")
+        axs[0].set_ylim(top=60000)  # TODO: Temp for QNP
 
         plt.show()
         pass
@@ -664,10 +663,16 @@ class Plotter:
                 S_wave = eJPmL[:-1] + "S"
 
                 # get ratio and phase difference
-                ratio = self.df[D_wave] / self.df[S_wave]
+                ratio = self.df[D_wave].apply(np.sqrt) / self.df[S_wave].apply(np.sqrt)
                 ratio_err = ratio * np.sqrt(
-                    np.square(self.df[D_wave + "_err"] / self.df[D_wave])
-                    + np.square(self.df[S_wave + "_err"] / self.df[S_wave])
+                    np.square(
+                        self.df[D_wave + "_err"].apply(np.sqrt)
+                        / self.df[D_wave].apply(np.sqrt)
+                    )
+                    + np.square(
+                        self.df[S_wave + "_err"].apply(np.sqrt)
+                        / self.df[S_wave].apply(np.sqrt)
+                    )
                 )
                 phase = self.df[self._phase_differences[(D_wave, S_wave)]].apply(
                     np.rad2deg

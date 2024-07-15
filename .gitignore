@@ -2,13 +2,14 @@
 **/*.root
 **/*.csv
 *.txt
-*.fit
 gen_signal.cfg
 fit.cfg
 bin_template.cfg
 
 # data output
 *.pdf
+*.png
+*.fit
 
 
 # caches
