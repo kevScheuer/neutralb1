@@ -12,7 +12,6 @@ TODO:
 """
 
 import argparse
-import re
 import typing
 
 # CONSTANTS
@@ -791,7 +790,7 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
     Returns:
         single character
     """
-    map = {-2: "m2", -1: "m", 0: "0", +1: "p", +2: "p2"}
+    map = {-2: "M", -1: "m", 0: "0", +1: "p", +2: "P"}
     if is_ang_momentum:
         map = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
 

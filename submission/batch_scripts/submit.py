@@ -51,6 +51,7 @@ def main(
     phasespace_version: str,
     phasespace_dir: str,
     cut_recoil_pi_mass: float,
+    is_bootstrap: bool,
     template_name: str,
     truth_file: str,
     n_gpus: int,
@@ -135,7 +136,7 @@ def main(
     for run_period in run_periods:
         for low_t, high_t in zip(low_t_edges, high_t_edges):
             for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
-                # prepare dirs and create those that don't exist
+                # prepare all directories
                 running_dir = "/".join(
                     (
                         VOLATILE_DIR,
@@ -153,8 +154,14 @@ def main(
                     )
                 )
 
-                data_out_dir = running_dir.replace("TMPDIR/", "")
+                # subdirs of running
+                rand_dir = running_dir + "rand/"
+                bootstrap_dir = running_dir + "bootstrap/"
                 log_dir = running_dir + "log/"
+
+                data_out_dir = rand_dir.replace("TMPDIR/", "")
+                rand_out_dir = data_out_dir + "rand/"
+                bootstrap_out_dir = data_out_dir + "bootstrap/"
 
                 source_file_dir = "/".join(
                     (
@@ -170,9 +177,14 @@ def main(
                     )
                 )
 
+                # create directories if they don't exist
                 pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(data_out_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
                 pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(data_out_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(rand_out_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
 
                 # if a completed fit is found in the output directory, ask if the user
                 # is sure they want to overwrite it
@@ -230,6 +242,7 @@ def main(
                         f" -D {data_out_dir}",
                         f" -C {CODE_DIR}",
                         f" -R {reaction}",
+                        f" -b {is_bootstrap}",
                     )
                 )
                 submit_slurm_job(
@@ -287,6 +300,8 @@ def create_data_files(
         FileExistsError: Generated phasespace file not found
         FileExistsError: Accepted phasespace file not found
         FileExistsError: Data File not found
+
+    TODO: move the check for the file existing to be first, before actions take place
     """
 
     # first check if ROOT is loaded into the shell environment
@@ -686,11 +701,21 @@ if __name__ == "__main__":
         "-c",
         "--cut_recoil_pi_mass",
         type=float,
-        default=0.0,
+        default=1.4,
         help=(
             "Cuts events below the given value in the recoil-pion mass spectrum, i.e."
             " a value of 1.3 selects events like 'MRecoilPi > 1.3' when the trees are"
             " copied. This flag assumes the ROOT data files has an 'MRecoilPi' leaf"
+        ),
+    )
+    parser.add_argument(
+        "-b",
+        "--boostrap",
+        type=bool,
+        default=True,
+        help=(
+            "When True (default), 100 bootstrapped fits will be performed starting from"
+            " the nominal values found at the end of all the --nrand fits in each bin"
         ),
     )
 
@@ -749,6 +774,7 @@ if __name__ == "__main__":
     data_version, data_dir = args.data
     phasespace_version, phasespace_dir = args.phasespace
     cut_recoil_pi_mass = args.cut_recoil_pi_mass
+    is_bootstrap = args.bootstrap
 
     template_name = args.template_name
     n_gpus, gpu_type = int(args.gpu[0]), args.gpu[1]
@@ -778,6 +804,7 @@ if __name__ == "__main__":
         phasespace_version,
         phasespace_dir,
         cut_recoil_pi_mass,
+        is_bootstrap,
         template_name,
         truth_file,
         n_gpus,
