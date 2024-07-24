@@ -159,7 +159,7 @@ def main(
                 bootstrap_dir = running_dir + "bootstrap/"
                 log_dir = running_dir + "log/"
 
-                data_out_dir = rand_dir.replace("TMPDIR/", "")
+                data_out_dir = running_dir.replace("TMPDIR/", "")
                 rand_out_dir = data_out_dir + "rand/"
                 bootstrap_out_dir = data_out_dir + "bootstrap/"
 
@@ -276,7 +276,7 @@ def create_data_files(
 ) -> None:
     """Create data files with TEM region pre-selected
 
-    The typical ROOTDATAREADER method in the .cfg files reads in data much too slowly,
+    The typical ROOTDataReader method in the .cfg files reads in data much too slowly,
     and is repetitive when the same TEM region is being selected. This function creates
     a dir in volatile under the 'reaction' arg, and dirs for each TEM selection. The
     same dirs are given to run_fits.sh for where to source the data files from.
@@ -543,7 +543,7 @@ if __name__ == "__main__":
         help="Waveset to fit with",
     )
     parser.add_argument(
-        "--phase_reference",
+        "--phase-reference",
         type=str,
         metavar="JPmL",
         default="",
@@ -586,21 +586,21 @@ if __name__ == "__main__":
         help="change decay frame used, empty default means helicity will be used",
     )
     parser.add_argument(
-        "--force_refl",
+        "--force-refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="only allow a single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init_refl",
+        "--init-refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="initialize single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init_re_im",
+        "--init-re-im",
         type=float,
         nargs=2,
         default=[100, 100],
@@ -699,7 +699,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-c",
-        "--cut_recoil_pi_mass",
+        "--cut-recoil-pi-mass",
         type=float,
         default=1.4,
         help=(
@@ -710,7 +710,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-b",
-        "--boostrap",
+        "--bootstrap",
         type=bool,
         default=True,
         help=(
@@ -721,7 +721,7 @@ if __name__ == "__main__":
 
     # other arguments
     parser.add_argument(
-        "--template_name",
+        "--template-name",
         type=str,
         default="template.cfg",
         help="template with default values to copy and overwrite",
@@ -746,7 +746,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--time_limit",
+        "--time-limit",
         type=str,
         default="01:00:00",
         help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),

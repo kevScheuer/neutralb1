@@ -790,7 +790,7 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
     Returns:
         single character
     """
-    map = {-2: "M", -1: "m", 0: "0", +1: "p", +2: "P"}
+    map = {-2: "n", -1: "m", 0: "0", +1: "p", +2: "q"}
     if is_ang_momentum:
         map = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
 

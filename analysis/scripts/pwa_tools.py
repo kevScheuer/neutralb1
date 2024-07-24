@@ -1,8 +1,7 @@
 """Collection of tools useful for analyzing PWA fit results
 
-NOTE: Remember to use red=pos refl, blue=neg refl standard now
-
-TODO: As cross section scripts get developed, maybe make a second plot class for them
+Primary class is the Plotter, which ideally handles most standard plots of interest when 
+analyzing fit results
 """
 
 import itertools
@@ -15,10 +14,12 @@ import pandas as pd
 
 
 class Plotter:
-    # TODO: finish importing all the class methods
     # TODO: add kwargs in init for figsize, dpi, and fontsizes (legend, axes, etc)
+    # TODO: add handling for dataframe to accept a "bootstrap" df where each chunk of
+    #   100 bootstrapped rows is labelled with its corresponding bin integer. Then have
+    #   function that plots scatter matrix of bootstrap results
     def __init__(self, df: pd.DataFrame, data_df: pd.DataFrame) -> None:
-        """Initialize object with paths to csv files
+        """Initialize object with pandas dataframes
 
         Args:
             df (pd.DataFrame): dataframe that holds all FitResults, made by fitsToCsv.C
@@ -128,7 +129,17 @@ class Plotter:
                 total intensity in each bin. Defaults to False.
         """
 
-        char_to_int = {"m": -1, "0": 0, "p": +1, "S": 0, "P": 1, "D": 2, "F": 3}
+        char_to_int = {
+            "n": -2,
+            "m": -1,
+            "0": 0,
+            "p": +1,
+            "q": +2,
+            "S": 0,
+            "P": 1,
+            "D": 2,
+            "F": 3,
+        }
         int_to_char = {-1: "m", 0: "0", +1: "p"}
         pm_dict = {"m": "-", "p": "+"}
 
@@ -155,11 +166,10 @@ class Plotter:
                 JPmL = f"{jpl[0:2]}{int_to_char[m]}{jpl[-1]}"
 
                 if row == 0:
-                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}", fontsize=16)
+                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}")
                 if col == 0:
                     axs[row, col].set_ylabel(
                         rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$",
-                        fontsize=16,
                     )
 
                 if "m" + JPmL in self._coherent_sums["eJPmL"]:
@@ -200,17 +210,16 @@ class Plotter:
             ax.grid(True, alpha=0.8)
             ax.set_ylim(bottom=0)
 
-            # figure cosmetics
-        fig.text(0.5, 0.04, r"$\omega\pi^0$ inv. mass (GeV)", ha="center", fontsize=18)
+        # figure cosmetics
+        fig.text(0.5, 0.04, r"$\omega\pi^0$ inv. mass (GeV)", ha="center")
         fig.text(
             0.04,
             0.5,
             f"Events / {self._bin_width:.3f} GeV",
             ha="center",
-            fontsize=18,
             rotation="vertical",
         )
-        fig.legend(handles=[pos_plot, neg_plot], fontsize=18, loc="upper right")
+        fig.legend(handles=[pos_plot, neg_plot], loc="upper right")
         plt.show()
         pass
 
@@ -261,12 +270,12 @@ class Plotter:
             color=color,
         )
 
-        ax.legend(fontsize=10)
+        ax.legend()
 
         ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
         ax.set_ylim([-180, 180])
-        ax.set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="top", fontsize=18)
-        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
+        ax.set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="top")
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
         ax.grid(True, alpha=0.8)
 
         plt.show()
@@ -345,15 +354,14 @@ class Plotter:
             ax.grid(True, alpha=0.8)
 
         axs[0].set_ylim(bottom=0.0)
-        axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top", fontsize=12)
+        axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
 
         axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
         axs[1].set_ylim([-180, 180])
-        axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center", fontsize=12)
-        axs[1].set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=18)
+        axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center")
+        axs[1].set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
 
-        axs[0].legend(fontsize=14, loc="upper right")
-        axs[0].set_ylim(top=60000)  # TODO: Temp for QNP
+        axs[0].legend(loc="upper right")
 
         plt.show()
         pass
@@ -629,7 +637,7 @@ class Plotter:
             ax_corr.set_ylim(-1, 1)
 
         else:
-            marker_map = {"p": "^", "0": ".", "m": "v"}
+            marker_map = {"q": 6, "p": "^", "0": ".", "m": "v", "n": 7}
             color_map = {"p": "red", "m": "blue"}
             fig = plt.figure(figsize=(11, 4))
             subfigs = fig.subfigures(1, 2)
@@ -754,7 +762,6 @@ class Plotter:
             fig.legend(
                 by_label.values(),
                 by_label.keys(),
-                fontsize=9,
                 loc="center right",
                 bbox_to_anchor=(1, 0.5),
             )
@@ -840,7 +847,7 @@ def parse_amplitude(amp: str) -> dict:
     re_dict = {
         "e": r"(?<![0-9]{1}[pm]{1})(?<!\d)[pm]",
         "jp": r"[0-9]{1}[pm]{1}",  # j and p always appear together
-        "m": r"([0-9]{1}[pm]{1})+[pm0]",  # assumes always form of 'JPm'
+        "m": r"([0-9]{1}[pm]{1})+[qp0mn]",  # assumes always form of 'JPm'
         "l": r"[SPDF]",
     }
 
@@ -903,7 +910,7 @@ def convert_amp_name(amp: str) -> str:
     """
 
     pm_dict = {"m": "-", "p": "+", "": ""}
-    m_proj_dict = {"m": -1, "0": 0, "p": +1, "": ""}
+    m_proj_dict = {"n": -2, "m": -1, "0": 0, "p": +1, "q": +2, "": ""}
 
     # CASE 1: phase difference, always of form 'eJPmL_eJPmL'
     if "_" in amp:
@@ -963,8 +970,8 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
     """
     phase_differences = {}
 
-    # get all possible combinations of eJPmL columns, and remove those that
-    #   don't exist in the dataframe
+    # get all possible combinations of eJPmL columns, and add their phase difference
+    # column name if it exists (handles reverse ordering i.e. p1ppS_p1pmS & p1pmS_p1ppS)
     all_combos = list(itertools.combinations(get_coherent_sums(df)["eJPmL"], 2))
     columns = df.columns.values.tolist()
     for combo in all_combos:

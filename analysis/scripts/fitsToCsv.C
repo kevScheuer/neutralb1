@@ -113,7 +113,7 @@ void fitsToCsv(std::string args = "")
                  << "\t-d, --directory PARENT_DIRECTORY\n"
                  << "\t\tspecify parent dir (default: ./)\n"
                  << "\t-a, --acceptance_corrected BOOL\n"
-                 << "\t\tControls if amplitudes are detector effects are accepted for\n"
+                 << "\t\tIf true, corrects amp intensities for detector effects\n"
                  << "\t\tDefaults to False i.e. uses 'detected values";
             exit(0);
         }

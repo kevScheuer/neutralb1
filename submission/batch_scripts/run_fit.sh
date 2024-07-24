@@ -1,9 +1,12 @@
 #!/bin/sh
-
-echo -e "\nhost: \t\t\t$HOSTNAME\n"
+echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
 rm ./*.fit 
+rm ./*.txt
+rm ./rand/*.fit
+rm ./rand/*.txt
+rm ./bootstrap/*.fit
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
@@ -42,7 +45,7 @@ while getopts ":o:r:n:d:p:D:s:C:R:b:h:" opt; do
         my_data_version=$OPTARG
     ;;
     p)
-        echo -e "phasespace version: \t$OPTARG\n"
+        echo -e "phasespace version: $OPTARG\n"
         my_phasespace_version=$OPTARG
     ;;
     D)
@@ -54,15 +57,15 @@ while getopts ":o:r:n:d:p:D:s:C:R:b:h:" opt; do
         my_source_file_dir=$OPTARG
     ;;
     C)
-        echo -e "code dir: \t\t$OPTARG\n"
+        echo -e "code dir: \t\t\t$OPTARG\n"
         my_code_dir=$OPTARG
     ;;
     R)
-        echo -e "reaction: \t\t$OPTARG\n"
+        echo -e "reaction: \t\t\t$OPTARG\n"
         my_reaction=$OPTARG
     ;;
     b)
-        echo -e "boostrapped: \t\t$OPTARG\n"
+        echo -e "bootstrapped: \t\t$OPTARG\n"
         my_bootstrap_bool=$OPTARG
     ;;
     h) # help message
@@ -131,16 +134,16 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
     use_mpi=true
 fi
 
-if [ "$use_mpi" = true ]    
+if [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
     which fitMPI
     which nvcc
     which mpirun
     which mpicxx
 
-    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s bestFitPars
+    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars"
 else
-    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s bestFitPars
+    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars"
 fi
 
 if ! [ -f "$my_reaction.fit" ]; then
@@ -149,7 +152,7 @@ if ! [ -f "$my_reaction.fit" ]; then
 fi
 
 # run vecps_plotter and angle_plotter to get diagnostic plots
-mv $my_reaction.fit best.fit
+mv "$my_reaction".fit best.fit
 vecps_plotter best.fit
 
 # produce diagnostic plots of angles and mass distributions
@@ -165,8 +168,9 @@ root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$data_t
 ls -al
 
 # move all the randomized fits to the rand directory
-mv -f $reaction_*.fit rand/
-mv -f $reaction.ni rand/
+mv -f "$my_reaction"_*.fit rand/
+mv -f bestFitPars_*.txt rand/
+mv -f "$my_reaction".ni rand/
 echo -e "\n\n==================================================
 Randomized fits have completed and been moved to the rand subdirectory\n\n"
 
@@ -180,25 +184,25 @@ if [[ $my_bootstrap_bool == "True" ]]; then
     echo "include bestFitPars.txt" >> bootstrap_fit.cfg
 
     # replace data reader with bootstrap version for just the "data" file
-    sed -i -e 's/data LOOPREAC ROOTDataReader/data LOOPREAC ROOTDataReaderBootstrap' bootstrap_fit.cfg
+    sed -i -e 's/data LOOPREAC ROOTDataReader LOOPDATA/data LOOPREAC ROOTDataReaderBootstrap LOOPDATA 0/' bootstrap_fit.cfg
 
     # perform 100 bootstrap fits, using seeds 1,2,..100
     for ((i=1;i<=100;i++)); do
-        echo -e "\nBOOTSTRAP FIT: $i\n"
-        sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA/ROOTDataReaderBootstrap LOOPDATA $i" bootstrap_fit.cfg
+        echo -e "\nBOOTSTRAP FIT: $i\n"        
+        sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA $((i-1))/ROOTDataReaderBootstrap LOOPDATA $i/" bootstrap_fit.cfg
         # run fit
-        if [ "$use_mpi" = true ]
+        if [ "$use_mpi" = true ]; then 
             mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
         else
             fit -c bootstrap_fit.cfg -m 1000000
         fi
-        mv 
+        mv "$my_reaction".fit "$my_reaction"_"$i".fit
     done    
 
     ls -al 
-    mv -f $reaction_*.fit bootstrap/
-    mv -f $reaction.ni boostrap/
-    echo -e "\n\n==================================================Bootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
+    mv -f "$my_reaction"_*.fit bootstrap/
+    mv -f "$my_reaction".ni bootstrap/
+    echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
     ls -al
 fi
 
@@ -210,11 +214,12 @@ cp -f fit.cfg $my_data_out_dir
 cp -f best.fit $my_data_out_dir
 cp -f vecps_* $my_data_out_dir
 cp -f *.pdf $my_data_out_dir
+cp -f bestFitPars.txt $my_data_out_dir
 
-cp -f rand/$reaction_*.fit $my_data_out_dir/rand/
-cp -f rand/$reaction.ni $my_data_out_dir/rand/
+cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
+cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
 
 if [[ $my_bootstrap_bool == "True" ]]; then
-    cp -f bootstrap/$reaction_*.fit $my_data_out_dir/bootstrap/
-    cp -f bootstrap/$reaction.ni $my_data_out_dir/bootstrap/
+    cp -f bootstrap/"$my_reaction"_*.fit $my_data_out_dir/bootstrap/
+    cp -f bootstrap/"$my_reaction".ni $my_data_out_dir/bootstrap/
 fi
