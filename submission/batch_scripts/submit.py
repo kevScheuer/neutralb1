@@ -425,7 +425,6 @@ def submit_slurm_job(
             "#SBATCH --ntasks-per-core=1 \n"
             "#SBATCH --threads-per-core=1 \n"
             "#SBATCH --constraint=el9 \n"
-            "#SBATCH -w sciml2402\n"  # temp: issue with sciml2401 node
         )
         if is_send_mail:
             slurm_out.write(
@@ -731,7 +730,7 @@ if __name__ == "__main__":
         "--gpu",
         nargs=2,
         default=["0", ""],
-        choices=["1", "2", "3", "4", "T4", "TitanRTX", "A800"],
+        choices=["1", "2", "3", "4", "T4", "TitanRTX", "A100", "A800"],
         metavar=("#GPUs", "CARD"),
         help="set # of GPUs to use for a card. Default assumes only CPU fits",
     )

@@ -12,7 +12,7 @@
 <package name="gluex_MCwrapper" version="v2.8.1"/>
 <package name="gluex_root_analysis" version="1.26.0" dirtag="hdr446"/>
 <package name="halld_recon" version="4.46.0"/>
-<package name="halld_sim" home="/work/halld/kscheuer/my_build/halld_sim_test_build"/>
+<package name="halld_sim" home="/work/halld/kscheuer/my_build/halld_sim"/>
 <package name="hddm" version="4.31.0"/>
 <package name="hdds" version="4.15.0"/>
 <package name="hdgeant4" version="2.40.0"/>

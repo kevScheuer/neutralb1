@@ -208,6 +208,7 @@ fi
 
 # cleanup data out directory 
 rm $my_data_out_dir/*.fit
+rm $my_data_out_dir/*.txt
 
 # move fit results to output directory (force overwrite)
 cp -f fit.cfg $my_data_out_dir
