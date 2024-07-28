@@ -2,7 +2,7 @@
 
 This circumvents the need to edit the data reader of vecps_plotter to handle
 the mass binning. This file instead reads the AmpTools Tree, and makes the same TEM
-cuts I used (set in the script). I then bin it to match the fit bins, and weight using
+cuts I used. I then bin it to match the fit bins, and weight using
 the "Weight" leaf of the Tree.
 */
 

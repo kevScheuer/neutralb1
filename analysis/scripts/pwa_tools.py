@@ -14,21 +14,25 @@ import pandas as pd
 
 
 class Plotter:
-    # TODO: add kwargs in init for figsize, dpi, and fontsizes (legend, axes, etc)
-    # TODO: add handling for dataframe to accept a "bootstrap" df where each chunk of
-    #   100 bootstrapped rows is labelled with its corresponding bin integer. Then have
-    #   function that plots scatter matrix of bootstrap results
-    def __init__(self, df: pd.DataFrame, data_df: pd.DataFrame) -> None:
-        """Initialize object with pandas dataframes
+    def __init__(
+        self, df: pd.DataFrame, data_df: pd.DataFrame, bootstrap_df: pd.DataFrame = None
+    ) -> None:
+        """Initialize object with pandas dataframe
 
         Args:
-            df (pd.DataFrame): dataframe that holds all FitResults, made by fitsToCsv.C
-            data_df (pd.DataFrame): dataframe of the raw data that is being fit to
+            df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
+            data_df (pd.DataFrame): raw data points that AmpTools is fitting to
+            bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results,
+                labelled by bin number. Primary use is for plotting the gaussian like
+                distribution of each parameter and using its width to estimate the error
+                of the nominal fit result in df.
         """
         self.df = df
         self.data_df = data_df
+        self.bootstrap_df = bootstrap_df
 
         wrap_phases(self.df)
+        wrap_phases(self.bootstrap_df)
 
         self._mass_bins = self.data_df["mean"]
         self._mass_bins_err = self.data_df["rms"]
@@ -147,8 +151,8 @@ class Plotter:
         m_ints = sorted({char_to_int[JPm[-1]] for JPm in self._coherent_sums["JPm"]})
 
         fig, axs = plt.subplots(
-            len(m_ints),
             len(self._coherent_sums["JPL"]),
+            len(m_ints),
             sharex=True,
             sharey=True,
             figsize=(15, 10),
@@ -766,6 +770,59 @@ class Plotter:
                 bbox_to_anchor=(1, 0.5),
             )
             plt.show()
+        pass
+
+    def bootstrap_matrix(self, bin_index: int, columns: list, **kwargs) -> None:
+        """Plot scatter matrix of the bootstrap fit results with nominal fit overlaid
+
+        Scatter matrix plots the histogram of every parameter on the diagonal, and a
+        scatter plot between every parameter on the off diagonal. This is used to view
+        the distribution of bootstrap fit results in a particular bin, chosen with the
+        "bin_index" parameter.
+
+        TODO: toy around with diagonal=hist or kde options to see if 1 should be default
+
+        Args:
+            bin_index (int): bin (index # in df) that bootstrapped fits are associated
+                with. Accessed using a label type column named "bin" in bootstrap_df
+            columns (list): fit parameters to plot
+            **kwargs: specifically for the pandas.plotting.scatter_matrix function
+
+        Raises:
+            ValueError: throws error if bootstrap df was not defined
+        """
+
+        if self.bootstrap_df is None:
+            raise ValueError("Bootstrap df was not defined on instantiation")
+
+        ax_matrix = pd.plotting.scatter_matrix(
+            self.bootstrap_df[self.bootstrap_df["bin"] == bin_index][columns],
+            alpha=0.2,
+            grid=True,
+            **kwargs,
+        )
+
+        array_length = ax_matrix.shape[0]
+        for row in range(array_length):
+            for col in range(array_length):  # matrix will always be square
+
+                x_label = ax_matrix[row, col].xaxis.get_label().get_text()
+                y_label = ax_matrix[row, col].yaxis.get_label().get_text()
+
+                ax_matrix[row, col].set_xlabel(convert_amp_name(x_label), fontsize=9)
+                ax_matrix[row, col].set_ylabel(convert_amp_name(y_label), fontsize=9)
+
+                # write nominal fit result line on diagonal plots
+                if row != col:
+                    continue
+                ax_matrix[row, col].axvline(
+                    color="green",
+                    linestyle="-",
+                    linewidth=2.0,
+                    x=self.df.loc[bin_index][x_label],
+                )
+
+        plt.show()
         pass
 
 
