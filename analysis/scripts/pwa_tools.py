@@ -11,6 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 
 class Plotter:
@@ -778,48 +779,73 @@ class Plotter:
         Scatter matrix plots the histogram of every parameter on the diagonal, and a
         scatter plot between every parameter on the off diagonal. This is used to view
         the distribution of bootstrap fit results in a particular bin, chosen with the
-        "bin_index" parameter.
-
-        TODO: toy around with diagonal=hist or kde options to see if 1 should be default
+        "bin_index" parameter. Fit fractions are plotted to better understand results.
 
         Args:
-            bin_index (int): bin (index # in df) that bootstrapped fits are associated
-                with. Accessed using a label type column named "bin" in bootstrap_df
+            bin_index (int): bin that bootstrapped fits are associated with i.e. the
+                1st bin is index=0 in the data dataframe, so all bootstrap fits
+                associated with that bin have a value of 0 in the "bin" column of the
+                bootstrap dataframe
             columns (list): fit parameters to plot
-            **kwargs: specifically for the pandas.plotting.scatter_matrix function
+            **kwargs: specifically for the seaborn pairplot object
 
         Raises:
-            ValueError: throws error if bootstrap df was not defined
+            ValueError: throws error if bootstrap df was not defined, since its optional
+                in the init
+
+        TODO: Handle not doing fit fractions for when phase differences plotted
+        TODO: Add option to give pairplot a label i.e. passing "hue='t_bin'" will color
+            the plot by the t_bin column (and adjust plot params as necessary)
         """
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
-        ax_matrix = pd.plotting.scatter_matrix(
-            self.bootstrap_df[self.bootstrap_df["bin"] == bin_index][columns],
-            alpha=0.2,
-            grid=True,
+        pg = sns.pairplot(
+            self.bootstrap_df[self.bootstrap_df["bin"] == bin_index][columns].div(
+                self.bootstrap_df["detected_events"], axis="index"
+            ),
             **kwargs,
         )
 
-        array_length = ax_matrix.shape[0]
-        for row in range(array_length):
-            for col in range(array_length):  # matrix will always be square
-
-                x_label = ax_matrix[row, col].xaxis.get_label().get_text()
-                y_label = ax_matrix[row, col].yaxis.get_label().get_text()
-
-                ax_matrix[row, col].set_xlabel(convert_amp_name(x_label), fontsize=9)
-                ax_matrix[row, col].set_ylabel(convert_amp_name(y_label), fontsize=9)
-
-                # write nominal fit result line on diagonal plots
-                if row != col:
-                    continue
-                ax_matrix[row, col].axvline(
+        num_plots = len(columns)
+        for row in range(num_plots):
+            for col in range(num_plots):
+                # plot green lines for nominal fit result. Axes labels are obtained from
+                #   last row (for x labels) or first column (for y labels)
+                pg.axes[row, col].axvline(
+                    x=self.df.loc[0][
+                        pg.axes[num_plots - 1, col].xaxis.get_label().get_text()
+                    ]
+                    / self.df.loc[0]["detected_events"],
                     color="green",
+                    alpha=0.5,
                     linestyle="-",
-                    linewidth=2.0,
-                    x=self.df.loc[bin_index][x_label],
+                    linewidth=5.0,
+                )
+                if row != col:
+                    pg.axes[row, col].axhline(
+                        y=self.df.loc[0][pg.axes[row, 0].yaxis.get_label().get_text()]
+                        / self.df.loc[0]["detected_events"],
+                        color="green",
+                        alpha=0.5,
+                        linestyle="-",
+                        linewidth=5.0,
+                    )
+
+        # change axes labels to prettier version. Must be done last since axes labels
+        #   are the primary way of attaining plot information
+        for row in range(num_plots):
+            for col in range(num_plots):
+                x_label = pg.axes[row, col].xaxis.get_label().get_text()
+                y_label = pg.axes[row, col].yaxis.get_label().get_text()
+                fontsize = pg.axes[row, col].yaxis.get_label().get_fontsize()
+
+                pg.axes[row, col].set_xlabel(
+                    convert_amp_name(x_label), fontsize=fontsize
+                )
+                pg.axes[row, col].set_ylabel(
+                    convert_amp_name(y_label), fontsize=fontsize
                 )
 
         plt.show()

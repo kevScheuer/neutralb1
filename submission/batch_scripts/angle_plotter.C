@@ -57,10 +57,10 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     amp_map["fit"]["draw_option"] = "f";
     amp_map["fit"]["color"] = "16";
 
-    amp_map["1p"]["plot_name"] = "_0m";
-    amp_map["1p"]["title"] = "#[]{0^{#minus}}^{(#pm)} (P)";
-    amp_map["1p"]["draw_option"] = "ep";
-    amp_map["1p"]["color"] = "6";
+    amp_map["0m"]["plot_name"] = "_0m";
+    amp_map["0m"]["title"] = "#[]{0^{#minus}}^{(#pm)} (P)";
+    amp_map["0m"]["draw_option"] = "ep";
+    amp_map["0m"]["color"] = "6";
 
     amp_map["1p"]["plot_name"] = "_1p";
     amp_map["1p"]["title"] = "#[]{1^{#plus}}^{(#pm)} (S+D)";
