@@ -794,19 +794,22 @@ class Plotter:
                 in the init
 
         TODO: Handle not doing fit fractions for when phase differences plotted
-        TODO: Add option to give pairplot a label i.e. passing "hue='t_bin'" will color
-            the plot by the t_bin column (and adjust plot params as necessary)
         """
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
-        pg = sns.pairplot(
+        pg = sns.PairGrid(
             self.bootstrap_df[self.bootstrap_df["bin"] == bin_index][columns].div(
                 self.bootstrap_df["detected_events"], axis="index"
             ),
             **kwargs,
         )
+        # overlay a kde on the hist to compare nominal fit line to kde peak
+        pg.map_diag(sns.histplot, kde=True)
+        # scatter plots on both diagonals is redundant, so plot
+        pg.map_upper(sns.kdeplot, levels=[0.003, 0.05, 0.32])  # based off 3,2,1 sigma
+        pg.map_lower(sns.scatterplot)
 
         num_plots = len(columns)
         for row in range(num_plots):

@@ -3,6 +3,10 @@
 See README for process architecture
 	
 TODO:        
+    Make create_data_files submit jobs in parallel on normal CPU nodes instead of
+        running here in serial. Have it 1. Check if all files exist, and if not ask the
+        user if they'd like to submit jobs. 2. If yes, submit needed jobs and then quit
+        out of the program
     mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
