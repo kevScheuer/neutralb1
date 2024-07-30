@@ -33,7 +33,8 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
 
         wrap_phases(self.df)
-        wrap_phases(self.bootstrap_df)
+        if self.bootstrap_df is not None:
+            wrap_phases(self.bootstrap_df)
 
         self._mass_bins = self.data_df["mean"]
         self._mass_bins_err = self.data_df["rms"]
@@ -257,7 +258,7 @@ class Plotter:
         ax.errorbar(
             self._mass_bins,
             self.df[phase_dif].apply(np.rad2deg),
-            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
             self._bin_width / 2,
             label=convert_amp_name(phase_dif),
             linestyle="",
@@ -268,7 +269,7 @@ class Plotter:
         ax.errorbar(
             self._mass_bins,
             -self.df[phase_dif].apply(np.rad2deg),
-            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -338,7 +339,7 @@ class Plotter:
         axs[1].errorbar(
             self._mass_bins,
             self.df[phase_dif].apply(np.rad2deg),
-            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -347,7 +348,7 @@ class Plotter:
         axs[1].errorbar(
             self._mass_bins,
             -self.df[phase_dif].apply(np.rad2deg),
-            self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -519,7 +520,7 @@ class Plotter:
                     axs[i, j].errorbar(
                         self._mass_bins,
                         self.df[phase_dif].apply(np.rad2deg),
-                        self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+                        self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
@@ -530,7 +531,7 @@ class Plotter:
                     axs[i, j].errorbar(
                         self._mass_bins,
                         -self.df[phase_dif].apply(np.rad2deg),
-                        self.df[phase_dif + "_err"].abs().apply(np.rad2deg),
+                        self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
@@ -679,11 +680,11 @@ class Plotter:
                 ratio = self.df[D_wave].apply(np.sqrt) / self.df[S_wave].apply(np.sqrt)
                 ratio_err = ratio * np.sqrt(
                     np.square(
-                        self.df[D_wave + "_err"].apply(np.sqrt)
+                        self.df[f"{D_wave}_err"].apply(np.sqrt)
                         / self.df[D_wave].apply(np.sqrt)
                     )
                     + np.square(
-                        self.df[S_wave + "_err"].apply(np.sqrt)
+                        self.df[f"{S_wave}_err"].apply(np.sqrt)
                         / self.df[S_wave].apply(np.sqrt)
                     )
                 )
@@ -774,12 +775,15 @@ class Plotter:
         pass
 
     def bootstrap_matrix(self, bin_index: int, columns: list, **kwargs) -> None:
-        """Plot scatter matrix of the bootstrap fit results with nominal fit overlaid
+        """Plot matrix of the bootstrap fit results with nominal fit overlaid
 
-        Scatter matrix plots the histogram of every parameter on the diagonal, and a
-        scatter plot between every parameter on the off diagonal. This is used to view
-        the distribution of bootstrap fit results in a particular bin, chosen with the
-        "bin_index" parameter. Fit fractions are plotted to better understand results.
+        View the relations between fit parameters (selected with "columns") from the
+        bootstrap fit results in a single bin (chosen with bin_index). The matrix is of
+        the form: histogram + its kde on the diagonal, scatter plots on the lower
+        triangle, and 2D kde's on the upper triangle. Every plot has a thick green line
+        overlaid to indicate the nominal fit result values. Plots framed by a solid
+        black line indicate a strong correlation between those variables (>0.7). All
+        plots use fit fractions, to better understand results.
 
         Args:
             bin_index (int): bin that bootstrapped fits are associated with i.e. the
@@ -799,9 +803,13 @@ class Plotter:
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
+        # make selection for to reduce dataset size as we work with it
+        cut_df = self.df.loc[bin_index]
+        cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"] == bin_index]
+
         pg = sns.PairGrid(
-            self.bootstrap_df[self.bootstrap_df["bin"] == bin_index][columns].div(
-                self.bootstrap_df["detected_events"], axis="index"
+            cut_bootstrap_df[columns].div(
+                cut_bootstrap_df["detected_events"], axis="index"
             ),
             **kwargs,
         )
@@ -814,26 +822,56 @@ class Plotter:
         num_plots = len(columns)
         for row in range(num_plots):
             for col in range(num_plots):
-                # plot green lines for nominal fit result. Axes labels are obtained from
-                #   last row (for x labels) or first column (for y labels)
+                # Labels from last row (for x labels) or first column (for y labels)
+                col_label = pg.axes[num_plots - 1, col].xaxis.get_label().get_text()
+                row_label = pg.axes[row, 0].yaxis.get_label().get_text()
+
+                # plot green lines for nominal fit result, with transparent band for
+                #   its MINUIT UNCERTAINTY
                 pg.axes[row, col].axvline(
-                    x=self.df.loc[0][
-                        pg.axes[num_plots - 1, col].xaxis.get_label().get_text()
-                    ]
-                    / self.df.loc[0]["detected_events"],
+                    x=cut_df[col_label] / cut_df["detected_events"],
                     color="green",
-                    alpha=0.5,
                     linestyle="-",
-                    linewidth=5.0,
+                    linewidth=2.0,
                 )
-                if row != col:
+                pg.axes[row, col].axvspan(
+                    xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2)
+                    / cut_df["detected_events"],
+                    xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
+                    / cut_df["detected_events"],
+                    color="green",
+                    alpha=0.2,
+                )
+                if row != col:  # off-diagonals need y-axis line
                     pg.axes[row, col].axhline(
-                        y=self.df.loc[0][pg.axes[row, 0].yaxis.get_label().get_text()]
-                        / self.df.loc[0]["detected_events"],
+                        y=cut_df[row_label] / cut_df["detected_events"],
                         color="green",
-                        alpha=0.5,
                         linestyle="-",
-                        linewidth=5.0,
+                        linewidth=2.0,
+                    )
+                    pg.axes[row, col].axhspan(
+                        ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2)
+                        / cut_df["detected_events"],
+                        ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
+                        / cut_df["detected_events"],
+                        color="green",
+                        alpha=0.2,
+                    )
+                    # draw black box around plot if its correlation is above |0.7|
+                    corr = cut_bootstrap_df[[col_label, row_label]].corr().iat[0, 1]
+                    if np.abs(corr) > 0.7:
+                        pg.axes[row, col].patch.set_edgecolor("black")
+                        pg.axes[row, col].patch.set_linewidth(3)
+                # annotate plot with ratio between MINUIT error and bootstraps stdev
+                if row == col:
+                    ratio = (
+                        cut_df[f"{col_label}_err"] / cut_bootstrap_df[col_label].std()
+                    )
+                    pg.axes[row, col].text(
+                        0.6,
+                        0.9,
+                        rf"$\frac{{\sigma_{{MINUIT}}}}{{\sigma_{{bootstrap}}}}$ = {ratio:.2f}",
+                        transform=pg.axes[row, col].transAxes,
                     )
 
         # change axes labels to prettier version. Must be done last since axes labels
