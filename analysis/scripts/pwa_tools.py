@@ -27,8 +27,6 @@ class Plotter:
                 labelled by bin number. Primary use is for plotting the gaussian like
                 distribution of each parameter and using its width to estimate the error
                 of the nominal fit result in df.
-
-        TODO: Change all phases to be in degrees from the start
         """
         self.df = df
         self.data_df = data_df
@@ -38,8 +36,7 @@ class Plotter:
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
-        self._mass_bins = self.data_df["mean"]
-        self._mass_bins_err = self.data_df["rms"]
+        self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
             self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
         )[0]
@@ -261,8 +258,8 @@ class Plotter:
         fig, ax = plt.subplots()
         ax.errorbar(
             self._mass_bins,
-            self.df[phase_dif].apply(np.rad2deg),
-            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+            self.df[phase_dif],
+            self.df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             label=convert_amp_name(phase_dif),
             linestyle="",
@@ -272,8 +269,8 @@ class Plotter:
         # plot the negative as well (natural sign ambiguity in the model)
         ax.errorbar(
             self._mass_bins,
-            -self.df[phase_dif].apply(np.rad2deg),
-            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+            -self.df[phase_dif],
+            self.df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -342,8 +339,8 @@ class Plotter:
         phase_dif = self._phase_differences[(amp1, amp2)]
         axs[1].errorbar(
             self._mass_bins,
-            self.df[phase_dif].apply(np.rad2deg),
-            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+            self.df[phase_dif],
+            self.df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -351,8 +348,8 @@ class Plotter:
         )
         axs[1].errorbar(
             self._mass_bins,
-            -self.df[phase_dif].apply(np.rad2deg),
-            self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+            -self.df[phase_dif],
+            self.df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -484,8 +481,8 @@ class Plotter:
 
                     axs[i, j].errorbar(
                         self._mass_bins,
-                        self.df[phase_dif].apply(np.rad2deg),
-                        abs(self.df[f"{phase_dif}_err"]).apply(np.rad2deg),
+                        self.df[phase_dif],
+                        abs(self.df[f"{phase_dif}_err"]),
                         self._bin_width / 2,
                         linestyle="",
                         color="red",
@@ -495,8 +492,8 @@ class Plotter:
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
                         self._mass_bins,
-                        -self.df[phase_dif].apply(np.rad2deg),
-                        abs(self.df[f"{phase_dif}_err"]).apply(np.rad2deg),
+                        -self.df[phase_dif],
+                        abs(self.df[f"{phase_dif}_err"]),
                         self._bin_width / 2,
                         linestyle="",
                         color="red",
@@ -523,8 +520,8 @@ class Plotter:
 
                     axs[i, j].errorbar(
                         self._mass_bins,
-                        self.df[phase_dif].apply(np.rad2deg),
-                        self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+                        self.df[phase_dif],
+                        self.df[f"{phase_dif}_err"].abs(),
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
@@ -534,8 +531,8 @@ class Plotter:
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
                         self._mass_bins,
-                        -self.df[phase_dif].apply(np.rad2deg),
-                        self.df[f"{phase_dif}_err"].abs().apply(np.rad2deg),
+                        -self.df[phase_dif],
+                        self.df[f"{phase_dif}_err"].abs(),
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
@@ -606,8 +603,8 @@ class Plotter:
             ax_phase.plot(self._mass_bins, np.full_like(self._mass_bins, -10.54), "k--")
             ax_phase.errorbar(
                 self._mass_bins,
-                self.df["dphase"].apply(np.rad2deg),
-                self.df["dphase_err"].abs().apply(np.rad2deg),
+                self.df["dphase"],
+                self.df["dphase_err"].abs(),
                 self._bin_width / 2,
                 marker=".",
                 linestyle="",
@@ -615,8 +612,8 @@ class Plotter:
             )
             ax_phase.errorbar(
                 self._mass_bins,
-                -self.df["dphase"].apply(np.rad2deg),
-                self.df["dphase_err"].abs().apply(np.rad2deg),
+                -self.df["dphase"],
+                self.df["dphase_err"].abs(),
                 self._bin_width / 2,
                 marker=".",
                 linestyle="",
@@ -692,14 +689,10 @@ class Plotter:
                         / self.df[S_wave].apply(np.sqrt)
                     )
                 )
-                phase = self.df[self._phase_differences[(D_wave, S_wave)]].apply(
-                    np.rad2deg
-                )
-                phase_err = (
-                    self.df[f"{self._phase_differences[(D_wave, S_wave)]}_err"]
-                    .apply(np.rad2deg)
-                    .abs()
-                )
+                phase = self.df[self._phase_differences[(D_wave, S_wave)]]
+                phase_err = self.df[
+                    f"{self._phase_differences[(D_wave, S_wave)]}_err"
+                ].abs()
 
                 # label = rf"$1^{{+}}(S/D)_{{{m}}}^{{(+)}}$"
                 label = convert_amp_name(eJPmL).replace("D", "(D/S)")
@@ -787,7 +780,7 @@ class Plotter:
         triangle, and 2D kde's on the upper triangle. Every plot has a thick green line
         overlaid to indicate the nominal fit result values. Plots framed by a solid
         black line indicate a strong correlation between those variables (>0.7). All
-        plots use fit fractions, to better understand results.
+        amplitudes are plotted in fit fractions.
 
         Args:
             bin_index (int): bin that bootstrapped fits are associated with i.e. the
@@ -800,10 +793,6 @@ class Plotter:
         Raises:
             ValueError: throws error if bootstrap df was not defined, since its optional
                 in the init
-
-        TODO: Handle not doing fit fractions for when phase differences plotted, think
-            if there's way to allow both phase and amps to be plotted together. Same
-            goes for normal params like dsratio
         """
 
         if self.bootstrap_df is None:
@@ -813,12 +802,15 @@ class Plotter:
         cut_df = self.df.loc[bin_index]
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"] == bin_index]
 
-        pg = sns.PairGrid(
-            cut_bootstrap_df[columns].div(
-                cut_bootstrap_df["detected_events"], axis="index"
-            ),
-            **kwargs,
-        )
+        # if plotting an amplitude, divide by intensity to plot the fit fraction
+        plotter_df = cut_bootstrap_df[columns]
+        for col in plotter_df:
+            if any(col in sublist for sublist in self._coherent_sums.values()):
+                plotter_df.loc[:, col] = plotter_df[col].div(
+                    cut_bootstrap_df["detected_events"], axis="index"
+                )
+
+        pg = sns.PairGrid(plotter_df, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
         pg.map_diag(sns.histplot, kde=True)
         # scatter plots on both diagonals is redundant, so plot
@@ -832,34 +824,45 @@ class Plotter:
                 col_label = pg.axes[num_plots - 1, col].xaxis.get_label().get_text()
                 row_label = pg.axes[row, 0].yaxis.get_label().get_text()
 
+                # fit fraction application like above, but for the nominal fit
+                x_scaling, y_scaling = 1, 1  # default values
+                if any(
+                    col_label in sublist for sublist in self._coherent_sums.values()
+                ):
+                    x_scaling = cut_df["detected_events"]
+                if any(
+                    row_label in sublist for sublist in self._coherent_sums.values()
+                ):
+                    y_scaling = cut_df["detected_events"]
+
                 # plot green lines for nominal fit result, with transparent band for
                 #   its MINUIT UNCERTAINTY
                 pg.axes[row, col].axvline(
-                    x=cut_df[col_label] / cut_df["detected_events"],
+                    x=cut_df[col_label] / x_scaling,
                     color="green",
                     linestyle="-",
                     linewidth=2.0,
                 )
                 pg.axes[row, col].axvspan(
                     xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2)
-                    / cut_df["detected_events"],
+                    / x_scaling,
                     xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
-                    / cut_df["detected_events"],
+                    / x_scaling,
                     color="green",
                     alpha=0.2,
                 )
                 if row != col:  # off-diagonals need y-axis line
                     pg.axes[row, col].axhline(
-                        y=cut_df[row_label] / cut_df["detected_events"],
+                        y=cut_df[row_label] / y_scaling,
                         color="green",
                         linestyle="-",
                         linewidth=2.0,
                     )
                     pg.axes[row, col].axhspan(
                         ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2)
-                        / cut_df["detected_events"],
+                        / y_scaling,
                         ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
-                        / cut_df["detected_events"],
+                        / y_scaling,
                         color="green",
                         alpha=0.2,
                     )
@@ -905,7 +908,7 @@ class Plotter:
 def wrap_phases(
     df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
 ) -> None | pd.Series:
-    """Wrap phase differences to be from -pi to pi
+    """Wrap phase differences to be from -pi to pi and convert from radians to degrees
 
     Two options of passing either a pandas dataframe, or series. The dataframe
     case handles avoiding editing any non phase difference columns. The series
@@ -930,39 +933,26 @@ def wrap_phases(
         new_phases = []
         for phase in series:
             if phase < np.pi and phase > -np.pi:
-                new_phases.append(phase)
+                new_phases.append(np.rad2deg(phase))
                 continue
             phase = (phase + np.pi) % (2 * np.pi) - np.pi
-            new_phases.append(phase)
+            new_phases.append(np.rad2deg(phase))
 
         return pd.Series(new_phases)
 
     if df.empty:
         raise ValueError("Parameters are both empty. Exiting")
 
-    jp_list = get_coherent_sums(df)["JP"]
+    phase_diffs = get_phase_differences(df)
 
-    for col in df.columns:
-        # if column isn't two of the same or different jp's, skip it
-        is_same_jp = False
-        num_jps = 0
-
-        for jp in jp_list:
-            if col.count(jp) == 2:
-                is_same_jp = True
-            elif jp in col:
-                num_jps += 1
-
-        if not is_same_jp and num_jps != 2:
-            continue
-
-        # get phase, wrap if outside of [-pi,pi], and overwrite old phase
+    for col in set(phase_diffs.values()):
+        # wrap if outside of [-pi,pi], and overwrite old phase
         for i in range(df.index.max() + 1):
             phase = df.iloc[i][col]
             if phase < np.pi and phase > -np.pi:
                 continue
             phase = (phase + np.pi) % (2 * np.pi) - np.pi
-            df.at[i, col] = phase
+            df.at[i, col] = np.rad2deg(phase)
 
     return
 
