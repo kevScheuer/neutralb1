@@ -1,101 +1,174 @@
-/*Output bin content of data to a csv file
+/*Aggregate binned data from mass independent fits into one csv
 
-This circumvents the need to edit the data reader of vecps_plotter to handle
-the mass binning. This file instead reads the AmpTools Tree, and makes the same TEM
-cuts I used. I then bin it to match the fit bins, and weight using
-the "Weight" leaf of the Tree.
+Currently when mass independent fits are submitted, they source pre-cut ROOT tress for
+the fitting. In order to plot the fit results of the entire mass range and compare the
+fit to data, we need to gather all the pre-cut ROOT trees into one csv. We of course
+want the total events in each bin, but also the mass range, mean, and rms of the bin.
 */
-
-#include <string>
+#include <dirent.h>
 #include <fstream>
+#include <string>
+#include <math.h>
 
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
-#include "TCut.h"
 #include "TH1F.h"
 
+// forward declaration
+void GetDirList(std::vector<std::string> &dir_list, std::string parent_dir, std::string target_file);
+float GetLastNumOfString(std::string str);
+bool NaturalComp(std::string s1, std::string s2);
+
 /*
-    bin_width: in GeV
+    Get data from every mass bin and store results in csv file
+    Args:
+        parent_dir: searches all subdirectories of this directory
+        target_file: file name containing ROOT tree of interest
+        csv_name (optional): output csv name. Defaults to
 */
-void get_bin_data(TString file, double bin_width, std::string f_name = "",
-                  std::string min_recoil_pi_mass = "0.0",
-                  std::string t_low = "0.4", std::string t_high = "0.5",
-                  std::string E_low = "8.2", std::string E_high = "8.8",
-                  std::string m_low = "1.0", std::string m_high = "1.5")
+void get_bin_data(std::string parent_dir, std::string target_file, std::string csv_name)
 {
-    // get file and tree
-    std::unique_ptr<TFile> f(TFile::Open(file));
-    if (!f)
-    {
-        cout << "File DNE" << "\n";
-        exit(1);
-    }
-
-    TTree *tree = f->Get<TTree>("kin");
-    if (!tree)
-    {
-        cout << "Tree DNE" << "\n";
-        exit(1);
-    }
-    // Create list of cuts and apply to tree
-    std::string t_range[2] = {t_low, t_high};
-    std::string E_range[2] = {E_low, E_high};
-    std::string m_recoil_pi_cut = "MRecoilPi>" + min_recoil_pi_mass;
-    std::string t_cut = "t>" + t_range[0] + " && t<" + t_range[1];
-    std::string E_cut = "E_Beam>" + E_range[0] + " && E_Beam<" + E_range[1];
-    std::string selection = "Weight*(" +
-                            m_recoil_pi_cut + " && " + t_cut + " && " + E_cut + ")";
-
-    // setup mass bin details
-    std::string mass_range[2] = {m_low, m_high};
-    int n_bins = (std::stod(mass_range[1]) -
-                  std::stod(mass_range[0])) /
-                 bin_width;
-
-    std::string h_str = "h(" + std::to_string(n_bins) + "," + mass_range[0] +
-                        "," + mass_range[1] + ")";
-
-    TCanvas *c1 = new TCanvas("c1", "c1", 1800, 1800);
-
-    // draw histogram with correct bins & cuts, then grab it from pad
-    tree->Draw(("M4Pi>>" + h_str).c_str(), selection.c_str());
-    TH1F *h = (TH1F *)gPad->GetPrimitive("h");
-
-    // loop over the mass bins to get the bin average and rms
-    double bin_low = std::stod(mass_range[0]);
-    double bin_high = std::stod(mass_range[0]) + bin_width;
-    std::vector<double> bin_average_vec;
-    std::vector<double> bin_rms_vec;
-    for (int i = 0; i < n_bins; i++)
-    {
-        // make each mass bin a hist of 100 bins to get reasonable mean and rms values
-        tree->Draw(("M4Pi>>m(100," + std::to_string(bin_low) + "," + std::to_string(bin_high) + ")").c_str(), selection.c_str());
-        TH1F *m = (TH1F *)gPad->GetPrimitive("m");
-        bin_average_vec.push_back(m->GetMean());
-        bin_rms_vec.push_back(m->GetRMS());
-        bin_low += bin_width;
-        bin_high += bin_width;
-    }
-
     // create csv file
     ofstream csv;
-    if (f_name == "")
-    {
-        std::string f_name = "bin_data_t_" + t_range[0] + "-" + t_range[1] + "_" +
-                             "m_" + mass_range[0] + "-" + mass_range[1] + "-" +
-                             std::to_string(bin_width) + ".csv";
-    }
-    csv.open(f_name);
+    csv.open(csv_name);
 
     // write header of bins to csv
-    csv << "low_edge,high_edge,bin_contents,bin_error,mean,rms\n";
+    csv << "mass_low_edge,mass_high_edge,t_low_edge,t_high_edge,"
+        << "bin_contents,bin_error,mass_mean,mass_rms,"
+        << "t_mean,t_rms\n";
 
-    // write bin contents to csv
-    for (int bin = 1; bin <= h->GetNbinsX(); bin++)
+    std::vector<std::string> dir_list;
+    GetDirList(dir_list, parent_dir, target_file);
+
+    if (dir_list.size() == 0)
     {
-        csv << h->GetBinLowEdge(bin) << "," << h->GetBinLowEdge(bin) + h->GetBinWidth(bin) << "," << h->GetBinContent(bin) << "," << h->GetBinError(bin) << "," << bin_average_vec[bin - 1] << "," << bin_rms_vec[bin - 1] << "\n";
+        cout << "File not found in any directories" << "\n";
+        exit(1);
+    }
+
+    // sort directories list by last integer in path. Ensures each row is ordered by
+    // mass bin (typically the last bin in directory path)
+    std::sort(dir_list.begin(), dir_list.end(), NaturalComp);
+
+    // since these directories have all the cuts applied already, we just need the data
+    for (auto dir : dir_list)
+    {
+        std::unique_ptr<TFile> f(TFile::Open((dir + target_file).c_str()));
+        TTree *tree = f->Get<TTree>("kin");
+        if (!tree)
+        {
+            cout << "Tree DNE" << "\n";
+            exit(1);
+        }
+        TCanvas *c1 = new TCanvas("c1", "c1", 1800, 1800);
+        tree->Draw("M4Pi>>h_mass(100)", "Weight");
+        TH1F *h_mass = (TH1F *)gPad->GetPrimitive("h_mass");
+
+        tree->Draw("t>>h_t(100)", "Weight");
+        TH1F *h_t = (TH1F *)gPad->GetPrimitive("h_t");
+
+        // Get mass bin edges
+        // NOTE: this assumes mass binning is neatly rounded to 2nd decimal (10s of MeV)
+        int nbins = h_mass->GetNbinsX();
+        double low_mass = roundf(h_mass->GetXaxis()->GetBinLowEdge(1) * 100) / 100;
+        double high_mass = roundf(h_mass->GetXaxis()->GetBinUpEdge(nbins - 1) * 100) / 100;
+        double bin_contents_error;
+        double bin_contents = h_mass->IntegralAndError(0, nbins+1, bin_contents_error);
+        double mean_mass = h_mass->GetMean();
+        double rms_mass = h_mass->GetRMS();
+
+        // Get t bin edges
+        // NOTE: similar idea, but rounded to 1st decimal
+        nbins = h_t->GetNbinsX();
+        double low_t = roundf(h_t->GetXaxis()->GetBinLowEdge(1) * 10) / 10;
+        double high_t = roundf(h_t->GetXaxis()->GetBinUpEdge(nbins - 1) * 10) / 10;
+        double mean_t = h_t->GetMean();
+        double rms_t = h_t->GetRMS();
+
+        csv << low_mass << "," << high_mass << "," << low_t << "," << high_t << ","
+            << bin_contents << "," << bin_contents_error << "," 
+            << mean_mass << "," << rms_mass << ","
+            << mean_t << "," << rms_t << "\n";
+
+        delete c1;
     }
 
     return;
+}
+
+void GetDirList(std::vector<std::string> &dir_list, std::string parent_dir, std::string target_file)
+{
+    DIR *dir;
+    struct dirent *ent;
+
+    dir = opendir(parent_dir.c_str());
+
+    if (dir == NULL)
+    {
+        cout << "Directory " << parent_dir << " could not be opened"
+             << "\n";
+        exit(1);
+    }
+
+    // read directory (directories) and add ROOT info to csv
+    while ((ent = readdir(dir)))
+    {
+        if (ent->d_name[0] == '.') // skip reading current or parent dir again
+        {
+            continue;
+        }
+        // recursively search the subdirs
+        if (ent->d_type == DT_DIR)
+        {
+            std::string path = parent_dir + ent->d_name + '/';
+            GetDirList(dir_list, path, target_file);
+        }
+
+        std::string file = ent->d_name;
+
+        if (file != target_file)
+        {
+            continue;
+        }
+        dir_list.push_back(parent_dir);
+    }
+}
+
+// Returns last integer in string. If none is found, returns maximum int
+// allowed. This ensures in "NaturalComp" that files not indexed by an
+// integer at the end of the csv
+float GetLastNumOfString(std::string str)
+{
+    float last_num = 2147483647;
+    size_t begin = 0, end = 0;
+
+    std::string numbers = ".0123456789";
+
+    begin = str.find_first_of(numbers);
+
+    while (begin != std::string::npos)
+    {
+        // avoid cases where is just single "." in substring
+        if (str.at(begin) == '.' &&
+            numbers.find(str.at(begin + 1)) == std::string::npos)
+        {
+            str = str.substr(begin + 1, str.length() - (begin + 1));
+            begin = str.find_first_of(numbers);
+            continue;
+        }
+
+        end = str.find_first_not_of(numbers, begin);
+        std::string num = str.substr(begin, end - begin);
+        last_num = std::atof(num.c_str());
+        str = str.substr(end, str.length() - end);
+        begin = str.find_first_of(numbers);
+    }
+
+    return last_num;
+}
+
+bool NaturalComp(std::string s1, std::string s2)
+{
+    return (GetLastNumOfString(s1) < GetLastNumOfString(s2));
 }

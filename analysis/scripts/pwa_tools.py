@@ -27,6 +27,8 @@ class Plotter:
                 labelled by bin number. Primary use is for plotting the gaussian like
                 distribution of each parameter and using its width to estimate the error
                 of the nominal fit result in df.
+
+        TODO: Change all phases to be in degrees from the start
         """
         self.df = df
         self.data_df = data_df
@@ -38,7 +40,9 @@ class Plotter:
 
         self._mass_bins = self.data_df["mean"]
         self._mass_bins_err = self.data_df["rms"]
-        self._bin_width = (self.data_df["high_edge"] - self.data_df["low_edge"])[0]
+        self._bin_width = (
+            self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
+        )[0]
 
         self._coherent_sums = get_coherent_sums(self.df)
         self._phase_differences = get_phase_differences(self.df)
@@ -797,13 +801,15 @@ class Plotter:
             ValueError: throws error if bootstrap df was not defined, since its optional
                 in the init
 
-        TODO: Handle not doing fit fractions for when phase differences plotted
+        TODO: Handle not doing fit fractions for when phase differences plotted, think
+            if there's way to allow both phase and amps to be plotted together. Same
+            goes for normal params like dsratio
         """
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
-        # make selection for to reduce dataset size as we work with it
+        # make selection to reduce dataset size as we work with it
         cut_df = self.df.loc[bin_index]
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"] == bin_index]
 
@@ -881,6 +887,9 @@ class Plotter:
                 x_label = pg.axes[row, col].xaxis.get_label().get_text()
                 y_label = pg.axes[row, col].yaxis.get_label().get_text()
                 fontsize = pg.axes[row, col].yaxis.get_label().get_fontsize()
+
+                # TODO: check if value in coherent_sums or phase diffs before
+                #   "prettifying" it
 
                 pg.axes[row, col].set_xlabel(
                     convert_amp_name(x_label), fontsize=fontsize
