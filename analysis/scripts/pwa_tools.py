@@ -851,6 +851,22 @@ class Plotter:
                     color="green",
                     alpha=0.2,
                 )
+
+                # if phase difference, plot its negative due to built-in sign ambiguity
+                if col_label in set(self._phase_differences.values()):
+                    pg.axes[row, col].axvline(
+                        x=-cut_df[col_label],
+                        color="green",
+                        linestyle="-",
+                        linewidth=2.0,
+                    )
+                    pg.axes[row, col].axvspan(
+                        xmin=-(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2),
+                        xmax=-(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2),
+                        color="green",
+                        alpha=0.2,
+                    )
+
                 if row != col:  # off-diagonals need y-axis line
                     pg.axes[row, col].axhline(
                         y=cut_df[row_label] / y_scaling,
@@ -866,40 +882,62 @@ class Plotter:
                         color="green",
                         alpha=0.2,
                     )
+                    # again if phase difference, plot its negative too
+                    if row_label in set(self._phase_differences.values()):
+                        pg.axes[row, col].axhline(
+                            y=cut_df[row_label],
+                            color="green",
+                            linestyle="-",
+                            linewidth=2.0,
+                        )
+                        pg.axes[row, col].axhspan(
+                            ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2),
+                            ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2),
+                            color="green",
+                            alpha=0.2,
+                        )
+
                     # draw black box around plot if its correlation is above |0.7|
                     corr = cut_bootstrap_df[[col_label, row_label]].corr().iat[0, 1]
                     if np.abs(corr) > 0.7:
                         pg.axes[row, col].patch.set_edgecolor("black")
                         pg.axes[row, col].patch.set_linewidth(3)
-                # annotate plot with ratio between MINUIT error and bootstraps stdev
+
+                # annotate plot with ratio between bootstrap stdev and MINUIT error
                 if row == col:
+                    # take absolute value to avoid stdev being biased by inherent
+                    # bi-modal nature of phase diff results (due to sign ambiguity)
                     ratio = (
-                        cut_df[f"{col_label}_err"] / cut_bootstrap_df[col_label].std()
+                        cut_bootstrap_df[col_label].abs().std()
+                        / cut_df[f"{col_label}_err"]
                     )
                     pg.axes[row, col].text(
                         0.6,
                         0.9,
-                        rf"$\frac{{\sigma_{{MINUIT}}}}{{\sigma_{{bootstrap}}}}$ = {ratio:.2f}",
+                        rf"$\frac{{\sigma_{{bootstrap}}}}{{\sigma_{{MINUIT}}}}$ = {ratio:.2f}",
                         transform=pg.axes[row, col].transAxes,
                     )
 
         # change axes labels to prettier version. Must be done last since axes labels
-        #   are the primary way of attaining plot information
+        # are the primary way of attaining plot information
         for row in range(num_plots):
             for col in range(num_plots):
-                x_label = pg.axes[row, col].xaxis.get_label().get_text()
-                y_label = pg.axes[row, col].yaxis.get_label().get_text()
+                col_label = pg.axes[row, col].xaxis.get_label().get_text()
+                row_label = pg.axes[row, col].yaxis.get_label().get_text()
                 fontsize = pg.axes[row, col].yaxis.get_label().get_fontsize()
 
-                # TODO: check if value in coherent_sums or phase diffs before
-                #   "prettifying" it
-
-                pg.axes[row, col].set_xlabel(
-                    convert_amp_name(x_label), fontsize=fontsize
-                )
-                pg.axes[row, col].set_ylabel(
-                    convert_amp_name(y_label), fontsize=fontsize
-                )
+                if any(
+                    col_label in sublist for sublist in self._coherent_sums.values()
+                ) or col_label in set(self._phase_differences.values()):
+                    pg.axes[row, col].set_xlabel(
+                        convert_amp_name(col_label), fontsize=fontsize
+                    )
+                if any(
+                    row_label in sublist for sublist in self._coherent_sums.values()
+                ) or row_label in set(self._phase_differences.values()):
+                    pg.axes[row, col].set_ylabel(
+                        convert_amp_name(row_label), fontsize=fontsize
+                    )
 
         plt.show()
         pass
@@ -907,12 +945,12 @@ class Plotter:
 
 def wrap_phases(
     df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
-) -> None | pd.Series:
-    """Wrap phase differences to be from -pi to pi and convert from radians to degrees
+) -> None:
+    """Wrap phase differences to be from -pi/2 to pi/2 & convert from radians to degrees
 
-    Two options of passing either a pandas dataframe, or series. The dataframe
-    case handles avoiding editing any non phase difference columns. The series
-    case is much simpler, and just applies the wrapping to each value
+    Two options of passing either a pandas dataframe, or series. The dataframe case
+    handles avoiding editing any non phase difference columns. The series case is much
+    simpler, and just applies the wrapping to each value
 
     Args:
         df (pd.DataFrame, optional): dataframe of fit results loaded from csv
@@ -921,38 +959,28 @@ def wrap_phases(
             Defaults to pd.Series([], dtype=float).
 
     Returns:
-        None | pd.Series: If df given, edits the df itself. Otherwise returns the phase
-        wrapped Series
+        None: Edits the df or series itself
     """
+
+    # wraps phase (in radians) to -pi/2 < x < pi/2 and convert to degrees
+    def wrap(phase):
+        if phase > np.pi / 2 or phase < -np.pi / 2:
+            phase = (phase + np.pi / 2) % (np.pi) - np.pi / 2
+        return np.rad2deg(phase)
 
     if not series.empty:
         if not df.empty:
             raise ValueError(
                 "Only dataframe or series should be passed, NOT both. Exiting"
             )
-        new_phases = []
-        for phase in series:
-            if phase < np.pi and phase > -np.pi:
-                new_phases.append(np.rad2deg(phase))
-                continue
-            phase = (phase + np.pi) % (2 * np.pi) - np.pi
-            new_phases.append(np.rad2deg(phase))
-
-        return pd.Series(new_phases)
+        series = series.apply(wrap)
 
     if df.empty:
         raise ValueError("Parameters are both empty. Exiting")
 
     phase_diffs = get_phase_differences(df)
-
     for col in set(phase_diffs.values()):
-        # wrap if outside of [-pi,pi], and overwrite old phase
-        for i in range(df.index.max() + 1):
-            phase = df.iloc[i][col]
-            if phase < np.pi and phase > -np.pi:
-                continue
-            phase = (phase + np.pi) % (2 * np.pi) - np.pi
-            df.at[i, col] = np.rad2deg(phase)
+        df[col] = df[col].apply(wrap)
 
     return
 
@@ -1081,14 +1109,10 @@ def get_phase_differences(df: pd.DataFrame) -> dict:
     creating keys for either ordering and setting both of their values to the order
     found in the dataframe.
 
-    This function could be sped up by ignoring phase differences from separate
-    reflectivities, but its kept generalized for potential future cases of using
-    intensities that mix reflectivities
-
     Args:
         df (pd.DataFrame): dataframe of fit results loaded from csv
     Returns:
-        dict: key = tuple of both possible combinations of each amplitude, val = the
+        dict: key = tuple of both possible combinations of every amplitude, val = the
             phase difference combination found in the dataframe
     """
     phase_differences = {}
