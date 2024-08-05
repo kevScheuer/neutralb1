@@ -115,21 +115,21 @@ def main(
     orientations_str = "-".join(sorted(orientations))
 
     # Create config file template "fit.cfg" that works for any bin
-    write_config.main(
-        waveset,
-        phase_reference,
-        is_phaselock,
-        ds_option,
-        frame,
-        force_refl,
-        init_refl,
-        init_real,
-        init_imag,
-        reaction,
-        template_name,
-        truth_file,
-        orientations,
-    )
+    if not truth_file:
+        write_config.main(
+            waveset,
+            phase_reference,
+            is_phaselock,
+            ds_option,
+            frame,
+            force_refl,
+            init_refl,
+            init_real,
+            init_imag,
+            reaction,
+            template_name,
+            orientations,
+        )
 
     # when set True in the loop, will always skip asking the user if they want to
     # overwrite files
@@ -140,6 +140,7 @@ def main(
     for run_period in run_periods:
         for low_t, high_t in zip(low_t_edges, high_t_edges):
             for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
+                truth_subdir = "truth/" if truth_file else ""
                 # prepare all directories
                 running_dir = "/".join(
                     (
@@ -154,7 +155,8 @@ def main(
                         waveset_str,
                         f"recoil-pi-mass_{cut_recoil_pi_mass}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
-                        f"mass_{low_mass:.3f}-{high_mass:.3f}/",
+                        f"mass_{low_mass:.3f}-{high_mass:.3f}",
+                        truth_subdir,
                     )
                 )
 
@@ -238,17 +240,20 @@ def main(
                     (
                         f"{CODE_DIR}run_fit.sh",
                         f"-o {orientations_str}",
-                        f" -r {run_period}",
-                        f" -n {num_rand_fits}",
-                        f" -d {data_version}",
-                        f" -p {phasespace_version}",
-                        f" -s {source_file_dir}",
-                        f" -D {data_out_dir}",
-                        f" -C {CODE_DIR}",
-                        f" -R {reaction}",
-                        f" -b {is_bootstrap}",
+                        f"-r {run_period}",
+                        f"-n {num_rand_fits}",
+                        f"-d {data_version}",
+                        f"-p {phasespace_version}",
+                        f"-s {source_file_dir}",
+                        f"-D {data_out_dir}",
+                        f"-C {CODE_DIR}",
+                        f"-R {reaction}",
+                        f"-b {is_bootstrap}",
                     )
                 )
+                if truth_file:
+                    script_command += f" -t {truth_file}"
+
                 submit_slurm_job(
                     job_name,
                     script_command,
@@ -672,7 +677,10 @@ if __name__ == "__main__":
         "--truth",
         type=str,
         default="",
-        help="cfg file that contains truth info used to generate MC",
+        help=(
+            "cfg file used to generate signal MC, with fixed parameters. Used for"
+            " input-output testing"
+        ),
     )
     parser.add_argument(
         "-d",

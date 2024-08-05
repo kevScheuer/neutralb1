@@ -22,6 +22,9 @@ def main(parent_dir: str):
         # ensure subdir always contains the [rand, bootstrap] subdirectories
         if "rand" not in dirs or "bootstrap" not in dirs:
             continue
+        # truth fits aren't bootstrapped
+        if subdir.split("/")[-1] == "truth":
+            continue
 
         # hardcoded to grab "binName_#-#" style of subdirectory
         t_range = subdir.split("/")[-2]

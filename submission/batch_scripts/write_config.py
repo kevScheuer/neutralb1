@@ -37,7 +37,6 @@ def main(
     init_imag: float,
     reaction: str,
     template_name: str,
-    truth_file: str,
     orientations: list,
 ):
     # convert the user requested wave string into a lists of waves/bw's that contain all
@@ -119,11 +118,6 @@ def main(
         write_phaselock(
             fout, waves, force_refl, init_refl, init_real, orientations, reaction
         )
-
-    # user option to do a scaled fit using MC truth info by including
-    #   a line to include the truth cfg file
-    if truth_file:
-        fout.write(f"\n\ninclude {truth_file}")
 
     fout.close()
 
@@ -901,12 +895,6 @@ if __name__ == "__main__":
         help="template with default values to copy and overwrite",
     )
     parser.add_argument(
-        "--truth",
-        type=str,
-        default="",
-        help="cfg file that contains truth info used to generate MC",
-    )
-    parser.add_argument(
         "-o",
         "--orientations",
         nargs="*",
@@ -927,7 +915,6 @@ if __name__ == "__main__":
     init_real, init_imag = args.init_re_im
     reaction = args.reaction
     template_name = args.template_name
-    truth_file = args.truth
     orientations = args.orientations
 
     if "ALL" in orientations:
@@ -945,6 +932,5 @@ if __name__ == "__main__":
         init_imag,
         reaction,
         template_name,
-        truth_file,
         orientations,
     )

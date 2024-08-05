@@ -22,10 +22,11 @@ usage() {
     echo " -C       Code directory where scripts are stored"
     echo " -R       Reaction name of fit"        
     echo " -b       Perform bootstrapping for uncertainty estimation"
+    echo " -t       Use cfg that generated signal MC to fit and obtain truth info"
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:p:D:s:C:R:b:h:" opt; do
+while getopts ":o:r:n:d:p:D:s:C:R:b:t:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -67,6 +68,10 @@ while getopts ":o:r:n:d:p:D:s:C:R:b:h:" opt; do
     b)
         echo -e "bootstrapped: \t\t$OPTARG\n"
         my_bootstrap_bool=$OPTARG
+    ;;
+    t)
+        echo -e "truth file: \t\t$OPTARG\n"
+        my_truth_file=$OPTARG
     ;;
     h) # help message
         usage
@@ -134,7 +139,9 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
     use_mpi=true
 fi
 
-if [ "$use_mpi" = true ]; then
+if ! [ -z "$my_truth_file" ]; then
+    fit -c $my_truth_file -m 1000000 -s "bestFitPars"
+elif [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
     which fitMPI
     which nvcc
@@ -177,7 +184,7 @@ Randomized fits have completed and been moved to the rand subdirectory\n\n"
 ls -al
 
 # Perform bootstrapping if requested
-if [[ $my_bootstrap_bool == "True" ]]; then
+if [[ $my_bootstrap_bool == "True" ]] && ! [ -z "$my_truth_file" ]; then
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
     # create special bootstrap cfg and set it to start at the best fit values
     cp -f fit.cfg bootstrap_fit.cfg
@@ -212,6 +219,7 @@ rm $my_data_out_dir/*.txt
 
 # move fit results to output directory (force overwrite)
 cp -f fit.cfg $my_data_out_dir
+cp -f $my_truth_file $my_data_out_dir
 cp -f best.fit $my_data_out_dir
 cp -f vecps_* $my_data_out_dir
 cp -f *.pdf $my_data_out_dir

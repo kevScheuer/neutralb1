@@ -283,6 +283,12 @@ void fitsToCsv(std::string args = "")
                     {
                         continue;
                     }
+                    // avoid writing the reverse ordering of the phase difference.
+                    // Otherwise we end up getting two columns of essentially same data
+                    if (amp_phase_diffs.find(pd_eJPmL + "_" + eJPmL) != amp_phase_diffs.end())
+                    {
+                        continue;
+                    }
 
                     amp_phase_diffs[eJPmL + "_" + pd_eJPmL] = std::make_pair(full_amp, pd_full_amp);
                 }
