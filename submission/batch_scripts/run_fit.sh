@@ -6,11 +6,16 @@ rm ./*.fit
 rm ./*.txt
 rm ./rand/*.fit
 rm ./rand/*.txt
+rm ./rand/*.ni
 rm ./bootstrap/*.fit
+rm ./bootstrap/*.ni
+rm ./*.pdf
+rm ./*.root
+rm ./*.ni
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-C] [-R] [-b]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-C] [-R] [-b] [-t]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
@@ -184,7 +189,7 @@ Randomized fits have completed and been moved to the rand subdirectory\n\n"
 ls -al
 
 # Perform bootstrapping if requested
-if [[ $my_bootstrap_bool == "True" ]] && ! [ -z "$my_truth_file" ]; then
+if [[ $my_bootstrap_bool == "True" ]] && [ -z "$my_truth_file" ]; then
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
     # create special bootstrap cfg and set it to start at the best fit values
     cp -f fit.cfg bootstrap_fit.cfg
@@ -218,17 +223,21 @@ rm $my_data_out_dir/*.fit
 rm $my_data_out_dir/*.txt
 
 # move fit results to output directory (force overwrite)
-cp -f fit.cfg $my_data_out_dir
-cp -f $my_truth_file $my_data_out_dir
-cp -f best.fit $my_data_out_dir
-cp -f vecps_* $my_data_out_dir
-cp -f *.pdf $my_data_out_dir
-cp -f bestFitPars.txt $my_data_out_dir
-
-cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
-cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
+if [ -z "$my_truth_file" ]; then
+    cp -f fit.cfg $my_data_out_dir
+    cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
+    cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
+else
+    cp -f $my_truth_file $my_data_out_dir
+    mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
+fi
 
 if [[ $my_bootstrap_bool == "True" ]]; then
     cp -f bootstrap/"$my_reaction"_*.fit $my_data_out_dir/bootstrap/
     cp -f bootstrap/"$my_reaction".ni $my_data_out_dir/bootstrap/
 fi
+
+cp -f best.fit $my_data_out_dir
+cp -f vecps_* $my_data_out_dir
+cp -f *.pdf $my_data_out_dir
+cp -f bestFitPars.txt $my_data_out_dir

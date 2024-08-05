@@ -69,7 +69,11 @@ def main(
         orientations = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
 
     # error checks
-    if truth_file and data_version not in truth_file:
+    if (
+        truth_file
+        and data_version.split("_")[0] not in truth_file
+        or not os.path.isfile(f"{CODE_DIR}{truth_file}")
+    ):
         raise ValueError("MC and truth versions must match!")
     if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
         raise FileNotFoundError(
@@ -216,9 +220,10 @@ def main(
                             continue
 
                 # copy in needed files
-                os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
                 if truth_file:
                     os.system(f"cp -f {CODE_DIR}{truth_file} {running_dir}")
+                else:
+                    os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
 
                 # prepare names for batch submission
                 job_name = "_".join(
