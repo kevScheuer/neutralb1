@@ -69,12 +69,11 @@ def main(
         orientations = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
 
     # error checks
-    if (
-        truth_file
-        and data_version.split("_")[0] not in truth_file
+    if truth_file and (
+        data_version.split("_")[0] not in truth_file
         or not os.path.isfile(f"{CODE_DIR}{truth_file}")
     ):
-        raise ValueError("MC and truth versions must match!")
+        raise ValueError("MC and truth versions must match and truth file must exist!")
     if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
         raise FileNotFoundError(
             f"Phasespace version {phasespace_version} does"
