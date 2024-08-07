@@ -46,6 +46,10 @@ def main(parent_dir: str):
             )
         )
 
+        if not os.path.isfile(f"{range}.csv"):
+            print(f"csv could not be made for {parent_dir}mass_{range}, skipping it\n")
+            continue
+
         # add the bin index and range these fits are associated with
         df = pd.read_csv(f"{range}.csv", index_col="index")
         df["bin_range"] = range
@@ -54,7 +58,7 @@ def main(parent_dir: str):
         df_list.append(df)
         os.remove(f"{range}.csv")  # remove file so working dir isn't cluttered
 
-    pd.concat(df_list).to_csv(f"bootstrap-fits_{t_range}")
+    pd.concat(df_list).to_csv(f"bootstrap-fits_{t_range}.csv")
 
     pass
 

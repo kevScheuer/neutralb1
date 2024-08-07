@@ -163,9 +163,14 @@ if ! [ -f "$my_reaction.fit" ]; then
     exit
 fi
 
-# run vecps_plotter and angle_plotter to get diagnostic plots
+# run diagnostic plotters
 mv "$my_reaction".fit best.fit
 vecps_plotter best.fit
+
+if [ -z "$my_truth_file" ]; then
+    cwd=$(pwd)
+    root -l -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")"
+fi
 
 # produce diagnostic plots of angles and mass distributions
 if [[ $my_data_version == *"data"* ]]; then
@@ -183,6 +188,7 @@ ls -al
 mv -f "$my_reaction"_*.fit rand/
 mv -f bestFitPars_*.txt rand/
 mv -f "$my_reaction".ni rand/
+mv -f rand_fit_diagnostic.pdf rand/
 echo -e "\n\n==================================================
 Randomized fits have completed and been moved to the rand subdirectory\n\n"
 
@@ -225,10 +231,14 @@ rm $my_data_out_dir/*.txt
 # move fit results to output directory (force overwrite)
 if [ -z "$my_truth_file" ]; then
     cp -f fit.cfg $my_data_out_dir
+    cp -f best.fit $my_data_out_dir
     cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
     cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
+    cp -f rand/rand_fit_diagnostic.pdf $my_data_out_dir/rand/
 else
     cp -f $my_truth_file $my_data_out_dir
+    mv -f best.fit best_truth.fit
+    cp -f best_truth.fit $my_data_out_dir
     mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
 fi
 
@@ -237,7 +247,6 @@ if [[ $my_bootstrap_bool == "True" ]]; then
     cp -f bootstrap/"$my_reaction".ni $my_data_out_dir/bootstrap/
 fi
 
-cp -f best.fit $my_data_out_dir
 cp -f vecps_* $my_data_out_dir
 cp -f *.pdf $my_data_out_dir
 cp -f bestFitPars.txt $my_data_out_dir
