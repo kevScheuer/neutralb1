@@ -570,6 +570,7 @@ class Plotter:
         if not then its the correlation.
 
         TODO: Add a raise if D or S wave are not present, and the reflectivities
+        TODO: Fontsizes etc. need to be fixed to old values
         """
         #
         if "dsratio" in self.df.columns:
@@ -825,7 +826,7 @@ class Plotter:
                 row_label = pg.axes[row, 0].yaxis.get_label().get_text()
 
                 # fit fraction application like above, but for the nominal fit
-                x_scaling, y_scaling = 1, 1  # default values
+                x_scaling, y_scaling = 1.0, 1.0  # default values
                 if any(
                     col_label in sublist for sublist in self._coherent_sums.values()
                 ):
@@ -852,21 +853,6 @@ class Plotter:
                     alpha=0.2,
                 )
 
-                # if phase difference, plot its negative due to built-in sign ambiguity
-                if col_label in set(self._phase_differences.values()):
-                    pg.axes[row, col].axvline(
-                        x=-cut_df[col_label],
-                        color="green",
-                        linestyle="-",
-                        linewidth=2.0,
-                    )
-                    pg.axes[row, col].axvspan(
-                        xmin=-(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2),
-                        xmax=-(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2),
-                        color="green",
-                        alpha=0.2,
-                    )
-
                 if row != col:  # off-diagonals need y-axis line
                     pg.axes[row, col].axhline(
                         y=cut_df[row_label] / y_scaling,
@@ -882,20 +868,6 @@ class Plotter:
                         color="green",
                         alpha=0.2,
                     )
-                    # again if phase difference, plot its negative too
-                    if row_label in set(self._phase_differences.values()):
-                        pg.axes[row, col].axhline(
-                            y=cut_df[row_label],
-                            color="green",
-                            linestyle="-",
-                            linewidth=2.0,
-                        )
-                        pg.axes[row, col].axhspan(
-                            ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2),
-                            ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2),
-                            color="green",
-                            alpha=0.2,
-                        )
 
                     # draw black box around plot if its correlation is above |0.7|
                     corr = cut_bootstrap_df[[col_label, row_label]].corr().iat[0, 1]
