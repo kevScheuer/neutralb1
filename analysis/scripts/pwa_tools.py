@@ -16,7 +16,11 @@ import seaborn as sns
 
 class Plotter:
     def __init__(
-        self, df: pd.DataFrame, data_df: pd.DataFrame, bootstrap_df: pd.DataFrame = None
+        self,
+        df: pd.DataFrame,
+        data_df: pd.DataFrame,
+        bootstrap_df: pd.DataFrame = None,
+        truth_df: pd.DataFrame = None,
     ) -> None:
         """Initialize object with pandas dataframe
 
@@ -24,17 +28,27 @@ class Plotter:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
             bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results,
-                labelled by bin number. Primary use is for plotting the gaussian like
-                distribution of each parameter and using its width to estimate the error
-                of the nominal fit result in df.
+                labelled by bin number. Primary use is for plotting the distribution of
+                each parameter and using its width to estimate the error of the nominal
+                fit result in df.
+            truth_df (pd.DataFrame, optional): only used when df is a from fit to
+                generated signal MC. Contains the "true" parameters that were used to
+                generate the MC sample. When non-empty, every plot will display a
+                solid line for the truth information
         """
         self.df = df
         self.data_df = data_df
         self.bootstrap_df = bootstrap_df
+        self.truth_df = truth_df
 
         wrap_phases(self.df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
+        if self.truth_df is not None:
+            wrap_phases(self.truth_df)
+            self._truth_coherent_sums = get_coherent_sums(self.truth_df)
+            # TODO: phase differences are a weird thing as I remember, edit this in the
+            # phases member function too
 
         self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
@@ -113,6 +127,25 @@ class Plotter:
                 **jp_map[jp],
             )
 
+        # plot bkgd and jp contributions for truth df
+        if self.truth_df is not None:
+            if "Bkgd" in self.truth_df.columns:
+                ax.plot(
+                    self._mass_bins,
+                    self.truth_df["Bkgd"],
+                    linestyle="-",
+                    marker="",
+                    color=jp_map["Bkgd"]["color"],
+                )
+            for jp in self._truth_coherent_sums["JP"]:
+                ax.plot(
+                    self._mass_bins,
+                    self.truth_df[jp],
+                    linestyle="-",
+                    marker="",
+                    color=jp_map[jp]["color"],
+                )
+
         ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
         ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
         ax.set_ylim(bottom=0.0)
@@ -162,8 +195,8 @@ class Plotter:
             dpi=100,
         )
 
-        total = self.data_df["bin_contents"] if is_fit_fraction else 1
-        total_err = self.data_df["bin_error"] if is_fit_fraction else 0
+        total = self.df["detected_events"] if is_fit_fraction else 1
+        total_err = self.df["detected_events"] if is_fit_fraction else 0
 
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(
@@ -179,6 +212,7 @@ class Plotter:
                         rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$",
                     )
 
+                # plot the negative reflectivity contribution
                 if "m" + JPmL in self._coherent_sums["eJPmL"]:
                     neg_refl = self.df["m" + JPmL] / total
                     neg_refl_err = neg_refl * np.sqrt(
@@ -195,6 +229,18 @@ class Plotter:
                         color="blue",
                         label=r"$\epsilon=-1$",
                     )
+                    if (
+                        self.truth_df is not None
+                        and "m" + JPmL in self._truth_coherent_sums["eJPmL"]
+                    ):
+                        axs[row, col].plot(
+                            self._mass_bins,
+                            self.truth_df["m" + JPmL] / total,
+                            linestyle="-",
+                            marker="",
+                            color="blue",
+                        )
+                # plot the negative reflectivity contribution
                 if "p" + JPmL in self._coherent_sums["eJPmL"]:
                     pos_refl = self.df["p" + JPmL] / total
                     pos_refl_err = pos_refl * np.sqrt(
@@ -211,20 +257,32 @@ class Plotter:
                         color="red",
                         label=r"$\epsilon=+1$",
                     )
+                    if (
+                        self.truth_df is not None
+                        and "p" + JPmL in self._truth_coherent_sums["eJPmL"]
+                    ):
+                        axs[row, col].plot(
+                            self._mass_bins,
+                            self.truth_df["p" + JPmL] / total,
+                            linestyle="-",
+                            marker="",
+                            color="red",
+                        )
 
-        # plot grids
+        # plot grid lines
         for ax in axs.reshape(-1):
             ax.grid(True, alpha=0.8)
             ax.set_ylim(bottom=0)
 
         # figure cosmetics
-        fig.text(0.5, 0.04, r"$\omega\pi^0$ inv. mass (GeV)", ha="center")
+        fig.text(0.5, 0.04, r"$\omega\pi^0$ inv. mass (GeV)", ha="center", fontsize=20)
         fig.text(
             0.04,
             0.5,
             f"Events / {self._bin_width:.3f} GeV",
             ha="center",
             rotation="vertical",
+            fontsize=20,
         )
         fig.legend(handles=[pos_plot, neg_plot], loc="upper right")
         plt.show()
@@ -335,6 +393,22 @@ class Plotter:
             color=color,
             label=convert_amp_name(amp2),
         )
+
+        if self.truth_df is not None:
+            axs[0].plot(
+                self._mass_bins,
+                self.truth_df[amp1],
+                linestyle="-",
+                marker="",
+                color=color,
+            )
+            axs[0].plot(
+                self._mass_bins,
+                self.truth_df[amp2],
+                linestyle="-",
+                marker="",
+                color=color,
+            )
 
         phase_dif = self._phase_differences[(amp1, amp2)]
         axs[1].errorbar(
@@ -567,10 +641,9 @@ class Plotter:
 
         The plots chang depending on whether the model had a defined D/S ratio. If it is
         defined then the covariance of the ratio and phase parameters are plotted, but
-        if not then its the correlation.
+        if not then its the correlation. Due to plotting style, plots have fixed sizes.
 
         TODO: Add a raise if D or S wave are not present, and the reflectivities
-        TODO: Fontsizes etc. need to be fixed to old values
         """
         #
         if "dsratio" in self.df.columns:
@@ -647,7 +720,7 @@ class Plotter:
         else:
             marker_map = {"q": 6, "p": "^", "0": ".", "m": "v", "n": 7}
             color_map = {"p": "red", "m": "blue"}
-            fig = plt.figure(figsize=(11, 4))
+            fig = plt.figure(figsize=(11, 4), dpi=300)
             subfigs = fig.subfigures(1, 2)
 
             ax_ratio, ax_phase = subfigs[0].subplots(2, 1, sharex=True)
@@ -695,7 +768,6 @@ class Plotter:
                     f"{self._phase_differences[(D_wave, S_wave)]}_err"
                 ].abs()
 
-                # label = rf"$1^{{+}}(S/D)_{{{m}}}^{{(+)}}$"
                 label = convert_amp_name(eJPmL).replace("D", "(D/S)")
 
                 ax_ratio.errorbar(
@@ -706,6 +778,7 @@ class Plotter:
                     marker=marker_map[m],
                     color=color_map[e],
                     linestyle="",
+                    markersize=6,
                 )
                 ax_phase.errorbar(
                     self._mass_bins,
@@ -715,6 +788,7 @@ class Plotter:
                     marker=marker_map[m],
                     color=color_map[e],
                     linestyle="",
+                    markersize=6,
                 )
                 ax_phase.errorbar(
                     self._mass_bins,
@@ -724,6 +798,7 @@ class Plotter:
                     marker=marker_map[m],
                     color=color_map[e],
                     linestyle="",
+                    markersize=6,
                 )
                 ax_corr.errorbar(
                     ratio,
@@ -734,6 +809,7 @@ class Plotter:
                     color=color_map[e],
                     linestyle="",
                     label=label,
+                    markersize=6,
                 )
                 ax_corr.errorbar(
                     ratio,
@@ -744,18 +820,25 @@ class Plotter:
                     color=color_map[e],
                     linestyle="",
                     label=label,
+                    markersize=6,
                 )
-            ax_ratio.set_ylabel("D/S ratio", loc="top")
+            ax_ratio.set_ylabel("D/S ratio", loc="top", fontsize=12)
             ax_ratio.set_yscale("log")
 
-            ax_phase.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
-            ax_phase.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
+            ax_phase.set_xlabel(
+                r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right", fontsize=12
+            )
+            ax_phase.set_ylabel(
+                r"D-S phase difference $(^\circ)$", loc="top", fontsize=10
+            )
             ax_phase.set_yticks(np.linspace(-180.0, 180.0, 5))
             ax_phase.set_ylim(-180.0, 180.0)
 
-            ax_corr.set_xlabel("D/S ratio", loc="right")
+            ax_corr.set_xlabel("D/S ratio", loc="right", fontsize=12)
             ax_corr.set_xscale("log")
-            ax_corr.set_ylabel(r"D-S phase difference $(^\circ)$", loc="top")
+            ax_corr.set_ylabel(
+                r"D-S phase difference $(^\circ)$", loc="top", fontsize=12
+            )
             ax_corr.set_ylim(-180.0, 180)
             ax_corr.set_yticks(np.linspace(-180.0, 180.0, 5))
 
@@ -768,6 +851,7 @@ class Plotter:
                 by_label.keys(),
                 loc="center right",
                 bbox_to_anchor=(1, 0.5),
+                fontsize=8,
             )
             plt.show()
         pass
@@ -978,7 +1062,7 @@ def parse_amplitude(amp: str) -> dict:
 
     for quantum_number, expression in re_dict.items():
         search = re.search(expression, amp)
-        if search is not None:
+        if search:
             # the search actually returns "JPm", so grab the last char if found
             if quantum_number == "m":
                 result_dict["m"] = search.group()[-1]
