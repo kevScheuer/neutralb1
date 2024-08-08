@@ -45,10 +45,9 @@ class Plotter:
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
         if self.truth_df is not None:
-            wrap_phases(self.truth_df)
             self._truth_coherent_sums = get_coherent_sums(self.truth_df)
-            # TODO: phase differences are a weird thing as I remember, edit this in the
-            # phases member function too
+            # TODO: write phase_extractor and use here
+            wrap_phases(self.truth_df)
 
         self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
@@ -156,7 +155,7 @@ class Plotter:
         plt.show()
         pass
 
-    def intensities(self, is_fit_fraction: bool = False) -> None:
+    def intensities(self, is_fit_fraction: bool = False, sharey=True) -> None:
         """Plot all the amplitude intensities in a grid format
 
         Since the matrix plot is generally too small to see bin to bin features, this
@@ -167,6 +166,8 @@ class Plotter:
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
                 total intensity in each bin. Defaults to False.
+            sharey (bool, optional): Sets each row to share a y-axis scale. Defaults to
+            True
         """
 
         char_to_int = {
@@ -190,13 +191,13 @@ class Plotter:
             len(self._coherent_sums["JPL"]),
             len(m_ints),
             sharex=True,
-            sharey=True,
+            sharey=sharey,
             figsize=(15, 10),
             dpi=100,
         )
 
         total = self.df["detected_events"] if is_fit_fraction else 1
-        total_err = self.df["detected_events"] if is_fit_fraction else 0
+        total_err = self.df["detected_events_err"] if is_fit_fraction else 0
 
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(
@@ -451,9 +452,9 @@ class Plotter:
         """Scatterplot-like matrix of subplots, for intensities and phase differences
 
         The diagonal of the plot contains the intensity of each wave, in both
-        reflectivities, with the total data. The off diagonals are the phase difference
-        between each wave, with positive reflectivity on the upper triangle and negative
-        on the lower. Amplitude names are labelled on the first row and column.
+        reflectivities. The off diagonals are the phase difference between each wave,
+        with positive reflectivity on the upper triangle and negative on the lower.
+        Amplitude names are labelled on the first row and column.
 
         NOTE: This plot will become cramped for large models, may need dpi adjusted
         """
@@ -463,15 +464,17 @@ class Plotter:
             len(self._coherent_sums["JPmL"]),
             sharex=True,
             figsize=(13, 8),
-            dpi=100,
+            dpi=500,
         )
         # only the top left corner plot will have ticks for the data scale
-        data_y_ticks = np.linspace(0, self.data_df["bin_contents"].max(), 4)
+        max_diag = max([self.df[x].max() for x in self._coherent_sums["eJPmL"]])
+        data_y_ticks = np.linspace(0, max_diag, 4)
         axs[0, 0].set_yticks(data_y_ticks, [human_format(num) for num in data_y_ticks])
         for i, JPmL in enumerate(self._coherent_sums["JPmL"]):
             for j, JPmL_dif in enumerate(self._coherent_sums["JPmL"]):
-                # change tick label sizes for all plots
+                # change tick label sizes for all plots and the max
                 axs[i, j].tick_params("both", labelsize=6)
+                axs[i, j].set_ylim(top=max_diag)
 
                 # write mass ticks for only the bottom row
                 if i == len(self._coherent_sums["JPmL"]) - 1:
@@ -503,17 +506,6 @@ class Plotter:
                     else:
                         axs[i, j].set_yticks(data_y_ticks, [""] * 4)
 
-                    # first plot the data with its error
-                    data_plot = axs[i, j].errorbar(
-                        self._mass_bins,
-                        self.data_df["bin_contents"],
-                        self.data_df["bin_error"],
-                        self._bin_width / 2,
-                        "k.",
-                        label="Data",
-                        markersize=4,
-                    )
-
                     # plot the reflectivity contributions
                     neg_plot = axs[i, j].errorbar(
                         self._mass_bins,
@@ -535,6 +527,24 @@ class Plotter:
                         markersize=2,
                         label=r"$\epsilon=+1$",
                     )
+                    if (
+                        self.truth_df is not None
+                        and JPmL in self._truth_coherent_sums["JPmL"]
+                    ):
+                        axs[i, j].plot(
+                            self._mass_bins,
+                            self.truth_df[f"m{JPmL}"],
+                            linestyle="-",
+                            marker="",
+                            color="blue",
+                        )
+                        axs[i, j].plot(
+                            self._mass_bins,
+                            self.truth_df[f"p{JPmL}"],
+                            linestyle="-",
+                            marker="",
+                            color="red",
+                        )
 
                 # PLOT POSITIVE REFLECTIVITY PHASE DIFFERENCES (UPPER TRIANGLE)
                 elif j > i:
@@ -561,7 +571,7 @@ class Plotter:
                         linestyle="",
                         color="red",
                         marker="o",
-                        ms=3,
+                        ms=2,
                     )
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
@@ -572,7 +582,7 @@ class Plotter:
                         linestyle="",
                         color="red",
                         marker="o",
-                        ms=3,
+                        ms=2,
                     )
 
                 # PLOT NEGATIVE REFLECTIVITY PHASE DIFFERENCES
@@ -600,7 +610,7 @@ class Plotter:
                         linestyle="",
                         color="blue",
                         marker="s",
-                        ms=3,
+                        ms=2,
                     )
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
@@ -611,7 +621,7 @@ class Plotter:
                         linestyle="",
                         color="blue",
                         marker="s",
-                        ms=3,
+                        ms=2,
                     )
 
         for ax in axs.reshape(-1):
@@ -629,9 +639,7 @@ class Plotter:
             fontsize=15,
             rotation="vertical",
         )
-        fig.legend(
-            handles=[data_plot, pos_plot, neg_plot], fontsize=12, loc="upper right"
-        )
+        fig.legend(handles=[pos_plot, neg_plot], fontsize=12, loc="upper right")
 
         plt.show()
         pass
