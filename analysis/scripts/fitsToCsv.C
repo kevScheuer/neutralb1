@@ -6,6 +6,11 @@
 
  NOTE: If adding columns, be very careful since the header line and value line are
  separate, and so they must be done in the same order in the code
+
+ TODO: Save the real and imaginary parts of every amplitude to columns. Practically with
+ the full amp name I can do name=real(imag)ProdParName(full_amp_name), then
+ parValue(name), parError(name) to obtain the information. This will be nice to
+ histogram for bootstrap fits to see if these actually are gaussian shaped
  */
 
 #include <algorithm>
@@ -147,11 +152,13 @@ void fitsToCsv(std::string args = "")
     std::vector<std::string> par_list;
 
     // setup map of eJPmL based header name, to a vector that stores the full
-    // amplitude name. Excluded variables mean they are summed over
+    // amplitude names with that eJPmL value. Excluded variables mean they are summed
     // ex: sum of JP=1+,l=0 waves is:
     // < 1pS , < xx::ImagNegSign::1pps, xx::RealPosSign:1pms, ... > >
-    // note that all reactions will be included in each container
+    // note that all reactions (orientations) will be included in each container
     std::map<std::string, std::vector<std::string>> amp_sum_eJPmL;
+    std::map<std::string, std::vector<std::string>> amp_sum_eJPmL_re;
+    std::map<std::string, std::vector<std::string>> amp_sum_eJPmL_im;
     std::map<std::string, std::vector<std::string>> amp_sum_JPmL;
     std::map<std::string, std::vector<std::string>> amp_sum_JPm;
     std::map<std::string, std::vector<std::string>> amp_sum_JPL;
@@ -162,6 +169,7 @@ void fitsToCsv(std::string args = "")
     std::map<std::string, std::vector<std::string>> amp_sum_e;
     std::map<std::string, std::pair<std::string, std::string>> amp_phase_diffs; // eJPmL_eJPmL
 
+    // ==== BEGIN FILE ITERATION ====
     // Iterate over each file, and add their results as a row in the csv
     for (std::string file : file_list)
     {
@@ -180,6 +188,7 @@ void fitsToCsv(std::string args = "")
         // WRITE HEADER LINE
         if (amp_list.size() == 0)
         {
+            // each orientation is stored as a "reaction", so loop over to get all amps
             std::vector<std::string> reactions = results.reactionList();
             for (auto reaction : reactions)
             {
@@ -200,7 +209,7 @@ void fitsToCsv(std::string args = "")
                      << ",generated_events"
                      << ",generated_events_err";
 
-            // write parameter headers
+            // write headers for AmpTools defined parameters
             for (std::string par : par_list)
             {
                 // only want Parameters, not reaction-based ones
@@ -213,7 +222,7 @@ void fitsToCsv(std::string args = "")
                 // write covariance between any D/S params if they exist
                 if (par.find("dsratio") != std::string::npos)
                 {
-                    // get refl of ratio param if it exists
+                    // get reflectivity of ratio parameter if it exists
                     std::string ratio_refl = "";
                     if (par.find("_") != std::string::npos)
                     {
@@ -233,12 +242,12 @@ void fitsToCsv(std::string args = "")
                 }
             }
 
-            // add full amplitude name (value) to corresponding eJPmL key
+            // add full amplitude name to corresponding eJPmL key
             for (unsigned int i = 0; i < amp_list.size(); i++)
             {
                 std::string full_amp = amp_list[i];
 
-                // add bkgd to "eJPmL" vector once
+                // handle background amplitude separately
                 if (full_amp.find("Bkgd") != std::string::npos)
                 {
                     amp_sum_eJPmL["Bkgd"].push_back(full_amp);
@@ -250,6 +259,8 @@ void fitsToCsv(std::string args = "")
                             m = eJPmL.substr(3, 1), L = eJPmL.substr(4, 1);
 
                 amp_sum_eJPmL[eJPmL].push_back(full_amp);
+                amp_sum_eJPmL_re[eJPmL + "_re"].push_back(full_amp);
+                amp_sum_eJPmL_im[eJPmL + "_im"].push_back(full_amp);
                 amp_sum_JPmL[JP + m + L].push_back(full_amp);
                 amp_sum_JPm[JP + m].push_back(full_amp);
                 amp_sum_JPL[JP + L].push_back(full_amp);
@@ -296,6 +307,8 @@ void fitsToCsv(std::string args = "")
 
             // write amplitude headers
             WriteToCsv(csv_file, results, amp_sum_eJPmL, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_eJPmL_re, true, is_acceptance_corrected);
+            WriteToCsv(csv_file, results, amp_sum_eJPmL_im, true, is_acceptance_corrected);
             WriteToCsv(csv_file, results, amp_sum_JPmL, true, is_acceptance_corrected);
             WriteToCsv(csv_file, results, amp_sum_JPm, true, is_acceptance_corrected);
             WriteToCsv(csv_file, results, amp_sum_JPL, true, is_acceptance_corrected);
@@ -310,7 +323,7 @@ void fitsToCsv(std::string args = "")
                 << "\n";
         } // end header line
 
-        // WRITE VALUES TO CSV !! MUST BE IN SAME ORDER AS HEADERS !!
+        // ==== WRITE VALUES TO CSV !! MUST BE IN SAME ORDER AS HEADERS !! ====
         double detected_events = results.intensity(false).first;
         double detected_events_err = results.intensity(false).second;
         double generated_events = results.intensity().first;
@@ -378,6 +391,8 @@ void fitsToCsv(std::string args = "")
         // finally write the sums
         // MUST be in same order as for-loops when writing headers
         WriteToCsv(csv_file, results, amp_sum_eJPmL, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_eJPmL_re, false, is_acceptance_corrected);
+        WriteToCsv(csv_file, results, amp_sum_eJPmL_im, false, is_acceptance_corrected);
         WriteToCsv(csv_file, results, amp_sum_JPmL, false, is_acceptance_corrected);
         WriteToCsv(csv_file, results, amp_sum_JPm, false, is_acceptance_corrected);
         WriteToCsv(csv_file, results, amp_sum_JPL, false, is_acceptance_corrected);
@@ -515,38 +530,58 @@ std::string ConvertFullAmplitudeName(std::string full_amp)
 }
 
 // Write values from maps to csv file.
+// Args:
+//      csv_file: file to write results to
+//      results: current FitResults file loaded
+//      mapCohSum: map of headers to corresponding full amplitude names
+//      is_header: writes keys of mapCohSum (headers) to file when true
+//      is_acceptance_corrected: when true, scales up any intensity values to correct
+//          for the detector acceptance. False corresponds to the "detected" events
 // NOTE: NaNs are currently treated as 0's to avoid issues when reading into
-// ROOT Tree. Amplitudes give their "detected" intensity when "false" is passed to
-// results.intensity()
+// ROOT Tree. Real and Imaginary parameters are also assumed to be constrained across
+// both reflectivities, so only one of the reflectivities is accessed to get the value
 void WriteToCsv(ofstream &csv_file, FitResults &results,
                 std::map<std::string, std::vector<std::string>> &mapCohSum,
                 bool is_header, bool is_acceptance_corrected)
 {
+    double val, err;
     for (auto iter = mapCohSum.begin(); iter != mapCohSum.end(); iter++)
     {
         if (is_header) // write the keys to the csv if writing the header line
         {
             csv_file << "," << iter->first << "," << iter->first + "_err";
+            continue;
+        }
+        // handle cases for writing the real or imaginary parameters of amps
+        else if ((iter->first).find("_re") != std::string::npos)
+        {            
+            val = results.parValue(results.realProdParName((iter->second)[0]));
+            err = results.parError(results.realProdParName((iter->second)[0]));
+        }
+        else if ((iter->first).find("_im") != std::string::npos)
+        {
+            val = results.parValue(results.imagProdParName((iter->second)[0]));
+            err = results.parError(results.imagProdParName((iter->second)[0]));
         }
         else
         {
-            double val = results.intensity(iter->second, is_acceptance_corrected).first;
-            double err = results.intensity(iter->second, is_acceptance_corrected).second;
-
-            if (TMath::IsNaN(val))
-            {
-                val = 0;
-            }
-            if (TMath::IsNaN(err))
-            {
-                err = 0;
-            }
-            csv_file << "," << val << "," << err;
+            val = results.intensity(iter->second, is_acceptance_corrected).first;
+            err = results.intensity(iter->second, is_acceptance_corrected).second;
         }
+        if (TMath::IsNaN(val))
+        {
+            val = 0;
+        }
+        if (TMath::IsNaN(err))
+        {
+            err = 0;
+        }
+
+        csv_file << "," << val << "," << err;
     }
 }
 
-// overloaded function to handle when map is for phase differences
+// overloaded function to handle mapping for phase differences
 void WriteToCsv(ofstream &csv_file, FitResults &results,
                 std::map<std::string, pair<std::string, std::string>> &mapCohSum,
                 bool is_header, bool is_acceptance_corrected)
