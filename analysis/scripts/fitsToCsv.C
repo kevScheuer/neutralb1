@@ -27,21 +27,25 @@
 
 // Forward declarations of functions. Comments in main should hopefully make clear how
 // the program executes.
-void GetListOfFitFiles(std::vector<std::string> &file_list,
-                       std::string parent_dir, std::string search_for_file);
+void GetListOfFitFiles(
+    std::vector<std::string> &file_list,
+    std::string parent_dir,
+    std::string search_for_file);
 float GetLastNumOfString(std::string str);
 bool NaturalComp(std::string s1, string s2);
 std::string ConvertFullAmplitudeName(std::string full_amp);
-void WriteToCsv(ofstream &csv_file, FitResults &results,
-                std::map<std::string,
-                         std::vector<std::string>> &mapCohSum,
-                bool is_header,
-                bool is_acceptance_corrected);
-void WriteToCsv(ofstream &csv_file, FitResults &results,
-                std::map<std::string,
-                         std::pair<std::string, std::string>> &mapCohSum,
-                bool is_header,
-                bool is_acceptance_corrected);
+void WriteToCsv(
+    ofstream &csv_file,
+    FitResults &results,
+    std::map<std::string, std::vector<std::string>> &mapCohSum,
+    bool is_header,
+    bool is_acceptance_corrected);
+void WriteToCsv(
+    ofstream &csv_file,
+    FitResults &results,
+    std::map<std::string, std::pair<std::string, std::string>> &mapCohSum,
+    bool is_header,
+    bool is_acceptance_corrected);
 
 void fitsToCsv(std::string args = "")
 {
@@ -554,7 +558,7 @@ void WriteToCsv(ofstream &csv_file, FitResults &results,
         }
         // handle cases for writing the real or imaginary parameters of amps
         else if ((iter->first).find("_re") != std::string::npos)
-        {            
+        {
             val = results.parValue(results.realProdParName((iter->second)[0]));
             err = results.parError(results.realProdParName((iter->second)[0]));
         }

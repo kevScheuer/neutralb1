@@ -7,3 +7,4 @@ module use /cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/modulefiles
 module load mpi/openmpi-x86_64
 module load cuda
 export CUDA_INSTALL_PATH=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/cuda/12.2.2
+export FSROOT=/w/halld-scshelf2101/kscheuer/my_build/FSRoot
