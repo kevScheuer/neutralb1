@@ -7,9 +7,11 @@ To summarize where the ROOT trees come from:
 3. Users request a particular reaction, such as $\gamma p \rightarrow \omega \pi^0 p$ from the REST dataset, and a "reaction filter" is applied. Often the "exclusive" reaction is used, meaning all requested particles are present
    1. The filter analyzes all the possible combinations in the REST data to apply selection to. For $\omega\pi^0$ we need a tagged beam photon, two positively charged tracks ($p$ & $\pi^+$) and one negative track ($\pi^-$) with four neutral showers are detected. 
    2. Common reactions with certain configurations are bundled into "analysis launches", which have loose cuts applied to the data. These cuts help reduce file sizes, while still being loose enough to keep almost all true signal events
-4. A kinematic fit is applied, and converged fits are stored in a ROOT tree with an associated $\chi^2$ value reported for each event. These ROOT trees are then analyzed here, and further 
+4. A kinematic fit is applied, and converged fits are stored in a ROOT tree with an associated $\chi^2$ value reported for each event. These ROOT trees are then analyzed here
+5. Finally a variety of cuts are made on the data to best select out the signal in preparation for an amplitude analysis. These cuts will often be varied as a part of "systematic studies"
 
 # FSROOT
+FSRoot expands on the CERN ROOT framework by providing loads of useful utilities to make data selection and plotting easier. It is developed by Ryan Mitchell, and you will need to have a functioning clone of [the github repo](https://github.com/remitche66/FSRoot) to run the scripts within this directory.
 
 ## Particle ID\# Mapping
 For $\gamma p \rightarrow \omega \pi^0 p$:

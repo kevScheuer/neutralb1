@@ -198,7 +198,9 @@ def main(
                 # if a completed fit is found in the output directory, ask if the user
                 # is sure they want to overwrite it
                 if not is_skip_all:
-                    if os.path.isfile(f"{data_out_dir}best.fit"):
+                    if os.path.isfile(f"{data_out_dir}best.fit") or os.path.isfile(
+                        f"{data_out_dir}best_truth.fit"
+                    ):
                         print(
                             f"best.fit already exists at {data_out_dir}, are"
                             " you sure you want to submit this job and overwrite the"

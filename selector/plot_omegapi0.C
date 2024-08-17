@@ -15,37 +15,44 @@ TString REACTION = "pi0pi0pippim"
     //      tree_variable = actual variable name in tree
     //      binning = histogram binning in ROOT format (# bins, start, stop)
     //      units = for plotting the axis names
+    //      Xtitle = x-axis title
     std::map<TString, std::map<TString, TString>> cut_map;
 
     cut_map["unusedE"]["value"] = "EnUnusedSh<0.1";
     cut_map["unusedE"]["tree_variable"] = "EnUnusedSh";
     cut_map["unusedE"]["binning"] = "(100,0.0,1.0)";
     cut_map["unusedE"]["units"] = "[GeV]";
+    cut_map["unusedE"]["Xtitle"] = "E_unused";
 
     cut_map["z"]["value"] = "ProdVz>=51.2&&ProdVz<=78.8";
     cut_map["z"]["tree_variable"] = "ProdVz";
     cut_map["z"]["binning"] = "(100,0.,100.0)";
     cut_map["z"]["units"] = "[GeV]";
+    cut_map["z"]["Xtitle"] = "Production Vertex Z";
 
     cut_map["MM2"]["value"] = "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.05";
     cut_map["MM2"]["tree_variable"] = "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)";
     cut_map["MM2"]["binning"] = "(100,-0.1,0.1)";
     cut_map["MM2"]["units"] = "[GeV^{2}]";
+    cut_map["MM2"]["Xtitle"] = "Missing Mass Squared";
 
     cut_map["eBeam"]["value"] = "(EnPB>8.2&&EnPB<8.8)";
     cut_map["eBeam"]["tree_variable"] = "EnPB";
     cut_map["eBeam"]["binning"] = "(125,5,12)";
     cut_map["eBeam"]["units"] = "[GeV]";
+    cut_map["eBeam"]["Xtitle"] = "E_{beam}";
 
     cut_map["chi2"]["value"] = "Chi2DOF<5";
     cut_map["chi2"]["tree_variable"] = "Chi2DOF";
     cut_map["chi2"]["binning"] = "(40,0,20)";
     cut_map["chi2"]["units"] = "";
+    cut_map["chi2"]["Xtitle"] = "#chi^{2}/dof";
 
     cut_map["t"]["value"] = "abs(-1*MASS2([proton],-GLUEXTARGET))<1.0";
     cut_map["t"]["tree_variable"] = "abs(-1*MASS2([proton],-GLUEXTARGET))";
     cut_map["t"]["binning"] = "(100,0,5)";
     cut_map["t"]["units"] = "[GeV^{2}]";
+    cut_map["t"]["|-t|"]
 
     // cuts we won't plot
     cut_map["unusedTracks"]["value"] = "NumUnusedTracks<1";
@@ -75,15 +82,14 @@ void plot_omegapi0()
 
     TString CUTS;
     TCanvas *c1 = new TCanvas("c1", "c1", 1200, 800);
-    c1->Divide(3, 2); // TODO: automate this
+    c1->Divide(3, 2); // TODO: automate how many sub canvases we need
 
     uint i = 1; // enumeration for canvases
     for (it = cut_map.begin(); it != cut_map.end(); it++)
     {
-        TString name = it->first;
-
-        if (name == "chi2rank" || name == "shQuality" || name == "unusedTracks")
-            continue; // these variables aren't interesting to plot
+        TString name = it->first;        
+        if (cut_map[name].find("binning") == cut_map[name].end())
+            continue; // is binning isn't set, then we're not plotting it
 
         c1->cd(i);
         cuts = DEFAULT_CUTS;             // reset cuts we'll use to default
