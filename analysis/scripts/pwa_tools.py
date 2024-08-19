@@ -4,6 +4,7 @@ Primary class is the Plotter, which ideally handles most standard plots of inter
 analyzing fit results
 """
 
+import cmath
 import itertools
 import re
 
@@ -41,15 +42,21 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
+        self.is_truth = False
+        if self.truth_df is not None:
+            self.is_truth = True
+
+        self._mass_bins = self.data_df["mass_mean"]
+
         wrap_phases(self.df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
-        if self.truth_df is not None:
+        if self.is_truth:
             self._truth_coherent_sums = get_coherent_sums(self.truth_df)
-            # TODO: write phase_extractor and use here
+            self._truth_phase_differences = get_phase_differences(self.truth_df)
+            # self._reset_truth_phases(self.truth_df, self._mass_bins) # TEMP: bw wip
             wrap_phases(self.truth_df)
 
-        self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
             self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
         )[0]
@@ -127,7 +134,7 @@ class Plotter:
             )
 
         # plot bkgd and jp contributions for truth df
-        if self.truth_df is not None:
+        if self.is_truth:
             if "Bkgd" in self.truth_df.columns:
                 ax.plot(
                     self._mass_bins,
@@ -199,6 +206,9 @@ class Plotter:
         total = self.df["detected_events"] if is_fit_fraction else 1
         total_err = self.df["detected_events_err"] if is_fit_fraction else 0
 
+        if self.is_truth:
+            truth_total = self.truth_df["detected_events"] if is_fit_fraction else 1
+
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(
             sorted(self._coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]])
@@ -231,12 +241,12 @@ class Plotter:
                         label=r"$\epsilon=-1$",
                     )
                     if (
-                        self.truth_df is not None
+                        self.is_truth
                         and "m" + JPmL in self._truth_coherent_sums["eJPmL"]
                     ):
                         axs[row, col].plot(
                             self._mass_bins,
-                            self.truth_df["m" + JPmL] / total,
+                            self.truth_df["m" + JPmL] / truth_total,
                             linestyle="-",
                             marker="",
                             color="blue",
@@ -259,12 +269,12 @@ class Plotter:
                         label=r"$\epsilon=+1$",
                     )
                     if (
-                        self.truth_df is not None
+                        self.is_truth
                         and "p" + JPmL in self._truth_coherent_sums["eJPmL"]
                     ):
                         axs[row, col].plot(
                             self._mass_bins,
-                            self.truth_df["p" + JPmL] / total,
+                            self.truth_df["p" + JPmL] / truth_total,
                             linestyle="-",
                             marker="",
                             color="red",
@@ -395,7 +405,7 @@ class Plotter:
             label=convert_amp_name(amp2),
         )
 
-        if self.truth_df is not None:
+        if self.is_truth:
             axs[0].plot(
                 self._mass_bins,
                 self.truth_df[amp1],
@@ -527,10 +537,7 @@ class Plotter:
                         markersize=2,
                         label=r"$\epsilon=+1$",
                     )
-                    if (
-                        self.truth_df is not None
-                        and JPmL in self._truth_coherent_sums["JPmL"]
-                    ):
+                    if self.is_truth and JPmL in self._truth_coherent_sums["JPmL"]:
                         axs[i, j].plot(
                             self._mass_bins,
                             self.truth_df[f"m{JPmL}"],
@@ -875,6 +882,12 @@ class Plotter:
         black line indicate a strong correlation between those variables (>0.7). All
         amplitudes are plotted in fit fractions.
 
+        TODO: have argument for hues. If defined, then remove hists and only plot kde's
+            on diag. Plot truth/nominal lines in corresponding hue colors using
+            the color_palette var. Remove the bootstrap/minuit ratio
+        TODO: add a ratio for comparing percentile to stdev predictions. Might use
+            this later for case delineation between gauss and non-gauss (near 0) results
+
         Args:
             bin_index (int): bin that bootstrapped fits are associated with i.e. the
                 1st bin is index=0 in the data dataframe, so all bootstrap fits
@@ -891,11 +904,17 @@ class Plotter:
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
+        # get default color palette
+        color_palette = sns.color_palette()
+
         # make selection to reduce dataset size as we work with it
         cut_df = self.df.loc[bin_index]
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"] == bin_index]
+        if self.is_truth:
+            cut_truth_df = self.truth_df.loc[bin_index]
 
         # if plotting an amplitude, divide by intensity to plot the fit fraction
+        # by defining a separate df for the plots
         plotter_df = cut_bootstrap_df[columns]
         for col in plotter_df:
             if any(col in sublist for sublist in self._coherent_sums.values()):
@@ -906,7 +925,7 @@ class Plotter:
         pg = sns.PairGrid(plotter_df, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
         pg.map_diag(sns.histplot, kde=True)
-        # scatter plots on both diagonals is redundant, so plot
+        # scatter plots on both diagonals is redundant, so plot kde on upper
         pg.map_upper(sns.kdeplot, levels=[0.003, 0.05, 0.32])  # based off 3,2,1 sigma
         pg.map_lower(sns.scatterplot)
 
@@ -923,17 +942,21 @@ class Plotter:
                     col_label in sublist for sublist in self._coherent_sums.values()
                 ):
                     x_scaling = cut_df["detected_events"]
+                    if self.is_truth:
+                        x_truth_scale = cut_truth_df["detected_events"]
                 if any(
                     row_label in sublist for sublist in self._coherent_sums.values()
                 ):
                     y_scaling = cut_df["detected_events"]
+                    if self.is_truth:
+                        y_truth_scale = cut_truth_df["detected_events"]
 
-                # plot green lines for nominal fit result, with transparent band for
-                #   its MINUIT UNCERTAINTY
+                # plot dotted black line for nominal fit result, with transparent band
+                #   for its MINUIT UNCERTAINTY
                 pg.axes[row, col].axvline(
                     x=cut_df[col_label] / x_scaling,
-                    color="green",
-                    linestyle="-",
+                    color="black",
+                    linestyle="--",
                     linewidth=2.0,
                 )
                 pg.axes[row, col].axvspan(
@@ -941,15 +964,26 @@ class Plotter:
                     / x_scaling,
                     xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
                     / x_scaling,
-                    color="green",
+                    color="black",
                     alpha=0.2,
                 )
+
+                # plot solid line for truth (if applicable)
+                if (
+                    self.is_truth and col_label in cut_truth_df and "_" not in col_label
+                ):  # TEMP: truth phase broken
+                    pg.axes[row, col].axvline(
+                        x=cut_truth_df[col_label] / x_truth_scale,
+                        color="black",
+                        linestyle="-",
+                        linewidth=2.0,
+                    )
 
                 if row != col:  # off-diagonals need y-axis line
                     pg.axes[row, col].axhline(
                         y=cut_df[row_label] / y_scaling,
-                        color="green",
-                        linestyle="-",
+                        color="black",
+                        linestyle="--",
                         linewidth=2.0,
                     )
                     pg.axes[row, col].axhspan(
@@ -957,9 +991,21 @@ class Plotter:
                         / y_scaling,
                         ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
                         / y_scaling,
-                        color="green",
+                        color="black",
                         alpha=0.2,
                     )
+                    # plot solid line for truth (if applicable)
+                    if (
+                        self.is_truth
+                        and row_label in cut_truth_df
+                        and "_" not in row_label
+                    ):  # TEMP: truth phase broken
+                        pg.axes[row, col].axhline(
+                            y=cut_truth_df[row_label] / y_truth_scale,
+                            color="black",
+                            linestyle="-",
+                            linewidth=2.0,
+                        )
 
                     # draw black box around plot if its correlation is above |0.7|
                     corr = cut_bootstrap_df[[col_label, row_label]].corr().iat[0, 1]
@@ -1006,6 +1052,77 @@ class Plotter:
         plt.show()
         pass
 
+    def _reset_truth_phases(self, df: pd.DataFrame, mass_bins: list) -> None:
+        """Reset the phase differences of mass dependent truth csv
+
+        The phase differences in the truth csv are not natively comparable. Because the
+        truth info is from a mass dependent fit, we need to obtain the true phase
+        differences by modifying each phase by its associated breit wigner in each mass
+        bin. This function modifies the dataframe in place.
+
+        Args:
+            df (pd.DataFrame): truth dataframe
+            mass_bins (list): the mass bins the index column is associated with
+        """
+
+        # TODO: Compare this to AmpTools breit wigner function
+        def rel_breit_wigner(mass, bw_mass, bw_width):
+            gamma = np.sqrt(
+                np.square(bw_mass) * (np.square(bw_mass) + np.square(bw_width))
+            )
+            k = (2 * np.sqrt(2) * bw_mass * bw_width * gamma) / (
+                np.pi * np.sqrt(np.square(bw_mass) + gamma)
+            )
+            return k / (
+                np.square(np.square(mass) - np.square(bw_mass))
+                + np.square(bw_mass) * np.square(bw_width)
+            )
+
+        def new_phase_dif(
+            mass_bins: list,
+            index: int,
+            amp1_re: float,
+            amp1_im: float,
+            bw_mass1: float,
+            bw_width1: float,
+            amp2_re: float,
+            amp2_im: float,
+            bw_mass2: float,
+            bw_width2: float,
+        ):
+            mass = mass_bins[index]
+            cval1 = complex(amp1_re, amp1_im)
+            cval2 = complex(amp2_re, amp2_im)
+            bw1 = rel_breit_wigner(mass, bw_mass1, bw_width1)
+            bw2 = rel_breit_wigner(mass, bw_mass2, bw_width2)
+            phase1 = cmath.phase(bw1 * cval1)
+            phase2 = cmath.phase(bw2 * cval2)
+
+            return phase1 - phase2
+
+        for pd in set(get_phase_differences(df).values()):
+            amp1, amp2 = pd.split("_")
+
+            jp1 = amp1[1:3]
+            jp2 = amp2[1:3]
+
+            df[pd] = df.apply(  # TODO: THIS FUNCTION IS BREAKING
+                lambda x: new_phase_dif(
+                    mass_bins,
+                    x.index,
+                    x[f"{amp1}_re"],
+                    x[f"{amp1}_im"],
+                    x[f"{jp1}_mass"],
+                    x[f"{jp1}_width"],
+                    x[f"{amp2}_re"],
+                    x[f"{amp2}_im"],
+                    x[f"{jp2}_mass"],
+                    x[f"{jp2}_width"],
+                ),
+                axis=1,
+            )
+        pass
+
 
 def wrap_phases(
     df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
@@ -1045,6 +1162,7 @@ def wrap_phases(
     phase_diffs = get_phase_differences(df)
     for col in set(phase_diffs.values()):
         df[col] = df[col].apply(wrap)
+        df[f"{col}_err"] = df[f"{col}_err"].apply(wrap)
 
     return
 
@@ -1215,3 +1333,10 @@ def human_format(num: float) -> str:
         num /= 1000.0
     orders = ["", "K", "M", "B", "T"]
     return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
+
+
+def breit_wigner(mass, bw_mass, bw_width):
+    # want to match halld_sim version, but don't have access to daughter particle version
+    # should also write out the halld_sim form and see whether it actually matches
+    # the pdg form
+    return

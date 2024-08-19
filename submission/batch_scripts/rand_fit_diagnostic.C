@@ -21,6 +21,9 @@ std::vector<std::string> GetFileList(std::string path, std::string reaction);
 
 void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
 {
+    if (path.back() != '/')
+        path += '/';
+
     gluex_style();
     gStyle->SetOptStat(0);
     auto file_list = GetFileList(path, reaction);
@@ -113,7 +116,7 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
     if (chi2_max == 0.0)
         chi2_max = 0.001;
 
-    auto c1 = new TCanvas();
+    auto c1 = new TCanvas("c1", "c1", 800, 600);
     c1->SetLogx(1);
     c1->SetLogy(1);
     TH2F *frame = new TH2F("frame", "frame", 100, 0, l_max, 100, 0, chi2_max);
