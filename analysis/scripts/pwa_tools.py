@@ -1335,8 +1335,87 @@ def human_format(num: float) -> str:
     return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
 
 
-def breit_wigner(mass, bw_mass, bw_width):
-    # want to match halld_sim version, but don't have access to daughter particle version
-    # should also write out the halld_sim form and see whether it actually matches
-    # the pdg form
-    return
+def breit_wigner(
+    mass: float,
+    bw_mass: float,
+    bw_width: float,
+    bw_l: int,
+    daughter1_mass: float = 0.1349768,
+    daughter2_mass: float = 0.78266,
+) -> complex:
+    """Halld_sim parameterization of the breit wigner function
+
+    To avoid discrepancies, this function copies the parameterization of the breit
+    wigner function found in https://github.com/JeffersonLab/halld_sim/blob/master/src/
+    libraries/AMPTOOLS_AMPS/BreitWigner.cc.
+
+    NOTE: all masses / widths must be in GeV. Daughter particle masses are typically
+    obtained from event 4-vectors, but since they're not avaialable post-fit, we
+    approximate them by constraining their mass to the pdg value
+
+    Args:
+        mass (float): mass value to evaluate breit wigner function at. If using a mass
+            bin, approximate by passing the center of the bin
+        bw_mass (float): breit wigner central mass
+        bw_width (float): breit wigner width
+        bw_l (int): orbital angular momentum of the breit wigner i.e. rho->(omega,pi0)
+            is in the P-wave, so bw_l = 1
+        daughter1_mass (float, optional): mass of 1st daughter particle.
+            Defaults to 0.1349768 for the pi0 mass
+        daughter2_mass (float, optional): mass of 2nd daughter particle.
+            Defaults to 0.78266 for the omega mass
+
+    Returns:
+        complex: value of the breit wigner at the mass value
+    """
+
+    def breakup_momentum(m0: float, m1: float, m2: float):
+        # breakup momenta of parent (m0) -> daughter particles (m1,m2) in center of
+        # momenta frame
+        return np.sqrt(
+            np.abs(
+                np.power(m0, 4)
+                + np.power(m1, 4)
+                + np.power(m2, 4)
+                - 2.0 * np.square(m0) * np.square(m1)
+                - 2.0 * np.square(m0) * np.square(m2)
+                - 2.0 * np.square(m1) * np.square(m2)
+            )
+        ) / (2.0 * m0)
+
+    def barrier_factor(q: float, l: int):
+        # barrier factor suppresion based on angular momenta
+        z = np.square(q) / np.square(0.1973)
+        match l:
+            case 0:
+                barrier = 1.0
+            case 1:
+                barrier = (2.0 * z) / (z + 1.0)
+            case 2:
+                barrier = (13.0 * np.square(z)) / (np.square(z - 3.0) + 9.0 * z)
+            case 3:
+                barrier = (277.0 * np.power(z, 3)) / (
+                    z * np.square(z - 15.0) + 9.0 * np.square(2.0 * z - 5.0)
+                )
+            case 4:
+                barrier = (12746.0 * np.power(z, 4)) / (
+                    np.square((np.square(z) - 45.0 * z + 105.0))
+                    + 25.0 * z * np.square(2.0 * z - 21.0)
+                )
+            case _:
+                barrier = 0.0
+
+        return np.sqrt(barrier)
+
+    q0 = np.abs(breakup_momentum(bw_mass, daughter1_mass, daughter2_mass))
+    q = np.abs(breakup_momentum(mass, daughter1_mass, daughter2_mass))
+
+    F0 = barrier_factor(q0, bw_l)
+    F = barrier_factor(q, bw_l)
+
+    width = bw_width * (bw_mass / mass) * (q / q0) * np.square(F / F0)
+
+    numerator = complex(np.sqrt((bw_mass * bw_width) / np.pi), 0.0)
+    denominator = complex(np.square(bw_mass) - np.square(mass), -1.0 * bw_mass * width)
+
+    return F * numerator / denominator
