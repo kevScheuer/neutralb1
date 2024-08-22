@@ -593,29 +593,38 @@ class Plotter:
 
                     phase_dif = self._phase_differences[(f"p{JPmL}", f"p{JPmL_dif}")]
 
-                    axs[i, j].errorbar(
+                    # plot phase and its sign ambiguity, with error bands
+                    axs[i, j].plot(
                         self._mass_bins,
-                        self.df[phase_dif],
-                        abs(self.df[f"{phase_dif}_err"]),
-                        self._bin_width / 2,
+                        self.df[phase_dif].abs(),
                         linestyle="",
                         color="red",
                         marker=".",
-                        elinewidth=1,
                         ms=1,
                     )
-                    # plot flipped sign due to sign ambiguity
-                    axs[i, j].errorbar(
+                    axs[i, j].fill_between(
                         self._mass_bins,
-                        -self.df[phase_dif],
-                        abs(self.df[f"{phase_dif}_err"]),
-                        self._bin_width / 2,
+                        self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
+                        self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        color="red",
+                        alpha=0.2,
+                    )
+                    axs[i, j].plot(
+                        self._mass_bins,
+                        -self.df[phase_dif].abs(),
                         linestyle="",
                         color="red",
                         marker=".",
-                        elinewidth=1,
                         ms=1,
                     )
+                    axs[i, j].fill_between(
+                        self._mass_bins,
+                        -self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
+                        -self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        color="red",
+                        alpha=0.2,
+                    )
+
                     if (
                         self.is_truth
                         and (f"p{JPmL}", f"p{JPmL_dif}")
@@ -650,28 +659,36 @@ class Plotter:
 
                     phase_dif = self._phase_differences[(f"m{JPmL}", f"m{JPmL_dif}")]
 
-                    axs[i, j].errorbar(
+                    # plot phase and its sign ambiguity, with error bands
+                    axs[i, j].plot(
                         self._mass_bins,
-                        self.df[phase_dif],
-                        self.df[f"{phase_dif}_err"].abs(),
-                        self._bin_width / 2,
+                        self.df[phase_dif].abs(),
                         linestyle="",
                         color="blue",
                         marker=".",
-                        elinewidth=1,
                         ms=1,
                     )
-                    # plot flipped sign due to sign ambiguity
-                    axs[i, j].errorbar(
+                    axs[i, j].fill_between(
                         self._mass_bins,
-                        -self.df[phase_dif],
-                        self.df[f"{phase_dif}_err"].abs(),
-                        self._bin_width / 2,
+                        self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
+                        self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        color="blue",
+                        alpha=0.2,
+                    )
+                    axs[i, j].plot(
+                        self._mass_bins,
+                        -self.df[phase_dif].abs(),
                         linestyle="",
                         color="blue",
                         marker=".",
-                        elinewidth=1,
                         ms=1,
+                    )
+                    axs[i, j].fill_between(
+                        self._mass_bins,
+                        -self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
+                        -self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        color="blue",
+                        alpha=0.2,
                     )
                     if (
                         self.is_truth
@@ -992,7 +1009,11 @@ class Plotter:
 
         pg = sns.PairGrid(plotter_df, hue="bin", palette=palette, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
-        pg.map_diag(sns.histplot, kde=True)
+        # if many bins are plotted, remove the histogram
+        if len(bins) < 3:
+            pg.map_diag(sns.histplot, kde=True)
+        else:
+            pg.map_diag(sns.kdeplot)
         # scatter plots on both diagonals is redundant, so plot kde on upper. Levels of
         # kde are based off 3, 2, 1 sigma widths
         pg.map_upper(sns.kdeplot, levels=[0.003, 0.05, 0.32])
@@ -1025,10 +1046,10 @@ class Plotter:
                 # plot band of MINUIT uncertainty centered around nominal fit
                 for i in range(len(cut_df[col_label])):
                     pg.axes[row, col].axvspan(
-                        xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2)
+                        xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"])
                         .div(x_scaling)
                         .iloc[i],
-                        xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
+                        xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"])
                         .div(x_scaling)
                         .iloc[i],
                         color=palette[i],
@@ -1066,10 +1087,10 @@ class Plotter:
                 if row != col:  # off-diagonals need y-axis span
                     for i in range(len(cut_df[row_label])):
                         pg.axes[row, col].axhspan(
-                            ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2)
+                            ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"])
                             .div(y_scaling)
                             .iloc[i],
-                            ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
+                            ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"])
                             .div(y_scaling)
                             .iloc[i],
                             color=palette[i],
@@ -1236,10 +1257,10 @@ def wrap_phases(
         None: Edits the df or series itself
     """
 
-    # wraps phase (in radians) to -pi/2 < x < pi/2 and convert to degrees
+    # wraps phase (in radians) to -pi < x < pi and convert to degrees
     def wrap(phase):
-        if phase > np.pi / 2 or phase < -np.pi / 2:
-            phase = (phase + np.pi / 2) % (np.pi) - np.pi / 2
+        if phase > np.pi or phase < -np.pi:
+            phase = (phase + np.pi) % (2 * np.pi) - np.pi
         return np.rad2deg(phase)
 
     if not series.empty:
