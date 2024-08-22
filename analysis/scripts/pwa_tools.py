@@ -930,7 +930,7 @@ class Plotter:
             plt.show()
         pass
 
-    def bootstrap_matrix(self, bin_index: int, columns: list, **kwargs) -> None:
+    def bootstrap_matrix(self, bins: list, columns: list, **kwargs) -> None:
         """Plot matrix of the bootstrap fit results with nominal fit overlaid
 
         View the relations between fit parameters (selected with "columns") from the
@@ -941,14 +941,11 @@ class Plotter:
         black line indicate a strong correlation between those variables (>0.7). All
         amplitudes are plotted in fit fractions.
 
-        TODO: have argument for hues. If defined, then remove hists and only plot kde's
-            on diag. Plot truth/nominal lines in corresponding hue colors using
-            the color_palette var. Remove the bootstrap/minuit ratio
         TODO: add a ratio for comparing percentile to stdev predictions. Might use
             this later for case delineation between gauss and non-gauss (near 0) results
 
         Args:
-            bin_index (int): bin that bootstrapped fits are associated with i.e. the
+            bins (list): bins that bootstrapped fits are associated with i.e. the
                 1st bin is index=0 in the data dataframe, so all bootstrap fits
                 associated with that bin have a value of 0 in the "bin" column of the
                 bootstrap dataframe
@@ -956,27 +953,20 @@ class Plotter:
             **kwargs: specifically for the seaborn pairplot object
 
         Raises:
-            ValueError: throws error if bootstrap df was not defined, since its optional
-                in the init
+            ValueError: if bootstrap df was not defined, since its optional upon init
         """
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
-        # get default color palette
-        color_palette = sns.color_palette()
-
         # make selection to reduce dataset size as we work with it
-        cut_df = self.df.loc[bin_index].copy()
-        cut_bootstrap_df = self.bootstrap_df[
-            self.bootstrap_df["bin"] == bin_index
-        ].copy()
+        cut_df = self.df.loc[bins].copy()
+        cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
         if self.is_truth:
-            cut_truth_df = self.truth_df.loc[bin_index].copy()
+            cut_truth_df = self.truth_df.loc[bins].copy()
 
-        # if plotting an amplitude, divide by intensity to plot the fit fraction
-        # by defining a separate df for the plots
-        plotter_df = cut_bootstrap_df[columns]
+        # we want plotted amplitudes to be their fit fraction, so use separate df
+        plotter_df = cut_bootstrap_df[columns].copy()
         for col in plotter_df:
             if any(col in sublist for sublist in self._coherent_sums.values()):
                 plotter_df.loc[:, col] = plotter_df[col].div(
@@ -988,14 +978,24 @@ class Plotter:
         for truth_phase in set(self._truth_phase_differences.values()):
             amp1, amp2 = truth_phase.split("_")
             df_phase = self._phase_differences[(amp1, amp2)]
-            if np.sign(cut_truth_df[truth_phase]) != np.sign(cut_df[df_phase]):
-                cut_truth_df.loc[truth_phase] = -1.0 * cut_truth_df[truth_phase]
+            cut_truth_df[truth_phase] = cut_truth_df[truth_phase].where(
+                np.sign(cut_truth_df[truth_phase]) == np.sign(cut_df[df_phase]),
+                -1.0 * cut_truth_df[truth_phase],
+            )
 
-        pg = sns.PairGrid(plotter_df, **kwargs)
+        plotter_df["bin"] = cut_bootstrap_df["bin"]
+        plotter_df.astype({"bin": "int8"})
+
+        # get default color palette for hue plotting
+        n_colors = plotter_df["bin"].nunique() if "bin" in plotter_df else 1
+        palette = sns.color_palette(n_colors=n_colors)
+
+        pg = sns.PairGrid(plotter_df, hue="bin", palette=palette, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
         pg.map_diag(sns.histplot, kde=True)
-        # scatter plots on both diagonals is redundant, so plot kde on upper
-        pg.map_upper(sns.kdeplot, levels=[0.003, 0.05, 0.32])  # based off 3,2,1 sigma
+        # scatter plots on both diagonals is redundant, so plot kde on upper. Levels of
+        # kde are based off 3, 2, 1 sigma widths
+        pg.map_upper(sns.kdeplot, levels=[0.003, 0.05, 0.32])
         pg.map_lower(sns.scatterplot)
 
         num_plots = len(columns)
@@ -1022,85 +1022,113 @@ class Plotter:
                     if self.is_truth:
                         y_truth_scale = cut_truth_df["detected_events"]
 
-                # plot dotted black line for nominal fit result, with transparent band
-                #   for its MINUIT UNCERTAINTY
-                pg.axes[row, col].axvline(
-                    x=cut_df[col_label] / x_scaling,
-                    color="black",
-                    linestyle="--",
-                    linewidth=2.0,
-                )
-                pg.axes[row, col].axvspan(
-                    xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2)
-                    / x_scaling,
-                    xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
-                    / x_scaling,
-                    color="black",
-                    alpha=0.2,
-                )
+                # plot band of MINUIT uncertainty centered around nominal fit
+                for i in range(len(cut_df[col_label])):
+                    pg.axes[row, col].axvspan(
+                        xmin=(cut_df[col_label] - cut_df[f"{col_label}_err"] / 2)
+                        .div(x_scaling)
+                        .iloc[i],
+                        xmax=(cut_df[col_label] + cut_df[f"{col_label}_err"] / 2)
+                        .div(x_scaling)
+                        .iloc[i],
+                        color=palette[i],
+                        alpha=0.2,
+                    )
 
-                # plot solid line for truth (if applicable). The "partition" line
+                # plot marker for truth (if applicable). The "partition" line
                 # will flip a string around the character "_". Needs to be done since
                 # the truth df's phases (amp1_amp2) are not necessarily in the same
                 # order in the normal df (could be amp2_amp1)
-                if self.is_truth and (
-                    col_label in cut_truth_df
-                    or "".join(col_label.partition("_")[::-1]) in cut_truth_df
+                if (
+                    self.is_truth
+                    and row == col
+                    and (
+                        col_label in cut_truth_df
+                        or "".join(col_label.partition("_")[::-1]) in cut_truth_df
+                    )
                 ):
-                    pg.axes[row, col].axvline(
-                        x=cut_truth_df[col_label] / x_truth_scale,
-                        color="black",
-                        linestyle="-",
-                        linewidth=2.0,
-                    )
+                    for i in range(len(cut_truth_df[col_label])):
+                        pg.axes[row, col].axline(
+                            xy1=(
+                                cut_truth_df[col_label].div(x_truth_scale).iloc[i],
+                                pg.axes[row, col].get_ylim()[0],
+                            ),
+                            xy2=(
+                                cut_truth_df[col_label].div(x_truth_scale).iloc[i],
+                                pg.axes[row, col].get_ylim()[1],
+                            ),
+                            color=palette[i],
+                            linestyle="--",
+                            alpha=0.6,
+                            linewidth=2.0,
+                        )
 
-                if row != col:  # off-diagonals need y-axis line
-                    pg.axes[row, col].axhline(
-                        y=cut_df[row_label] / y_scaling,
-                        color="black",
-                        linestyle="--",
-                        linewidth=2.0,
-                    )
-                    pg.axes[row, col].axhspan(
-                        ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2)
-                        / y_scaling,
-                        ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
-                        / y_scaling,
-                        color="black",
-                        alpha=0.2,
-                    )
-                    # plot solid line for truth (if applicable)
+                if row != col:  # off-diagonals need y-axis span
+                    for i in range(len(cut_df[row_label])):
+                        pg.axes[row, col].axhspan(
+                            ymin=(cut_df[row_label] - cut_df[f"{row_label}_err"] / 2)
+                            .div(y_scaling)
+                            .iloc[i],
+                            ymax=(cut_df[row_label] + cut_df[f"{row_label}_err"] / 2)
+                            .div(y_scaling)
+                            .iloc[i],
+                            color=palette[i],
+                            alpha=0.2,
+                        )
+                    # plot "X" marker for truth value location
                     if self.is_truth and (
                         row_label in cut_truth_df
                         or "".join(row_label.partition("_")[::-1]) in cut_truth_df
                     ):
-                        pg.axes[row, col].axhline(
-                            y=cut_truth_df[row_label] / y_truth_scale,
-                            color="black",
-                            linestyle="-",
-                            linewidth=2.0,
-                        )
+                        for i in range(len(cut_truth_df[row_label])):
+                            pg.axes[row, col].scatter(
+                                cut_truth_df[col_label].div(x_scaling).iloc[i],
+                                cut_truth_df[row_label].div(y_scaling).iloc[i],
+                                color=palette[i],
+                                marker="P",
+                                linestyle="",
+                                edgecolors="black",
+                            )
 
                     # draw black box around plot if its correlation is above |0.7|
-                    corr = cut_bootstrap_df[[col_label, row_label]].corr().iat[0, 1]
-                    if np.abs(corr) > 0.7:
+                    # uses an average if multiple bins are being plotted
+                    corrs = []
+                    for index in cut_df.index:
+                        corr = (
+                            cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
+                                [col_label, row_label]
+                            ]
+                            .corr()
+                            .iat[0, 1]
+                        )
+                        corrs.append(corr)
+                    if np.abs(np.average(corrs)) > 0.7:
                         pg.axes[row, col].patch.set_edgecolor("black")
                         pg.axes[row, col].patch.set_linewidth(3)
 
                 # annotate plot with ratio between bootstrap stdev and MINUIT error
+                # uses an average if multiple bins are being plotted
                 if row == col:
+                    ratios = []
                     # take absolute value to avoid stdev being biased by possible
                     # bi-modal nature of phase diff results (due to sign ambiguity)
-                    ratio = (
-                        cut_bootstrap_df[col_label].abs().std()
-                        / cut_df[f"{col_label}_err"]
-                    )
+                    for index, error in zip(
+                        cut_df[f"{col_label}_err"].index, cut_df[f"{col_label}_err"]
+                    ):
+                        stdev = np.std(
+                            np.abs(
+                                cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
+                                    col_label
+                                ]
+                            )
+                        )
+                        ratios.append(stdev / error)
                     pg.axes[row, col].text(
                         0.6,
                         0.9,
                         (
                             rf"$\frac{{\sigma_{{bootstrap}}}}{{\sigma_{{MINUIT}}}}$"
-                            rf" = {ratio:.2f}"
+                            rf" = {np.average(ratios):.2f}"
                         ),
                         transform=pg.axes[row, col].transAxes,
                     )
