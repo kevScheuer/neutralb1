@@ -54,7 +54,7 @@ class Plotter:
         if self.is_truth:
             self._truth_coherent_sums = get_coherent_sums(self.truth_df)
             self._truth_phase_differences = get_phase_differences(self.truth_df)
-            # self._reset_truth_phases(self.truth_df, self._mass_bins) # TEMP: bw wip
+            self._reset_truth_phases(self.truth_df, self._mass_bins)
             wrap_phases(self.truth_df)
 
         self._bin_width = (
@@ -346,6 +346,15 @@ class Plotter:
             color=color,
         )
 
+        if self.is_truth and (amp1, amp2) in self._truth_phase_differences:
+            ax.plot(
+                self._mass_bins,
+                self.truth_df[self._truth_phase_differences[(amp1, amp2)]],
+                linestyle="-",
+                marker="",
+                color=color,
+            )
+
         ax.legend()
 
         ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
@@ -386,6 +395,7 @@ class Plotter:
             height_ratios=[3, 1],
         )
 
+        # plot the two amplitudes
         axs[0].errorbar(
             self._mass_bins,
             self.df[amp1],
@@ -405,7 +415,11 @@ class Plotter:
             label=convert_amp_name(amp2),
         )
 
-        if self.is_truth:
+        if (
+            self.is_truth
+            and amp1 in self._truth_coherent_sums["eJPmL"]
+            and amp2 in self._truth_coherent_sums["eJPmL"]
+        ):
             axs[0].plot(
                 self._mass_bins,
                 self.truth_df[amp1],
@@ -421,6 +435,7 @@ class Plotter:
                 color=color,
             )
 
+        # plot the phase difference
         phase_dif = self._phase_differences[(amp1, amp2)]
         axs[1].errorbar(
             self._mass_bins,
@@ -440,6 +455,14 @@ class Plotter:
             marker=".",
             color=color,
         )
+        if self.is_truth and (amp1, amp2) in self._truth_phase_differences:
+            axs[1].plot(
+                self._mass_bins,
+                self.truth_df[self._truth_phase_differences[(amp1, amp2)]],
+                linestyle="-",
+                marker="",
+                color=color,
+            )
 
         # cosmetics
         for ax in axs.reshape(-1):
@@ -577,8 +600,9 @@ class Plotter:
                         self._bin_width / 2,
                         linestyle="",
                         color="red",
-                        marker="o",
-                        ms=2,
+                        marker=".",
+                        elinewidth=1,
+                        ms=1,
                     )
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
@@ -588,9 +612,26 @@ class Plotter:
                         self._bin_width / 2,
                         linestyle="",
                         color="red",
-                        marker="o",
-                        ms=2,
+                        marker=".",
+                        elinewidth=1,
+                        ms=1,
                     )
+                    if (
+                        self.is_truth
+                        and (f"p{JPmL}", f"p{JPmL_dif}")
+                        in self._truth_phase_differences
+                    ):
+                        axs[i, j].plot(
+                            self._mass_bins,
+                            self.truth_df[
+                                self._truth_phase_differences[
+                                    (f"p{JPmL}", f"p{JPmL_dif}")
+                                ]
+                            ],
+                            linestyle="-",
+                            marker="",
+                            color="red",
+                        )
 
                 # PLOT NEGATIVE REFLECTIVITY PHASE DIFFERENCES
                 elif j < i:
@@ -616,8 +657,9 @@ class Plotter:
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
-                        marker="s",
-                        ms=2,
+                        marker=".",
+                        elinewidth=1,
+                        ms=1,
                     )
                     # plot flipped sign due to sign ambiguity
                     axs[i, j].errorbar(
@@ -627,9 +669,26 @@ class Plotter:
                         self._bin_width / 2,
                         linestyle="",
                         color="blue",
-                        marker="s",
-                        ms=2,
+                        marker=".",
+                        elinewidth=1,
+                        ms=1,
                     )
+                    if (
+                        self.is_truth
+                        and (f"m{JPmL}", f"m{JPmL_dif}")
+                        in self._truth_phase_differences
+                    ):
+                        axs[i, j].plot(
+                            self._mass_bins,
+                            self.truth_df[
+                                self._truth_phase_differences[
+                                    (f"m{JPmL}", f"m{JPmL_dif}")
+                                ]
+                            ],
+                            linestyle="-",
+                            marker="",
+                            color="blue",
+                        )
 
         for ax in axs.reshape(-1):
             ax.grid(True, axis="both", alpha=0.8)
@@ -908,10 +967,12 @@ class Plotter:
         color_palette = sns.color_palette()
 
         # make selection to reduce dataset size as we work with it
-        cut_df = self.df.loc[bin_index]
-        cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"] == bin_index]
+        cut_df = self.df.loc[bin_index].copy()
+        cut_bootstrap_df = self.bootstrap_df[
+            self.bootstrap_df["bin"] == bin_index
+        ].copy()
         if self.is_truth:
-            cut_truth_df = self.truth_df.loc[bin_index]
+            cut_truth_df = self.truth_df.loc[bin_index].copy()
 
         # if plotting an amplitude, divide by intensity to plot the fit fraction
         # by defining a separate df for the plots
@@ -921,6 +982,14 @@ class Plotter:
                 plotter_df.loc[:, col] = plotter_df[col].div(
                     cut_bootstrap_df["detected_events"], axis="index"
                 )
+
+        # scale truth phases to be the same sign as the nominal fit phases. Due to phase
+        # ambiguity in model, the nominal fit can obtain +/-|truth_phase|.
+        for truth_phase in set(self._truth_phase_differences.values()):
+            amp1, amp2 = truth_phase.split("_")
+            df_phase = self._phase_differences[(amp1, amp2)]
+            if np.sign(cut_truth_df[truth_phase]) != np.sign(cut_df[df_phase]):
+                cut_truth_df.loc[truth_phase] = -1.0 * cut_truth_df[truth_phase]
 
         pg = sns.PairGrid(plotter_df, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
@@ -936,8 +1005,10 @@ class Plotter:
                 col_label = pg.axes[num_plots - 1, col].xaxis.get_label().get_text()
                 row_label = pg.axes[row, 0].yaxis.get_label().get_text()
 
-                # fit fraction application like above, but for the nominal fit
+                # if a fit fraction is on the main plot, then make the nominal and
+                # truth info a fit fraction too
                 x_scaling, y_scaling = 1.0, 1.0  # default values
+                x_truth_scale, y_truth_scale = 1.0, 1.0
                 if any(
                     col_label in sublist for sublist in self._coherent_sums.values()
                 ):
@@ -968,10 +1039,14 @@ class Plotter:
                     alpha=0.2,
                 )
 
-                # plot solid line for truth (if applicable)
-                if (
-                    self.is_truth and col_label in cut_truth_df and "_" not in col_label
-                ):  # TEMP: truth phase broken
+                # plot solid line for truth (if applicable). The "partition" line
+                # will flip a string around the character "_". Needs to be done since
+                # the truth df's phases (amp1_amp2) are not necessarily in the same
+                # order in the normal df (could be amp2_amp1)
+                if self.is_truth and (
+                    col_label in cut_truth_df
+                    or "".join(col_label.partition("_")[::-1]) in cut_truth_df
+                ):
                     pg.axes[row, col].axvline(
                         x=cut_truth_df[col_label] / x_truth_scale,
                         color="black",
@@ -995,11 +1070,10 @@ class Plotter:
                         alpha=0.2,
                     )
                     # plot solid line for truth (if applicable)
-                    if (
-                        self.is_truth
-                        and row_label in cut_truth_df
-                        and "_" not in row_label
-                    ):  # TEMP: truth phase broken
+                    if self.is_truth and (
+                        row_label in cut_truth_df
+                        or "".join(row_label.partition("_")[::-1]) in cut_truth_df
+                    ):
                         pg.axes[row, col].axhline(
                             y=cut_truth_df[row_label] / y_truth_scale,
                             color="black",
@@ -1015,7 +1089,7 @@ class Plotter:
 
                 # annotate plot with ratio between bootstrap stdev and MINUIT error
                 if row == col:
-                    # take absolute value to avoid stdev being biased by inherent
+                    # take absolute value to avoid stdev being biased by possible
                     # bi-modal nature of phase diff results (due to sign ambiguity)
                     ratio = (
                         cut_bootstrap_df[col_label].abs().std()
@@ -1024,7 +1098,10 @@ class Plotter:
                     pg.axes[row, col].text(
                         0.6,
                         0.9,
-                        rf"$\frac{{\sigma_{{bootstrap}}}}{{\sigma_{{MINUIT}}}}$ = {ratio:.2f}",
+                        (
+                            rf"$\frac{{\sigma_{{bootstrap}}}}{{\sigma_{{MINUIT}}}}$"
+                            rf" = {ratio:.2f}"
+                        ),
                         transform=pg.axes[row, col].transAxes,
                     )
 
@@ -1065,61 +1142,49 @@ class Plotter:
             mass_bins (list): the mass bins the index column is associated with
         """
 
-        # TODO: Compare this to AmpTools breit wigner function
-        def rel_breit_wigner(mass, bw_mass, bw_width):
-            gamma = np.sqrt(
-                np.square(bw_mass) * (np.square(bw_mass) + np.square(bw_width))
-            )
-            k = (2 * np.sqrt(2) * bw_mass * bw_width * gamma) / (
-                np.pi * np.sqrt(np.square(bw_mass) + gamma)
-            )
-            return k / (
-                np.square(np.square(mass) - np.square(bw_mass))
-                + np.square(bw_mass) * np.square(bw_width)
-            )
-
         def new_phase_dif(
-            mass_bins: list,
-            index: int,
+            mass: float,
             amp1_re: float,
             amp1_im: float,
             bw_mass1: float,
             bw_width1: float,
+            bw_l1: int,
             amp2_re: float,
             amp2_im: float,
             bw_mass2: float,
             bw_width2: float,
+            bw_l2: int,
         ):
-            mass = mass_bins[index]
             cval1 = complex(amp1_re, amp1_im)
             cval2 = complex(amp2_re, amp2_im)
-            bw1 = rel_breit_wigner(mass, bw_mass1, bw_width1)
-            bw2 = rel_breit_wigner(mass, bw_mass2, bw_width2)
+            bw1 = breit_wigner(mass, bw_mass1, bw_width1, bw_l1)
+            bw2 = breit_wigner(mass, bw_mass2, bw_width2, bw_l2)
             phase1 = cmath.phase(bw1 * cval1)
             phase2 = cmath.phase(bw2 * cval2)
 
             return phase1 - phase2
 
         for pd in set(get_phase_differences(df).values()):
+            l_to_int = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
             amp1, amp2 = pd.split("_")
 
             jp1 = amp1[1:3]
+            l1 = l_to_int[amp1[-1]]
             jp2 = amp2[1:3]
+            l2 = l_to_int[amp2[-1]]
 
-            df[pd] = df.apply(  # TODO: THIS FUNCTION IS BREAKING
-                lambda x: new_phase_dif(
-                    mass_bins,
-                    x.index,
-                    x[f"{amp1}_re"],
-                    x[f"{amp1}_im"],
-                    x[f"{jp1}_mass"],
-                    x[f"{jp1}_width"],
-                    x[f"{amp2}_re"],
-                    x[f"{amp2}_im"],
-                    x[f"{jp2}_mass"],
-                    x[f"{jp2}_width"],
-                ),
-                axis=1,
+            df[pd] = np.vectorize(new_phase_dif)(
+                mass_bins,
+                df[f"{amp1}_re"],
+                df[f"{amp1}_im"],
+                df[f"{jp1}_mass"],
+                df[f"{jp1}_width"],
+                l1,
+                df[f"{amp2}_re"],
+                df[f"{amp2}_im"],
+                df[f"{jp2}_mass"],
+                df[f"{jp2}_width"],
+                l2,
             )
         pass
 
