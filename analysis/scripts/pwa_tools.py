@@ -28,6 +28,10 @@ class Plotter:
         TODO: add "missing" columns to truth dataframe and set all values to 0. This way
             I don't have to check for their existence + I get truth lines on plots to
             compare to
+        TODO: add a correlation plotter, that by default plots the averaged sum of
+            correlations for all real/imag parameters (calculated from the bootstrap
+            fits) as a function of mass. Have option to pass a list of columns to be
+            plotted instead
         Args:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to

@@ -1,5 +1,3 @@
-Using the [batch scripts](../submission/batch_scripts/) we now have plenty of `.fit` files that need analyzing. The directories can be described like:
-* [scripts](./scripts): All the common scripts needed to aggregate data. The primary one is [fitsToCsv.C](./scripts/fitsToCsv.C), which uses AmpTools' FitResults class to create a csv of all the `.fit` files you want to analyze. 
-  * Its recommended to print out its help message to better understand how to use the file: `root -l 'fitsToCsv.C("-h")'`
-* [data](./data): Holds all the `.csv` or other raw data files that we will primarily analyze in...
-* [notebooks!](./notebooks/): where most of the magic happens. The intention is for [scripts](./scripts) to handle all the most common plotting type functions, and notebooks to handle the research notes and plots for presentations all in one.
+Using the [batch scripts](../submission/batch_scripts/) we now have plenty of `.fit` files that need analyzing. The common directory [scripts](./scripts) is where all the common scripts are needed to aggregate data. The primary one is [fitsToCsv.C](./scripts/fitsToCsv.C), which uses AmpTools' FitResults class to create a csv of all the `.fit` files you want to analyze. Its recommended to print out its help message to better understand how to use the file: `root -l 'fitsToCsv.C("-h")'`
+
+You will also find additional folders for individual studies performed. Each of these studies contains a `README.md` to provide context for its motivations and details. Each study primarily uses notebooks for its analysis, to provide a more interactive and readable method of analyzing the fit results
