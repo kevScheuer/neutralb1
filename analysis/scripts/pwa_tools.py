@@ -25,6 +25,9 @@ class Plotter:
     ) -> None:
         """Initialize object with pandas dataframe
 
+        TODO: add "missing" columns to truth dataframe and set all values to 0. This way
+            I don't have to check for their existence + I get truth lines on plots to
+            compare to
         Args:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
@@ -947,6 +950,25 @@ class Plotter:
             plt.show()
         pass
 
+    def diagnose_bootstraps(
+        self,
+        columns: list = [],
+        mean_flag: float = 0.0,
+        chi2_flag: float = 1.0,
+        width_flag: float = 4.0,
+    ) -> None:
+        """TODO: define the function so that it checks all the columns
+        (default maybe re/im params?) and reports if the mean and width are
+        significantly poor, and/or a gaussian fit to is poor. The flag parameters
+        adjusts what 'significant' is defined to be. Might want to also pass in the
+        truth information too
+
+        When using stdev to flag results, separate into cases where if the stdev is
+        close to 0, then instead use a percentile to determine if the nominal/truth fit
+        is "far" from the distributed samples (i.e. outside the 3sigma or X percentile)
+        """
+        pass
+
     def bootstrap_matrix(self, bins: list, columns: list, **kwargs) -> None:
         """Plot matrix of the bootstrap fit results with nominal fit overlaid
 
@@ -957,9 +979,6 @@ class Plotter:
         overlaid to indicate the nominal fit result values. Plots framed by a solid
         black line indicate a strong correlation between those variables (>0.7). All
         amplitudes are plotted in fit fractions.
-
-        TODO: add a ratio for comparing percentile to stdev predictions. Might use
-            this later for case delineation between gauss and non-gauss (near 0) results
 
         Args:
             bins (list): bins that bootstrapped fits are associated with i.e. the
@@ -1000,14 +1019,13 @@ class Plotter:
                 -1.0 * cut_truth_df[truth_phase],
             )
 
-        plotter_df["bin"] = cut_bootstrap_df["bin"]
-        plotter_df.astype({"bin": "int8"})
+        plotter_df["bin_range"] = cut_bootstrap_df["bin_range"]
 
         # get default color palette for hue plotting
-        n_colors = plotter_df["bin"].nunique() if "bin" in plotter_df else 1
+        n_colors = plotter_df["bin_range"].nunique() if "bin_range" in plotter_df else 1
         palette = sns.color_palette(n_colors=n_colors)
 
-        pg = sns.PairGrid(plotter_df, hue="bin", palette=palette, **kwargs)
+        pg = sns.PairGrid(plotter_df, hue="bin_range", palette=palette, **kwargs)
         # overlay a kde on the hist to compare nominal fit line to kde peak
         # if many bins are plotted, remove the histogram
         if len(bins) < 3:
@@ -1098,8 +1116,14 @@ class Plotter:
                         )
                     # plot "X" marker for truth value location
                     if self.is_truth and (
-                        row_label in cut_truth_df
-                        or "".join(row_label.partition("_")[::-1]) in cut_truth_df
+                        (
+                            col_label in cut_truth_df
+                            or "".join(col_label.partition("_")[::-1]) in cut_truth_df
+                        )
+                        and (
+                            row_label in cut_truth_df
+                            or "".join(row_label.partition("_")[::-1]) in cut_truth_df
+                        )
                     ):
                         for i in range(len(cut_truth_df[row_label])):
                             pg.axes[row, col].scatter(
@@ -1131,8 +1155,8 @@ class Plotter:
                 # uses an average if multiple bins are being plotted
                 if row == col:
                     ratios = []
-                    # take absolute value to avoid stdev being biased by possible
-                    # bi-modal nature of phase diff results (due to sign ambiguity)
+                    # TODO: absolute value breaks if dist crosses 0 value. stdev only
+                    # needed if dist is near pi(-pi) borders. Just flag that case
                     for index, error in zip(
                         cut_df[f"{col_label}_err"].index, cut_df[f"{col_label}_err"]
                     ):
@@ -1174,6 +1198,17 @@ class Plotter:
                     pg.axes[row, col].set_ylabel(
                         convert_amp_name(row_label), fontsize=fontsize
                     )
+
+        # adjust legend title
+        pg.add_legend()
+        for ax in pg.axes.flat:
+            leg = ax.get_legend()
+            if leg is not None:
+                break
+        if leg is None:
+            leg = pg.legend
+
+        leg.set_title("mass range")
 
         plt.show()
         pass
