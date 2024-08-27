@@ -4,9 +4,12 @@ Plot the sum of squares of error (with respect to the best fit) divided by the M
 uncertainty squared for every production and fit parameter, as a function of the
 difference in likelihood between each fit and the best fit. Plotted on log-log scale
 
-NOTE: Once ROOT is updated so that TScatter is available, this script will become much
+NOTE: If ROOT is updated so that TScatter is available, this script will become much
 simpler. Currently has a lot of hacky ways to get around not being able to natively
 make a scatter plot
+
+TODO: color code fits according to their eMatrixStatus to indicate if the error matrix
+was properly determined. Or just migrate this to my python setup for less headache
 */
 #include <cmath>
 #include <dirent.h>
@@ -21,6 +24,7 @@ std::vector<std::string> GetFileList(std::string path, std::string reaction);
 
 void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
 {
+    // make sure path ends in "/" character
     if (path.back() != '/')
         path += '/';
 
@@ -55,7 +59,7 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
 
     for (std::string file : file_list)
     {
-        FitResults rand_fit(file);
+        FitResults rand_fit(file); // load the randomized fit
         if (!rand_fit.valid())
         {
             std::cout << "Invalid fit results in file: " << file << "\n";
@@ -63,25 +67,28 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
         }
 
         // skip fits that failed to converge
+        // NOTE: removing this requirement will allow non-converged fits to be plotted as well
         if (rand_fit.lastMinuitCommandStatus() == 4)
             continue;
 
         convergence_rate += 1;
-        float chi2 = 0; // tracks sum_{params} ((best_fit - rand_fit)/(best_error))^2
 
         // best_likelihood is always smallest number, so subtract it from rand_fit to
         // get a nice positive # for plotting
         float delta_l = rand_fit.likelihood() - best_likelihood;
         p[0] = delta_l;
 
+        // track the max delta value for plotting later
         if (delta_l > l_max)
             l_max = delta_l;
 
+        float chi2 = 0;
         for (unsigned int i = 0; i < rand_fit.parNameList().size(); i++)
         {
             std::string rand_par_name = rand_fit.parNameList()[i];
             std::string best_par_name = best_fit.parNameList()[i];
 
+            // quick check that the same parameters are being compared
             if (rand_par_name != best_par_name)
             {
                 std::cout << "best and randomized fit have different param set. Exiting"
@@ -93,7 +100,7 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
             double best_par_val = best_fit.parValue(best_par_name);
             double best_par_err = best_fit.parError(best_par_name);
 
-            if (best_par_err == 0) // avoid discontinuity from fixed params
+            if (best_par_err == 0) // avoid fixed parameters so discontinuities don't occur
                 continue;
 
             chi2 += std::pow((best_par_val - rand_par_val) / best_par_err, 2);
@@ -101,8 +108,9 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
 
         float reduced_chi2 = chi2 / num_free_params;
         p[1] = reduced_chi2;
-        tp->Fill(p);        
+        tp->Fill(p);
 
+        // track max reduced chi2 for plotting purposes
         if (reduced_chi2 > chi2_max)
             chi2_max = reduced_chi2;
     }
@@ -110,13 +118,16 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
     // convergence rate has count of successful fits, so divide by total # of rand fits
     convergence_rate = convergence_rate / file_list.size();
 
-    // avoid plotting issues if all rand fits at best value
+    // avoid plotting issues if all rand fits are at the best value
     if (l_max == 0.0)
         l_max = 0.001;
     if (chi2_max == 0.0)
         chi2_max = 0.001;
 
     auto c1 = new TCanvas("c1", "c1", 800, 600);
+    // Because TNtuples are not really for plotting and a nightmare to edit, just create
+    // a template "frame" histogram that has our axes ranges and titles all set up,
+    // then draw the TNtuple over it
     c1->SetLogx(1);
     c1->SetLogy(1);
     TH2F *frame = new TH2F("frame", "frame", 100, 0, l_max, 100, 0, chi2_max);
@@ -128,6 +139,7 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
     tp->SetMarkerStyle(20);
     tp->Draw("chi2:delta_l", "", "same");
 
+    // print out the convergence rate in the corner
     TLatex t(.6, .96, TString::Format("%.2f%% Convergence", convergence_rate * 100).Data());
     t.SetNDC(kTRUE);
     t.Draw();
@@ -137,7 +149,7 @@ void rand_fit_diagnostic(std::string path, std::string reaction = "omegapi")
     c1->SaveAs((path + "rand_fit_diagnostic.pdf").c_str());
 }
 
-// Returns unordered list of all randomized .fit files with {path}/rand/. Assumes
+// Returns unordered list of all randomized .fit files within {path}/rand/. Assumes
 // they're of the form "{reaction}_#.fit"
 std::vector<std::string> GetFileList(std::string path, std::string reaction)
 {
