@@ -25,13 +25,10 @@ class Plotter:
     ) -> None:
         """Initialize object with pandas dataframe
 
+
         TODO: add "missing" columns to truth dataframe and set all values to 0. This way
             I don't have to check for their existence + I get truth lines on plots to
             compare to
-        TODO: add a correlation plotter, that by default plots the averaged sum of
-            correlations for all real/imag parameters (calculated from the bootstrap
-            fits) as a function of mass. Have option to pass a list of columns to be
-            plotted instead
         Args:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
@@ -49,27 +46,35 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
-        self.is_truth = False
-        if self.truth_df is not None:
-            self.is_truth = True
+        if any(status != 3 for status in self.df["eMatrixStatus"]):
+            print(
+                (
+                    "WARNING: the following indices contain fit results whose"
+                    "covariance matrix is not full and accurate."
+                )
+            )
+            print(self.df.loc["eMatrixStatus" != 3]["eMatrixStatus"])
 
+        self.coherent_sums = get_coherent_sums(self.df)
+        self.phase_differences = get_phase_differences(self.df)
         self._mass_bins = self.data_df["mass_mean"]
+        self._bin_width = (
+            self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
+        )[0]
 
         wrap_phases(self.df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
+
+        self.is_truth = False
+        if self.truth_df is not None:
+            self.is_truth = True
         if self.is_truth:
             self._truth_coherent_sums = get_coherent_sums(self.truth_df)
             self._truth_phase_differences = get_phase_differences(self.truth_df)
             self._reset_truth_phases(self.truth_df, self._mass_bins)
             wrap_phases(self.truth_df)
 
-        self._bin_width = (
-            self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
-        )[0]
-
-        self._coherent_sums = get_coherent_sums(self.df)
-        self._phase_differences = get_phase_differences(self.df)
         pass
 
     def jp(self) -> None:
@@ -129,7 +134,7 @@ class Plotter:
                 **jp_map["Bkgd"],
             )
         # plot each jp contribution
-        for jp in self._coherent_sums["JP"]:
+        for jp in self.coherent_sums["JP"]:
             ax.errorbar(
                 self._mass_bins,
                 self.df[jp],
@@ -169,7 +174,7 @@ class Plotter:
         plt.show()
         pass
 
-    def intensities(self, is_fit_fraction: bool = False, sharey=True) -> None:
+    def intensities(self, is_fit_fraction: bool = False, sharey: bool = True) -> None:
         """Plot all the amplitude intensities in a grid format
 
         Since the matrix plot is generally too small to see bin to bin features, this
@@ -199,10 +204,10 @@ class Plotter:
         pm_dict = {"m": "-", "p": "+"}
 
         # need to sort on the integer versions of the m-projections
-        m_ints = sorted({char_to_int[JPm[-1]] for JPm in self._coherent_sums["JPm"]})
+        m_ints = sorted({char_to_int[JPm[-1]] for JPm in self.coherent_sums["JPm"]})
 
         fig, axs = plt.subplots(
-            len(self._coherent_sums["JPL"]),
+            len(self.coherent_sums["JPL"]),
             len(m_ints),
             sharex=True,
             sharey=sharey,
@@ -218,7 +223,7 @@ class Plotter:
 
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(
-            sorted(self._coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]])
+            sorted(self.coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]])
         ):
             for col, m in enumerate(m_ints):
                 JPmL = f"{jpl[0:2]}{int_to_char[m]}{jpl[-1]}"
@@ -231,7 +236,7 @@ class Plotter:
                     )
 
                 # plot the negative reflectivity contribution
-                if "m" + JPmL in self._coherent_sums["eJPmL"]:
+                if "m" + JPmL in self.coherent_sums["eJPmL"]:
                     neg_refl = self.df["m" + JPmL] / total
                     neg_refl_err = neg_refl * np.sqrt(
                         np.square(self.df[f"m{JPmL}_err"] / self.df["m" + JPmL])
@@ -259,7 +264,7 @@ class Plotter:
                             color="blue",
                         )
                 # plot the negative reflectivity contribution
-                if "p" + JPmL in self._coherent_sums["eJPmL"]:
+                if "p" + JPmL in self.coherent_sums["eJPmL"]:
                     pos_refl = self.df["p" + JPmL] / total
                     pos_refl_err = pos_refl * np.sqrt(
                         np.square(self.df[f"p{JPmL}_err"] / self.df["p" + JPmL])
@@ -321,14 +326,14 @@ class Plotter:
         """
 
         # first check that the amplitudes actually exist in the dataframe
-        if amp1 not in self._coherent_sums["eJPmL"]:
+        if amp1 not in self.coherent_sums["eJPmL"]:
             raise ValueError(f"Amplitude {amp1} not found in dataset")
-        if amp2 not in self._coherent_sums["eJPmL"]:
+        if amp2 not in self.coherent_sums["eJPmL"]:
             raise ValueError(f"Amplitude {amp2} not found in dataset")
         if amp1[0] != amp2[0]:
             raise ValueError(f"Amplitudes must be from same reflectivity")
 
-        phase_dif = self._phase_differences[(amp1, amp2)]
+        phase_dif = self.phase_differences[(amp1, amp2)]
         color = "red" if amp1[0] == "p" else "blue"
 
         fig, ax = plt.subplots()
@@ -387,9 +392,9 @@ class Plotter:
         """
 
         # first check that the amplitudes actually exist in the dataframe
-        if amp1 not in self._coherent_sums["eJPmL"]:
+        if amp1 not in self.coherent_sums["eJPmL"]:
             raise ValueError(f"Amplitude {amp1} not found in dataset")
-        if amp2 not in self._coherent_sums["eJPmL"]:
+        if amp2 not in self.coherent_sums["eJPmL"]:
             raise ValueError(f"Amplitude {amp2} not found in dataset")
         if amp1[0] != amp2[0]:
             raise ValueError(f"Amplitudes must be from same reflectivity")
@@ -443,7 +448,7 @@ class Plotter:
             )
 
         # plot the phase difference
-        phase_dif = self._phase_differences[(amp1, amp2)]
+        phase_dif = self.phase_differences[(amp1, amp2)]
         axs[1].errorbar(
             self._mass_bins,
             self.df[phase_dif],
@@ -500,24 +505,24 @@ class Plotter:
         """
 
         fig, axs = plt.subplots(
-            len(self._coherent_sums["JPmL"]),
-            len(self._coherent_sums["JPmL"]),
+            len(self.coherent_sums["JPmL"]),
+            len(self.coherent_sums["JPmL"]),
             sharex=True,
             figsize=(13, 8),
             dpi=500,
         )
         # only the top left corner plot will have ticks for the data scale
-        max_diag = max([self.df[x].max() for x in self._coherent_sums["eJPmL"]])
+        max_diag = max([self.df[x].max() for x in self.coherent_sums["eJPmL"]])
         data_y_ticks = np.linspace(0, max_diag, 4)
         axs[0, 0].set_yticks(data_y_ticks, [human_format(num) for num in data_y_ticks])
-        for i, JPmL in enumerate(self._coherent_sums["JPmL"]):
-            for j, JPmL_dif in enumerate(self._coherent_sums["JPmL"]):
+        for i, JPmL in enumerate(self.coherent_sums["JPmL"]):
+            for j, JPmL_dif in enumerate(self.coherent_sums["JPmL"]):
                 # change tick label sizes for all plots and the max
                 axs[i, j].tick_params("both", labelsize=6)
                 axs[i, j].set_ylim(top=max_diag)
 
                 # write mass ticks for only the bottom row
-                if i == len(self._coherent_sums["JPmL"]) - 1:
+                if i == len(self.coherent_sums["JPmL"]) - 1:
                     axs[i, j].xaxis.set_tick_params(labelbottom=True)
 
                 # PLOT DIAGONALS
@@ -598,7 +603,7 @@ class Plotter:
                             fontsize=10,
                         )
 
-                    phase_dif = self._phase_differences[(f"p{JPmL}", f"p{JPmL_dif}")]
+                    phase_dif = self.phase_differences[(f"p{JPmL}", f"p{JPmL_dif}")]
 
                     # plot phase and its sign ambiguity, with error bands
                     axs[i, j].plot(
@@ -664,7 +669,7 @@ class Plotter:
                     else:
                         axs[i, j].set_yticks(np.linspace(-180, 180, 5), [""] * 5)
 
-                    phase_dif = self._phase_differences[(f"m{JPmL}", f"m{JPmL_dif}")]
+                    phase_dif = self.phase_differences[(f"m{JPmL}", f"m{JPmL_dif}")]
 
                     # plot phase and its sign ambiguity, with error bands
                     axs[i, j].plot(
@@ -840,7 +845,7 @@ class Plotter:
                 "k--",
                 label=r"E852 phase $(10.54^\circ)$",
             )
-            for eJPmL in self._coherent_sums["eJPmL"]:
+            for eJPmL in self.coherent_sums["eJPmL"]:
                 e = eJPmL[0]
                 m = eJPmL[-2]
                 L = eJPmL[-1]
@@ -861,9 +866,9 @@ class Plotter:
                         / self.df[S_wave].apply(np.sqrt)
                     )
                 )
-                phase = self.df[self._phase_differences[(D_wave, S_wave)]]
+                phase = self.df[self.phase_differences[(D_wave, S_wave)]]
                 phase_err = self.df[
-                    f"{self._phase_differences[(D_wave, S_wave)]}_err"
+                    f"{self.phase_differences[(D_wave, S_wave)]}_err"
                 ].abs()
 
                 label = convert_amp_name(eJPmL).replace("D", "(D/S)")
@@ -954,9 +959,84 @@ class Plotter:
             plt.show()
         pass
 
+    def correlation(
+        self, column_groups: list[list] = None, labels: list = None
+    ) -> None:
+        """Plots mean correlation magnitude of each column group as a function of mass
+
+        A correlation matrix is constructed for each group of dataframe columns, and
+        the mean correlation magnitude is the averaged sum of the absolute value of the
+        correlation matrix. This mean value is then plotted as a function of mass.
+        This essentially boils an entire corr matrix down to one parameter, defined
+        from [0,1], that reports how correlated all the columns are with each other.
+
+        Generally the more columns in each group, the less sensitive this parameter
+        becomes to individual strong correlations.
+
+        Args:
+            column_groups (list[list], optional): The mean correlation magnitude is
+                calculated for all the columns in a sub-list (or group). This value for
+                each group is then plotted together. Defaults to None, and instead uses
+                all real and imaginary production parameters.
+            labels (list, optional): Legend label for each group of columns. Defaults to
+                None, and sets the label to be the real and imaginary production
+                parameters.
+
+        Raises:
+            ValueError: if bootstrap df was not defined, since its optional upon init
+            ValueError: need to have same number of labels as column groups
+        """
+        if self.bootstrap_df is None:
+            raise ValueError("Bootstrap df was not defined on instantiation")
+
+        # when no columns requested, build a list from real and imag production params
+        if not column_groups:
+            column_groups = [
+                list(
+                    itertools.chain.from_iterable(
+                        (x + "_re", x + "_im") for x in self.coherent_sums["eJPmL"]
+                    )
+                )
+            ]
+            labels = [r"$[c^i]_m^{(\varepsilon)}$"]
+
+        if len(column_groups) != len(labels):
+            raise ValueError(
+                "Number and position of labels must match those of each sub-list of"
+                " columns"
+            )
+
+        fig, ax = plt.subplots()
+        for group, label in zip(column_groups, labels):
+            mcm = []
+            # get mean correlation magnitude for each bin using the bootstrap df to
+            # calculate the correlation matrix
+            for i in self.df.index:
+                # Take absolute value to make it a magnitude matrix
+                abs_corr_matrix = (
+                    self.bootstrap_df[self.bootstrap_df["bin"] == i][group]
+                    .corr()
+                    .apply(lambda x: abs(x))
+                )
+                mcm.append(
+                    abs_corr_matrix.sum().sum()
+                    / np.square(len(abs_corr_matrix.columns))
+                )
+            ax.plot(self._mass_bins, mcm, linestyle="-", label=label)
+
+        # cosmetics
+        ax.set_ylim(bottom=0.0, top=1.0)
+        ax.set_ylabel("Mean Correlation Magnitude", loc="top")
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
+        ax.grid(True, alpha=0.8)
+
+        ax.legend()
+        plt.show()
+        pass
+
     def diagnose_bootstraps(
         self,
-        columns: list = [],
+        columns: list = None,
         mean_flag: float = 0.0,
         chi2_flag: float = 1.0,
         width_flag: float = 4.0,
@@ -1008,7 +1088,7 @@ class Plotter:
         # we want plotted amplitudes to be their fit fraction, so use separate df
         plotter_df = cut_bootstrap_df[columns].copy()
         for col in plotter_df:
-            if any(col in sublist for sublist in self._coherent_sums.values()):
+            if any(col in sublist for sublist in self.coherent_sums.values()):
                 plotter_df.loc[:, col] = plotter_df[col].div(
                     cut_bootstrap_df["detected_events"], axis="index"
                 )
@@ -1017,7 +1097,7 @@ class Plotter:
         # ambiguity in model, the nominal fit can obtain +/-|truth_phase|.
         for truth_phase in set(self._truth_phase_differences.values()):
             amp1, amp2 = truth_phase.split("_")
-            df_phase = self._phase_differences[(amp1, amp2)]
+            df_phase = self.phase_differences[(amp1, amp2)]
             cut_truth_df[truth_phase] = cut_truth_df[truth_phase].where(
                 np.sign(cut_truth_df[truth_phase]) == np.sign(cut_df[df_phase]),
                 -1.0 * cut_truth_df[truth_phase],
@@ -1052,15 +1132,11 @@ class Plotter:
                 # truth info a fit fraction too
                 x_scaling, y_scaling = 1.0, 1.0  # default values
                 x_truth_scale, y_truth_scale = 1.0, 1.0
-                if any(
-                    col_label in sublist for sublist in self._coherent_sums.values()
-                ):
+                if any(col_label in sublist for sublist in self.coherent_sums.values()):
                     x_scaling = cut_df["detected_events"]
                     if self.is_truth:
                         x_truth_scale = cut_truth_df["detected_events"]
-                if any(
-                    row_label in sublist for sublist in self._coherent_sums.values()
-                ):
+                if any(row_label in sublist for sublist in self.coherent_sums.values()):
                     y_scaling = cut_df["detected_events"]
                     if self.is_truth:
                         y_truth_scale = cut_truth_df["detected_events"]
@@ -1159,19 +1235,22 @@ class Plotter:
                 # uses an average if multiple bins are being plotted
                 if row == col:
                     ratios = []
-                    # TODO: absolute value breaks if dist crosses 0 value. stdev only
-                    # needed if dist is near pi(-pi) borders. Just flag that case
                     for index, error in zip(
                         cut_df[f"{col_label}_err"].index, cut_df[f"{col_label}_err"]
                     ):
-                        stdev = np.std(
-                            np.abs(
-                                cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
-                                    col_label
-                                ]
-                            )
-                        )
-                        ratios.append(stdev / error)
+                        series = cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
+                            col_label
+                        ]
+                        # if distribution is being split at +/- pi boundaries, then
+                        # wrap it to [0, 2pi] range and use that stdev
+                        # NOTE: this is sensitive to outliers and assumes distributions
+                        # near the boundaries do NOT have many points crossing zero
+                        if (
+                            np.min(series) + 180.0 < 4.0
+                            and 180.0 - np.max(series) < 4.0
+                        ):
+                            series = series.apply(lambda x: x % 360)
+                        ratios.append(np.std(series) / error)
                     pg.axes[row, col].text(
                         0.6,
                         0.9,
@@ -1191,14 +1270,14 @@ class Plotter:
                 fontsize = pg.axes[row, col].yaxis.get_label().get_fontsize()
 
                 if any(
-                    col_label in sublist for sublist in self._coherent_sums.values()
-                ) or col_label in set(self._phase_differences.values()):
+                    col_label in sublist for sublist in self.coherent_sums.values()
+                ) or col_label in set(self.phase_differences.values()):
                     pg.axes[row, col].set_xlabel(
                         convert_amp_name(col_label), fontsize=fontsize
                     )
                 if any(
-                    row_label in sublist for sublist in self._coherent_sums.values()
-                ) or row_label in set(self._phase_differences.values()):
+                    row_label in sublist for sublist in self.coherent_sums.values()
+                ) or row_label in set(self.phase_differences.values()):
                     pg.axes[row, col].set_ylabel(
                         convert_amp_name(row_label), fontsize=fontsize
                     )
