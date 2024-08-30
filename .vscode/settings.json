@@ -108,6 +108,8 @@
     ],
     "C_Cpp.errorSquiggles": "enabled",
     "cSpell.words": [
+      "dphase",
+      "dsratio",
       "markersize",
       "phaselock"
     ]

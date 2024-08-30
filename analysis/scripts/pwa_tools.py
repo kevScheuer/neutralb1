@@ -23,12 +23,12 @@ class Plotter:
         bootstrap_df: pd.DataFrame = None,
         truth_df: pd.DataFrame = None,
     ) -> None:
-        """Initialize object with pandas dataframe
-
+        """Initialize object with pandas dataframes
 
         TODO: add "missing" columns to truth dataframe and set all values to 0. This way
             I don't have to check for their existence + I get truth lines on plots to
             compare to
+        TODO: Add an error if shape of data and fit results are mismatched
         Args:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
@@ -494,7 +494,7 @@ class Plotter:
         pass
 
     def matrix(self) -> None:
-        """Scatterplot-like matrix of subplots, for intensities and phase differences
+        """Scatter plot-like matrix of subplots, for intensities and phase differences
 
         The diagonal of the plot contains the intensity of each wave, in both
         reflectivities. The off diagonals are the phase difference between each wave,
@@ -1064,6 +1064,8 @@ class Plotter:
         black line indicate a strong correlation between those variables (>0.7). All
         amplitudes are plotted in fit fractions.
 
+        TODO: Add separately titled legend box for markers, bars, kde's, etc.
+
         Args:
             bins (list): bins that bootstrapped fits are associated with i.e. the
                 1st bin is index=0 in the data dataframe, so all bootstrap fits
@@ -1322,12 +1324,12 @@ class Plotter:
             bw_width2: float,
             bw_l2: int,
         ):
-            cval1 = complex(amp1_re, amp1_im)
-            cval2 = complex(amp2_re, amp2_im)
+            complex_val1 = complex(amp1_re, amp1_im)
+            complex_val2 = complex(amp2_re, amp2_im)
             bw1 = breit_wigner(mass, bw_mass1, bw_width1, bw_l1)
             bw2 = breit_wigner(mass, bw_mass2, bw_width2, bw_l2)
-            phase1 = cmath.phase(bw1 * cval1)
-            phase2 = cmath.phase(bw2 * cval2)
+            phase1 = cmath.phase(bw1 * complex_val1)
+            phase2 = cmath.phase(bw2 * complex_val2)
 
             return phase1 - phase2
 
@@ -1582,7 +1584,7 @@ def breit_wigner(
     libraries/AMPTOOLS_AMPS/BreitWigner.cc.
 
     NOTE: all masses / widths must be in GeV. Daughter particle masses are typically
-    obtained from event 4-vectors, but since they're not avaialable post-fit, we
+    obtained from event 4-vectors, but since they're not available post-fit, we
     approximate them by constraining their mass to the pdg value
 
     Args:
@@ -1616,7 +1618,7 @@ def breit_wigner(
         ) / (2.0 * m0)
 
     def barrier_factor(q: float, l: int):
-        # barrier factor suppresion based on angular momenta
+        # barrier factor suppression based on angular momenta
         z = np.square(q) / np.square(0.1973)
         match l:
             case 0:
