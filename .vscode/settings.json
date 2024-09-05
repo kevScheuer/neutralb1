@@ -91,7 +91,8 @@
       "semaphore": "cpp",
       "shared_mutex": "cpp",
       "stop_token": "cpp",
-      "variant": "cpp"
+      "variant": "cpp",
+      "span": "cpp"
     },
     //"terminal.integrated.profiles.linux": {"bash":{"path":"bash", "args": ["-l"]}},    
     "C_Cpp.default.includePath": [
