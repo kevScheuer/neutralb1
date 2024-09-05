@@ -25,10 +25,10 @@ class Plotter:
     ) -> None:
         """Initialize object with pandas dataframes
 
-        TODO: add "missing" columns to truth dataframe and set all values to 0. This way
-            I don't have to check for their existence + I get truth lines on plots to
-            compare to
-        TODO: Add an error if shape of data and fit results are mismatched
+        TODO: The truth phase differences between generated and non-generated waves
+            is non-zero, but rather should be a flat line at the generated waves phase
+            value. This will need to be calculated "manually" using the re/im parts.
+            This can be handled in reset_truth_phases by checking if the phase is flat
         Args:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
@@ -46,6 +46,14 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
+        if self.df.shape[0] != self.data_df.shape[0]:
+            raise ValueError(
+                "df and data_df must have same number of rows!\n"
+                f"df: {self.df.shape[0]},"
+                f" data_df: {self.data_df.shape[0]}"
+            )
+
+        # TODO: convert this to an actual warning
         if any(status != 3 for status in self.df["eMatrixStatus"]):
             print(
                 (
@@ -57,24 +65,64 @@ class Plotter:
 
         self.coherent_sums = get_coherent_sums(self.df)
         self.phase_differences = get_phase_differences(self.df)
+
         self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
             self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
         )[0]
 
+        # wrap phases from -pi to pi range
         wrap_phases(self.df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
+        # Truth df needs special handling to allow for 1-1 comparison with fit results
         self.is_truth = False
         if self.truth_df is not None:
             self.is_truth = True
         if self.is_truth:
-            self._truth_coherent_sums = get_coherent_sums(self.truth_df)
-            self._truth_phase_differences = get_phase_differences(self.truth_df)
+            # phases in truth fits are wrong, so must be "manually", then wrapped
             self._reset_truth_phases(self.truth_df, self._mass_bins)
             wrap_phases(self.truth_df)
 
+            # set non-existent columns to zero. Needed since the fit dataframe may use
+            # a different waveset from the truth fit
+            cols_to_add = []
+            for sum_type in self.coherent_sums:
+                for sum in self.coherent_sums[sum_type]:
+                    if sum not in self.truth_df.columns:
+                        print(f"Adding {sum} to truth")
+                        cols_to_add.append(
+                            pd.DataFrame({sum: np.zeros_like(self.df[sum])})
+                        )
+                        cols_to_add.append(
+                            pd.DataFrame({f"{sum}_err": np.zeros_like(self.df[sum])})
+                        )
+            for phase_dif in set(self.phase_differences.values()):
+                # check if the reverse ordering of the phase difference is used, and
+                # rename it to match the fit dataframe's ordering if so
+                reverse_phase_dif = "".join(phase_dif.partition("_")[::-1])
+                if reverse_phase_dif in self.truth_df.columns:
+                    self.truth_df.rename(
+                        columns={
+                            reverse_phase_dif: phase_dif,
+                            f"{reverse_phase_dif}_err": f"{phase_dif}_err",
+                        },
+                        inplace=True,
+                    )
+                if phase_dif not in self.truth_df.columns:
+                    cols_to_add.append(
+                        pd.DataFrame({phase_dif: np.zeros_like(self.df[phase_dif])})
+                    )
+                    cols_to_add.append(
+                        pd.DataFrame(
+                            {f"{phase_dif}_err": np.zeros_like(self.df[phase_dif])}
+                        )
+                    )
+
+            concat_list = [self.truth_df]
+            concat_list.extend(cols_to_add)
+            self.truth_df = pd.concat(concat_list, axis=1)
         pass
 
     def jp(self) -> None:
@@ -155,7 +203,7 @@ class Plotter:
                     marker="",
                     color=jp_map["Bkgd"]["color"],
                 )
-            for jp in self._truth_coherent_sums["JP"]:
+            for jp in self.coherent_sums["JP"]:
                 ax.plot(
                     self._mass_bins,
                     self.truth_df[jp],
@@ -252,10 +300,7 @@ class Plotter:
                         color="blue",
                         label=r"$\epsilon=-1$",
                     )
-                    if (
-                        self.is_truth
-                        and "m" + JPmL in self._truth_coherent_sums["eJPmL"]
-                    ):
+                    if self.is_truth:
                         axs[row, col].plot(
                             self._mass_bins,
                             self.truth_df["m" + JPmL] / truth_total,
@@ -280,10 +325,7 @@ class Plotter:
                         color="red",
                         label=r"$\epsilon=+1$",
                     )
-                    if (
-                        self.is_truth
-                        and "p" + JPmL in self._truth_coherent_sums["eJPmL"]
-                    ):
+                    if self.is_truth:
                         axs[row, col].plot(
                             self._mass_bins,
                             self.truth_df["p" + JPmL] / truth_total,
@@ -358,10 +400,10 @@ class Plotter:
             color=color,
         )
 
-        if self.is_truth and (amp1, amp2) in self._truth_phase_differences:
+        if self.is_truth:
             ax.plot(
                 self._mass_bins,
-                self.truth_df[self._truth_phase_differences[(amp1, amp2)]],
+                self.truth_df[phase_dif],
                 linestyle="-",
                 marker="",
                 color=color,
@@ -369,7 +411,7 @@ class Plotter:
 
         ax.legend()
 
-        ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
+        ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi intervals
         ax.set_ylim([-180, 180])
         ax.set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="top")
         ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
@@ -427,11 +469,7 @@ class Plotter:
             label=convert_amp_name(amp2),
         )
 
-        if (
-            self.is_truth
-            and amp1 in self._truth_coherent_sums["eJPmL"]
-            and amp2 in self._truth_coherent_sums["eJPmL"]
-        ):
+        if self.is_truth:
             axs[0].plot(
                 self._mass_bins,
                 self.truth_df[amp1],
@@ -467,10 +505,10 @@ class Plotter:
             marker=".",
             color=color,
         )
-        if self.is_truth and (amp1, amp2) in self._truth_phase_differences:
+        if self.is_truth:
             axs[1].plot(
                 self._mass_bins,
-                self.truth_df[self._truth_phase_differences[(amp1, amp2)]],
+                self.truth_df[phase_dif],
                 linestyle="-",
                 marker="",
                 color=color,
@@ -483,7 +521,7 @@ class Plotter:
         axs[0].set_ylim(bottom=0.0)
         axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
 
-        axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi/2 intervals
+        axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi intervals
         axs[1].set_ylim([-180, 180])
         axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center")
         axs[1].set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
@@ -572,7 +610,7 @@ class Plotter:
                         markersize=2,
                         label=r"$\epsilon=+1$",
                     )
-                    if self.is_truth and JPmL in self._truth_coherent_sums["JPmL"]:
+                    if self.is_truth:
                         axs[i, j].plot(
                             self._mass_bins,
                             self.truth_df[f"m{JPmL}"],
@@ -637,18 +675,10 @@ class Plotter:
                         alpha=0.2,
                     )
 
-                    if (
-                        self.is_truth
-                        and (f"p{JPmL}", f"p{JPmL_dif}")
-                        in self._truth_phase_differences
-                    ):
+                    if self.is_truth:
                         axs[i, j].plot(
                             self._mass_bins,
-                            self.truth_df[
-                                self._truth_phase_differences[
-                                    (f"p{JPmL}", f"p{JPmL_dif}")
-                                ]
-                            ],
+                            self.truth_df[phase_dif],
                             linestyle="-",
                             marker="",
                             color="red",
@@ -702,18 +732,10 @@ class Plotter:
                         color="blue",
                         alpha=0.2,
                     )
-                    if (
-                        self.is_truth
-                        and (f"m{JPmL}", f"m{JPmL_dif}")
-                        in self._truth_phase_differences
-                    ):
+                    if self.is_truth:
                         axs[i, j].plot(
                             self._mass_bins,
-                            self.truth_df[
-                                self._truth_phase_differences[
-                                    (f"m{JPmL}", f"m{JPmL_dif}")
-                                ]
-                            ],
+                            self.truth_df[phase_dif],
                             linestyle="-",
                             marker="",
                             color="blue",
@@ -1097,12 +1119,10 @@ class Plotter:
 
         # scale truth phases to be the same sign as the nominal fit phases. Due to phase
         # ambiguity in model, the nominal fit can obtain +/-|truth_phase|.
-        for truth_phase in set(self._truth_phase_differences.values()):
-            amp1, amp2 = truth_phase.split("_")
-            df_phase = self.phase_differences[(amp1, amp2)]
-            cut_truth_df[truth_phase] = cut_truth_df[truth_phase].where(
-                np.sign(cut_truth_df[truth_phase]) == np.sign(cut_df[df_phase]),
-                -1.0 * cut_truth_df[truth_phase],
+        for phase in set(self.phase_differences.values()):
+            cut_truth_df[phase] = cut_truth_df[phase].where(
+                np.sign(cut_truth_df[phase]) == np.sign(cut_df[phase]),
+                -1.0 * cut_truth_df[phase],
             )
 
         plotter_df["bin_range"] = cut_bootstrap_df["bin_range"]
@@ -1156,18 +1176,8 @@ class Plotter:
                         alpha=0.2,
                     )
 
-                # plot marker for truth (if applicable). The "partition" line
-                # will flip a string around the character "_". Needs to be done since
-                # the truth df's phases (amp1_amp2) are not necessarily in the same
-                # order in the normal df (could be amp2_amp1)
-                if (
-                    self.is_truth
-                    and row == col
-                    and (
-                        col_label in cut_truth_df
-                        or "".join(col_label.partition("_")[::-1]) in cut_truth_df
-                    )
-                ):
+                # plot marker for truth (if applicable)
+                if self.is_truth and row == col:
                     for i in range(len(cut_truth_df[col_label])):
                         pg.axes[row, col].axline(
                             xy1=(
@@ -1197,22 +1207,13 @@ class Plotter:
                             alpha=0.2,
                         )
                     # plot "X" marker for truth value location
-                    if self.is_truth and (
-                        (
-                            col_label in cut_truth_df
-                            or "".join(col_label.partition("_")[::-1]) in cut_truth_df
-                        )
-                        and (
-                            row_label in cut_truth_df
-                            or "".join(row_label.partition("_")[::-1]) in cut_truth_df
-                        )
-                    ):
+                    if self.is_truth:
                         for i in range(len(cut_truth_df[row_label])):
                             pg.axes[row, col].scatter(
-                                cut_truth_df[col_label].div(x_scaling).iloc[i],
-                                cut_truth_df[row_label].div(y_scaling).iloc[i],
+                                cut_truth_df[col_label].div(x_truth_scale).iloc[i],
+                                cut_truth_df[row_label].div(y_truth_scale).iloc[i],
                                 color=palette[i],
-                                marker="P",
+                                marker="X",
                                 linestyle="",
                                 edgecolors="black",
                             )
@@ -1361,7 +1362,7 @@ class Plotter:
 def wrap_phases(
     df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
 ) -> None:
-    """Wrap phase differences to be from -pi/2 to pi/2 & convert from radians to degrees
+    """Wrap phase differences to be from -pi to pi & convert from radians to degrees
 
     Two options of passing either a pandas dataframe, or series. The dataframe case
     handles avoiding editing any non phase difference columns. The series case is much
