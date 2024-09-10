@@ -25,6 +25,8 @@ class Plotter:
     ) -> None:
         """Initialize object with pandas dataframes
 
+        TODO: add correlation matrix plotter, and have it and the mean_correlation func
+            have argument for using the spearmen corr instead
         TODO: The truth phase differences between generated and non-generated waves
             is non-zero, but rather should be a flat line at the generated waves phase
             value. This will need to be calculated "manually" using the re/im parts.
@@ -91,7 +93,6 @@ class Plotter:
             for sum_type in self.coherent_sums:
                 for sum in self.coherent_sums[sum_type]:
                     if sum not in self.truth_df.columns:
-                        print(f"Adding {sum} to truth")
                         cols_to_add.append(
                             pd.DataFrame({sum: np.zeros_like(self.df[sum])})
                         )
@@ -981,7 +982,7 @@ class Plotter:
             plt.show()
         pass
 
-    def correlation(
+    def mean_correlation(
         self, column_groups: list[list] = None, labels: list = None
     ) -> None:
         """Plots mean correlation magnitude of each column group as a function of mass
