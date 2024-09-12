@@ -7,7 +7,9 @@ analyzing fit results
 import cmath
 import itertools
 import re
+import warnings
 
+import joypy
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,8 +27,6 @@ class Plotter:
     ) -> None:
         """Initialize object with pandas dataframes
 
-        TODO: add correlation matrix plotter, and have it and the mean_correlation func
-            have argument for using the spearmen corr instead
         TODO: The truth phase differences between generated and non-generated waves
             is non-zero, but rather should be a flat line at the generated waves phase
             value. This will need to be calculated "manually" using the re/im parts.
@@ -55,9 +55,8 @@ class Plotter:
                 f" data_df: {self.data_df.shape[0]}"
             )
 
-        # TODO: convert this to an actual warning
         if any(status != 3 for status in self.df["eMatrixStatus"]):
-            print(
+            warnings.warn(
                 (
                     "WARNING: the following indices contain fit results whose"
                     "covariance matrix is not full and accurate."
@@ -983,7 +982,10 @@ class Plotter:
         pass
 
     def mean_correlation(
-        self, column_groups: list[list] = None, labels: list = None
+        self,
+        column_groups: list[list] = None,
+        labels: list = None,
+        method: str = "pearson",
     ) -> None:
         """Plots mean correlation magnitude of each column group as a function of mass
 
@@ -1004,6 +1006,8 @@ class Plotter:
             labels (list, optional): Legend label for each group of columns. Defaults to
                 None, and sets the label to be the real and imaginary production
                 parameters.
+            method (str, optional): Method to calculate the correlation matrix. Defaults
+                to pearson, but can also be kendall or spearman.
 
         Raises:
             ValueError: if bootstrap df was not defined, since its optional upon init
@@ -1038,7 +1042,7 @@ class Plotter:
                 # Take absolute value to make it a magnitude matrix
                 abs_corr_matrix = (
                     self.bootstrap_df[self.bootstrap_df["bin"] == i][group]
-                    .corr()
+                    .corr(method=method)
                     .apply(lambda x: abs(x))
                 )
                 mcm.append(
@@ -1055,6 +1059,80 @@ class Plotter:
 
         ax.legend()
         plt.show()
+        pass
+
+    def correlation_matrix(
+        self, columns: list, mass_bin: int | str, method: str = "pearson"
+    ) -> None:
+        """Plot the correlation matrix in a single mass bin
+
+        The correlation matrix is calculated for the columns in the bootstrap dataframe
+        for a single mass bin. The matrix is then plotted as a heatmap, with its values.
+
+        Args:
+            columns (list): bootstrap df columns to calculate the correlation matrix for
+            mass_bin (int | str): mass bin, either as integer (bin #) or string
+                ("bin_low-bin_high")
+            method (str, optional): Method of correlation. Defaults to "pearson", but
+                can also be kendall or spearman.
+
+        Raises:
+            ValueError: if bootstrap df was not defined, since its optional upon init
+            ValueError: requested columns not in the bootstrap dataframe
+            ValueError: mass bin is not in dataframe, or is not string or integer
+        """
+
+        if self.bootstrap_df is None:
+            raise ValueError("Bootstrap df was not defined on instantiation")
+
+        # check if requested columns are in the dataframe
+        missing_columns = [
+            col for col in columns if col not in self.bootstrap_df.columns
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"The following columns are not in bootstrap_df: {missing_columns}"
+            )
+
+        # calculate the correlation matrix
+        if isinstance(mass_bin, str):
+            corr_matrix = self.bootstrap_df[self.bootstrap_df["bin_range"] == mass_bin][
+                columns
+            ].corr(method=method)
+        elif isinstance(mass_bin, int):
+            corr_matrix = self.bootstrap_df[self.bootstrap_df["bin"] == mass_bin][
+                columns
+            ].corr(method=method)
+        else:
+            raise ValueError("Mass bin must be a string or integer")
+
+        # check that the mass bin was found in the dataframe
+        corr_matrix.dropna(inplace=True)
+        if corr_matrix.empty:
+            raise ValueError(f"Mass bin {mass_bin} not found in bootstrap df")
+
+        # round to 2 decimal places
+        corr_matrix = corr_matrix.round(2)
+
+        # rename the columns to prettier LaTeX names
+        renamed_titles = {}
+        for col in columns:
+            if any(
+                col in sublist for sublist in self.coherent_sums.values()
+            ) or col in set(self.phase_differences.values()):
+                renamed_titles[col] = convert_amp_name(col)
+        corr_matrix.rename(index=renamed_titles, columns=renamed_titles, inplace=True)
+
+        # plot the matrix as a heatmap
+        plt.figure(figsize=(10, 8))  # slightly longer figure to accommodate color bar
+        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+
+        # rotate titles for better viewing
+        plt.yticks(rotation=0)
+        plt.xticks(rotation=45, ha="right")
+
+        plt.show()
+
         pass
 
     def diagnose_bootstraps(
@@ -1300,6 +1378,151 @@ class Plotter:
         plt.show()
         pass
 
+    def joyplot(
+        self,
+        columns: list,
+        bins: list = None,
+        colors: list = list(matplotlib.colormaps["Accent"].colors),
+        is_sparse_labels=True,
+        **kwargs,
+    ) -> None:
+        """Plot a joyplot (or ridgeplot) of the bootstrap fit results
+
+
+        TODO: have option for mass bins to be string of ranges instead of just ints
+
+        Args:
+            columns (list): bootstrap df columns to plot
+            bins (list, optional): mass bins to plot on the y-axis. Defaults to None,
+                and uses all bins.
+            colors (list, optional): matplotlib colormap as a list. This means only
+                qualitative maps can be used. Defaults to
+                list(matplotlib.colormaps["Accent"].colors).
+            is_sparse_labels (bool, optional): when True, only bins that start at values
+                divisible by 10 are labelled. Defaults to True.
+
+        Raises:
+            ValueError: if bootstrap df was not defined, since its optional upon init
+            ValueError: if requested columns are not in the bootstrap dataframe
+        """
+
+        if self.bootstrap_df is None:
+            raise ValueError("Bootstrap df was not defined on instantiation")
+        # check if requested columns are in the dataframe
+        missing_columns = [
+            col for col in columns if col not in self.bootstrap_df.columns
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"The following columns are not in bootstrap_df: {missing_columns}"
+            )
+
+        # use all bins if none are specified
+        if not bins:
+            bins = self.bootstrap_df["bin"].unique()
+
+        # Ensure colormap matches the length of columns
+        if len(colors) < len(columns):  # repeat colormap if too short
+            colors = (colors * (len(columns) // len(colors) + 1))[: len(columns)]
+        else:
+            colors = colors[: len(columns)]
+
+        # select bins from dataframes and determine max x value
+        cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
+        x_max = cut_bootstrap_df[columns].max().max()
+        if self.is_truth:
+            cut_truth_df = self.truth_df.loc[bins].copy()
+            x_max = max(x_max, cut_truth_df[columns].max().max())
+
+        # get ordered set of bin_ranges and make their low edge the y-axis labels
+        bin_ranges = sorted(
+            list(set(cut_bootstrap_df["bin_range"])),
+            key=lambda x: float(x.split("-")[1]),
+        )
+        y_axis_labels = []
+        for bin in bin_ranges:
+            low_edge, high_edge = float(bin.split("-")[0]), float(bin.split("-")[1])
+            # if not sparse labels, then add all labels
+            if not is_sparse_labels:
+                y_axis_labels.append(f"{low_edge:.2f}")
+                continue
+
+            tolerance = 1e-5
+            # if first or last bin then add label
+            if (
+                bin_ranges.index(bin) == 0
+                or bin_ranges.index(bin) == len(bin_ranges) - 1
+            ):
+                y_axis_labels.append(f"{low_edge:.2f}")
+            # add label if bin start is a multiple of 10 within tolerance
+            elif (
+                abs(low_edge * 100 % 10) < tolerance
+                or abs(low_edge * 100 % 10 - 10) < tolerance
+            ):
+                y_axis_labels.append(f"{low_edge:.2f}")
+            # else add empty string to keep the axis clean
+            else:
+                y_axis_labels.append("")
+
+        # setup joyplot default args
+        default_args = {
+            "overlap": 2.0,
+            "linewidth": 1,
+            "alpha": 0.7,
+            "legend": True,
+            "grid": "y",
+            "yrot": 0,
+            "loc": "lower right",
+        }
+        default_args.update(kwargs)  # overwrite defaults with user input
+
+        fig, axes = joypy.joyplot(
+            cut_bootstrap_df,
+            by="bin_range",
+            column=columns,
+            labels=y_axis_labels,
+            range_style="own",
+            x_range=[0, x_max],
+            color=colors,
+            **default_args,
+        )
+
+        # plot the truth value as a vertical line on each axis
+        if self.is_truth:
+            for bin, ax in zip(bins, axes):
+                # get the max y value in each bin by getting the kde max (kde's are the
+                # odd values in ax.lines)
+                y_maxes = [
+                    line.get_ydata().max()
+                    for line in ax.lines
+                    if ax.lines.index(line) % 2 != 0
+                ]
+                for col, line_color in zip(columns, colors):
+                    ax.plot(
+                        [cut_truth_df.loc[bin, col]] * 2,
+                        [0.0, y_maxes[columns.index(col)]],
+                        color=line_color,
+                        alpha=1.0,
+                        linestyle="-",
+                        linewidth=2,
+                        zorder=200,
+                    )
+
+        # Access and modify the legend text entries to pretty LaTeX names
+        for ax in axes:
+            legend = ax.get_legend()
+            if legend:
+                for text in legend.get_texts():
+                    label = text.get_text()
+                    if any(
+                        label in sublist for sublist in self.coherent_sums.values()
+                    ) or label in set(self.phase_differences.values()):
+                        text.set_text(convert_amp_name(label))
+
+        plt.show()
+
+        pass
+
     def _reset_truth_phases(self, df: pd.DataFrame, mass_bins: list) -> None:
         """Reset the phase differences of mass dependent truth csv
 
@@ -1468,11 +1691,14 @@ def get_coherent_sums(df: pd.DataFrame) -> dict:
     return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
 
 
-def convert_amp_name(amp: str) -> str:
+def convert_amp_name(input_string: str) -> str:
     """Converts amplitude type string to J^P L_m^(e) LaTeX style string
 
+    Function can handle both amplitudes and phase differences. If input_string is not
+    of eJPmL format, or subset of it i.e. eJPL, then the output will be undefined.
+
     Args:
-        amp (str): amplitude string in eJPmL format
+        input_string (str): amplitude string in eJPmL format
     Returns:
         str: Prettier LaTeX style amplitude in J^P L_m^(e) format. If it's a phase
             difference it's then J^P L_m^(e) - J^P L_m^(e)
@@ -1482,8 +1708,8 @@ def convert_amp_name(amp: str) -> str:
     m_proj_dict = {"n": -2, "m": -1, "0": 0, "p": +1, "q": +2, "": ""}
 
     # CASE 1: phase difference, always of form 'eJPmL_eJPmL'
-    if "_" in amp:
-        amps = amp.split("_")
+    if "_" in input_string:
+        amps = input_string.split("_")
         if len(amps) != 2:
             raise ValueError("Phase difference must be in 'eJPmL_eJPmL' format!")
         e1, j1, p1, m1, l1 = (
@@ -1507,7 +1733,7 @@ def convert_amp_name(amp: str) -> str:
         )
 
     # CASE 2: typical amplitude coherent sum
-    amp_dict = parse_amplitude(amp)
+    amp_dict = parse_amplitude(input_string)
 
     # set each quantum number to its found value. If not found, denote it with a sum
     e = r"\Sigma\varepsilon" if amp_dict["e"] == "" else pm_dict[amp_dict["e"]]
