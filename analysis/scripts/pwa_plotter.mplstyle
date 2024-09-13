@@ -1,0 +1,13 @@
+figure.figsize : 10, 8
+figure.dpi : 100
+xtick.labelsize : 14
+ytick.labelsize : 14
+axes.labelsize : 16
+legend.fontsize : 16
+xtick.major.width : 2.0
+ytick.major.width : 2.0
+xtick.minor.width : 1.8
+ytick.minor.width : 1.8
+lines.markersize : 10
+grid.alpha : 0.8
+axes.grid : True
