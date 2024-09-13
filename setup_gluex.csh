@@ -1,7 +1,7 @@
 source /etc/profile.d/modules.csh
 module purge
 
-source /group/halld/Software/build_scripts/gluex_env_jlab.csh /work/halld/kscheuer/my_build/version.xml
+source /group/halld/Software/build_scripts/gluex_env_jlab.csh /w/halld-scshelf2101/kscheuer/neutralb1/version.xml
 
 module use /cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/modulefiles
 module load cuda
