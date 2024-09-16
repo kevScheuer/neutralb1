@@ -2,7 +2,7 @@
 
 See README for process architecture
 	
-TODO:        
+TODO:          
     Make create_data_files submit jobs in parallel on normal CPU nodes instead of
         running here in serial. Have it 1. Check if all files exist, and if not ask the
         user if they'd like to submit jobs. 2. If yes, submit needed jobs and then quit
@@ -23,55 +23,32 @@ import pathlib
 import pwd
 import subprocess
 import time
+from typing import List
 
 import write_config
 
 # Constants
 USER = pwd.getpwuid(os.getuid())[0]
 VOLATILE_DIR = f"/volatile/halld/home/{USER}"
+# TODO: change this based off cwd and not user hardcoded
 CODE_DIR = f"/w/halld-scshelf2101/{USER}/neutralb1/submission/batch_scripts/"
 
-
-def main(
-    waveset: list,
-    phase_reference: str,
-    is_phaselock: bool,
-    ds_option: str,
-    frame: str,
-    force_refl: int,
-    init_refl: int,
-    init_real: float,
-    init_imag: float,
-    reaction: str,
-    num_rand_fits: int,
-    orientations: list,
-    run_periods: list,
-    t_args: list,
-    energy_min: float,
-    energy_max: float,
-    m_args: list,
-    data_version: str,
-    data_dir: str,
-    phasespace_version: str,
-    phasespace_dir: str,
-    cut_recoil_pi_mass: float,
-    is_bootstrap: bool,
-    template_name: str,
-    truth_file: str,
-    n_gpus: int,
-    gpu_type: str,
-    is_send_mail: bool,
-    time_limit: str,
-):
+def main(args: dict) -> None:
     """Main function. Run file with "--help" to understand variable usage"""
+    
+    # unpack some config arguments    
+    energy_min, energy_max = args["energy"]
+    data_version, data_dir = args["data"]
+    phasespace_version, phasespace_dir = args["phasespace"]
+    n_gpus, gpu_type = int(args["gpu"][0]), args["gpu"][1]
 
-    if "ALL" in orientations:
-        orientations = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
+    if "ALL" in args["orientations"]:
+        args["orientations"] = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
 
     # error checks
-    if truth_file and (
-        data_version.split("_")[0] not in truth_file
-        or not os.path.isfile(f"{CODE_DIR}{truth_file}")
+    if args["truth_file"] and (
+        data_version.split("_")[0] not in args["truth_file"]
+        or not os.path.isfile(f"{CODE_DIR}{args["truth_file"]}")
     ):
         raise ValueError("MC and truth versions must match and truth file must exist!")
     if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
@@ -83,17 +60,19 @@ def main(
         raise FileNotFoundError(
             f"Data version {data_version} does not exist in directory: {data_dir}"
         )
-    for ont in orientations:
+    for ont in args["orientations"]:
         if ont not in "\t".join(os.listdir(data_dir)):
             raise FileNotFoundError(
                 f"Orientation {ont} not found in directory: {data_dir}"
             )
-    if len(t_args) < 2 or len(m_args) < 2:
+    if len(args["t_momenta"]) < 2 or len(args["masses"]) < 2:
         raise ValueError("Must specify at LEAST two arguments for t and mass bins")
+    if not args["waveset"]:
+        raise ValueError("Must specify a waveset to fit with")
 
     # get t and mass bins to fit over
-    low_t_edges, high_t_edges = make_bins(t_args)
-    low_mass_edges, high_mass_edges = make_bins(m_args)
+    low_t_edges, high_t_edges = make_bins(args["t_momenta"])
+    low_mass_edges, high_mass_edges = make_bins(args["masses"])
 
     # create ROOT data files with cuts if not yet done
     create_data_files(
@@ -103,35 +82,39 @@ def main(
         energy_max,
         low_mass_edges,
         high_mass_edges,
-        orientations,
-        run_periods,
+        args["orientations"],
+        args["run_periods"],
         data_version,
         data_dir,
         phasespace_version,
         phasespace_dir,
-        cut_recoil_pi_mass,
+        args["cut_recoil_pi_mass"],
+        args["reaction"]
     )
 
     # make strings for directory creation
-    waveset_str = "_".join(sorted(waveset))
-    waveset = " ".join(waveset)  # spaced version, so it can be used in below command
-    orientations_str = "-".join(sorted(orientations))
+    waveset_str = "_".join(sorted(args["waveset"]))
+    # spaced version, so it can be used in below command
+    waveset = " ".join(args["waveset"])  
+    # string version for directory and job creation
+    orientations_str = "-".join(sorted(args["orientations"])) 
 
     # Create config file template "fit.cfg" that works for any bin
-    if not truth_file:
+    # TODO: change to just accept args dictionary
+    if not args["truth_file"]:
         write_config.main(
             waveset,
-            phase_reference,
-            is_phaselock,
-            ds_option,
-            frame,
-            force_refl,
-            init_refl,
-            init_real,
-            init_imag,
-            reaction,
-            template_name,
-            orientations,
+            args["phase_reference"],
+            args["phaselock"],
+            args["ds_ratio"],
+            args["frame"],
+            args["force_refl"],
+            args["init_refl"],
+            args["init_real"],
+            args["init_imag"],
+            args["reaction"],
+            args["template_name"],
+            args["orientations"],
         )
 
     # when set True in the loop, will always skip asking the user if they want to
@@ -140,60 +123,61 @@ def main(
 
     # These loops create a job submission for every combination of
     # run period, and mass & t bins
-    for run_period in run_periods:
+    for run_period in args["run_periods"]:
         for low_t, high_t in zip(low_t_edges, high_t_edges):
             for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
-                truth_subdir = "truth/" if truth_file else ""
-                # prepare all directories
+                truth_subdir = "truth/" if args["truth_file"] else ""
+
+                # PREPARE DIRECTORIES
                 running_dir = "/".join(
                     (
                         VOLATILE_DIR,
                         "TMPDIR",
                         "ampToolsFits",
-                        reaction,
+                        args["reaction"],
                         run_period,
                         orientations_str,
                         data_version,
                         phasespace_version,
                         waveset_str,
-                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
+                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                         truth_subdir,
                     )
                 )
+                pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
 
-                # subdirs of running
-                rand_dir = running_dir + "rand/"
-                bootstrap_dir = running_dir + "bootstrap/"
                 log_dir = running_dir + "log/"
-
                 data_out_dir = running_dir.replace("TMPDIR/", "")
-                rand_out_dir = data_out_dir + "rand/"
-                bootstrap_out_dir = data_out_dir + "bootstrap/"
+                pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(data_out_dir).mkdir(parents=True, exist_ok=True)
 
+                # truth fits don't require rand or bootstrap fits
+                if not args["truth_file"]:
+                    rand_dir = running_dir + "rand/"
+                    bootstrap_dir = running_dir + "bootstrap/"
+                    rand_out_dir = data_out_dir + "rand/"
+                    bootstrap_out_dir = data_out_dir + "bootstrap/"
+                    pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
+                    pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
+                    pathlib.Path(rand_out_dir).mkdir(parents=True, exist_ok=True)
+                    pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
+                
+                # location of pre-selected data file
                 source_file_dir = "/".join(
                     (
                         f"{VOLATILE_DIR}",
                         "TMPDIR",
                         "ampToolsFits",
-                        reaction,
+                        args["reaction"],
                         "data_files",
-                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
+                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"E_{energy_min:.2f}-{energy_max:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                     )
                 )
-
-                # create directories if they don't exist
-                pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(data_out_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(rand_out_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
 
                 # if a completed fit is found in the output directory, ask if the user
                 # is sure they want to overwrite it
@@ -221,44 +205,44 @@ def main(
                             continue
 
                 # copy in needed files
-                if truth_file:
-                    os.system(f"cp -f {CODE_DIR}{truth_file} {running_dir}")
+                if args["truth_file"]:
+                    os.system(f"cp -f {CODE_DIR}{args["truth_file"]} {running_dir}")
                 else:
                     os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
 
-                # prepare names for batch submission
+                # prepare job name to be shown on slurm webpage
                 job_name = "_".join(
                     (
-                        reaction,
+                        args["reaction"],
                         run_period,
                         orientations_str,
                         data_version,
                         phasespace_version,
                         waveset_str,
-                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
+                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                     )
                 )
 
-                # prepare bash script to be run on slurm node
+                # handoff arguments to bash script that will run on the ifarm
                 script_command = " ".join(
                     (
                         f"{CODE_DIR}run_fit.sh",
                         f"-o {orientations_str}",
                         f"-r {run_period}",
-                        f"-n {num_rand_fits}",
+                        f"-n {args["nrand"]}",
                         f"-d {data_version}",
                         f"-p {phasespace_version}",
                         f"-s {source_file_dir}",
                         f"-D {data_out_dir}",
                         f"-C {CODE_DIR}",
-                        f"-R {reaction}",
-                        f"-b {is_bootstrap}",
+                        f"-R {args["reaction"]}",
+                        f"-b {args["bootstrap"]}",
                     )
                 )
-                if truth_file:
-                    script_command += f" -t {truth_file}"
+                if args["truth_file"]:
+                    script_command += f" -t {args["truth_file"]}"
 
                 submit_slurm_job(
                     job_name,
@@ -267,8 +251,8 @@ def main(
                     log_dir,
                     gpu_type,
                     n_gpus,
-                    is_send_mail,
-                    time_limit,
+                    args["mail"],
+                    args["time_limit"],
                 )
 
     return
@@ -288,6 +272,7 @@ def create_data_files(
     phasespace_ver: str,
     phasespace_dir: str,
     cut_recoil_pi_mass: float,
+    reaction: str
 ) -> None:
     """Create data files with TEM region pre-selected
 
@@ -459,28 +444,21 @@ def submit_slurm_job(
             slurm_out.write(f"#SBATCH --partition=ifarm \n#SBATCH --ntasks={n_cpus} \n")
         slurm_out.write(script_command)
 
-    time.sleep(0.5)  # jobs can be skipped if too many submitted quickly
+    # wait half a second to avoid job skip error if too many submitted quickly
+    time.sleep(0.5) 
     subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
     return
 
-
-def check_positive_float(val) -> float:
-    fl = float(val)
-    if fl < 0.0:
-        raise argparse.ArgumentTypeError(f"{fl} must be >= 0")
-    return fl
-
-
-def make_bins(args: list) -> tuple[float, float]:
+def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
     """Makes low and high bin edges given a list of values. See cases below
 
     Case 1: Linearly spaced bins from min to max with a specified bin width.
-    List is of form [min, max, width].
+        List is of form [min, max, width].
     Case 2: Custom binning as defined by user. List is of form
-    [min_bin, bin_2, ... bin_k, ... max_bin]
+        [min_bin, bin_2, ... bin_k, ... max_bin]
 
     Args:
         args (list): bin values according to either case
@@ -490,8 +468,8 @@ def make_bins(args: list) -> tuple[float, float]:
         RuntimeError: avoids user error where cases can overlap
 
     Returns:
-        tuple[float, float]: low_bin_edges and high_bin edges. A paired list defining
-        each bin edge
+        tuple[List[float], List[float]]: Paired lists defining the low and high bin 
+            edges
     """
     low_edges = []
     high_edges = []
@@ -529,11 +507,15 @@ def make_bins(args: list) -> tuple[float, float]:
 
     return low_edges, high_edges
 
+def check_positive_float(val) -> float:
+    # custom error check for argparse to ensure float is positive
+    fl = float(val)
+    if fl < 0.0:
+        raise argparse.ArgumentTypeError(f"{fl} must be >= 0")
+    return fl
 
-if __name__ == "__main__":
-    # parse arguments passed to script at command line. Reference "help"
-    #   arguments for details about each variable
-    parser = argparse.ArgumentParser(description="Submit PWA fits to ifarm via slurm")
+def parse_args() -> dict:
+    parser = argparse.ArgumentParser(description="Submit PWA fits various configs")
 
     # waveset and any modifications
     parser.add_argument(
@@ -557,8 +539,8 @@ if __name__ == "__main__":
         help="Waveset to fit with",
     )
     parser.add_argument(
-        "--phase-reference",
-        type=str,
+        "--phase_reference",
+        type=str.lower,
         metavar="JPmL",
         default="",
         help=(
@@ -578,7 +560,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-ds",
-        "--dsratio",
+        "--ds_ratio",
         type=str,
         default="",
         choices=["free", "fixed", "split"],
@@ -600,26 +582,32 @@ if __name__ == "__main__":
         help="change decay frame used, empty default means helicity will be used",
     )
     parser.add_argument(
-        "--force-refl",
+        "--force_refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="only allow a single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init-refl",
+        "--init_refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="initialize single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init-re-im",
-        type=float,
-        nargs=2,
-        default=[100, 100],
-        metavar=("re", "im"),
-        help="value to initialize real and imaginary parts of amplitudes to",
+        "--init_real",
+        type=float,        
+        default=100.0,
+        metavar=("real_part"),
+        help="value to initialize real cartesian part of amplitude to",
+    )
+    parser.add_argument(
+        "--init_imag",
+        type=float,        
+        default=100.0,
+        metavar=("imag_part"),
+        help="value to initialize imaginary cartesian part of amplitude to",
     )
 
     # details of fit type
@@ -642,7 +630,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-r",
-        "--runs",
+        "--run_periods",
         nargs="*",
         default=["allPeriods"],
         choices=["allPeriods", "2017_01", "2018_01", "2018_08"],
@@ -650,7 +638,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-m",
-        "--mass",
+        "--masses",
         nargs="+",
         type=check_positive_float,
         default=[1.0, 1.5, 0.05],
@@ -661,7 +649,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-t",
-        "--t",
+        "--t_momenta",
         nargs="+",
         type=check_positive_float,
         default=[0.1, 0.5, 0.1],
@@ -680,7 +668,7 @@ if __name__ == "__main__":
         help="range of beam energy to fit to. Default is coherent peak region",
     )
     parser.add_argument(
-        "--truth",
+        "--truth_file",
         type=str,
         default="",
         help=(
@@ -716,7 +704,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-c",
-        "--cut-recoil-pi-mass",
+        "--cut_recoil_pi_mass",
         type=float,
         default=1.4,
         help=(
@@ -738,7 +726,7 @@ if __name__ == "__main__":
 
     # other arguments
     parser.add_argument(
-        "--template-name",
+        "--template_name",
         type=str,
         default="template.cfg",
         help="template with default values to copy and overwrite",
@@ -763,69 +751,17 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--time-limit",
+        "--time_limit",
         type=str,
         default="01:00:00",
         help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args()    
 
-    waveset = args.waveset
-    phase_reference = args.phase_reference.lower()
-    is_phaselock = args.phaselock
-    ds_option = args.dsratio
-    frame = args.frame
-    force_refl = args.force_refl
-    init_refl = args.init_refl
-    init_real, init_imag = args.init_re_im
+    return vars(args)
 
-    reaction = args.reaction
-    num_rand_fits = args.nrand
-    orientations = args.orientations
-    run_periods = args.runs
-    m_args = args.mass
-    t_args = args.t
-    energy_min, energy_max = args.energy
-    truth_file = args.truth
-    data_version, data_dir = args.data
-    phasespace_version, phasespace_dir = args.phasespace
-    cut_recoil_pi_mass = args.cut_recoil_pi_mass
-    is_bootstrap = args.bootstrap
 
-    template_name = args.template_name
-    n_gpus, gpu_type = int(args.gpu[0]), args.gpu[1]
-    is_send_mail = args.mail
-    time_limit = args.time_limit
-
-    main(
-        waveset,
-        phase_reference,
-        is_phaselock,
-        ds_option,
-        frame,
-        force_refl,
-        init_refl,
-        init_real,
-        init_imag,
-        reaction,
-        num_rand_fits,
-        orientations,
-        run_periods,
-        t_args,
-        energy_min,
-        energy_max,
-        m_args,
-        data_version,
-        data_dir,
-        phasespace_version,
-        phasespace_dir,
-        cut_recoil_pi_mass,
-        is_bootstrap,
-        template_name,
-        truth_file,
-        n_gpus,
-        gpu_type,
-        is_send_mail,
-        time_limit,
-    )
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
