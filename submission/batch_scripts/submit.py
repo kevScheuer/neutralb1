@@ -2,11 +2,7 @@
 
 See README for process architecture
 	
-TODO:          
-    Make create_data_files submit jobs in parallel on normal CPU nodes instead of
-        running here in serial. Have it 1. Check if all files exist, and if not ask the
-        user if they'd like to submit jobs. 2. If yes, submit needed jobs and then quit
-        out of the program
+TODO:   
     mails broken (says 'requested node config is not available')
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
@@ -99,7 +95,7 @@ def main(args: dict) -> None:
 
     # when set True in the loop, will always skip asking the user if they want to
     # overwrite files
-    is_skip_all = False
+    skip_input = False
 
     # These loops create a job submission for every combination of
     # run period, and mass & t bins
@@ -161,26 +157,29 @@ def main(args: dict) -> None:
 
                 # if a completed fit is found in the output directory, ask if the user
                 # is sure they want to overwrite it
-                if not is_skip_all:
+                if not skip_input:
                     if os.path.isfile(f"{data_out_dir}best.fit") or os.path.isfile(
                         f"{data_out_dir}best_truth.fit"
                     ):
                         print(
                             f"best.fit already exists at {data_out_dir}, are"
                             " you sure you want to submit this job and overwrite the"
-                            " file? (Answer 'skip_all' to not show this prompt again)"
+                            " file? (yes/no/skip_input/exit)"
                         )
                         while True:
                             ans = str(input())
                             if ans == "yes" or ans == "y" or ans == "no" or ans == "n":
                                 break
-                            elif ans == "skip_all":
-                                is_skip_all = True
+                            elif ans == "skip_input":
+                                skip_input = True
                                 break
                             elif ans == "exit" or ans == "exit()":
                                 exit()
                             else:
-                                print("Please answer yes, no, or skip_all")
+                                print(
+                                    "Please answer yes, no, skip_input (to submit all jobs"
+                                    " without asking), or exit"
+                                )
                         if ans == "no" or ans == "n":
                             continue
 
@@ -254,12 +253,14 @@ def create_data_files(
     cut_recoil_pi_mass: float,
     reaction: str,
 ) -> None:
-    """Create data files with TEM region pre-selected
+    """Create data files with cuts and store them in volatile
 
     The typical ROOTDataReader method in the .cfg files reads in data much too slowly,
-    and is repetitive when the same TEM region is being selected. This function creates
-    a dir in volatile under the 'reaction' arg, and dirs for each TEM selection. The
-    same dirs are given to run_fits.sh for where to source the data files from.
+    and is repetitive when the same TEM region is being selected. This function will
+    copy the source data files to the volatile directory, and cut them to the desired
+    TEM region for quick access. Each TEM + recoil_pi_mass bin will have its own ifarm
+    job. If jobs are submitted, then the program exits to avoid pwa jobs being submitted
+    without the necessary data files.
 
     Args:
         low_t_edges (list): values of low t bin edges
@@ -276,46 +277,50 @@ def create_data_files(
         phasespace_dir (str): directory of original phasespace files
         cut_recoil_pi_mass (float): removes events below the given recoil-pion mass
     Raises:
-        EnvironmentError: ROOT isn't loaded, and so scripts can't run
         FileExistsError: Generated phasespace file not found
         FileExistsError: Accepted phasespace file not found
         FileExistsError: Data File not found
-
-    TODO: move the check for the file existing to be first, before actions take place
     """
 
-    # first check if ROOT is loaded into the shell environment
-    if not os.environ["ROOTSYS"]:
-        raise EnvironmentError("ROOTSYS path is not loaded\n")
+    # track what files need to be copied to what directories on volatile
+    src_files_to_copy_to_dir = {}
+
+    # if user wants to skip being asked for every job submission, this will become True
+    skip_input = False
+
+    jobs_submitted = False  # becomes True if any jobs are submitted
 
     for run_period in run_periods:
         # find generated phasespace file
-        gen_file = f"anglesOmegaPiPhaseSpaceGen_{run_period}_{phasespace_ver}.root"
-        gen_src = f"{phasespace_dir}/{gen_file}"
-        if not os.path.isfile(gen_src):
-            raise FileExistsError(f"Path {gen_src} does not exist!\n")
+        gen_file = f"{phasespace_dir}/anglesOmegaPiPhaseSpaceGen_{run_period}_{phasespace_ver}.root"
+        if not os.path.isfile(gen_file):
+            raise FileExistsError(f"Path {gen_file} does not exist!\n")
+        src_files_to_copy_to_dir[gen_file] = []
 
-        # find accepted phasespace file
-        acc_file = gen_file.replace("Gen", "Acc")
-        acc_src = f"{phasespace_dir}/{acc_file}"
-        if not os.path.isfile(acc_src):
-            raise FileExistsError(f"Path {acc_src} does not exist!\n")
+        # find accepted phasespace file (if needed)
+        if "mcthrown" not in data_ver:
+            acc_file = f"{phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_{run_period}_{phasespace_ver}.root"
+            if not os.path.isfile(acc_file):
+                raise FileExistsError(f"Path {acc_file} does not exist!\n")
+            src_files_to_copy_to_dir[acc_file] = []
 
         # find data files
         data_files = []
-        data_srcs = []
         for ont in orientations:
-            f = f"AmpToolsInputTree_sum_{ont}_{run_period}_{data_ver}.root"
-            if not os.path.isfile(f"{data_dir}/{f}"):
-                raise FileExistsError(f"Path {data_dir}/{f} does not exist!\n")
+            f = f"{data_dir}/AmpToolsInputTree_sum_{ont}_{run_period}_{data_ver}.root"
+            if not os.path.isfile(f):
+                raise FileExistsError(f"Path {f} does not exist!\n")
             data_files.append(f)
-            data_srcs.append(f"{data_dir}/{f}")
+            src_files_to_copy_to_dir[f] = []
 
         # loop over TEM bins
         for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
             for low_t, high_t in zip(low_t_edges, high_t_edges):
-                # create directory for each TEM bin
-                dir = "/".join(
+                # create directory for each TEM bin if not already done
+                # TODO: this directory structure is hardcoded and MUST match the dir
+                #   structure in the main function. This has potential for error if
+                #   either change
+                bin_dir = "/".join(
                     (
                         VOLATILE_DIR,
                         "TMPDIR",
@@ -328,36 +333,91 @@ def create_data_files(
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                     )
                 )
-                pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+                pathlib.Path(bin_dir).mkdir(parents=True, exist_ok=True)
 
-                # this root macro will make the given TEM cuts to the 'kin' Tree in the
-                # given ROOT file (arg 1) and save the output with the same file name
-                # to a specified directory (arg 2)
-                command = (
-                    "root -l -b -q"
-                    f" '{CODE_DIR}copy_tree_with_cuts.C("
-                    f'"{gen_src}", "{dir}",'
-                    f' "{cut_recoil_pi_mass}",'
-                    f' "{low_t}", "{high_t}",'
-                    f' "{energy_min}", "{energy_max}",'
-                    f' "{low_mass}", "{high_mass}"'
-                    ")'"
-                )
-
-                # create PhasespaceGen file if it doesn't exist
-                if not os.path.isfile(f"{dir}/{gen_file}"):
-                    os.system(command)
-                # TODO: check if this will accidentally skip making a Acc file if thrown
-                #   is selected
+                # if files not already in volatile, add to list to be copied
+                if not os.path.isfile(f"{bin_dir}/{gen_file.split('/')[-1]}"):
+                    src_files_to_copy_to_dir[gen_file].append(bin_dir)
                 if "mcthrown" not in data_ver and not os.path.isfile(
-                    f"{dir}/{acc_file}"
+                    f"{bin_dir}/{acc_file.split('/')[-1]}"
                 ):
-                    os.system(command.replace(gen_src, acc_src))
-                for ont, data_src, data_file in zip(
-                    orientations, data_srcs, data_files
-                ):
-                    if not os.path.isfile(f"{dir}/{data_file}"):
-                        os.system(command.replace(gen_src, data_src))
+                    src_files_to_copy_to_dir[acc_file].append(bin_dir)
+                for data_file in data_files:
+                    if not os.path.isfile(f"{bin_dir}/{data_file.split('/')[-1]}"):
+                        src_files_to_copy_to_dir[data_file].append(bin_dir)
+
+        # if any files need to be cut and copied for this run period, ask user if
+        # they want to submit jobs to create them
+        if bool([a for a in src_files_to_copy_to_dir.values() if a != []]):
+            if not skip_input:
+                print(
+                    f"\nFiles need to be cut and copied to the following directories"
+                    f" for run period {run_period}:"
+                )
+                for src, dirs in src_files_to_copy_to_dir.items():
+                    if dirs:
+                        print(f"{src} -> {dirs}")
+                print(
+                    "Do you want to submit jobs to create these files?"
+                    " (yes/no/skip_input/exit)"
+                )
+                while True:
+                    ans = str(input())
+                    if ans == "yes" or ans == "y" or ans == "no" or ans == "n":
+                        break
+                    elif ans == "skip_input":
+                        skip_input = True
+                        break
+                    elif ans == "exit" or ans == "exit()":
+                        exit()
+                    else:
+                        print(
+                            "Please answer yes, no, skip_input (to submit all jobs"
+                            " without asking), or exit"
+                        )
+                if ans == "no" or ans == "n":
+                    continue
+
+            # submit jobs to create the files
+            jobs_submitted = True
+            for src_file, dirs in src_files_to_copy_to_dir.items():
+                for dir in dirs:
+                    # create log dir
+                    log_dir = dir + "/log/"
+                    pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+                    # create command to run the ROOT macro
+                    command = (
+                        f"source {CODE_DIR}setup_gluex.sh && root -l -b -q"
+                        f" '{CODE_DIR}copy_tree_with_cuts.C("
+                        f'"{src_file}", "{dir}",'
+                        f' "{cut_recoil_pi_mass}",'
+                        f' "{low_t}", "{high_t}",'
+                        f' "{energy_min}", "{energy_max}",'
+                        f' "{low_mass}", "{high_mass}"'
+                        ")'"
+                    )
+                    submit_slurm_job(
+                        job_name=f"copy_{src_file.split('/')[-1]}_to_{dir}",
+                        script_command=command,
+                        running_dir=dir,
+                        log_dir=log_dir,
+                        gpu_type="",
+                        n_gpus=0,
+                        is_send_mail=False,
+                        time_limit="00:30:00",
+                        n_cpus=8,
+                    )
+
+    if jobs_submitted:
+        print(
+            "Jobs have been submitted to create the necessary data files."
+            " Please wait for them to finish before submitting PWA fits."
+            " Job progress can be monitored at"
+            " https://scicomp.jlab.org/scicomp/slurmJob/activeJob, or by running"
+            " 'squeue -u $USER' in a terminal"
+        )
+        exit()
 
     return
 
@@ -426,7 +486,7 @@ def submit_slurm_job(
 
     # wait half a second to avoid job skip error if too many submitted quickly
     time.sleep(0.5)
-    # subprocess.call(["sbatch", "tempSlurm.txt"])
+    subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")

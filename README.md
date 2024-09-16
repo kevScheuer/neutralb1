@@ -3,9 +3,9 @@
  :bangbang:**This repository must be on a JLab ifarm node**:bangbang:
 
 Within this repository lies all scripts needed to perform a full partial wave analysis of the neutral $\omega\pi^0$ channel from start to finish, which is dominated by a neutral $b_1$ resonance for which this repo is named after. The repo is structured such that one can:
-1. Begin in [selector](./selector/) to load GlueX ROOT data files and select events of interest, and produce new "Flat Trees".
-2. Submit partial wave fits to the flat trees in [submission](./submission/) and obtain `.fit` result files in bins of mass and $-t$.
-3. Analyze those scripts in [analysis](./analysis/) using jupyter notebooks an [all-in-one pwa plotter](./analysis/scripts/pwa_tools.py). 
+1. Begin in [selector](./selector/) to load GlueX ROOT data files and select events of interest to prepare them for a partial wave analysis.
+2. Submit partial wave fits to the selected ROOT trees in [submission](./submission/) and obtain `.fit` result files in bins of mass and $-t$.
+3. Analyze those scripts in [analysis](./analysis/) using jupyter notebooks and an [all-in-one pwa plotter](./analysis/scripts/pwa_tools.py). 
 
 The scripts are tuned to $\omega \pi^0$ analysis, though are constantly being generalized so that others may easily copy its functionality.
 
