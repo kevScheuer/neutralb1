@@ -13,10 +13,13 @@ TODO:
 
 import argparse
 import typing
+from typing import List
 
 # CONSTANTS
 # orientations have to be looped over manually here (without AmpTools LOOPs),
-#   so this sets up necessary variables
+#   so this sets up necessary variables. Polarization angles are in degrees and
+#   fractions denote the fraction of the intensity that is polarized in that direction,
+#   whose values are standard in halld
 POL_DICT = {
     "PARA_0": {"angle": 0, "fraction": 0.3519},
     "PERP_45": {"angle": 45, "fraction": 0.3374},
@@ -24,83 +27,78 @@ POL_DICT = {
     "PARA_135": {"angle": 135, "fraction": 0.3375},
 }
 
+# orientations: list,
 
-def main(
-    waveset_args: list,
-    phase_ref: str,
-    is_phaselock: bool,
-    ds_option: str,
-    frame: str,
-    force_refl: int,
-    init_refl: int,
-    init_real: float,
-    init_imag: float,
-    reaction: str,
-    template_name: str,
-    orientations: list,
-):
-    # convert the user requested wave string into a lists of waves/bw's that contain all
+
+def main(args: dict):
+    """Write config using parsed args from submit.py"""
+
+    # convert the user requested wave string into lists of waves/bw's that contain all
     # the necessary info for each wave/bw
-    waves, breit_wigners = get_waves_and_breit_wigners(waveset_args)
+    waves, breit_wigners = get_waves_and_breit_wigners(args["waveset"])
 
-    if phase_ref:
-        # check that the reference wave chosen is actually in the waveset
-        is_wave_found = False
-        for wave in waves:
-            j = str(wave["spin"])
-            p = int_to_char(wave["parity"])
-            for m in wave["m"]:
-                for l in wave["l"]:
-                    jpml = j + p + int_to_char(m) + int_to_char(l, True)
-                    if phase_ref == jpml:
-                        is_wave_found = True
-                        phase_reference = wave
-        if not is_wave_found:
-            raise ValueError(f"{phase_ref} is not in waveset")
+    # check that the reference wave is in the waveset if requested, otherwise set the
+    # reference to be the first wave in the waveset
+    if args["phase_reference"]:
+        if not is_reference_wave_in_waveset(args["phase_reference"], waves):
+            raise ValueError(f"{args['phase_reference']} is not in waveset")
     else:
-        phase_reference = waves[0]
+        args["phase_reference"] = waves[0]
 
     # parse out special options aside from waves and bw's
-    is_iso = True if "iso" in waveset_args else False
-    is_dalitz = False if "nodalitz" in waveset_args else True
+    is_iso = True if "iso" in args["waveset"] else False
+    is_dalitz = False if "nodalitz" in args["waveset"] else True
 
     # copy common part of omegapi config files to a new file that will be the
     #   template for each bin
-    ftemplate = open(f"submission/batch_scripts/{template_name}", "r")
+    ftemplate = open(f"submission/batch_scripts/{args['template_name']}", "r")
     template_data = ftemplate.read()
     ftemplate.close()
-    template_data = template_data.replace("FITNAME", reaction)
+    template_data = template_data.replace("FITNAME", args["reaction"])
     fout = open("submission/batch_scripts/fit.cfg", "w")
     fout.write(template_data)
 
     # Write LOOP over polarization orientations and setup corresponding reaction names
-    write_orientation_loop(fout, orientations, reaction)
+    write_orientation_loop(fout, args["orientations"], args["reaction"])
 
     # Write AmpTools LOOP for each JP
     write_wave_loops(
         fout,
         waves,
-        force_refl,
-        init_refl,
-        init_real,
-        init_imag,
+        args["force_refl"],
+        args["init_refl"],
+        args["init_real"],
+        args["init_imag"],
         is_dalitz,
-        frame,
-        orientations,
-        reaction,
+        args["frame"],
+        args["orientations"],
+        args["reaction"],
     )
 
     # write lines if isotropic background is present
     if is_iso:
-        write_isotropic_background(fout, is_dalitz, orientations, reaction)
+        write_isotropic_background(
+            fout, is_dalitz, args["orientations"], args["reaction"]
+        )
 
     # write lines to remove overall unconstrained phase factor
-    write_phase_convention(fout, phase_reference, force_refl, orientations, reaction)
+    write_phase_convention(
+        fout,
+        args["phase_reference"],
+        args["force_refl"],
+        args["orientations"],
+        args["reaction"],
+    )
 
-    # writes breit wigners (if present in waveset_args)
+    # writes breit wigners (if present in waveset)
     if breit_wigners:
         write_breit_wigners(
-            fout, waves, breit_wigners, force_refl, orientations, reaction
+            fout,
+            waves,
+            breit_wigners,
+            args["force_refl"],
+            args["orientations"],
+            args["reaction"],
         )
 
     # write ds ratio if 1p amp is used, and if DS ratio isn't free
@@ -108,15 +106,26 @@ def main(
     for wave in waves:
         if wave.get("spin") == 1 and wave.get("parity") == 1:
             is_1p_present = True
-    if not ds_option == "free" and is_1p_present:
+    if args["ds_ratio"] != "free" and is_1p_present:
         write_ds_ratio(
-            fout, ds_option, force_refl, is_phaselock, orientations, reaction
+            fout,
+            args["ds_ratio"],
+            args["force_refl"],
+            args["phaselock"],
+            args["orientations"],
+            args["reaction"],
         )
 
     # user option to constrain phases between m projections
-    if is_phaselock:
+    if args["phaselock"]:
         write_phaselock(
-            fout, waves, force_refl, init_refl, init_real, orientations, reaction
+            fout,
+            waves,
+            args["force_refl"],
+            args["init_refl"],
+            args["init_real"],
+            args["orientations"],
+            args["reaction"],
         )
 
     fout.close()
@@ -124,13 +133,13 @@ def main(
     return
 
 
-def get_waves_and_breit_wigners(waveset_args: list) -> tuple[list, list]:
+def get_waves_and_breit_wigners(waveset: List[str]) -> tuple[list, list]:
     """Converts user passed waveset into detailed dicts
 
     Args:
-        waveset_args: user passed waveset to be built in cfg file e.g. 1p_1m_iso
+        waveset: user passed waveset to be built in cfg file e.g. ["1p", "1m", "iso"]
     Returns:
-        Two lists contiaining dicts, that convert each requested wave into the
+        Two lists containing dicts, that convert each requested wave into the
         proper quantum numbers Ex:
             1p -> {"spin":1, "parity":-1, "m": [-1,0,1], "l":1}
     """
@@ -169,19 +178,19 @@ def get_waves_and_breit_wigners(waveset_args: list) -> tuple[list, list]:
             "fix": True,
         },
     }
-    if "b1free" in waveset_args:
+    if "b1free" in waveset:
         breit_wigner_dict["b1"]["fix"] = False
-    if "rhofree" in waveset_args:
+    if "rhofree" in waveset:
         breit_wigner_dict["rho"]["fix"] = False
 
     # add requested waves and breit wigners to lists
     waves = []
     breit_wigners = []
     for key, val in wave_dict.items():
-        if key in waveset_args:
+        if key in waveset:
             waves.append(val)
     for key, val in breit_wigner_dict.items():
-        if key in waveset_args:
+        if key in waveset:
             breit_wigners.append(val)
 
     # check that amplitudes are present for any requested breit wigners
@@ -199,13 +208,13 @@ def get_waves_and_breit_wigners(waveset_args: list) -> tuple[list, list]:
 
 
 def write_orientation_loop(
-    fout: typing.TextIO, orientations: list, reaction: str
+    fout: typing.TextIO, orientations: List[str], reaction: str
 ) -> None:
     """Writes the AmpTools 'loop' statements to handle polarization orientations
 
     Args:
         fout (typing.TextIO): cfg file being written to
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
@@ -267,7 +276,7 @@ def write_wave_loops(
     init_imag: float,
     is_dalitz: bool,
     frame: str,
-    orientations: list,
+    orientations: List[str],
     reaction: str,
 ) -> None:
     """Write all AmpTools LOOP statements for the waves
@@ -281,16 +290,16 @@ def write_wave_loops(
     Args:
         fout (typing.TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
-           See 'get_waves_and_breit_wigners' for details
+            See 'get_waves_and_breit_wigners' for details
         force_refl (int): user option to only use 1 reflectivity
         init_refl (int): user option to init nonzero values for one reflectivity
         init_real (float): user option to init the real value for amplitudes. Default
-          is 100 (or 0 if init/force_refl is set)
+            is 100 (or 0 if init/force_refl is set)
         init_imag (float): user option to init the imaginary value for amplitudes.
-          Default is 100 (or 0 if init/force_refl is set)
+            Default is 100 (or 0 if init/force_refl is set)
         is_dalitz (bool): controls whether OmegaDalitz amplitudes are written
         frame (str): option for using a special decay angle frame
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
@@ -393,14 +402,14 @@ def write_wave_loops(
 
 
 def write_isotropic_background(
-    fout: typing.TextIO, is_dalitz: bool, orientations: list, reaction: str
+    fout: typing.TextIO, is_dalitz: bool, orientations: List[str], reaction: str
 ) -> None:
     """Writes lines in cfg file template for isotropic background amplitude
 
     Args:
         fout (typing.TextIO): cfg file being written to
         is_dalitz (bool): controls whether OmegaDalitz amplitudes are written
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
     fout.write(f"{'#'*8} isotropic background {'#'*8}")
@@ -433,7 +442,11 @@ def write_isotropic_background(
 
 
 def write_phase_convention(
-    fout: typing.TextIO, wave: dict, force_refl: int, orientations: list, reaction: str
+    fout: typing.TextIO,
+    wave: str,
+    force_refl: int,
+    orientations: List[str],
+    reaction: str,
 ) -> None:
     """Constrains 1 amplitude in each reflectivity to be purely real
 
@@ -445,17 +458,11 @@ def write_phase_convention(
 
     Args:
         fout (typing.TextIO): cfg file being written to
-        waves (dict): dict entry that contains JP, spin, parity, m, and l.
-          Wave passed will be the reference wave (phase=0)
+        wave (str): spin, parity, m, and l of the reference wave
         force_refl (int): user option to only use 1 reflectivity
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
-
-    j = wave["spin"]
-    p = int_to_char(wave["parity"])
-    m = int_to_char(wave["m"][0])
-    l = int_to_char(wave["l"][0], True)
 
     fout.write("\n# fix phase\n")
 
@@ -466,7 +473,7 @@ def write_phase_convention(
                 continue
             fout.write(
                 f"initialize {reaction}_{POL_DICT[ont]['angle']}"
-                f"::{coh_sum_label}::{j}{p}{m}{l} cartesian 100 0 real\n"
+                f"::{coh_sum_label}::{wave} cartesian 100 0 real\n"
             )
 
     return
@@ -477,7 +484,7 @@ def write_breit_wigners(
     waves: list,
     breit_wigners: list,
     force_refl: int,
-    orientations: list,
+    orientations: List[str],
     reaction: str,
 ) -> None:
     """Write cfg file lines for breit wigners. only b1 and rho supported.
@@ -488,10 +495,10 @@ def write_breit_wigners(
     Args:
         fout (typing.TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
-           See 'get_waves_and_breit_wigners' for details
+            See 'get_waves_and_breit_wigners' for details
         breit_wigners (list): list of bw dicts that contain all necessary info
         force_refl (int): user option to only use 1 reflectivity
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
@@ -566,18 +573,19 @@ def write_ds_ratio(
     ds_option: str,
     force_refl: int,
     is_phaselock: bool,
-    orientations: list,
+    orientations: List[str],
     reaction: str,
 ) -> None:
     """Writes lines in cfg file template for a D to S wave ratio to be set
 
     Args:
         fout (typing.TextIO): cfg file being written to
-        ds_option (str): _description_
+        ds_option (str): user option to fix the ratio to E852 values, split it between,
+            reflectivities, or let float between 0 and 1
         force_refl (int): user option to only use 1 reflectivity
         is_phaselock (bool): user option to constrain phases between eJPl amplitudes.
             In this function it fixes the "dsphase" parameter to 0
-        orientations (list): diamond orientation settings
+        orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
@@ -676,7 +684,7 @@ def write_phaselock(
     force_refl: int,
     init_refl: int,
     init_real: float,
-    orientations: list,
+    orientations: List[str],
     reaction: str,
 ) -> None:
     """Lock m-projections to have the same phase
@@ -688,11 +696,11 @@ def write_phaselock(
     Args:
         fout (typing.TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
-           See 'get_waves_and_breit_wigners' for details
+            See 'get_waves_and_breit_wigners' for details
         force_refl (int): user option to only use 1 reflectivity
         init_refl (int): user option to init nonzero values for one reflectivity
         init_real (float): user option to init the real value for amplitudes. Default
-          is 100 (or 0 if init/force_refl is set)
+            is 100 (or 0 if init/force_refl is set)
         orientations (list): diamond orientation settings
         reaction (str): user-defined reaction name
     """
@@ -780,7 +788,7 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
     Args:
         x: integer to be converted
         is_ang_momentum: if true, uses a seperate dictionary to perform the
-          conversion. Uses the standard "s,p,d,f,g" wave notation
+            conversion. Uses the standard "s,p,d,f,g" wave notation
     Returns:
         single character
     """
@@ -791,146 +799,23 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
     return map[x]
 
 
-if __name__ == "__main__":
-    # Parse arguments passed to script. Reference "help" arguments for details
-    #    about each variable
-    parser = argparse.ArgumentParser(
-        description="Writes a template cfg file for binned fits to be written"
-    )
-    parser.add_argument(
-        "-w",
-        "--waveset_args",
-        nargs="+",
-        choices=[
-            "0m",
-            "1p",
-            "1m",
-            "2p",
-            "2m",
-            "3m",
-            "iso",
-            "b1",
-            "b1free",
-            "rho",
-            "rhofree",
-            "nodalitz",
-            "GJ",
-            "Adair",
-        ],
-        help="Waveset to fit with",
-    )
-    parser.add_argument(
-        "--phase_reference",
-        type=str,
-        default="",
-        help=(
-            "Flag the wave (in 'JPmL' format) whose phase will be constrained to 0."
-            " Default picks lowest JP, m, L combination"
-        ),
-    )
-    parser.add_argument(
-        "--phaselock",
-        type=bool,
-        default=False,
-        help=(
-            "Whether to use 'phaselock' model, where phases are common across"
-            " m-projections for a particular eJPL combination"
-        ),
-    )
-    parser.add_argument(
-        "-ds",
-        "--dsratio",
-        type=str,
-        default="",
-        choices=["free", "fixed", "split"],
-        help=(
-            "option to modify the ratio & phase between the D/S waves."
-            " Leaving empty (default) lets them float withing bounds."
-            " 'Free' removes the parameters, allowing them to float freely"
-            " 'Fixed' sets to E852 nominal values"
-            " (ratio=0.27 & phase=0.184 radians)."
-            " 'Split' gives each reflectivity its own ratio & phase"
-        ),
-    )
-    parser.add_argument(
-        "--frame",
-        type=str,
-        default="",
-        choices=["GJ", "Adair"],
-        metavar="decay frame option",
-        help="change decay frame used, empty default means helicity will be used",
-    )
-    parser.add_argument(
-        "--force_refl",
-        type=int,
-        default=0,
-        choices=[-1, 0, 1],
-        help="only allow a single reflectivity by setting to +1 or -1",
-    )
-    parser.add_argument(
-        "--init_refl",
-        type=int,
-        default=0,
-        choices=[-1, 0, 1],
-        help="initialize single reflectivity by setting to +1 or -1",
-    )
-    parser.add_argument(
-        "--init_re_im",
-        type=float,
-        nargs=2,
-        default=[100, 100],
-        metavar=("re", "im"),
-        help="value to initialize real and imaginary parts of amplitudes",
-    )
-    parser.add_argument(
-        "--reaction",
-        type=str,
-        default="omegapi",
-        help="base reaction name to be used in cfg files",
-    )
-    parser.add_argument(
-        "--template_name",
-        type=str,
-        default="template.cfg",
-        help="template with default values to copy and overwrite",
-    )
-    parser.add_argument(
-        "-o",
-        "--orientations",
-        nargs="*",
-        default=["PARA_0"],
-        choices=["PARA_0", "PERP_45", "PERP_90", "PARA_135", "ALL"],
-        help="diamond orientation",
-    )
+def is_reference_wave_in_waveset(reference_wave: str, waves: list) -> bool:
+    """Check if reference wave is in waveset
 
-    args = parser.parse_args()
+    Args:
+        reference_wave (str): user chosen wave that will be fixed to be real
+        waves (list): list of dict entries that contains spin, parity, m, and l quantum
+            numbers. See 'get_waves_and_breit_wigners' for details
 
-    waveset_args = args.waveset_args
-    phase_reference = args.phase_reference.lower()
-    is_phaselock = args.phaselock
-    ds_option = args.dsratio
-    frame = args.frame
-    force_refl = args.force_refl
-    init_refl = args.init_refl
-    init_real, init_imag = args.init_re_im
-    reaction = args.reaction
-    template_name = args.template_name
-    orientations = args.orientations
-
-    if "ALL" in orientations:
-        orientations = ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
-
-    main(
-        waveset_args,
-        phase_reference,
-        is_phaselock,
-        ds_option,
-        frame,
-        force_refl,
-        init_refl,
-        init_real,
-        init_imag,
-        reaction,
-        template_name,
-        orientations,
-    )
+    Returns:
+        bool: True if reference wave is in waveset, False otherwise
+    """
+    for wave in waves:
+        j = str(wave["spin"])
+        p = int_to_char(wave["parity"])
+        for m in wave["m"]:
+            for l in wave["l"]:
+                jpml = j + p + int_to_char(m) + int_to_char(l, True)
+                if reference_wave == jpml:
+                    return True
+    return False

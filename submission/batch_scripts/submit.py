@@ -33,10 +33,11 @@ VOLATILE_DIR = f"/volatile/halld/home/{USER}"
 # TODO: change this based off cwd and not user hardcoded
 CODE_DIR = f"/w/halld-scshelf2101/{USER}/neutralb1/submission/batch_scripts/"
 
+
 def main(args: dict) -> None:
     """Main function. Run file with "--help" to understand variable usage"""
-    
-    # unpack some config arguments    
+
+    # unpack some config arguments
     energy_min, energy_max = args["energy"]
     data_version, data_dir = args["data"]
     phasespace_version, phasespace_dir = args["phasespace"]
@@ -48,7 +49,7 @@ def main(args: dict) -> None:
     # error checks
     if args["truth_file"] and (
         data_version.split("_")[0] not in args["truth_file"]
-        or not os.path.isfile(f"{CODE_DIR}{args["truth_file"]}")
+        or not os.path.isfile(f"{CODE_DIR}{args['truth_file']}")
     ):
         raise ValueError("MC and truth versions must match and truth file must exist!")
     if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
@@ -89,33 +90,12 @@ def main(args: dict) -> None:
         phasespace_version,
         phasespace_dir,
         args["cut_recoil_pi_mass"],
-        args["reaction"]
+        args["reaction"],
     )
 
-    # make strings for directory creation
-    waveset_str = "_".join(sorted(args["waveset"]))
-    # spaced version, so it can be used in below command
-    waveset = " ".join(args["waveset"])  
-    # string version for directory and job creation
-    orientations_str = "-".join(sorted(args["orientations"])) 
-
     # Create config file template "fit.cfg" that works for any bin
-    # TODO: change to just accept args dictionary
     if not args["truth_file"]:
-        write_config.main(
-            waveset,
-            args["phase_reference"],
-            args["phaselock"],
-            args["ds_ratio"],
-            args["frame"],
-            args["force_refl"],
-            args["init_refl"],
-            args["init_real"],
-            args["init_imag"],
-            args["reaction"],
-            args["template_name"],
-            args["orientations"],
-        )
+        write_config.main(args)
 
     # when set True in the loop, will always skip asking the user if they want to
     # overwrite files
@@ -136,11 +116,11 @@ def main(args: dict) -> None:
                         "ampToolsFits",
                         args["reaction"],
                         run_period,
-                        orientations_str,
+                        "-".join(sorted(args["orientations"])),
                         data_version,
                         phasespace_version,
-                        waveset_str,
-                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
+                        "_".join(sorted(args["waveset"])),
+                        f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                         truth_subdir,
@@ -163,7 +143,7 @@ def main(args: dict) -> None:
                     pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
                     pathlib.Path(rand_out_dir).mkdir(parents=True, exist_ok=True)
                     pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
-                
+
                 # location of pre-selected data file
                 source_file_dir = "/".join(
                     (
@@ -172,7 +152,7 @@ def main(args: dict) -> None:
                         "ampToolsFits",
                         args["reaction"],
                         "data_files",
-                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
+                        f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"E_{energy_min:.2f}-{energy_max:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
@@ -206,7 +186,7 @@ def main(args: dict) -> None:
 
                 # copy in needed files
                 if args["truth_file"]:
-                    os.system(f"cp -f {CODE_DIR}{args["truth_file"]} {running_dir}")
+                    os.system(f"cp -f {CODE_DIR}{args['truth_file']} {running_dir}")
                 else:
                     os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
 
@@ -215,11 +195,11 @@ def main(args: dict) -> None:
                     (
                         args["reaction"],
                         run_period,
-                        orientations_str,
+                        "-".join(sorted(args["orientations"])),
                         data_version,
                         phasespace_version,
-                        waveset_str,
-                        f"recoil-pi-mass_{args["cut_recoil_pi_mass"]}",
+                        "_".join(sorted(args["waveset"])),
+                        f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                     )
@@ -229,20 +209,20 @@ def main(args: dict) -> None:
                 script_command = " ".join(
                     (
                         f"{CODE_DIR}run_fit.sh",
-                        f"-o {orientations_str}",
+                        f"-o {'-'.join(sorted(args['orientations']))}",
                         f"-r {run_period}",
-                        f"-n {args["nrand"]}",
+                        f"-n {args['nrand']}",
                         f"-d {data_version}",
                         f"-p {phasespace_version}",
                         f"-s {source_file_dir}",
                         f"-D {data_out_dir}",
                         f"-C {CODE_DIR}",
-                        f"-R {args["reaction"]}",
-                        f"-b {args["bootstrap"]}",
+                        f"-R {args['reaction']}",
+                        f"-b {args['bootstrap']}",
                     )
                 )
                 if args["truth_file"]:
-                    script_command += f" -t {args["truth_file"]}"
+                    script_command += f" -t {args['truth_file']}"
 
                 submit_slurm_job(
                     job_name,
@@ -272,7 +252,7 @@ def create_data_files(
     phasespace_ver: str,
     phasespace_dir: str,
     cut_recoil_pi_mass: float,
-    reaction: str
+    reaction: str,
 ) -> None:
     """Create data files with TEM region pre-selected
 
@@ -445,12 +425,13 @@ def submit_slurm_job(
         slurm_out.write(script_command)
 
     # wait half a second to avoid job skip error if too many submitted quickly
-    time.sleep(0.5) 
-    subprocess.call(["sbatch", "tempSlurm.txt"])
+    time.sleep(0.5)
+    # subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
     return
+
 
 def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
     """Makes low and high bin edges given a list of values. See cases below
@@ -468,7 +449,7 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
         RuntimeError: avoids user error where cases can overlap
 
     Returns:
-        tuple[List[float], List[float]]: Paired lists defining the low and high bin 
+        tuple[List[float], List[float]]: Paired lists defining the low and high bin
             edges
     """
     low_edges = []
@@ -507,12 +488,14 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
 
     return low_edges, high_edges
 
+
 def check_positive_float(val) -> float:
     # custom error check for argparse to ensure float is positive
     fl = float(val)
     if fl < 0.0:
         raise argparse.ArgumentTypeError(f"{fl} must be >= 0")
     return fl
+
 
 def parse_args() -> dict:
     parser = argparse.ArgumentParser(description="Submit PWA fits various configs")
@@ -597,14 +580,14 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "--init_real",
-        type=float,        
+        type=float,
         default=100.0,
         metavar=("real_part"),
         help="value to initialize real cartesian part of amplitude to",
     )
     parser.add_argument(
         "--init_imag",
-        type=float,        
+        type=float,
         default=100.0,
         metavar=("imag_part"),
         help="value to initialize imaginary cartesian part of amplitude to",
@@ -757,7 +740,7 @@ def parse_args() -> dict:
         help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),
     )
 
-    args = parser.parse_args()    
+    args = parser.parse_args()
 
     return vars(args)
 
