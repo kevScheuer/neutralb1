@@ -8,7 +8,7 @@ import cmath
 import itertools
 import re
 import warnings
-from typing import List
+from typing import Dict, List
 
 import joypy
 import matplotlib
@@ -1405,9 +1405,16 @@ class Plotter:
     ) -> None:
         """Plot a joyplot (or ridgeplot) of the bootstrap fit results
 
+        The joyplot is a series of kde's that are stacked on top of each other, with
+        each kde representing the distribution of a fit parameter in a mass bin. Note
+        that the x-axis is shared, so its recommended to only plot like-parameters and
+        not to mix columns like phases and intensities. If the truth values are present,
+        overlay them as a vertical line on each axis.
+
         Args:
             columns (List[str]): bootstrap df columns to plot
-            bins (List[int|str], optional): mass bins to plot on the y-axis. Defaults to None,
+            bins (List[int|str], optional): mass bins to plot on the y-axis. Can use bin
+                range strings, or bin # integers, or a mix of both. Defaults to None,
                 and uses all bins.
             colors (List[tuple], optional): matplotlib colormap as a list. This means only
                 qualitative maps can be used. Defaults to None, and uses
@@ -1416,7 +1423,7 @@ class Plotter:
                 divisible by 10 are labelled. Defaults to True.
             overlap (float, optional): amount of overlap between the kde's. Usually the
                 most important parameter for making plots look good. Defaults to 2.0
-
+            **kwargs: additional arguments to pass to the joyplot function
         Raises:
             ValueError: if bootstrap df was not defined, since its optional upon init
             ValueError: if requested columns are not in the bootstrap dataframe
@@ -1442,7 +1449,7 @@ class Plotter:
                 if isinstance(bin, str):
                     bins[i] = self.bootstrap_df.loc[
                         self.bootstrap_df["bin_range"] == bin
-                    ]["bin"][0]
+                    ]["bin"].iloc[0]
 
         # default colors if none are specified
         if colors is None:
@@ -1454,12 +1461,24 @@ class Plotter:
         else:
             colors = colors[: len(columns)]
 
-        # select bins from dataframes and determine max x value
+        # select bins from dataframes and determine min/max x values
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
         x_max = cut_bootstrap_df[columns].max().max()
+        x_min = cut_bootstrap_df[columns].min().min()
         if self.is_truth:
             cut_truth_df = self.truth_df.loc[bins].copy()
             x_max = max(x_max, cut_truth_df[columns].max().max())
+            x_min = min(x_min, cut_truth_df[columns].min().min())
+
+        # force x_min to be 0 if all values are coherent sums
+        if all(
+            any(col in sublist for sublist in self.coherent_sums.values())
+            for col in columns
+        ):
+            x_min = 0.0
+        # force x_min/x_max to be -180/180 if all values are phase differences
+        elif all(col in set(self.phase_differences.values()) for col in columns):
+            x_min, x_max = -180.0, 180.0
 
         # get ordered set of bin_ranges and make their low edge the y-axis labels
         bin_ranges = sorted(
@@ -1502,14 +1521,17 @@ class Plotter:
         }
         default_args.update(kwargs)  # overwrite defaults with user input
 
+        # avoid a bug within joyplot that occurs when colors is a single element list
+        joy_color = colors[0] if len(colors) == 1 else colors
+
         fig, axes = joypy.joyplot(
             cut_bootstrap_df,
             by="bin_range",
             column=columns,
             labels=y_axis_labels,
             range_style="own",
-            x_range=[0, x_max],
-            color=colors,
+            x_range=[x_min, x_max],
+            color=joy_color,
             overlap=overlap,
             **default_args,
         )
@@ -1653,7 +1675,7 @@ def wrap_phases(
     return
 
 
-def parse_amplitude(amp: str) -> dict:
+def parse_amplitude(amp: str) -> Dict[str, str]:
     """parse 'eJPmL' style amplitude string into its individual quantum numbers
 
     Args:
@@ -1772,7 +1794,7 @@ def convert_amp_name(input_string: str) -> str:
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
 
 
-def get_phase_differences(df: pd.DataFrame) -> dict:
+def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
     """Returns dict of all the phase difference columns in the dataframe
 
     The keys are specifically like (eJPmL_1, eJPmL_2), and there is no way to

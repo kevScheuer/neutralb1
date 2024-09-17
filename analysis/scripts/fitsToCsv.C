@@ -1,16 +1,11 @@
 /* Read .fit files and output csv containing coherent sums and parameters.
 
-   Two main functionalities are to combine many .fit files in one
-   directory, or combine .fit files with a particular name in many
-   subdirectories. Execute script with "-h" or "--help" to see options
+The two main functionalities are to combine many .fit files in one
+directory, or combine .fit files with a particular name in many
+subdirectories. Execute script with "-h" or "--help" to see options
 
- NOTE: If adding columns, be very careful since the header line and value line are
- separate, and so they must be done in the same order in the code
-
- TODO: Save the real and imaginary parts of every amplitude to columns. Practically with
- the full amp name I can do name=real(imag)ProdParName(full_amp_name), then
- parValue(name), parError(name) to obtain the information. This will be nice to
- histogram for bootstrap fits to see if these actually are gaussian shaped
+NOTE: If adding columns, be very careful since the header line and value line are
+separate, and so they must be done in the same order in the code
  */
 
 #include <algorithm>
@@ -60,7 +55,7 @@ void fitsToCsv(std::string args = "")
     size_t arg_pos = 0;
     while (args.length() != 0)
     {
-        // get positions of flag (-flag) and argument that follows the flag
+        // get positions of flag and argument that follows the flag
         flag_pos = args.find(" ");
         arg_pos = args.find(" ", flag_pos + 1);
 

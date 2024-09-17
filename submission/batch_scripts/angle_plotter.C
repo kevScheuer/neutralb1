@@ -47,11 +47,7 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     std::vector<TString> plot_names = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
                                        "Prod_Ang", "MVecPs", "MProtonPs"};
     std::map<TString, std::map<TString, TString>> amp_map;
-
-    // TODO: Iterate through all plots and extract all the JP values present in the
-    // waveset, and add them to the map below. Probably best to iterate through eJPml
-    // strings, that way I can list all the L waves that contribute to a JP
-
+    
     amp_map["fit"]["plot_name"] = "";
     amp_map["fit"]["title"] = "Fit Result";
     amp_map["fit"]["draw_option"] = "f";
