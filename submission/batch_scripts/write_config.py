@@ -11,9 +11,8 @@ TODO:
     Have phaselock function handle dominant eJPmL arg
 """
 
-import argparse
-import typing
-from typing import List
+from itertools import product
+from typing import List, TextIO
 
 # CONSTANTS
 # orientations have to be looped over manually here (without AmpTools LOOPs),
@@ -35,7 +34,9 @@ def main(args: dict):
 
     # convert the user requested wave string into lists of waves/bw's that contain all
     # the necessary info for each wave/bw
-    waves, breit_wigners = get_waves_and_breit_wigners(args["waveset"])
+    waves, breit_wigners = get_waves_and_breit_wigners(
+        args["waveset"], args["remove_waves"]
+    )
 
     # check that the reference wave is in the waveset if requested, otherwise set the
     # reference to be the first wave in the waveset
@@ -133,15 +134,25 @@ def main(args: dict):
     return
 
 
-def get_waves_and_breit_wigners(waveset: List[str]) -> tuple[list, list]:
-    """Converts user passed waveset into detailed dicts
+def get_waves_and_breit_wigners(
+    requested_jp_and_bw: List[str], waves_to_remove: List[str]
+) -> tuple[list, list]:
+    """Converts requested list of JP waves into a list of dicts with quantum numbers
+
+    This function takes JP (spin+parity) quantum numbers and converts them into
+    the proper quantum numbers for each wave that JP value can have. These quantum
+    number dictionaries are then added to a list that comprises the waveset. If breit
+    wigners are requested by name, they are added to a separate list of dicts.
+    It also removes any requested waves from the waveset before returning it.
 
     Args:
-        waveset: user passed waveset to be built in cfg file e.g. ["1p", "1m", "iso"]
+        requested_jp_and_bw (List[str]): user requested jp waves and breit wigners to be
+            built in cfg file e.g. ["1p", "1m", "iso"]
+        waves_to_remove (List[str]): user passed waves to remove from waveset
     Returns:
         Two lists containing dicts, that convert each requested wave into the
         proper quantum numbers Ex:
-            1p -> {"spin":1, "parity":-1, "m": [-1,0,1], "l":1}
+            1m -> {"reflectivity":[-1,1], "spin":1, "parity":-1, "m": [-1,0,1], "l":1}
     """
     # only consider m <=2 for photon beam
     wave_dict = {
@@ -152,6 +163,10 @@ def get_waves_and_breit_wigners(waveset: List[str]) -> tuple[list, list]:
         "2m": {"spin": 2, "parity": -1, "m": [-2, -1, 0, 1, 2], "l": [1, 3]},
         "3m": {"spin": 3, "parity": -1, "m": [-2, -1, 0, 1, 2], "l": [3]},
     }
+    # add positive and negative reflectivity integers to each wave
+    for val in wave_dict.values():
+        val["reflectivity"] = [-1, 1]
+
     breit_wigner_dict = {
         "b1": {
             "jp": "1p",
@@ -178,19 +193,86 @@ def get_waves_and_breit_wigners(waveset: List[str]) -> tuple[list, list]:
             "fix": True,
         },
     }
-    if "b1free" in waveset:
+    if "b1free" in requested_jp_and_bw:
         breit_wigner_dict["b1"]["fix"] = False
-    if "rhofree" in waveset:
+    if "rhofree" in requested_jp_and_bw:
         breit_wigner_dict["rho"]["fix"] = False
 
-    # add requested waves and breit wigners to lists
+    # first make a list of all possible waves in string eJPmL format
+    all_waves = []
+    for key, val in wave_dict.items():
+        e = [int_to_char(x) for x in val["reflectivity"]]
+        j = [str(val["spin"])]
+        p = [int_to_char(val["parity"])]
+        m = [int_to_char(x) for x in val["m"]]
+        l = [int_to_char(x, True) for x in val["l"]]
+        all_waves.extend(["".join(map(str, wave)) for wave in product(e, j, p, m, l)])
+
+    # remove waves if requested
+    for wave in waves_to_remove:
+        if wave.lower() not in all_waves:
+            raise ValueError(f"Requested wave to remove is not in the waveset: {wave}")
+        all_waves.remove(wave.lower())
+
+    # now rebuild the waveset dict from the all_waves list
+    # first initialize the sub-dict with empty sets for the necessary keys
+    filtered_wave_dict = {key: {} for key in wave_dict.keys()}
+    for key in filtered_wave_dict.keys():
+        filtered_wave_dict[key]["reflectivity"] = set()
+        filtered_wave_dict[key]["m"] = set()
+        filtered_wave_dict[key]["l"] = set()
+    for wave in all_waves:
+        char_to_int = {
+            "n": -2,
+            "m": -1,
+            "0": 0,
+            "p": 1,
+            "q": 2,
+            "S": 0,
+            "P": 1,
+            "D": 2,
+            "F": 3,
+            "G": 4,
+        }
+        e = char_to_int[wave[0]]
+        j = int(wave[1])
+        p = char_to_int[wave[2]]
+        m = char_to_int[wave[3]]
+        l = char_to_int[wave[4].upper()]
+
+        # TODO: this is currently broken. For example if I request to remove "p1ppS"
+        # then it will still be in the waveset because "p1ppD" and "p1p0S" will add the
+        # quantum numbers to the dict such that p1ppS is reconstructed. The only real
+        # workaround is to entirely drop the AMPLOOP method and just manually write out
+        # each wave and breit wigner in the cfg file. On the one hand its nicer, as the
+        # looping is handled here and the reflectivity could be handled more efficiently
+        # here, but the config files will be much, much longer.
+
+        # its okay for spin and parity to be overwritten, as they should be the same for
+        # each wave
+        filtered_wave_dict[wave[1:3]]["reflectivity"].add(e)
+        filtered_wave_dict[wave[1:3]]["spin"] = j
+        filtered_wave_dict[wave[1:3]]["parity"] = p
+        filtered_wave_dict[wave[1:3]]["m"].add(m)
+        filtered_wave_dict[wave[1:3]]["l"].add(l)
+
+    # now convert the sets to ordered lists
+    for key, val in filtered_wave_dict.items():
+        val["reflectivity"] = sorted(list(val["reflectivity"]))
+        val["m"] = sorted(list(val["m"]))
+        val["l"] = sorted(list(val["l"]))
+
+    # finally we can add requested waves and breit wigners to lists
     waves = []
     breit_wigners = []
-    for key, val in wave_dict.items():
-        if key in waveset:
+    for key, val in filtered_wave_dict.items():
+        # if any wave has an empty quantum number set, skip it
+        if not val["reflectivity"] or not val["m"] or not val["l"]:
+            continue
+        if key in requested_jp_and_bw:
             waves.append(val)
     for key, val in breit_wigner_dict.items():
-        if key in waveset:
+        if key in requested_jp_and_bw:
             breit_wigners.append(val)
 
     # check that amplitudes are present for any requested breit wigners
@@ -208,12 +290,12 @@ def get_waves_and_breit_wigners(waveset: List[str]) -> tuple[list, list]:
 
 
 def write_orientation_loop(
-    fout: typing.TextIO, orientations: List[str], reaction: str
+    fout: TextIO, orientations: List[str], reaction: str
 ) -> None:
     """Writes the AmpTools 'loop' statements to handle polarization orientations
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
@@ -268,7 +350,7 @@ def write_orientation_loop(
 
 ####################### WRITE AMPLITUDES #######################
 def write_wave_loops(
-    fout: typing.TextIO,
+    fout: TextIO,
     waves: list,
     force_refl: int,
     init_refl: int,
@@ -288,7 +370,7 @@ def write_wave_loops(
     handled here "manually" (without the use of AmpTools LOOPS)
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
             See 'get_waves_and_breit_wigners' for details
         force_refl (int): user option to only use 1 reflectivity
@@ -402,12 +484,12 @@ def write_wave_loops(
 
 
 def write_isotropic_background(
-    fout: typing.TextIO, is_dalitz: bool, orientations: List[str], reaction: str
+    fout: TextIO, is_dalitz: bool, orientations: List[str], reaction: str
 ) -> None:
     """Writes lines in cfg file template for isotropic background amplitude
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         is_dalitz (bool): controls whether OmegaDalitz amplitudes are written
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
@@ -442,7 +524,7 @@ def write_isotropic_background(
 
 
 def write_phase_convention(
-    fout: typing.TextIO,
+    fout: TextIO,
     wave: str,
     force_refl: int,
     orientations: List[str],
@@ -457,7 +539,7 @@ def write_phase_convention(
     overall unconstrained phase is removed.
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         wave (str): spin, parity, m, and l of the reference wave
         force_refl (int): user option to only use 1 reflectivity
         orientations (List[str]): diamond orientation settings
@@ -480,7 +562,7 @@ def write_phase_convention(
 
 
 def write_breit_wigners(
-    fout: typing.TextIO,
+    fout: TextIO,
     waves: list,
     breit_wigners: list,
     force_refl: int,
@@ -493,7 +575,7 @@ def write_breit_wigners(
     empty list.
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
             See 'get_waves_and_breit_wigners' for details
         breit_wigners (list): list of bw dicts that contain all necessary info
@@ -569,7 +651,7 @@ def write_breit_wigners(
 
 
 def write_ds_ratio(
-    fout: typing.TextIO,
+    fout: TextIO,
     ds_option: str,
     force_refl: int,
     is_phaselock: bool,
@@ -579,7 +661,7 @@ def write_ds_ratio(
     """Writes lines in cfg file template for a D to S wave ratio to be set
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         ds_option (str): user option to fix the ratio to E852 values, split it between,
             reflectivities, or let float between 0 and 1
         force_refl (int): user option to only use 1 reflectivity
@@ -679,7 +761,7 @@ def write_ds_ratio(
 
 
 def write_phaselock(
-    fout: typing.TextIO,
+    fout: TextIO,
     waves: list,
     force_refl: int,
     init_refl: int,
@@ -694,7 +776,7 @@ def write_phaselock(
     within a eJPL combination
 
     Args:
-        fout (typing.TextIO): cfg file being written to
+        fout (TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
             See 'get_waves_and_breit_wigners' for details
         force_refl (int): user option to only use 1 reflectivity
@@ -787,7 +869,7 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
 
     Args:
         x: integer to be converted
-        is_ang_momentum: if true, uses a seperate dictionary to perform the
+        is_ang_momentum: if true, uses a separate dictionary to perform the
             conversion. Uses the standard "s,p,d,f,g" wave notation
     Returns:
         single character
