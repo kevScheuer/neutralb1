@@ -3,7 +3,7 @@
 See README for process architecture
 	
 TODO:   
-    mails broken (says 'requested node config is not available')
+    Add arg for removing single amplitudes from the waveset. Should be a list    
 	Add ability to choose polar coordinates. Means init_imag -> init_phase	
 	add ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
@@ -230,7 +230,7 @@ def main(args: dict) -> None:
                     log_dir,
                     gpu_type,
                     n_gpus,
-                    args["mail"],
+                    args["email"],
                     args["time_limit"],
                 )
 
@@ -404,7 +404,7 @@ def create_data_files(
                         log_dir=log_dir,
                         gpu_type="",
                         n_gpus=0,
-                        is_send_mail=False,
+                        email_address="",
                         time_limit="00:30:00",
                         n_cpus=8,
                     )
@@ -429,7 +429,7 @@ def submit_slurm_job(
     log_dir: str,
     gpu_type: str,
     n_gpus: int,
-    is_send_mail: bool,
+    email_address: str,
     time_limit: str,
     mem_per_cpu: str = "5000M",
     n_cpus: int = 32,
@@ -443,7 +443,7 @@ def submit_slurm_job(
         log_dir (str): where slurm log files are stored
         gpu_type (str): card type to be used
         n_gpus (int): how many gpu cards to use (supported by mpi)
-        is_send_mail (bool): send user mail when job submits/fails/succeeds
+        email address (str): send email to address when job begins/fails/succeeds
         time_limit (str, optional): Max wall-time in Hour:Min:Sec. Defaults to "1:00:00"
         mem_per_cpu (str, optional): Default of 5GB appear to be min needed for fit
             jobs, though small jobs like phasespace generation can use less
@@ -466,12 +466,10 @@ def submit_slurm_job(
             "#SBATCH --threads-per-core=1 \n"
             "#SBATCH --constraint=el9 \n"
         )
-        if is_send_mail:
+        if email_address:
             slurm_out.write(
-                f"#SBATCH --mail-user={USER}@jlab.org \n"
-                "#SBATCH --mail-type=begin \n"
-                "#SBATCH --mail-type=end \n "
-                "#SBATCH --mail-type=fail \n "
+                f"#SBATCH --mail-user={email_address} \n"
+                "#SBATCH --mail-type=BEGIN,END,FAIL \n"
             )
         # different requirements for GPU and CPU fits
         if n_gpus > 0:
@@ -486,7 +484,7 @@ def submit_slurm_job(
 
     # wait half a second to avoid job skip error if too many submitted quickly
     time.sleep(0.5)
-    subprocess.call(["sbatch", "tempSlurm.txt"])
+    # subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
@@ -652,6 +650,12 @@ def parse_args() -> dict:
         metavar=("imag_part"),
         help="value to initialize imaginary cartesian part of amplitude to",
     )
+    parser.add_argument(
+        "--remove_waves",
+        nargs="+",
+        default=[],
+        help="waves given in 'eJPmL' format to remove from the waveset",
+    )
 
     # details of fit type
     parser.add_argument(
@@ -784,14 +788,10 @@ def parse_args() -> dict:
         help="set # of GPUs to use for a card. Default assumes only CPU fits",
     )
     parser.add_argument(
-        "--mail",
-        type=bool,
-        default=False,
-        help=(
-            "mails user when a job starts/stops/fails."
-            " NOTE this assumes the ifarm username matches the username of"
-            " USER@jlab.org"
-        ),
+        "--email",
+        type=str,
+        default="",
+        help=("when email address given, mails address when a job starts/stops/fails."),
     )
     parser.add_argument(
         "--time_limit",

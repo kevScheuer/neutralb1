@@ -36,7 +36,7 @@ class Plotter:
             df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
             bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results,
-                labelled by bin number. Primary use is for plotting the distribution of
+                labelled by bin. Primary use is for plotting the distribution of
                 each parameter and using its width to estimate the error of the nominal
                 fit result in df.
             truth_df (pd.DataFrame, optional): only used when df is a from fit to
@@ -1172,8 +1172,6 @@ class Plotter:
         overlaid to indicate the nominal fit result values. Plots framed by a solid
         black line indicate a strong correlation between those variables (>0.7). All
         amplitudes are plotted in fit fractions.
-
-        TODO: Add separately titled legend box for markers, bars, kde's, etc.
 
         Args:
             bins (List[int|str]): mass bins to plot
