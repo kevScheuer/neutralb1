@@ -1,14 +1,13 @@
 """ Main batch script to set parameters for amplitude analysis fits.
 
-See README for process architecture
-	
-TODO:   
-    Add arg for removing single amplitudes from the waveset. Should be a list    
-	Add ability to choose polar coordinates. Means init_imag -> init_phase	
-	add ability or some handling of matching the GPU architecture
+See README for process architecture, or run with "--help" to understand variable usage
+
+Optional improvements to make script more generalized:
+	Ability to choose polar coordinates. Means init_imag -> init_phase	
+	Ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
-    Add arg for reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
-    Add ability to pass extra user options like 'omega3pi' (which is hardcoded rn)
+    Arg for the reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
+    Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
 
 SLURM INFO (https://scicomp.jlab.org/scicomp/slurmJob/slurmInfo)
 """
@@ -177,8 +176,8 @@ def main(args: dict) -> None:
                                 exit()
                             else:
                                 print(
-                                    "Please answer yes, no, skip_input (to submit all jobs"
-                                    " without asking), or exit"
+                                    "Please answer yes, no, skip_input (to submit all"
+                                    " jobs without asking), or exit"
                                 )
                         if ans == "no" or ans == "n":
                             continue
@@ -292,14 +291,20 @@ def create_data_files(
 
     for run_period in run_periods:
         # find generated phasespace file
-        gen_file = f"{phasespace_dir}/anglesOmegaPiPhaseSpaceGen_{run_period}_{phasespace_ver}.root"
+        gen_file = (
+            f"{phasespace_dir}/anglesOmegaPiPhaseSpaceGen_"
+            f"{run_period}_{phasespace_ver}.root"
+        )
         if not os.path.isfile(gen_file):
             raise FileExistsError(f"Path {gen_file} does not exist!\n")
         src_files_to_copy_to_dir[gen_file] = []
 
         # find accepted phasespace file (if needed)
         if "mcthrown" not in data_ver:
-            acc_file = f"{phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_{run_period}_{phasespace_ver}.root"
+            acc_file = (
+                f"{phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_"
+                f"{run_period}_{phasespace_ver}.root"
+            )
             if not os.path.isfile(acc_file):
                 raise FileExistsError(f"Path {acc_file} does not exist!\n")
             src_files_to_copy_to_dir[acc_file] = []
@@ -313,7 +318,7 @@ def create_data_files(
             data_files.append(f)
             src_files_to_copy_to_dir[f] = []
 
-        # loop over TEM bins
+        # loop over TEM bins to determine what bins need the cut data files
         for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
             for low_t, high_t in zip(low_t_edges, high_t_edges):
                 # create directory for each TEM bin if not already done
@@ -356,7 +361,9 @@ def create_data_files(
                 )
                 for src, dirs in src_files_to_copy_to_dir.items():
                     if dirs:
-                        print(f"{src} -> {dirs}")
+                        print(f"\n{src} ->")
+                        for dir in dirs:
+                            print(f"  {dir}")
                 print(
                     "Do you want to submit jobs to create these files?"
                     " (yes/no/skip_input/exit)"
@@ -386,15 +393,23 @@ def create_data_files(
                     log_dir = dir + "/log/"
                     pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
 
+                    # extract the t and mass bin values from the directory path
+                    low_t = float(dir.split("t_")[1].split("-")[0])
+                    high_t = float(dir.split("t_")[1].split("-")[1].split("/")[0])
+                    low_mass = float(dir.split("/mass_")[1].split("-")[0])
+                    high_mass = float(
+                        dir.split("/mass_")[1].split("-")[1].split("/")[0]
+                    )
+
                     # create command to run the ROOT macro
                     command = (
                         f"source {CODE_DIR}setup_gluex.sh && root -l -b -q"
                         f" '{CODE_DIR}copy_tree_with_cuts.C("
                         f'"{src_file}", "{dir}",'
                         f' "{cut_recoil_pi_mass}",'
-                        f' "{low_t}", "{high_t}",'
+                        f' "{low_t:.2f}", "{high_t:.2f}",'
                         f' "{energy_min}", "{energy_max}",'
-                        f' "{low_mass}", "{high_mass}"'
+                        f' "{low_mass:.3f}", "{high_mass:.3f}"'
                         ")'"
                     )
                     submit_slurm_job(
@@ -484,7 +499,7 @@ def submit_slurm_job(
 
     # wait half a second to avoid job skip error if too many submitted quickly
     time.sleep(0.5)
-    # subprocess.call(["sbatch", "tempSlurm.txt"])
+    subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
@@ -515,8 +530,8 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
     delta = 1e-15
     diff = args[-2] - args[0]
     # case 1: list = [min, max, width]. The width MUST always be smaller than the
-    #   difference between the max and min bins. The "or" statement handles floating point
-    #   precision if its one bin
+    #   difference between the max and min bins. The "or" statement handles floating
+    #   point precision if its one bin
     if args[-1] < diff or abs(args[-1] - diff) < delta:
         if len(args) != 3:
             raise (

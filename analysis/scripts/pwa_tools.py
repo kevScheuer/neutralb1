@@ -49,7 +49,10 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
-        plt.style.use("./pwa_plotter.mplstyle")  # load in default matplotlib style
+        plt.style.use(
+            "/w/halld-scshelf2101/kscheuer/neutralb1/analysis/scripts/"
+            "pwa_plotter.mplstyle"
+        )  # load in default matplotlib style
 
         # Error handling
         if self.df.empty or self.data_df.empty:
