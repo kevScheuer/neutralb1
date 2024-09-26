@@ -3,6 +3,7 @@
     "python.analysis.extraPaths":[
       "${workspaceFolder}"
     ],
+    "black-formatter.args": ["--preview"],
     "[python]": {
       "editor.insertSpaces": true,
       "editor.tabSize": 4,

@@ -1,6 +1,6 @@
 """Collection of tools useful for analyzing PWA fit results
 
-Primary class is the Plotter, which ideally handles most standard plots of interest when 
+Primary class is the Plotter, which ideally handles most standard plots of interest when
 analyzing fit results
 """
 
@@ -246,6 +246,8 @@ class Plotter:
         method plots every amplitude's intensity contribution in a grid format.
         Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
         together on each subplot
+
+        TODO: reduce the marker size on these plots, and change them for each refl
 
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
