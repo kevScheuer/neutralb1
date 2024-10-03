@@ -8,3 +8,6 @@ We've now made the selections on our data and have ROOT trees ready for partial 
 3. Each bin to be fit is given a temporary directory path within `/volatile/halld/home/{USER}/TMPDIR` and all the necessary data files / config files are sent or linked to the directories.
 4. A job is submitted in each bin, which executes `run_fit.sh` with a set of parameters specific to that bin. 
 5. The `.fit` files and diagnostic plots are copied to the same directory path but now within `/volatile/halld/home/{USER}/ampToolsFits/` where they are now ready to be aggregated for [analysis](../analysis/)
+
+# Monte Carlo files
+You'll also notice the [load_monte_carlo](./load_monte_carlo) directory. This holds the scripts necessary to load pre-made Monte Carlo off the cache directory (created by Justin) and apply the DSelector to those files. `run_mc.py` is the main interactive tool to load these files.

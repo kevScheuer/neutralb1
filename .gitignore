@@ -19,3 +19,4 @@ __pycache__/
 
 # other
 *.so
+**/DSelector_omegapi_all_*
