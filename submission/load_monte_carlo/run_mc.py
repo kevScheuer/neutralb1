@@ -93,9 +93,9 @@ def main(args: dict) -> None:
         # replace some of the command arguments to run the generated trees
         gen_reconstructed_command = reconstructed_command[:-1]
         gen_reconstructed_command.append(
-            reconstructed_command[-1].replace(
-                signal_name, signal_name.replace(TREE_NAME, "tree_thrown")
-            )
+            reconstructed_command[-1]
+            .replace(signal_name, signal_name.replace(TREE_NAME, "tree_thrown"))
+            .replace(f"{args['mc_option']}", "thrown")
         )
 
         gen_mv_reconstructed_command = mv_reconstructed_command[:-1]
