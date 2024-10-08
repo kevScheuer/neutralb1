@@ -1,4 +1,6 @@
-This directory contains all the scripts needed to convert the reaction filtered ROOT trees into "Flat" trees, denoted as AmpToolsInputTrees in [the dataa source files directory](../source_files/data/), that are ready for amplitude analysis. 
+:construction: Directory is currently under construction, and scripts are being transferred from [these examples](https://github.com/JeffersonLab/gluex_physics_analysis/tree/master/omegapi_gx1_pwa/neutralb1) :construction:
+
+This directory contains all the scripts needed to convert the reaction filtered ROOT trees into "Flat" trees, denoted as AmpToolsInputTrees in [the data source files directory](../source_files/data/), that are ready for amplitude analysis. 
 
 # Background
 To summarize where the ROOT trees come from:

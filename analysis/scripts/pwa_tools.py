@@ -1,6 +1,6 @@
 """Collection of tools useful for analyzing PWA fit results
 
-Primary class is the Plotter, which ideally handles most standard plots of interest when 
+Primary class is the Plotter, which ideally handles most standard plots of interest when
 analyzing fit results
 """
 
@@ -49,7 +49,10 @@ class Plotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
-        plt.style.use("./pwa_plotter.mplstyle")  # load in default matplotlib style
+        plt.style.use(
+            "/w/halld-scshelf2101/kscheuer/neutralb1/analysis/scripts/"
+            "pwa_plotter.mplstyle"
+        )  # load in default matplotlib style
 
         # Error handling
         if self.df.empty or self.data_df.empty:
@@ -243,6 +246,8 @@ class Plotter:
         method plots every amplitude's intensity contribution in a grid format.
         Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
         together on each subplot
+
+        TODO: reduce the marker size on these plots, and change them for each refl
 
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
