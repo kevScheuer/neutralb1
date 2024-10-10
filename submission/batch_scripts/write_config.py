@@ -1,4 +1,4 @@
-""" Writes a template cfg file for binned fits to be performed
+"""Writes a template cfg file for binned fits to be performed
 
 This script is part of the batch submission process, called with submit.py. Its
 role is to write a cfg file that acts as a template for all the binned fits
@@ -6,11 +6,17 @@ to overwrite. This file accepts a users waveset, along with any modifications to
 it, and writes the necessary AmpTools cfg file lines to fit using that waveset
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
-TODO:     
+TODO:
     Make refl_dict a constant and handle appropriately in each function
     Have phaselock function handle dominant eJPmL arg
+
+TODO: finish converting all the methods to instead write out each amplitude line-by-line
+    instead of the AmpTools LOOP method. Also remember that the naming scheme is changed
+    such that reflectivity is explicit, and no longer needs to be inferred from
+    the "ImagPosSign" type strings
 """
 
+from dataclasses import dataclass
 from itertools import product
 from typing import List, TextIO
 
@@ -25,12 +31,26 @@ POL_DICT = {
     "PERP_90": {"angle": 90, "fraction": 0.3303},
     "PARA_135": {"angle": 135, "fraction": 0.3375},
 }
+REFLECTIVITY_DICT = {
+    "ImagNegSign": -1,
+    "RealPosSign": -1,
+    "ImagPosSign": 1,
+    "RealNegSign": 1,
+}
 
-# orientations: list,
+
+@dataclass
+class Wave:
+    name: str
+    reflectivity: int
+    spin: int
+    parity: int
+    m: int
+    l: int
 
 
 def main(args: dict):
-    """Write config using parsed args from submit.py"""
+    """Write AmpTools config file using the parsed args from submit.py"""
 
     # convert the user requested wave string into lists of waves/bw's that contain all
     # the necessary info for each wave/bw
@@ -38,134 +58,192 @@ def main(args: dict):
         args["waveset"], args["remove_waves"]
     )
 
-    # check that the reference wave is in the waveset if requested, otherwise set the
-    # reference to be the first wave in the waveset
-    if args["phase_reference"]:
-        if not is_reference_wave_in_waveset(args["phase_reference"], waves):
-            raise ValueError(f"{args['phase_reference']} is not in waveset")
-    else:
-        args["phase_reference"] = waves[0]
-
-    # parse out special options aside from waves and bw's
+    # parse out special options aside from the waves and bw's
     is_iso = True if "iso" in args["waveset"] else False
     is_dalitz = False if "nodalitz" in args["waveset"] else True
 
     # copy common part of omegapi config files to a new file that will be the
     #   template for each bin
-    ftemplate = open(f"submission/batch_scripts/{args['template_name']}", "r")
-    template_data = ftemplate.read()
-    ftemplate.close()
+    with open(f"submission/batch_scripts/{args['template_name']}", "r") as f:
+        template_data = f.read()
     template_data = template_data.replace("FITNAME", args["reaction"])
-    fout = open("submission/batch_scripts/fit.cfg", "w")
-    fout.write(template_data)
 
-    # Write LOOP over polarization orientations and setup corresponding reaction names
-    write_orientation_loop(fout, args["orientations"], args["reaction"])
+    with open(f"submission/batch_scripts/fit.cfg", "w") as cfg_file:
+        # write the common part of the cfg file
+        cfg_file.write(template_data)
 
-    # Write AmpTools LOOP for each JP
-    write_wave_loops(
-        fout,
-        waves,
-        args["force_refl"],
-        args["init_refl"],
-        args["init_real"],
-        args["init_imag"],
-        is_dalitz,
-        args["frame"],
-        args["orientations"],
-        args["reaction"],
-    )
+        # Write LOOP over polarization orientations and setup their reaction names
+        write_data_lines(cfg_file, args["orientations"], args["reaction"])
 
-    # write lines if isotropic background is present
-    if is_iso:
-        write_isotropic_background(
-            fout, is_dalitz, args["orientations"], args["reaction"]
-        )
-
-    # write lines to remove overall unconstrained phase factor
-    write_phase_convention(
-        fout,
-        args["phase_reference"],
-        args["force_refl"],
-        args["orientations"],
-        args["reaction"],
-    )
-
-    # writes breit wigners (if present in waveset)
-    if breit_wigners:
-        write_breit_wigners(
-            fout,
-            waves,
-            breit_wigners,
-            args["force_refl"],
-            args["orientations"],
-            args["reaction"],
-        )
-
-    # write ds ratio if 1p amp is used, and if DS ratio isn't free
-    is_1p_present = False
-    for wave in waves:
-        if wave.get("spin") == 1 and wave.get("parity") == 1:
-            is_1p_present = True
-    if args["ds_ratio"] != "free" and is_1p_present:
-        write_ds_ratio(
-            fout,
-            args["ds_ratio"],
-            args["force_refl"],
-            args["phaselock"],
-            args["orientations"],
-            args["reaction"],
-        )
-
-    # user option to constrain phases between m projections
-    if args["phaselock"]:
-        write_phaselock(
-            fout,
+        # Write all the lines for each wave in the waveset
+        write_waves(
+            cfg_file,
             waves,
             args["force_refl"],
             args["init_refl"],
             args["init_real"],
+            args["init_imag"],
+            is_dalitz,
+            args["frame"],
             args["orientations"],
             args["reaction"],
         )
 
-    fout.close()
+        # write lines if isotropic background is present
+        if is_iso:
+            write_isotropic_background(
+                cfg_file, is_dalitz, args["orientations"], args["reaction"]
+            )
+
+        # write lines to remove overall unconstrained phase factor
+        write_phase_convention(
+            cfg_file,
+            args["phase_reference"],
+            args["force_refl"],
+            args["orientations"],
+            args["reaction"],
+        )
+
+        # writes breit wigners (if present in waveset)
+        if breit_wigners:
+            write_breit_wigners(
+                cfg_file,
+                waves,
+                breit_wigners,
+                args["force_refl"],
+                args["orientations"],
+                args["reaction"],
+            )
+
+        # write ds ratio if 1p amp is used, and if DS ratio isn't free
+        is_1p_present = False
+        for wave in waves:
+            if wave.get("spin") == 1 and wave.get("parity") == 1:
+                is_1p_present = True
+        if args["ds_ratio"] != "free" and is_1p_present:
+            write_ds_ratio(
+                cfg_file,
+                args["ds_ratio"],
+                args["force_refl"],
+                args["phaselock"],
+                args["orientations"],
+                args["reaction"],
+            )
+
+        # user option to constrain phases between m projections
+        if args["phaselock"]:
+            write_phaselock(
+                cfg_file,
+                waves,
+                args["force_refl"],
+                args["init_refl"],
+                args["init_real"],
+                args["orientations"],
+                args["reaction"],
+            )
 
     return
 
 
 def get_waves_and_breit_wigners(
     requested_jp_and_bw: List[str], waves_to_remove: List[str]
-) -> tuple[list, list]:
-    """Converts requested list of JP waves into a list of dicts with quantum numbers
+) -> tuple[List[Wave], List[dict]]:
+    """Converts list of JP waves and breit wigners into code interpretable lists
 
     This function takes JP (spin+parity) quantum numbers and converts them into
-    the proper quantum numbers for each wave that JP value can have. These quantum
-    number dictionaries are then added to a list that comprises the waveset. If breit
-    wigners are requested by name, they are added to a separate list of dicts.
-    It also removes any requested waves from the waveset before returning it.
+    a list of Wave dataclasses that contain all necessary info for each wave. All the
+    possible waves of each JP value are used, unless the user requests to remove them.
+    If breit wigners are requested by name, they are added to a separate list of dicts
+    that contain all necessary info for each breit wigner.
 
     Args:
         requested_jp_and_bw (List[str]): user requested jp waves and breit wigners to be
-            built in cfg file e.g. ["1p", "1m", "iso"]
-        waves_to_remove (List[str]): user passed waves to remove from waveset
+            built in cfg file e.g. ["1p", "1m", "b1"]
+        waves_to_remove (List[str]): user passed waves to remove from waveset in eJPmL
+            format.
     Returns:
-        Two lists containing dicts, that convert each requested wave into the
-        proper quantum numbers Ex:
-            1m -> {"reflectivity":[-1,1], "spin":1, "parity":-1, "m": [-1,0,1], "l":1}
+        Two lists. The first is a list of Wave dataclasses that contain all necessary
+        info for each wave requested. The second is a list of dicts that contain all
+        necessary info for each breit wigner requested.
     """
-    # only consider m <=2 for photon beam
+
+    # define wave dictionary that contains all possible quantum numbers for each wave
     wave_dict = {
-        "0m": {"spin": 0, "parity": -1, "m": [0], "l": [1]},
-        "1p": {"spin": 1, "parity": +1, "m": [-1, 0, 1], "l": [0, 2]},
-        "1m": {"spin": 1, "parity": -1, "m": [-1, 0, 1], "l": [1]},
-        "2p": {"spin": 2, "parity": +1, "m": [-2, -1, 0, 1, 2], "l": [2]},
-        "2m": {"spin": 2, "parity": -1, "m": [-2, -1, 0, 1, 2], "l": [1, 3]},
-        "3m": {"spin": 3, "parity": -1, "m": [-2, -1, 0, 1, 2], "l": [3]},
+        "0m": {"reflectivity": [-1, 1], "spin": 0, "parity": -1, "m": [0], "l": [1]},
+        "1p": {
+            "reflectivity": [-1, 1],
+            "spin": 1,
+            "parity": +1,
+            "m": [-1, 0, 1],
+            "l": [0, 2],
+        },
+        "1m": {
+            "reflectivity": [-1, 1],
+            "spin": 1,
+            "parity": -1,
+            "m": [-1, 0, 1],
+            "l": [1],
+        },
+        "2p": {
+            "reflectivity": [-1, 1],
+            "spin": 2,
+            "parity": +1,
+            "m": [-2, -1, 0, 1, 2],
+            "l": [2],
+        },
+        "2m": {
+            "reflectivity": [-1, 1],
+            "spin": 2,
+            "parity": -1,
+            "m": [-2, -1, 0, 1, 2],
+            "l": [1, 3],
+        },
+        "3m": {
+            "reflectivity": [-1, 1],
+            "spin": 3,
+            "parity": -1,
+            "m": [-3, -2, -1, 0, 1, 2, 3],
+            "l": [3],
+        },
     }
-    # add positive and negative reflectivity integers to each wave
-    for val in wave_dict.values():
-        val["reflectivity"] = [-1, 1]
+
+    # make a list of all possible waves using the wave dataclass
+    waveset = []
+    for val_dict in wave_dict.values():
+        # create a product of all possible quantum numbers for each total JP
+        for wave in product(
+            val_dict["reflectivity"],
+            [val_dict["spin"]],
+            [val_dict["parity"]],
+            val_dict["m"],
+            val_dict["l"],
+        ):
+            # dataclass name needs eJPmL formatted string
+            e = int_to_char(wave[0])
+            j = str(wave[1])
+            p = int_to_char(wave[2])
+            m = int_to_char(wave[3])
+            l = int_to_char(wave[4], True)
+
+            # add the wave to the list
+            waveset.append(
+                Wave(name=f"{e}{j}{p}{m}{l}", **dict(zip(val_dict.keys(), wave)))
+            )
+
+    # remove waves if requested or not in the original jp request
+    all_wave_names = [wave.name.lower() for wave in waveset]
+    for rm_wave in waves_to_remove:
+        if rm_wave.lower() not in all_wave_names:
+            raise ValueError(
+                f"The {rm_wave} wave that was requested to be removed is not in the"
+                " waveset"
+            )
+        waveset = [
+            wave
+            for wave in waveset
+            if wave.name.lower() != rm_wave.lower()
+            and wave.name.lower()[1:3] in requested_jp_and_bw
+        ]
 
     breit_wigner_dict = {
         "b1": {
@@ -198,126 +276,54 @@ def get_waves_and_breit_wigners(
     if "rhofree" in requested_jp_and_bw:
         breit_wigner_dict["rho"]["fix"] = False
 
-    # first make a list of all possible waves in string eJPmL format
-    all_waves = []
-    for key, val in wave_dict.items():
-        e = [int_to_char(x) for x in val["reflectivity"]]
-        j = [str(val["spin"])]
-        p = [int_to_char(val["parity"])]
-        m = [int_to_char(x) for x in val["m"]]
-        l = [int_to_char(x, True) for x in val["l"]]
-        all_waves.extend(["".join(map(str, wave)) for wave in product(e, j, p, m, l)])
-
-    # remove waves if requested
-    for wave in waves_to_remove:
-        if wave.lower() not in all_waves:
-            raise ValueError(f"Requested wave to remove is not in the waveset: {wave}")
-        all_waves.remove(wave.lower())
-
-    # now rebuild the waveset dict from the all_waves list
-    # first initialize the sub-dict with empty sets for the necessary keys
-    filtered_wave_dict = {key: {} for key in wave_dict.keys()}
-    for key in filtered_wave_dict.keys():
-        filtered_wave_dict[key]["reflectivity"] = set()
-        filtered_wave_dict[key]["m"] = set()
-        filtered_wave_dict[key]["l"] = set()
-    for wave in all_waves:
-        char_to_int = {
-            "n": -2,
-            "m": -1,
-            "0": 0,
-            "p": 1,
-            "q": 2,
-            "S": 0,
-            "P": 1,
-            "D": 2,
-            "F": 3,
-            "G": 4,
-        }
-        e = char_to_int[wave[0]]
-        j = int(wave[1])
-        p = char_to_int[wave[2]]
-        m = char_to_int[wave[3]]
-        l = char_to_int[wave[4].upper()]
-
-        # TODO: this is currently broken. For example if I request to remove "p1ppS"
-        # then it will still be in the waveset because "p1ppD" and "p1p0S" will add the
-        # quantum numbers to the dict such that p1ppS is reconstructed. The only real
-        # workaround is to entirely drop the AMPLOOP method and just manually write out
-        # each wave and breit wigner in the cfg file. On the one hand its nicer, as the
-        # looping is handled here and the reflectivity could be handled more efficiently
-        # here, but the config files will be much, much longer.
-
-        # its okay for spin and parity to be overwritten, as they should be the same for
-        # each wave
-        filtered_wave_dict[wave[1:3]]["reflectivity"].add(e)
-        filtered_wave_dict[wave[1:3]]["spin"] = j
-        filtered_wave_dict[wave[1:3]]["parity"] = p
-        filtered_wave_dict[wave[1:3]]["m"].add(m)
-        filtered_wave_dict[wave[1:3]]["l"].add(l)
-
-    # now convert the sets to ordered lists
-    for key, val in filtered_wave_dict.items():
-        val["reflectivity"] = sorted(list(val["reflectivity"]))
-        val["m"] = sorted(list(val["m"]))
-        val["l"] = sorted(list(val["l"]))
-
-    # finally we can add requested waves and breit wigners to lists
-    waves = []
+    # Add requested breit wigner dictionaries to a list
     breit_wigners = []
-    for key, val in filtered_wave_dict.items():
-        # if any wave has an empty quantum number set, skip it
-        if not val["reflectivity"] or not val["m"] or not val["l"]:
-            continue
-        if key in requested_jp_and_bw:
-            waves.append(val)
     for key, val in breit_wigner_dict.items():
         if key in requested_jp_and_bw:
             breit_wigners.append(val)
 
     # check that amplitudes are present for any requested breit wigners
     if breit_wigners:
-        jp_list = []
-        for wave in waves:
-            jp_list.append(str(wave["spin"]) + int_to_char(wave["parity"]))
+        jp_set = set()
+        for wave in waveset:
+            jp_set.add(wave.name[1:3])
         for bw in breit_wigners:
-            if bw["jp"] not in jp_list:
+            if bw["jp"] not in jp_set:
                 raise ValueError(
-                    f"Breit Wigner JP={bw['jp']} not found in wave jp values: {jp_list}"
+                    f"Breit Wigner JP={bw['jp']} not found in requested waveset"
                 )
 
-    return waves, breit_wigners
+    return waveset, breit_wigners
 
 
-def write_orientation_loop(
-    fout: TextIO, orientations: List[str], reaction: str
-) -> None:
-    """Writes the AmpTools 'loop' statements to handle polarization orientations
+def write_data_lines(cfg_file: TextIO, orientations: List[str], reaction: str) -> None:
+    """Writes the AmpTools 'loop' statements to read in data files for each orientation
+
+    This function also handles the 'reaction' and 'sum' lines
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
-    fout.write(f"\n\n{'#'*8} LOOP OVER POLARIZATION STATES {'#'*8}\n")
+    cfg_file.write(f"\n\n{'#'*8} LOOP OVER POLARIZATION STATES {'#'*8}\n")
 
-    fix_string = "fixed"
-    for ont in orientations:
+    # create the parScale parameters for each orientation
+    for i, ont in enumerate(orientations):
         pol_scales = {
-            "PARA_0": "1.0",  # potential for arg that changes these values
+            "PARA_0": "1.0",  # TODO: potential for an arg that changes these values
             "PERP_45": "1.0",
             "PERP_90": "1.0",
             "PARA_135": "1.0",
         }
-        fout.write(
+        fix_string = "fixed" if i == 0 else ""
+        cfg_file.write(
             f"parameter parScale_{POL_DICT[ont]['angle']}"
             f" {pol_scales[ont]} {fix_string}\n"
         )
-        if fix_string == "fixed":  # effectively "fixes" the first ont in orientations
-            fix_string = ""
 
-    # write necessary starting loops
+    # create reaction, scale, and data loops for each orientation
     reaction_and_angles = ""
     parScale_and_angles = ""
     loop_data_str = ""
@@ -326,17 +332,17 @@ def write_orientation_loop(
         parScale_and_angles += f" [parScale_{POL_DICT[ont]['angle']}]"
         loop_data_str += f" anglesOmegaPiAmplitude_{POL_DICT[ont]['angle']}.root"
 
-    fout.write(f"\nloop LOOPREAC{reaction_and_angles}\n")
-    fout.write(f"loop LOOPSCALE{parScale_and_angles}\n")
+    cfg_file.write(f"\nloop LOOPREAC{reaction_and_angles}\n")
 
-    fout.write(
+    # the phasespace files are the same for each orientation
+    cfg_file.write(
         f"loop LOOPGENMC {'anglesOmegaPiPhaseSpace.root ' * len(orientations)} \n"
         f"loop LOOPACCMC {'anglesOmegaPiPhaseSpaceAcc.root ' * len(orientations)} \n"
         f"loop LOOPDATA{loop_data_str}\n"
     )
 
-    # write reaction, data reader, and sum lines
-    fout.write(
+    # write reaction, data reader, and sum lines that utilize the loops
+    cfg_file.write(
         f"\n{'#'*8} DATA, REACTIONS, AND SUMS {'#'*8}\n"
         "reaction LOOPREAC Beam Proton Pi01 Pi02 Pi+ Pi-\n"
         "genmc LOOPREAC ROOTDataReader LOOPGENMC\n"
@@ -349,9 +355,9 @@ def write_orientation_loop(
 
 
 ####################### WRITE AMPLITUDES #######################
-def write_wave_loops(
-    fout: TextIO,
-    waves: list,
+def write_waves(
+    cfg_file: TextIO,
+    waves: List[Wave],
     force_refl: int,
     init_refl: int,
     init_real: float,
@@ -361,140 +367,132 @@ def write_wave_loops(
     orientations: List[str],
     reaction: str,
 ) -> None:
-    """Write all AmpTools LOOP statements for the waves
+    """Write all waves to the cfg file for vecps_refl amplitudes
 
-    Each JP value has a finite combination of m-projections and angular momenta
-    values "l". These can be looped over in the cfg file to write, initialize,
-    and constrain all amplitudes. This function writes those loops, with
-    edits according to the user optional arguments. Note that Orientation loops must be
-    handled here "manually" (without the use of AmpTools LOOPS)
+    [description]
 
     Args:
-        fout (TextIO): cfg file being written to
-        waves (list): list of dict entries that contains JP, spin, parity, m, and l.
+        cfg_file (TextIO): cfg file being written to
+        waves (List[Wave]): list of Wave dataclasses that contain all necessary info
             See 'get_waves_and_breit_wigners' for details
-        force_refl (int): user option to only use 1 reflectivity
-        init_refl (int): user option to init nonzero values for one reflectivity
-        init_real (float): user option to init the real value for amplitudes. Default
-            is 100 (or 0 if init/force_refl is set)
-        init_imag (float): user option to init the imaginary value for amplitudes.
-            Default is 100 (or 0 if init/force_refl is set)
+        force_refl (int): if non-zero, only the chosen reflectivity will be written
+        init_refl (int): if non-zero, the real and imaginary parts of the amplitudes
+            that don't match the chosen reflectivity will be initialized to 0
+        init_real (float): initialization value for real part of amplitudes.
+        init_imag (float): initialization value for imaginary part of amplitudes.
         is_dalitz (bool): controls whether OmegaDalitz amplitudes are written
-        frame (str): option for using a special decay angle frame
+        frame (str): decay frame used to define the angles
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
-    refl_dict = {
-        "ImagNegSign": -1,
-        "RealPosSign": -1,
-        "ImagPosSign": 1,
-        "RealNegSign": 1,
-    }
+    cfg_file.write(f"\n\n{'#'*8} AMPLITUDES {'#'*8}\n")
 
-    # Create loops for each J^P value
+    # write all the components of each eJPmL wave to the cfg file
+    # Amplitudes are written in the following order:
+    # - Comment the wave name
+    # - Write the vecps_refl amplitude line
+    # - Write the OmegaDalitz amplitude line
+    # - Write the initialization line
+    # - Write the parScale line
+    # - Repeat all of this for each orientation
+    # - Repeat for the other reflectivity sum
+
     for wave in waves:
-        j = wave["spin"]
-        p = int_to_char(wave["parity"])
+        if force_refl and wave.reflectivity != force_refl:
+            continue
 
-        fout.write(f"{'#'*8} spin {j} parity {wave['parity']} {'#'*8}\n")
+        cfg_file.write(f"\n{'#'*4} {wave.name} {'#'*4}\n")
 
-        # Write loop header lines for ampltiudes, m projections, and l values
-        amp_loop = f"loop LOOPAMP{j}{p}"
-        m_loop = f"loop LOOPM{j}{p}"
-        l_loop = f"loop LOOPL{j}{p}"
+        # each reflectivity has 2 coherent sums, so loop over them
+        for sum_label, refl_sign in REFLECTIVITY_DICT.items():
+            if refl_sign != wave.reflectivity:
+                continue
 
-        for m in wave["m"]:
-            for l in wave["l"]:
-                amp_loop += f" {j}{p}{int_to_char(m)}{int_to_char(l,True)}"
-                m_loop += f" {m}"
-                l_loop += f" {l}"
+            real = 1 if "Real" in sum_label else -1
+            sign = 1 if "Pos" in sum_label else -1
 
-        fout.write(f"{amp_loop}\n{m_loop}\n{l_loop}\n")
+            # last loop is over the polarization orientations
+            for ont in orientations:
+                cfg_file.write(f"\n{'#'*2} Orientation {ont} {'#'*2}\n")
 
-        # each orientation needs it own "reaction" in each amplitude
-        for ont in orientations:
-            fout.write(f"{'#'*4} Orientation {ont} {'#'*4}\n")
-
-            # 4 coherent sums for reflectivity and sign of (1 +/- P_gamma)
-            for coh_sum_label, refl in refl_dict.items():
-                if force_refl and refl != force_refl:
-                    continue
-
-                real = 1 if "Real" in coh_sum_label else -1
-                sign = 1 if "Pos" in coh_sum_label else -1
+                # common amplitude string used in many lines
+                amplitude = (
+                    f"{reaction}_{POL_DICT[ont]['angle']}::" f"{sum_label}::{wave.name}"
+                )
 
                 # Write amplitude line NOTE: 'omega3pi' is specific to omega->3pi decays
-                amplitude = (
-                    f"{reaction}_{POL_DICT[ont]['angle']}::"
-                    f"{coh_sum_label}::LOOPAMP{j}{p}"
-                )
-                fout.write(
-                    f"amplitude {amplitude} Vec_ps_refl {j} LOOPM{j}{p}"
-                    f" LOOPL{j}{p} {real} {sign}"
+                cfg_file.write(
+                    f"amplitude {amplitude} Vec_ps_refl {wave.spin} {wave.m} {wave.l}"
+                    f" {real} {sign}"
                     f" {POL_DICT[ont]['angle']} {POL_DICT[ont]['fraction']}"
                     f" omega3pi {frame}\n"
                 )
+                # write dalitz line ('dalitz' has defined params in template file)
                 if is_dalitz:
-                    fout.write(f"amplitude {amplitude} OmegaDalitz dalitz\n")
+                    cfg_file.write(f"amplitude {amplitude} OmegaDalitz dalitz\n")
 
-                # write amplitude's initialization line
-                fout.write(
+                # initialize the amplitude
+                cfg_file.write(
                     "initialize {amp} cartesian {re} {im}\n".format(
                         amp=amplitude,
-                        re=0 if init_refl and refl != init_refl else init_real,
-                        im=0 if init_refl and refl != init_refl else init_imag,
+                        re=(
+                            0
+                            if init_refl and wave.reflectivity != init_refl
+                            else init_real
+                        ),
+                        im=(
+                            0
+                            if init_refl and wave.reflectivity != init_refl
+                            else init_imag
+                        ),
                     )
                 )
 
                 # attach polarization scale parameter to amplitude
-                fout.write(f"scale {amplitude} [parScale_{POL_DICT[ont]['angle']}]\n\n")
+                cfg_file.write(
+                    f"scale {amplitude} [parScale_{POL_DICT[ont]['angle']}]\n"
+                )
 
-            # constrain amplitudes across coherent sums
-            constraint_line = (
-                f"constrain"
-                f" {reaction}_{POL_DICT[ont]['angle']}::ImagNegSign::LOOPAMP{j}{p}"
-                f" {reaction}_{POL_DICT[ont]['angle']}::RealPosSign::LOOPAMP{j}{p}\n"
-                f"constrain"
-                f" {reaction}_{POL_DICT[ont]['angle']}::RealNegSign::LOOPAMP{j}{p}"
-                f" {reaction}_{POL_DICT[ont]['angle']}::ImagPosSign::LOOPAMP{j}{p}"
-            )
-            if force_refl == -1:
-                constraint_line = constraint_line.split("\n")[0]
-            elif force_refl == 1:
-                constraint_line = constraint_line.split("\n")[1]
-
-            fout.write(constraint_line + "\n\n")
-
-            # constrain amplitudes across polarizations
-            #   all amplitudes are constrained to the first orientation in the list
-            for coh_sum_label, refl in refl_dict.items():
-                if force_refl and refl != force_refl:
-                    continue
-                fout.write(
+                # constrain coherent sums to the first orientation. This ensures
+                # that different orientations are manipulating the same amplitudes
+                cfg_file.write(
                     f"constrain"
                     f" {reaction}_{POL_DICT[orientations[0]]['angle']}::"
-                    f"{coh_sum_label}::LOOPAMP{j}{p}"
+                    f"{sum_label}::{wave.name}"
                     f" {reaction}_{POL_DICT[ont]['angle']}::"
-                    f"{coh_sum_label}::LOOPAMP{j}{p}\n"
+                    f"{sum_label}::{wave.name}\n"
                 )
-            fout.write("\n")
+
+        # constrain coherent sums across reflectivities. Each reflectivity has two sums
+        # so they must be constrained to each other. This only constrains the first
+        # orientations to each other, since all other orientations are constrained to
+        # the first orientation
+        cfg_file.write("constrain ")
+        for sum_label, refl_sign in REFLECTIVITY_DICT.items():
+            if refl_sign != wave.reflectivity:
+                continue
+            cfg_file.write(
+                f"{reaction}_{POL_DICT[orientations[0]]['angle']}::"
+                f"{sum_label}::{wave.name} "
+            )
+        cfg_file.write("\n")
 
     return
 
 
 def write_isotropic_background(
-    fout: TextIO, is_dalitz: bool, orientations: List[str], reaction: str
+    cfg_file: TextIO, is_dalitz: bool, orientations: List[str], reaction: str
 ) -> None:
     """Writes lines in cfg file template for isotropic background amplitude
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         is_dalitz (bool): controls whether OmegaDalitz amplitudes are written
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
-    fout.write(f"{'#'*8} isotropic background {'#'*8}")
+    cfg_file.write(f"{'#'*8} isotropic background {'#'*8}")
 
     for ont in orientations:
         if is_dalitz:
@@ -505,7 +503,7 @@ def write_isotropic_background(
         else:
             dalitz = ""
 
-        fout.write(
+        cfg_file.write(
             f"\nsum {reaction}_{POL_DICT[ont]['angle']} Bkgd"
             f"\namplitude {reaction}_{POL_DICT[ont]['angle']}::Bkgd::isotropic Uniform"
             f"\n{dalitz}"
@@ -524,7 +522,7 @@ def write_isotropic_background(
 
 
 def write_phase_convention(
-    fout: TextIO,
+    cfg_file: TextIO,
     wave: str,
     force_refl: int,
     orientations: List[str],
@@ -539,21 +537,31 @@ def write_phase_convention(
     overall unconstrained phase is removed.
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         wave (str): spin, parity, m, and l of the reference wave
         force_refl (int): user option to only use 1 reflectivity
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
-    fout.write("\n# fix phase\n")
+    # this part below used to be in main function but really fits here. Remember that
+    # waveset is now individual eJPmL waves, so handle accordingly
+    # # check that the reference wave is in the waveset if requested, otherwise set the
+    # # reference to be the first wave in the waveset
+    # if args["phase_reference"]:
+    #     if not is_reference_wave_in_waveset(args["phase_reference"], waves):
+    #         raise ValueError(f"{args['phase_reference']} is not in waveset")
+    # else:
+    #     args["phase_reference"] = waves[0]
+
+    cfg_file.write("\n# fix phase\n")
 
     refl_dict = {"ImagNegSign": -1, "ImagPosSign": 1}
     for ont in orientations:
         for coh_sum_label, refl in refl_dict.items():
             if force_refl and refl != force_refl:
                 continue
-            fout.write(
+            cfg_file.write(
                 f"initialize {reaction}_{POL_DICT[ont]['angle']}"
                 f"::{coh_sum_label}::{wave} cartesian 100 0 real\n"
             )
@@ -562,7 +570,7 @@ def write_phase_convention(
 
 
 def write_breit_wigners(
-    fout: TextIO,
+    cfg_file: TextIO,
     waves: list,
     breit_wigners: list,
     force_refl: int,
@@ -575,7 +583,7 @@ def write_breit_wigners(
     empty list.
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
             See 'get_waves_and_breit_wigners' for details
         breit_wigners (list): list of bw dicts that contain all necessary info
@@ -584,7 +592,7 @@ def write_breit_wigners(
         reaction (str): user-defined reaction name
     """
 
-    fout.write("\n# Mass dependent amplitudes\n")
+    cfg_file.write("\n# Mass dependent amplitudes\n")
     refls = "ImagNegSign RealNegSign RealPosSign ImagPosSign"
     if force_refl == 1:
         refls = refls.replace("RealNegSign", "")
@@ -593,11 +601,11 @@ def write_breit_wigners(
         refls = refls.replace("RealPosSign", "")
         refls = refls.replace("ImagNegSign", "")
 
-    fout.write(f"loop LOOPSUMBW {refls}\n")
+    cfg_file.write(f"loop LOOPSUMBW {refls}\n")
 
     # write mass and width parameters
     for bw in breit_wigners:
-        fout.write(
+        cfg_file.write(
             f"parameter {bw['jp']}_mass {bw['mass']:0.3f}"
             " {option}\n".format(
                 option=(
@@ -611,7 +619,7 @@ def write_breit_wigners(
                 )
             )
         )
-        fout.write(
+        cfg_file.write(
             f"parameter {bw['jp']}_width {bw['width']:.3f}"
             " {option}\n".format(
                 option=(
@@ -641,7 +649,7 @@ def write_breit_wigners(
     for jpml in jpml_set:
         for bw in breit_wigners:
             for ont in orientations:
-                fout.write(
+                cfg_file.write(
                     f"amplitude {reaction}_{POL_DICT[ont]['angle']}::LOOPSUMBW::{jpml}"
                     f" BreitWigner [{bw['jp']}_mass] [{bw['jp']}_width]"
                     f" {bw['spin']} {bw['indices']}\n"
@@ -651,7 +659,7 @@ def write_breit_wigners(
 
 
 def write_ds_ratio(
-    fout: TextIO,
+    cfg_file: TextIO,
     ds_option: str,
     force_refl: int,
     is_phaselock: bool,
@@ -661,7 +669,7 @@ def write_ds_ratio(
     """Writes lines in cfg file template for a D to S wave ratio to be set
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         ds_option (str): user option to fix the ratio to E852 values, split it between,
             reflectivities, or let float between 0 and 1
         force_refl (int): user option to only use 1 reflectivity
@@ -671,7 +679,7 @@ def write_ds_ratio(
         reaction (str): user-defined reaction name
     """
 
-    fout.write(
+    cfg_file.write(
         "\n# constrain S and D waves to same amplitude and set scale factor"
         " for D/S ratio\n"
     )
@@ -719,7 +727,7 @@ def write_ds_ratio(
         else:
             phase_range = f"parRange {phase} -3.14159 3.14159"
 
-        fout.write(
+        cfg_file.write(
             f"parameter {par} 0.27 {ratio_opt}\n"
             f"parameter {phase} {phase_val} {phase_opt}\n"
             f"{par_range}\n"
@@ -737,12 +745,12 @@ def write_ds_ratio(
         if refls == "":
             refls = " ".join(refl_dict.keys())
 
-        fout.write(f"\nloop LOOPSUM {refls}\n")
+        cfg_file.write(f"\nloop LOOPSUM {refls}\n")
 
     # perform D/S constraints for each orientation
     for ont in orientations:
         for par, phase in zip(params, phases):
-            fout.write(
+            cfg_file.write(
                 f"constrain {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1ppd"
                 f" {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1pps"
                 f"\nconstrain {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1p0d"
@@ -761,7 +769,7 @@ def write_ds_ratio(
 
 
 def write_phaselock(
-    fout: TextIO,
+    cfg_file: TextIO,
     waves: list,
     force_refl: int,
     init_refl: int,
@@ -776,7 +784,7 @@ def write_phaselock(
     within a eJPL combination
 
     Args:
-        fout (TextIO): cfg file being written to
+        cfg_file (TextIO): cfg file being written to
         waves (list): list of dict entries that contains JP, spin, parity, m, and l.
             See 'get_waves_and_breit_wigners' for details
         force_refl (int): user option to only use 1 reflectivity
@@ -787,7 +795,7 @@ def write_phaselock(
         reaction (str): user-defined reaction name
     """
 
-    fout.write(f"\n{'#'*8} phaselock {'#'*8}\n")
+    cfg_file.write(f"\n{'#'*8} phaselock {'#'*8}\n")
 
     # write parameters for each phase, one each for plus and minus reflectivity.
     #   first wave is fixed to be 0
@@ -810,13 +818,13 @@ def write_phaselock(
                 )
 
             if force_refl != -1:
-                fout.write(
+                cfg_file.write(
                     f"parameter phase_p{int_to_char(l,True).capitalize()} 0"
                     f" {option}\n"
                     f"{par_range}"
                 )
             if force_refl != 1:
-                fout.write(
+                cfg_file.write(
                     f"parameter phase_m{int_to_char(l,True).capitalize()} 0"
                     f" {option}\n"
                     f"{par_range}"
@@ -838,7 +846,7 @@ def write_phaselock(
             for coh_sum_label, refl in refl_dict.items():
                 if force_refl and refl != force_refl:
                     continue
-                fout.write("\n")
+                cfg_file.write("\n")
                 refl_str = "p" if refl == 1 else "m"
 
                 for m in wave["m"]:
@@ -848,13 +856,13 @@ def write_phaselock(
                             f"{reaction}_{POL_DICT[ont]['angle']}::{coh_sum_label}::"
                             f"{j}{p}{int_to_char(m)}{int_to_char(l,True)}"
                         )
-                        fout.write(
+                        cfg_file.write(
                             f"initialize {amplitude}"
                             " cartesian {re} 0 real\n".format(
                                 re=0 if init_refl and refl != init_refl else init_real
                             )
                         )
-                        fout.write(
+                        cfg_file.write(
                             f"amplitude {amplitude} PhaseOffset"
                             f" [phase_"
                             f"{refl_str}{int_to_char(l,True).capitalize()}]\n"
@@ -870,13 +878,16 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
     Args:
         x: integer to be converted
         is_ang_momentum: if true, uses a separate dictionary to perform the
-            conversion. Uses the standard "s,p,d,f,g" wave notation
+            conversion. Uses the standard "S,P,D,F,G" wave notation
     Returns:
         single character
     """
-    map = {-2: "n", -1: "m", 0: "0", +1: "p", +2: "q"}
+    # TODO: this letter map is terrible, and should really use 2 characters to denote
+    # the m-projection. This would require a pretty massive rewrite though since the
+    # single character "eJPmL" format is baked into many scripts
+    map = {-3: "l", -2: "n", -1: "m", 0: "0", +1: "p", +2: "q", +3: "r"}
     if is_ang_momentum:
-        map = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
+        map = {0: "S", 1: "P", 2: "D", 3: "F", 4: "G"}
 
     return map[x]
 
