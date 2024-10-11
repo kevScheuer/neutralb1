@@ -7,15 +7,13 @@ it, and writes the necessary AmpTools cfg file lines to fit using that waveset
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
 TODO:
-    Make refl_dict a constant and handle appropriately in each function
-    Have phaselock function handle dominant eJPmL arg
-
-TODO: finish converting all the methods to instead write out each amplitude line-by-line
-    instead of the AmpTools LOOP method. Also remember that the naming scheme is changed
-    such that reflectivity is explicit, and no longer needs to be inferred from
-    the "ImagPosSign" type strings
+    - see if force_refl can only be implemented in get_waves_and_breit_wigners, and
+        recognized in subsequent functions when the refl isn't in the waveset
+    - Adjust the constrained_phase to handle if one of the reflectivities for that
+        wave has been explicitly removed
 """
 
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import product
 from typing import List, TextIO
@@ -39,7 +37,7 @@ REFLECTIVITY_DICT = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class Wave:
     name: str
     reflectivity: int
@@ -56,8 +54,8 @@ def main(args: dict):
     jpml_set = {wave_string[1:] for wave_string in args["remove_waves"]}
     if args["phase_reference"] in jpml_set:
         raise ValueError(
-            f"User requested to remove the reference wave {args['phase_reference']} from"
-            " the waveset"
+            f"User requested to remove the reference wave {args['phase_reference']}"
+            " from the waveset"
         )
 
     # convert the user requested wave string into lists of waves/bw's that contain all
@@ -102,23 +100,25 @@ def main(args: dict):
                 cfg_file, is_dalitz, args["orientations"], args["reaction"]
             )
 
-        # check that the reference wave is in the waveset if requested, otherwise set
-        # the reference to be the first wave in the waveset
+        # check that the reference wave is in the waveset if requested, otherwise
+        # set the reference to be the first wave in the waveset
         if args["phase_reference"]:
             if not is_reference_wave_in_waveset(args["phase_reference"], waves):
                 raise ValueError(f"{args['phase_reference']} is not in waveset")
             phase_reference = args["phase_reference"]
         else:
-            phase_reference = waves[0].name
+            phase_reference = waves[0].name[1:]
 
-        # write lines to remove overall unconstrained phase factor
-        write_phase_convention(
-            cfg_file,
-            phase_reference,
-            args["force_refl"],
-            args["orientations"],
-            args["reaction"],
-        )
+        # phaselock function needs its own reference wave method
+        if not args["phaselock"]:
+            # write lines to remove overall unconstrained phase factor
+            write_phase_convention(
+                cfg_file,
+                phase_reference,
+                args["force_refl"],
+                args["orientations"],
+                args["reaction"],
+            )
 
         # writes breit wigners (if present in waveset)
         if breit_wigners:
@@ -130,15 +130,13 @@ def main(args: dict):
                 args["orientations"],
                 args["reaction"],
             )
-        exit()
         # write ds ratio if 1p amp is used, and if DS ratio isn't free
-        is_1p_present = False
-        for wave in waves:
-            if wave.get("spin") == 1 and wave.get("parity") == 1:
-                is_1p_present = True
-        if args["ds_ratio"] != "free" and is_1p_present:
+        if args["ds_ratio"] != "free" and any(
+            wave.spin == 1 and wave.parity == 1 for wave in waves
+        ):
             write_ds_ratio(
                 cfg_file,
+                waves,
                 args["ds_ratio"],
                 args["force_refl"],
                 args["phaselock"],
@@ -151,6 +149,7 @@ def main(args: dict):
             write_phaselock(
                 cfg_file,
                 waves,
+                phase_reference,
                 args["force_refl"],
                 args["init_refl"],
                 args["init_real"],
@@ -564,7 +563,8 @@ def write_phase_convention(
 
     Args:
         cfg_file (TextIO): cfg file being written to
-        wave (str): wave written in jpml format that will be set to be purely real
+        wave (str): wave written in jpml format that will be set to be purely real. Uses
+            jpml format since both reflectivities for that wave are set to be real
         force_refl (int): if non-zero, only the chosen reflectivity will be written
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
@@ -580,9 +580,10 @@ def write_phase_convention(
         for sum_label, refl_sign in short_refl_dict.items():
             if force_refl and refl_sign != force_refl:
                 continue
+            refl_char = "m" if refl_sign == -1 else "p"
             cfg_file.write(
                 f"initialize {reaction}_{POL_DICT[ont]['angle']}"
-                f"::{sum_label}::{wave} cartesian 100 0 real\n"
+                f"::{sum_label}::{refl_char}{wave} cartesian 100 0 real\n"
             )
 
     return
@@ -659,9 +660,9 @@ def write_breit_wigners(
     return
 
 
-# TODO: finish converting all the methods to instead write out each amplitude line-by-line
 def write_ds_ratio(
     cfg_file: TextIO,
+    waves: List[Wave],
     ds_option: str,
     force_refl: int,
     is_phaselock: bool,
@@ -670,8 +671,14 @@ def write_ds_ratio(
 ) -> None:
     """Writes lines in cfg file template for a D to S wave ratio to be set
 
+    Initialized (and optionally fixed) values are E852 parameters. The ratio can be
+    fixed to E852 values, split between two reflectivities, or left to float between 0
+    and 1.
+
     Args:
         cfg_file (TextIO): cfg file being written to
+        waves (List[Wave]): list of Wave dataclasses that contain all necessary info
+            See 'get_waves_and_breit_wigners' for details
         ds_option (str): user option to fix the ratio to E852 values, split it between,
             reflectivities, or let float between 0 and 1
         force_refl (int): if non-zero, only the chosen reflectivity will be written
@@ -683,96 +690,64 @@ def write_ds_ratio(
 
     cfg_file.write(
         "\n# constrain S and D waves to same amplitude and set scale factor"
-        " for D/S ratio\n"
+        " for D/S ratio"
     )
 
-    # setup variables used in all cases
-    if ds_option == "fixed":
-        ratio_opt = "fixed"
-        phase_opt = "fixed"
-    elif is_phaselock:
-        ratio_opt = "bounded 0.0 1.0"
-        phase_opt = "fixed"
-    else:
-        ratio_opt = "bounded 0.0 1.0"
-        phase_opt = "bounded -3.14159 3.14159"
-
+    # setup whether the ratio and phase will be fixed values, or bounded within a range
+    ratio_opt = "fixed" if ds_option == "fixed" else "bounded 0.0 1.0"
+    phase_opt = (
+        "fixed" if ds_option == "fixed" or is_phaselock else "bounded -3.14159 3.14159"
+    )
     phase_val = "0" if is_phaselock else "0.184"
 
-    refl_dict = {
-        "ImagNegSign": -1,
-        "RealPosSign": -1,
-        "ImagPosSign": 1,
-        "RealNegSign": 1,
-    }
-
-    if force_refl == -1:
-        del refl_dict["RealNegSign"]
-        del refl_dict["ImagPosSign"]
-    if force_refl == +1:
-        del refl_dict["RealPosSign"]
-        del refl_dict["ImagNegSign"]
-
-    params, phases = ["dsratio"], ["dphase"]
+    # setup the parameter names for AmpTools, and split between reflectivities if
+    # requested
     if ds_option == "split":
-        params, phases = ["dsratio_p", "dsratio_m"], ["dphase_p", "dphase_m"]
+        ratios = ["dsratio_p", "dsratio_m"]
+        phases = ["dphase_p", "dphase_m"]
+    else:
+        ratios = ["dsratio"]
+        phases = ["dphase"]
 
-    # loop over parameter and phase options and write out their lines
-    for par, phase in zip(params, phases):
-        if ds_option == "fixed":
-            par_range = ""
-        else:
-            par_range = f"parRange {par} 0.0 1.0"
-
-        if is_phaselock or ds_option == "fixed":
-            phase_range = ""
-        else:
-            phase_range = f"parRange {phase} -3.14159 3.14159"
-
-        cfg_file.write(
-            f"parameter {par} 0.27 {ratio_opt}\n"
-            f"parameter {phase} {phase_val} {phase_opt}\n"
-            f"{par_range}\n"
-            f"{phase_range}\n"
-        )
-
-        # if is_DS_split then certain reflectivities are paired to certain pars
-        refls = ""
-        for key, val in refl_dict.items():
-            if "_p" in (par or phase) and val == 1:
-                refls += f"{key} "
-            elif "_m" in (par or phase) and val == -1:
-                refls += f"{key} "
-
-        if refls == "":
-            refls = " ".join(refl_dict.keys())
-
-        cfg_file.write(f"\nloop LOOPSUM {refls}\n")
-
-    # perform D/S constraints for each orientation
     for ont in orientations:
-        for par, phase in zip(params, phases):
+        for ratio, phase in zip(ratios, phases):
             cfg_file.write(
-                f"constrain {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1ppd"
-                f" {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1pps"
-                f"\nconstrain {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1p0d"
-                f" {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1p0s"
-                f"\nconstrain {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1pmd"
-                f" {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1pms"
-                f"\namplitude {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1ppd"
-                f" ComplexCoeff [{par}] [{phase}] MagPhi"
-                f"\namplitude {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1p0d"
-                f" ComplexCoeff [{par}] [{phase}] MagPhi"
-                f"\namplitude {reaction}_{POL_DICT[ont]['angle']}::LOOPSUM::1pmd"
-                f" ComplexCoeff [{par}] [{phase}] MagPhi\n\n"
+                f"\nparameter {ratio} 0.27 {ratio_opt}\n"
+                f"parameter {phase} {phase_val} {phase_opt}\n"
             )
+            if ds_option != "fixed":
+                cfg_file.write(f"parRange {ratio} 0.0 1.0\n")
+            if not is_phaselock and ds_option != "fixed":
+                cfg_file.write(f"parRange {phase} -3.14159 3.14159\n")
+
+            for sum_label, refl_sign in REFLECTIVITY_DICT.items():
+                if force_refl and refl_sign != force_refl:
+                    continue
+                for wave in waves:
+                    if wave.reflectivity != refl_sign or (
+                        wave.spin != 1 or wave.parity != 1 or wave.l != 0
+                    ):
+                        continue
+
+                    # write out the S wave amplitude line
+                    cfg_file.write(
+                        f"amplitude {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
+                        f"{wave.name} ComplexCoeff [{ratio}] [{phase}] MagPhi\n"
+                    )
+                    # constrain the D wave to the S wave
+                    cfg_file.write(
+                        f"constrain {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
+                        f"{wave.name} {reaction}_{POL_DICT[ont]['angle']}::"
+                        f"{sum_label}::{wave.name.replace("S", "D")}\n"
+                    )
 
     return
 
 
 def write_phaselock(
     cfg_file: TextIO,
-    waves: list,
+    waves: List[Wave],
+    reference_wave: str,
     force_refl: int,
     init_refl: int,
     init_real: float,
@@ -783,92 +758,76 @@ def write_phaselock(
 
     Phaselocking refers to the model that the m-projections for a certain JPL
     are all given the same phase value, meaning no phase difference can occur
-    within a eJPL combination
+    within an eJPL combination
 
     Args:
         cfg_file (TextIO): cfg file being written to
-        waves (list): list of dict entries that contains JP, spin, parity, m, and l.
+        waves (List[Wave]): list of Wave dataclasses that contain all necessary info
             See 'get_waves_and_breit_wigners' for details
+        reference_wave (str): All m projections with this jpl combination will be fixed
+            to be real.
         force_refl (int): if non-zero, only the chosen reflectivity will be written
-        init_refl (int): user option to init nonzero values for one reflectivity
-        init_real (float): user option to init the real value for amplitudes. Default
-            is 100 (or 0 if init/force_refl is set)
+        init_refl (int): if non-zero, the real and imaginary parts of the amplitudes
+            that don't match the chosen reflectivity will be initialized to 0
+        init_real (float): initialization value for real part of amplitudes.
         orientations (list): diamond orientation settings
         reaction (str): user-defined reaction name
     """
 
-    cfg_file.write(f"\n{'#'*8} phaselock {'#'*8}\n")
+    cfg_file.write(f"\n{'#'*8} PHASELOCK {'#'*8}")
 
-    # write parameters for each phase, one each for plus and minus reflectivity.
-    #   first wave is fixed to be 0
-    fix_phase = ""
-
+    # create a dictionary of all waves with the same jpl values
+    jpl_sets = defaultdict(set)
     for wave in waves:
-        for l in wave["l"]:
-            if fix_phase == "":
-                fix_phase = l
+        jp = wave.name[1:3]
+        l = wave.name[-1]
+        jpl_sets[jp + l].add(wave)
 
-            if l == fix_phase:
-                option = "fixed"
-                par_range = ""
+    # write a common phase parameter for each jpl value to be shared among m projections
+    for jpl, wave_group in jpl_sets.items():
+        cfg_file.write(
+            f"\n\n{'#'*2} set the phase for all m projections of {jpl}{'#'*2}\n"
+        )
+
+        # write the parameter for each reflectivity once
+        for refl_sign in set(REFLECTIVITY_DICT.values()):
+            if force_refl and refl_sign != force_refl:
+                continue
+            phaselock_string = f"phase_{int_to_char(refl_sign)}{jpl}"
+            if reference_wave[:2] + reference_wave[-1] == jpl:
+                cfg_file.write(f"parameter {phaselock_string} 0 fixed\n")
             else:
-                option = "bounded -3.14159 3.14159"
-                par_range = (
-                    "parRange"
-                    f" phase_p{int_to_char(l,True).capitalize()}"
-                    " -3.14159 3.14159\n"
-                )
-
-            if force_refl != -1:
                 cfg_file.write(
-                    f"parameter phase_p{int_to_char(l,True).capitalize()} 0"
-                    f" {option}\n"
-                    f"{par_range}"
-                )
-            if force_refl != 1:
-                cfg_file.write(
-                    f"parameter phase_m{int_to_char(l,True).capitalize()} 0"
-                    f" {option}\n"
-                    f"{par_range}"
+                    f"parameter {phaselock_string} 0 bounded -3.14159 3.14159\n"
+                    f"parRange {phaselock_string} -3.14159 3.14159\n"
                 )
 
-    # write new initialization line to overwrite previous ones in "write_wave_loops",
-    #   and add PhaseOffset amplitude line
-    for ont in orientations:
-        for wave in waves:
-            j = wave["spin"]
-            p = int_to_char(wave["parity"])
-            refl_dict = {
-                "ImagNegSign": -1,
-                "RealPosSign": -1,
-                "ImagPosSign": 1,
-                "RealNegSign": 1,
-            }
+        # write the amplitude lines for each wave in the waveset
+        for coh_sum_label, refl_sign in REFLECTIVITY_DICT.items():
+            if force_refl and refl_sign != force_refl:
+                continue
+            phaselock_string = f"phase_{int_to_char(refl_sign)}{jpl}"
 
-            for coh_sum_label, refl in refl_dict.items():
-                if force_refl and refl != force_refl:
+            for wave in wave_group:
+                if wave.reflectivity != refl_sign:
                     continue
-                cfg_file.write("\n")
-                refl_str = "p" if refl == 1 else "m"
+                for ont in orientations:
+                    amplitude = (
+                        f"{reaction}_{POL_DICT[ont]['angle']}"
+                        f"::{coh_sum_label}::{wave.name}"
+                    )
+                    # re-initialize the amplitude to be purely real
+                    cfg_file.write(
+                        f"initialize {amplitude}"
+                        " cartesian {re} 0 real\n".format(
+                            re=0 if init_refl and refl_sign != init_refl else init_real
+                        )
+                    )
+                    # attach the common phase parameter to the amplitude
+                    cfg_file.write(
+                        f"amplitude {amplitude} PhaseOffset [{phaselock_string}]\n"
+                    )
 
-                for m in wave["m"]:
-                    for l in wave["l"]:
-
-                        amplitude = (
-                            f"{reaction}_{POL_DICT[ont]['angle']}::{coh_sum_label}::"
-                            f"{j}{p}{int_to_char(m)}{int_to_char(l,True)}"
-                        )
-                        cfg_file.write(
-                            f"initialize {amplitude}"
-                            " cartesian {re} 0 real\n".format(
-                                re=0 if init_refl and refl != init_refl else init_real
-                            )
-                        )
-                        cfg_file.write(
-                            f"amplitude {amplitude} PhaseOffset"
-                            f" [phase_"
-                            f"{refl_str}{int_to_char(l,True).capitalize()}]\n"
-                        )
     return
 
 
