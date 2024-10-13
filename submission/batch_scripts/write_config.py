@@ -1,9 +1,9 @@
-"""Writes a template cfg file for binned fits to be performed
+"""Writes an AmpTools fit cfg file for binned fits to be performed
 
 This script is part of the batch submission process, called with submit.py. Its
-role is to write a cfg file that acts as a template for all the binned fits
-to overwrite. This file accepts a users waveset, along with any modifications to
-it, and writes the necessary AmpTools cfg file lines to fit using that waveset
+role is to write a fit cfg file that will be run in each bin of the fit. It uses the
+user requested waveset and all its modifications to write the necessary AmpTools
+recognized lines to the cfg file
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
 TODO:
