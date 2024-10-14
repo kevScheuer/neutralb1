@@ -29,14 +29,13 @@ Rint.Logon:     $(FSROOT)/rootlogon.FSROOT.C
 Rint.Logoff:    $(FSROOT)/rootlogoff.FSROOT.C
 
 Proof.MaxOldSessions 500
-ProofLite.Sandbox /work/halld/kscheuer/proof/
+ProofLite.Sandbox /work/halld/home/YOUR_USERNAME/proof/
 ```
 
 The second is the `rootlogon.C` script mentioned above:
 ```
 {
-    printf("Load Classes");
-    // below line needs macropath edited in .rootrc file
+    printf("Load Classes");    
     gROOT->ProcessLine(".x loadAmpTools.C");
 
     if(getenv("ROOT_ANALYSIS_HOME"))       

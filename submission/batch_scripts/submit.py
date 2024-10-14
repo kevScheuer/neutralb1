@@ -1,10 +1,10 @@
-""" Main batch script to set parameters for amplitude analysis fits.
+"""Main batch script to set parameters for amplitude analysis fits.
 
 See README for process architecture, or run with "--help" to understand variable usage
 
 Optional improvements to make script more generalized:
-	Ability to choose polar coordinates. Means init_imag -> init_phase	
-	Ability or some handling of matching the GPU architecture
+        Ability to choose polar coordinates. Means init_imag -> init_phase
+        Ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
     Arg for the reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
     Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
@@ -34,8 +34,6 @@ def main(args: dict) -> None:
 
     # unpack some config arguments
     energy_min, energy_max = args["energy"]
-    data_version, data_dir = args["data"]
-    phasespace_version, phasespace_dir = args["phasespace"]
     n_gpus, gpu_type = int(args["gpu"][0]), args["gpu"][1]
 
     if "ALL" in args["orientations"]:
@@ -43,23 +41,28 @@ def main(args: dict) -> None:
 
     # error checks
     if args["truth_file"] and (
-        data_version.split("_")[0] not in args["truth_file"]
+        args["data_version"] not in args["truth_file"]
         or not os.path.isfile(f"{CODE_DIR}{args['truth_file']}")
     ):
         raise ValueError("MC and truth versions must match and truth file must exist!")
-    if phasespace_version not in "\t".join(os.listdir(phasespace_dir)):
+    if f"{args['phasespace_version']}{args['phasespace_option']}" not in "\t".join(
+        os.listdir(args["phasespace_dir"])
+    ):
         raise FileNotFoundError(
-            f"Phasespace version {phasespace_version} does"
-            f" not exist in directory: {phasespace_dir}"
+            f"Phasespace {args['phasespace_version']}{args['phasespace_option']} does"
+            f" not exist in directory: {args['phasespace_dir']}"
         )
-    if data_version not in "\t".join(os.listdir(data_dir)):
+    if f"{args['data_version']}{args['data_option']}" not in "\t".join(
+        os.listdir(args["data_dir"])
+    ):
         raise FileNotFoundError(
-            f"Data version {data_version} does not exist in directory: {data_dir}"
+            f"Data {args['data_version']}{args['data_option']} does not exist in"
+            f" directory: {args['data_dir']}"
         )
     for ont in args["orientations"]:
-        if ont not in "\t".join(os.listdir(data_dir)):
+        if ont not in "\t".join(os.listdir(args["data_dir"])):
             raise FileNotFoundError(
-                f"Orientation {ont} not found in directory: {data_dir}"
+                f"Orientation {ont} not found in directory: {args["data_dir"]}"
             )
     if len(args["t_momenta"]) < 2 or len(args["masses"]) < 2:
         raise ValueError("Must specify at LEAST two arguments for t and mass bins")
@@ -80,10 +83,12 @@ def main(args: dict) -> None:
         high_mass_edges,
         args["orientations"],
         args["run_periods"],
-        data_version,
-        data_dir,
-        phasespace_version,
-        phasespace_dir,
+        args["data_dir"],
+        args["data_version"],
+        args["data_option"],
+        args["phasespace_dir"],
+        args["phasespace_version"],
+        args["phasespace_option"],
         args["cut_recoil_pi_mass"],
         args["reaction"],
     )
@@ -112,8 +117,8 @@ def main(args: dict) -> None:
                         args["reaction"],
                         run_period,
                         "-".join(sorted(args["orientations"])),
-                        data_version,
-                        phasespace_version,
+                        f"{args['data_version']}{args['data_option']}",
+                        f"{args['phasespace_version']}{args['phasespace_option']}",
                         "_".join(sorted(args["waveset"])),
                         f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
@@ -140,18 +145,15 @@ def main(args: dict) -> None:
                     pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
 
                 # location of pre-selected data file
-                source_file_dir = "/".join(
-                    (
-                        f"{VOLATILE_DIR}",
-                        "TMPDIR",
-                        "ampToolsFits",
-                        args["reaction"],
-                        "data_files",
-                        f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
-                        f"t_{low_t:.2f}-{high_t:.2f}",
-                        f"E_{energy_min:.2f}-{energy_max:.2f}",
-                        f"mass_{low_mass:.3f}-{high_mass:.3f}",
-                    )
+                source_file_dir = volatile_path(
+                    args["reaction"],
+                    args["cut_recoil_pi_mass"],
+                    low_t,
+                    high_t,
+                    energy_min,
+                    energy_max,
+                    low_mass,
+                    high_mass,
                 )
 
                 # if a completed fit is found in the output directory, ask if the user
@@ -194,8 +196,8 @@ def main(args: dict) -> None:
                         args["reaction"],
                         run_period,
                         "-".join(sorted(args["orientations"])),
-                        data_version,
-                        phasespace_version,
+                        f"{args['data_version']}{args['data_option']}",
+                        f"{args['phasespace_version']}{args['phasespace_option']}",
                         "_".join(sorted(args["waveset"])),
                         f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
@@ -210,10 +212,12 @@ def main(args: dict) -> None:
                         f"-o {'-'.join(sorted(args['orientations']))}",
                         f"-r {run_period}",
                         f"-n {args['nrand']}",
-                        f"-d {data_version}",
-                        f"-p {phasespace_version}",
+                        f"-d {args['data_version']}",
+                        f"-D {args['data_option']}",
+                        f"-p {args['phasespace_version']}",
+                        f"-P {args['phasespace_option']}",
                         f"-s {source_file_dir}",
-                        f"-D {data_out_dir}",
+                        f"-O {data_out_dir}",
                         f"-C {CODE_DIR}",
                         f"-R {args['reaction']}",
                         f"-b {args['bootstrap']}",
@@ -245,10 +249,12 @@ def create_data_files(
     high_mass_edges: list,
     orientations: list,
     run_periods: list,
-    data_ver: str,
     data_dir: str,
-    phasespace_ver: str,
+    data_ver: str,
+    data_option: str,
     phasespace_dir: str,
+    phasespace_ver: str,
+    phasespace_option: str,
     cut_recoil_pi_mass: float,
     reaction: str,
 ) -> None:
@@ -270,10 +276,13 @@ def create_data_files(
         high_mass_edges (list): values of high omega pi mass bin edges
         orientations (list): diamond orientation settings
         run_period (list): string in file name, e.g. 2017_01, allPeriods
-        data_ver (str): version string in file name, e.g. data, mc_thrown
         data_dir (str): directory of original data files
-        phasespace_ver (str): MC version string in file name, e.g. ver03
+        data_ver (str): MC version string in file name, e.g. ver03.1
+        data_option (str): MC option string in file name, e.g. _mcthrown
         phasespace_dir (str): directory of original phasespace files
+        phasespace_ver (str): MC version string in file name, e.g. ver03
+        phasespace_option (str): MC option string in file name,
+            e.g. _accept_noaccidental
         cut_recoil_pi_mass (float): removes events below the given recoil-pion mass
     Raises:
         FileExistsError: Generated phasespace file not found
@@ -290,7 +299,8 @@ def create_data_files(
     jobs_submitted = False  # becomes True if any jobs are submitted
 
     for run_period in run_periods:
-        # find generated phasespace file
+        # find generated phasespace file (this is always thrown, so no
+        # phasespace_option is used here)
         gen_file = (
             f"{phasespace_dir}/anglesOmegaPiPhaseSpaceGen_"
             f"{run_period}_{phasespace_ver}.root"
@@ -303,7 +313,7 @@ def create_data_files(
         if "mcthrown" not in data_ver:
             acc_file = (
                 f"{phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_"
-                f"{run_period}_{phasespace_ver}.root"
+                f"{run_period}_{phasespace_ver}{phasespace_option}.root"
             )
             if not os.path.isfile(acc_file):
                 raise FileExistsError(f"Path {acc_file} does not exist!\n")
@@ -312,7 +322,10 @@ def create_data_files(
         # find data files
         data_files = []
         for ont in orientations:
-            f = f"{data_dir}/AmpToolsInputTree_sum_{ont}_{run_period}_{data_ver}.root"
+            f = (
+                f"{data_dir}/AmpToolsInputTree_sum_{ont}_{run_period}"
+                f"_{data_ver}{data_option}.root"
+            )
             if not os.path.isfile(f):
                 raise FileExistsError(f"Path {f} does not exist!\n")
             data_files.append(f)
@@ -322,21 +335,15 @@ def create_data_files(
         for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
             for low_t, high_t in zip(low_t_edges, high_t_edges):
                 # create directory for each TEM bin if not already done
-                # TODO: this directory structure is hardcoded and MUST match the dir
-                #   structure in the main function. This has potential for error if
-                #   either change
-                bin_dir = "/".join(
-                    (
-                        VOLATILE_DIR,
-                        "TMPDIR",
-                        "ampToolsFits",
-                        reaction,
-                        "data_files",
-                        f"recoil-pi-mass_{cut_recoil_pi_mass}",
-                        f"t_{low_t:.2f}-{high_t:.2f}",
-                        f"E_{energy_min:.2f}-{energy_max:.2f}",
-                        f"mass_{low_mass:.3f}-{high_mass:.3f}",
-                    )
+                bin_dir = volatile_path(
+                    reaction,
+                    cut_recoil_pi_mass,
+                    low_t,
+                    high_t,
+                    energy_min,
+                    energy_max,
+                    low_mass,
+                    high_mass,
                 )
                 pathlib.Path(bin_dir).mkdir(parents=True, exist_ok=True)
 
@@ -570,6 +577,36 @@ def check_positive_float(val) -> float:
     return fl
 
 
+def volatile_path(
+    reaction: str,
+    cut_recoil_pi_mass: float,
+    low_t: float,
+    high_t: float,
+    energy_min: float,
+    energy_max: float,
+    low_mass: float,
+    high_mass: float,
+) -> str:
+    """Create consistent volatile path for pre-selected data files
+
+    The string returned here is used in both the data file creation function and the
+    main function. This function ensures that the path is consistent between the two.
+    """
+    return "/".join(
+        (
+            VOLATILE_DIR,
+            "TMPDIR",
+            "ampToolsFits",
+            reaction,
+            "data_files",
+            f"recoil-pi-mass_{cut_recoil_pi_mass}",
+            f"t_{low_t:.2f}-{high_t:.2f}",
+            f"E_{energy_min:.2f}-{energy_max:.2f}",
+            f"mass_{low_mass:.3f}-{high_mass:.3f}",
+        )
+    )
+
+
 def parse_args() -> dict:
     parser = argparse.ArgumentParser(description="Submit PWA fits various configs")
 
@@ -739,30 +776,51 @@ def parse_args() -> dict:
         ),
     )
     parser.add_argument(
-        "-d",
-        "--data",
-        nargs=2,
-        default=[
-            "data",
-            "/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/data",
-        ],
-        metavar=("TYPE", "DIR"),
+        "--data_dir",
+        type=str,
+        default="/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/data",
+        help="directory where data files are stored",
+    )
+    parser.add_argument(
+        "--data_version",
+        type=str,
+        default="data",
         help=(
-            "specify data version and directory."
-            " Data types typically in form: thrown='verXY.Z_mcthrown,"
-            " MC='verXY.Z_mc' and DATA='data'"
+            "data version to use for fits. GlueX data is typically 'data', and Monte"
+            " uses the actual version number i.e. 'verXY.Z'"
         ),
     )
     parser.add_argument(
-        "-p",
-        "--phasespace",
-        nargs=2,
-        default=[
-            "ver03",
-            "/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/phasespace",
-        ],
-        metavar=("TYPE", "DIR"),
-        help="specify phasespace version and directory.",
+        "--data_option",
+        type=str,
+        default="",
+        help=(
+            "Monte Carlo option used in DSelector. Default assumes real data is used."
+            " Options are typically '_mcthrown', '_mc', etc."
+        ),
+    )
+    parser.add_argument(
+        "--phasespace_dir",
+        type=str,
+        default=(
+            "/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/phasespace"
+        ),
+        help="directory where phasespace files are stored",
+    )
+    parser.add_argument(
+        "--phasespace_version",
+        type=str,
+        default="ver03",
+        help="phasespace version to use for fits",
+    )
+    parser.add_argument(
+        "--phasespace_option",
+        type=str,
+        default="",
+        help=(
+            "Monte Carlo option used in DSelector. Default assumes no special options"
+            " were used. An option like '_accept_noaccidental' could be used."
+        ),
     )
     parser.add_argument(
         "-c",

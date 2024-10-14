@@ -15,14 +15,16 @@ rm ./*.ni
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-p] [-D] [-s] [-C] [-R] [-b] [-t]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-O] [-s] [-C] [-R] [-b] [-t]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
     echo " -n       number of randomized fits to perform"
     echo " -d       version # of data trees"
+    echo " -D       MC selector option for data trees"
     echo " -p       version # of phasespace trees"
-    echo " -D       Data output directory on \volatile"
+    echo " -P       MC selector option for phasespace trees"
+    echo " -O       Data output directory on \volatile"
     echo " -s       directory where data Source files are stored"
     echo " -C       Code directory where scripts are stored"
     echo " -R       Reaction name of fit"        
@@ -31,7 +33,7 @@ usage() {
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:p:D:s:C:R:b:t:h:" opt; do
+while getopts ":o:r:n:d:D:p:P:O:s:C:R:b:t:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -50,11 +52,17 @@ while getopts ":o:r:n:d:p:D:s:C:R:b:t:h:" opt; do
         echo -e "data version: \t\t$OPTARG\n"
         my_data_version=$OPTARG
     ;;
+    D)
+        echo -e "data MC option: \t$OPTARG\n"
+        my_data_option=$OPTARG
     p)
         echo -e "phasespace version: $OPTARG\n"
         my_phasespace_version=$OPTARG
     ;;
-    D)
+    P)
+        echo -e "phasespace MC option: $OPTARG\n"
+        my_phasespace_option=$OPTARG
+    O)
         echo -e "data out dir: \t\t$OPTARG\n"
         my_data_out_dir=$OPTARG
     ;;
@@ -107,9 +115,9 @@ ph_string="anglesOmegaPiPhaseSpace"
 for ont in ${my_orientations}; do
     ont_num="$(cut -d'_' -f2 <<<"$ont")" # get the angle integer e.g. PARA_90 -> 90
 
-    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}.root\
+    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}${my_data_option}.root\
      ./${amp_string}_${ont_num}.root
-    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}.root\
+    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}${my_data_option}.root\
      ${my_data_out_dir}/${amp_string}_${ont_num}.root
 done
 
@@ -122,12 +130,13 @@ ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_ve
 # link accepted phasespace
 if [[ $my_data_version == *"_mcthrown"* ]]; then
     acc_string="Gen" # when using thrown MC, this means no detector effects are applied
+    my_phasespace_option="" # remove option since it won't apply in this case
 else
     acc_string="Acc"
 fi
-ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}.root\
+ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
  ./${ph_string}Acc.root
-ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}.root\
+ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
  ${my_data_out_dir}/${ph_string}Acc.root
 
 
