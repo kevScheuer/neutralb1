@@ -836,11 +836,12 @@ def parse_args() -> dict:
     parser.add_argument(
         "-b",
         "--bootstrap",
-        type=bool,
-        default=True,
+        type=int,
+        default=0,
         help=(
-            "When True (default), 100 bootstrapped fits will be performed starting from"
-            " the nominal values found at the end of all the --nrand fits in each bin"
+            "When non-zero value passed, the requested number of bootstrap fits will"
+            " be performed starting from the nominal values found at the end of all the"
+            " --nrand fits in each bin"
         ),
     )
 

@@ -55,6 +55,7 @@ while getopts ":o:r:n:d:D:p:P:O:s:C:R:b:t:h:" opt; do
     D)
         echo -e "data MC option: \t$OPTARG\n"
         my_data_option=$OPTARG
+    ;;
     p)
         echo -e "phasespace version: $OPTARG\n"
         my_phasespace_version=$OPTARG
@@ -62,6 +63,7 @@ while getopts ":o:r:n:d:D:p:P:O:s:C:R:b:t:h:" opt; do
     P)
         echo -e "phasespace MC option: $OPTARG\n"
         my_phasespace_option=$OPTARG
+    ;;
     O)
         echo -e "data out dir: \t\t$OPTARG\n"
         my_data_out_dir=$OPTARG
@@ -204,7 +206,7 @@ Randomized fits have completed and been moved to the rand subdirectory\n\n"
 ls -al
 
 # Perform bootstrapping if requested
-if [[ $my_bootstrap_bool == "True" ]] && [ -z "$my_truth_file" ]; then
+if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
     # create special bootstrap cfg and set it to start at the best fit values
     cp -f fit.cfg bootstrap_fit.cfg
