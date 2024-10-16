@@ -3,10 +3,12 @@ echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup local running directory
 rm ./*.fit 
-rm ./*.txt
+rm ./bestFitPars.txt
+rm ./vecps_fitPars.txt
 rm ./rand/*.fit
-rm ./rand/*.txt
+rm ./rand/bestFitPars*.txt
 rm ./rand/*.ni
+rm ./rand/*.pdf
 rm ./bootstrap/*.fit
 rm ./bootstrap/*.ni
 rm ./*.pdf
@@ -145,8 +147,8 @@ ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_pha
 ls -al 
 
 ### RUN FIT ###
-echo -e "\n\n==================================================
-Beginning randomized fits \n\n\n\n"
+echo -e "\n\n==================================================\n
+Beginning fits \n\n\n\n"
 
 # if AmpTools has been built for MPI, these libraries show up, meaning fitMPI should run
 use_mpi=false
@@ -196,14 +198,16 @@ root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$data_t
 ls -al
 
 # move all the randomized fits to the rand directory
+if [ $my_num_rand_fits -ne 0 ]; then
 mv -f "$my_reaction"_*.fit rand/
 mv -f bestFitPars_*.txt rand/
 mv -f "$my_reaction".ni rand/
 mv -f rand_fit_diagnostic.pdf rand/
-echo -e "\n\n==================================================
+echo -e "\n\n==================================================\n
 Randomized fits have completed and been moved to the rand subdirectory\n\n"
-
 ls -al
+fi
+
 
 # Perform bootstrapping if requested
 if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
@@ -242,15 +246,18 @@ rm $my_data_out_dir/*.txt
 # move fit results to output directory (force overwrite)
 if [ -z "$my_truth_file" ]; then
     cp -f fit.cfg $my_data_out_dir
-    cp -f best.fit $my_data_out_dir
-    cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
-    cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
-    cp -f rand/rand_fit_diagnostic.pdf $my_data_out_dir/rand/
+    cp -f best.fit $my_data_out_dir    
 else
     cp -f $my_truth_file $my_data_out_dir
     mv -f best.fit best_truth.fit
     cp -f best_truth.fit $my_data_out_dir
     mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
+fi
+
+if [ $my_num_rand_fits -ne 0 ]; then
+    cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
+    cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
+    cp -f rand/rand_fit_diagnostic.pdf $my_data_out_dir/rand/
 fi
 
 if [[ $my_bootstrap_bool == "True" ]]; then
