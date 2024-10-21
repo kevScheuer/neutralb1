@@ -132,7 +132,7 @@ ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_ve
  ${my_data_out_dir}/${ph_string}.root
 
 # link accepted phasespace
-if [[ $my_data_version == *"_mcthrown"* ]]; then
+if [[ $my_data_option == *"_mcthrown"* ]]; then
     acc_string="Gen" # when using thrown MC, this means no detector effects are applied
     my_phasespace_option="" # remove option since it won't apply in this case
 else

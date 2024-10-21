@@ -213,9 +213,7 @@ def main(args: dict) -> None:
                         f"-r {run_period}",
                         f"-n {args['nrand']}",
                         f"-d {args['data_version']}",
-                        f"-D {args['data_option']}",
                         f"-p {args['phasespace_version']}",
-                        f"-P {args['phasespace_option']}",
                         f"-s {source_file_dir}",
                         f"-O {data_out_dir}",
                         f"-C {CODE_DIR}",
@@ -225,7 +223,10 @@ def main(args: dict) -> None:
                 )
                 if args["truth_file"]:
                     script_command += f" -t {args['truth_file']}"
-
+                if args["data_option"]:
+                    script_command += f" -D {args['data_option']}"
+                if args["phasespace_option"]:
+                    script_command += f" -P {args['phasespace_option']}"
                 submit_slurm_job(
                     job_name,
                     script_command,
@@ -310,7 +311,7 @@ def create_data_files(
         src_files_to_copy_to_dir[gen_file] = []
 
         # find accepted phasespace file (if needed)
-        if "mcthrown" not in data_ver:
+        if "mcthrown" not in data_option:
             acc_file = (
                 f"{phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_"
                 f"{run_period}_{phasespace_ver}{phasespace_option}.root"
@@ -350,7 +351,7 @@ def create_data_files(
                 # if files not already in volatile, add to list to be copied
                 if not os.path.isfile(f"{bin_dir}/{gen_file.split('/')[-1]}"):
                     src_files_to_copy_to_dir[gen_file].append(bin_dir)
-                if "mcthrown" not in data_ver and not os.path.isfile(
+                if "mcthrown" not in data_option and not os.path.isfile(
                     f"{bin_dir}/{acc_file.split('/')[-1]}"
                 ):
                     src_files_to_copy_to_dir[acc_file].append(bin_dir)
