@@ -74,7 +74,7 @@ def main(args: dict) -> None:
             "AmpToolsInputTree.root",
             (
                 "anglesOmegaPiPhaseSpaceAcc_"
-                f"{run_period}{PHASESPACE_VERSION}{phasespace_option}.root"
+                f"{run_period}{PHASESPACE_VERSION}_{phasespace_option}.root"
             ),
         ]
 
