@@ -393,12 +393,12 @@ def write_waves(
 ) -> None:
     """Write all waves to the cfg file for vecps_refl amplitudes
 
-    Each wave is and its necessary lines are each written out individually to the cfg
-    file. This method is preferred over AmpTools loops to manipulate individual waves
-    much easier. The amplitude lines are written in the following order:
-    - Comment the wave name
+    Each wave and its necessary lines are each written out individually to the cfg
+    file. This method is preferred over AmpTools loops, so we can manipulate individual
+    waves much easier. The amplitude lines are written in the following order:
+    - Comment the wave info
     - Write the vecps_refl amplitude line
-    - Write the OmegaDalitz amplitude line
+    - Write the OmegaDalitz amplitude line (if not removed)
     - Write the initialization line
     - Write the parScale line
     - Repeat all of this for each orientation
