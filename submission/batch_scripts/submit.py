@@ -10,6 +10,9 @@ Optional improvements to make script more generalized:
     Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
 
 SLURM INFO (https://scicomp.jlab.org/scicomp/slurmJob/slurmInfo)
+
+TODO: Possible bug in mass/t bin creation, where the last bin gets skipped. Probably due
+    to some floating point precision error.
 """
 
 import argparse

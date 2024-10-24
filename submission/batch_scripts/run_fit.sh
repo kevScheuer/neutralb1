@@ -187,13 +187,13 @@ fi
 
 # produce diagnostic plots of angles and mass distributions
 if [[ $my_data_version == *"data"* ]]; then
-    data_type="Data"
-elif [[ $my_data_version == *"_mc" ]]; then
-    data_type="Recon MC"
-elif [[ $my_data_version == *"_mcthrown" ]]; then
-    data_type="Thrown MC"
+    my_label="Data"
+elif [[ $my_data_option == *"_mcthrown"* ]]; then
+    my_label="Thrown MC"
+else
+    my_label="Recon MC"
 fi
-root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$data_type\")"
+root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
 
 ls -al
 
@@ -219,8 +219,8 @@ if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
     # replace data reader with bootstrap version for just the "data" file
     sed -i -e 's/data LOOPREAC ROOTDataReader LOOPDATA/data LOOPREAC ROOTDataReaderBootstrap LOOPDATA 0/' bootstrap_fit.cfg
 
-    # perform 100 bootstrap fits, using seeds 1,2,..100
-    for ((i=1;i<=100;i++)); do
+    # perform requested number N of bootstrap fits, using seeds 1,2,..N
+    for ((i=1;i<=$my_bootstrap_bool;i++)); do
         echo -e "\nBOOTSTRAP FIT: $i\n"        
         sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA $((i-1))/ROOTDataReaderBootstrap LOOPDATA $i/" bootstrap_fit.cfg
         # run fit
@@ -240,8 +240,8 @@ if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
 fi
 
 # cleanup data out directory 
-rm $my_data_out_dir/*.fit
-rm $my_data_out_dir/*.txt
+rm "$my_data_out_dir"/*.fit
+rm "$my_data_out_dir"/*.txt
 
 # move fit results to output directory (force overwrite)
 if [ -z "$my_truth_file" ]; then
@@ -255,14 +255,14 @@ else
 fi
 
 if [ $my_num_rand_fits -ne 0 ]; then
-    cp -f rand/"$my_reaction"_*.fit $my_data_out_dir/rand/
-    cp -f rand/"$my_reaction".ni $my_data_out_dir/rand/
-    cp -f rand/rand_fit_diagnostic.pdf $my_data_out_dir/rand/
+    cp -f rand/"$my_reaction"_*.fit "$my_data_out_dir"/rand/
+    cp -f rand/"$my_reaction".ni "$my_data_out_dir"/rand/
+    cp -f rand/rand_fit_diagnostic.pdf "$my_data_out_dir"/rand/
 fi
 
 if [[ $my_bootstrap_bool == "True" ]]; then
-    cp -f bootstrap/"$my_reaction"_*.fit $my_data_out_dir/bootstrap/
-    cp -f bootstrap/"$my_reaction".ni $my_data_out_dir/bootstrap/
+    cp -f bootstrap/"$my_reaction"_*.fit "$my_data_out_dir"/bootstrap/
+    cp -f bootstrap/"$my_reaction".ni "$my_data_out_dir"/bootstrap/
 fi
 
 cp -f vecps_* $my_data_out_dir
