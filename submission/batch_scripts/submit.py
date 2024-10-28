@@ -115,7 +115,6 @@ def main(args: dict) -> None:
                 running_dir = "/".join(
                     (
                         VOLATILE_DIR,
-                        "TMPDIR",
                         "ampToolsFits",
                         args["reaction"],
                         run_period,
@@ -132,20 +131,14 @@ def main(args: dict) -> None:
                 pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
 
                 log_dir = running_dir + "log/"
-                data_out_dir = running_dir.replace("TMPDIR/", "")
                 pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(data_out_dir).mkdir(parents=True, exist_ok=True)
 
                 # truth fits don't require rand or bootstrap fits
                 if not args["truth_file"]:
                     rand_dir = running_dir + "rand/"
                     bootstrap_dir = running_dir + "bootstrap/"
-                    rand_out_dir = data_out_dir + "rand/"
-                    bootstrap_out_dir = data_out_dir + "bootstrap/"
                     pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
                     pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
-                    pathlib.Path(rand_out_dir).mkdir(parents=True, exist_ok=True)
-                    pathlib.Path(bootstrap_out_dir).mkdir(parents=True, exist_ok=True)
 
                 # location of pre-selected data file
                 source_file_dir = volatile_path(
@@ -159,14 +152,14 @@ def main(args: dict) -> None:
                     high_mass,
                 )
 
-                # if a completed fit is found in the output directory, ask if the user
+                # if a completed fit is found in the directory, ask if the user
                 # is sure they want to overwrite it
                 if not skip_input:
-                    if os.path.isfile(f"{data_out_dir}best.fit") or os.path.isfile(
-                        f"{data_out_dir}best_truth.fit"
+                    if os.path.isfile(f"{running_dir}best.fit") or os.path.isfile(
+                        f"{running_dir}best_truth.fit"
                     ):
                         print(
-                            f"best.fit already exists at {data_out_dir}, are"
+                            f"Completed fit(s) already exist in {running_dir}, are"
                             " you sure you want to submit this job and overwrite the"
                             " file? (yes/no/skip_input/exit)"
                         )
@@ -218,7 +211,6 @@ def main(args: dict) -> None:
                         f"-d {args['data_version']}",
                         f"-p {args['phasespace_version']}",
                         f"-s {source_file_dir}",
-                        f"-O {data_out_dir}",
                         f"-C {CODE_DIR}",
                         f"-R {args['reaction']}",
                         f"-b {args['bootstrap']}",
