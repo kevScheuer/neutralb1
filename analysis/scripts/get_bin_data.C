@@ -54,6 +54,7 @@ void get_bin_data(std::string parent_dir, std::string target_file, std::string c
     // since these directories have all the cuts applied already, we just need the data
     for (auto dir : dir_list)
     {
+        std::cout << "Processing " << (dir + target_file).c_str() << "\n";
         std::unique_ptr<TFile> f(TFile::Open((dir + target_file).c_str()));
         TTree *tree = f->Get<TTree>("kin");
         if (!tree)

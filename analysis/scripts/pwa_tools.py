@@ -72,7 +72,7 @@ class Plotter:
                     "covariance matrix is not full and accurate."
                 )
             )
-            print(self.df.loc["eMatrixStatus" != 3]["eMatrixStatus"])
+            print(self.df[self.df["eMatrixStatus"] != 3]["eMatrixStatus"])
 
         # public attributes
         self.coherent_sums = get_coherent_sums(self.df)

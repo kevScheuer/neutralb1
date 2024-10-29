@@ -188,13 +188,13 @@ ls -al
 
 # move all the randomized fits to the rand directory
 if [ $my_num_rand_fits -ne 0 ]; then
-mv -f "$my_reaction"_*.fit rand/
-mv -f bestFitPars_*.txt rand/
-mv -f "$my_reaction".ni rand/
-mv -f rand_fit_diagnostic.pdf rand/
-echo -e "\n\n==================================================\n
-Randomized fits have completed and been moved to the rand subdirectory\n\n"
-ls -al
+    mv -f "$my_reaction"_*.fit rand/
+    mv -f bestFitPars_*.txt rand/
+    mv -f "$my_reaction".ni rand/
+    mv -f rand_fit_diagnostic.pdf rand/
+    echo -e "\n\n==================================================\n
+    Randomized fits have completed and been moved to the rand subdirectory\n\n"
+    ls -al
 fi
 
 

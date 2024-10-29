@@ -230,6 +230,7 @@ def main(args: dict) -> None:
                     gpu_type,
                     n_gpus,
                     args["email"],
+                    args["email_type"],
                     args["time_limit"],
                 )
 
@@ -423,6 +424,7 @@ def create_data_files(
                         gpu_type="",
                         n_gpus=0,
                         email_address="",
+                        email_type=[],
                         time_limit="00:30:00",
                         n_cpus=8,
                     )
@@ -448,6 +450,7 @@ def submit_slurm_job(
     gpu_type: str,
     n_gpus: int,
     email_address: str,
+    email_type: List[str],
     time_limit: str,
     mem_per_cpu: str = "5000M",
     n_cpus: int = 32,
@@ -461,7 +464,8 @@ def submit_slurm_job(
         log_dir (str): where slurm log files are stored
         gpu_type (str): card type to be used
         n_gpus (int): how many gpu cards to use (supported by mpi)
-        email address (str): send email to address when job begins/fails/succeeds
+        email_address (str): send email to passed address
+        email_type (str): when to send email (BEGIN, END, FAIL)
         time_limit (str, optional): Max wall-time in Hour:Min:Sec. Defaults to "1:00:00"
         mem_per_cpu (str, optional): Default of 5GB appear to be min needed for fit
             jobs, though small jobs like phasespace generation can use less
@@ -485,9 +489,10 @@ def submit_slurm_job(
             "#SBATCH --constraint=el9 \n"
         )
         if email_address:
+            mail_type = ",".join(email_type)
             slurm_out.write(
                 f"#SBATCH --mail-user={email_address} \n"
-                "#SBATCH --mail-type=BEGIN,END,FAIL \n"
+                f"#SBATCH --mail-type={mail_type} \n"
             )
         # different requirements for GPU and CPU fits
         if n_gpus > 0:
@@ -652,6 +657,7 @@ def parse_args() -> dict:
         "--ds_ratio",
         type=str,
         default="",
+        nargs=1,
         choices=["free", "fixed", "split"],
         help=(
             "option to modify the ratio & phase between the D/S waves."
@@ -862,6 +868,17 @@ def parse_args() -> dict:
         type=str,
         default="",
         help=("when email address given, mails address when a job starts/stops/fails."),
+    )
+    parser.add_argument(
+        "--email_type",
+        type=str,
+        default=["BEGIN", "END", "FAIL"],
+        nargs="+",
+        choices=["BEGIN", "END", "FAIL"],
+        help=(
+            "If email flag is used, this argument handles the cases when an email is"
+            " sent. Default is 'BEGIN,END,FAIL'"
+        ),
     )
     parser.add_argument(
         "--time_limit",
