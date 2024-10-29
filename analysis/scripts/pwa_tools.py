@@ -247,9 +247,7 @@ class Plotter:
         Since the matrix plot is generally too small to see bin to bin features, this
         method plots every amplitude's intensity contribution in a grid format.
         Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
-        together on each subplot
-
-        TODO: reduce the marker size on these plots, and change them for each refl
+        together on each subplot        
 
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
@@ -318,8 +316,11 @@ class Plotter:
                         neg_refl,
                         neg_refl_err,
                         self._bin_width / 2,
-                        "o",
+                        marker="v",
+                        linestyle="",
+                        markersize=8,
                         color="blue",
+                        alpha=0.5,
                         label=r"$\epsilon=-1$",
                     )
                     if self.is_truth:
@@ -343,8 +344,11 @@ class Plotter:
                         pos_refl,
                         pos_refl_err,
                         self._bin_width / 2,
-                        "o",
+                        marker="^",
+                        linestyle="",
+                        markersize=8,
                         color="red",
+                        alpha=0.5,
                         label=r"$\epsilon=+1$",
                     )
                     if self.is_truth:
@@ -367,7 +371,9 @@ class Plotter:
             0.5,
             f"Events / {self._bin_width:.3f} GeV",
             ha="center",
+            va="center",
             rotation="vertical",
+            rotation_mode="anchor",
             fontsize=20,
         )
         fig.legend(handles=[pos_plot, neg_plot], loc="upper right")

@@ -460,7 +460,7 @@ def submit_slurm_job(
     Args:
         job_name (str): shown on the scicomp webpage
         script_command (str): bash script with its arguments
-        running_dir (str): /volatile/TMPDIR location
+        running_dir (str): /volatile/ location
         log_dir (str): where slurm log files are stored
         gpu_type (str): card type to be used
         n_gpus (int): how many gpu cards to use (supported by mpi)
