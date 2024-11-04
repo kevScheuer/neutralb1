@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from cycler import cycler
 
 
 class Plotter:
@@ -33,7 +34,7 @@ class Plotter:
             value. This will need to be calculated "manually" using the re/im parts.
             This can be handled in reset_truth_phases by checking if the phase is flat
         Args:
-            df (pd.DataFrame): FitResults from AmpTools, made by fitsToCsv.C
+            df (pd.DataFrame): FitResults from AmpTools
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
             bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results,
                 labelled by bin. Primary use is for plotting the distribution of
@@ -41,7 +42,7 @@ class Plotter:
                 fit result in df.
             truth_df (pd.DataFrame, optional): only used when df is a from fit to
                 generated signal MC. Contains the "true" parameters that were used to
-                generate the MC sample. When non-empty, every plot will display a
+                generate the MC sample. When non-empty, many plots will display a
                 solid line for the truth information
         """
         self.df = df
@@ -67,22 +68,23 @@ class Plotter:
         if any(status != 3 for status in self.df["eMatrixStatus"]):
             warnings.warn(
                 (
-                    "WARNING: the following indices contain fit results whose"
-                    "covariance matrix is not full and accurate."
+                    "the following indices contain fit results whose"
+                    " covariance matrix is not full and accurate."
                 )
             )
-            print(self.df.loc["eMatrixStatus" != 3]["eMatrixStatus"])
+            print(self.df[self.df["eMatrixStatus"] != 3]["eMatrixStatus"])
 
         # public attributes
         self.coherent_sums = get_coherent_sums(self.df)
         self.phase_differences = get_phase_differences(self.df)
 
+        # private attributes
         self._mass_bins = self.data_df["mass_mean"]
         self._bin_width = (
             self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
         )[0]
 
-        # prepare our dataframes for plotting
+        # --DATA PREPARATION--
 
         # wrap phases from -pi to pi range
         wrap_phases(self.df)
@@ -186,7 +188,7 @@ class Plotter:
             label=data_label,
         )
 
-        # Plot Fit Result as histogram, and its error bars
+        # Plot Fit Result as a grey histogram with its error bars
         ax.bar(
             self._mass_bins,
             self.df["detected_events"],
@@ -246,8 +248,6 @@ class Plotter:
         method plots every amplitude's intensity contribution in a grid format.
         Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
         together on each subplot
-
-        TODO: reduce the marker size on these plots, and change them for each refl
 
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
@@ -316,8 +316,11 @@ class Plotter:
                         neg_refl,
                         neg_refl_err,
                         self._bin_width / 2,
-                        "o",
+                        marker="v",
+                        linestyle="",
+                        markersize=8,
                         color="blue",
+                        alpha=0.5,
                         label=r"$\epsilon=-1$",
                     )
                     if self.is_truth:
@@ -341,8 +344,11 @@ class Plotter:
                         pos_refl,
                         pos_refl_err,
                         self._bin_width / 2,
-                        "o",
+                        marker="^",
+                        linestyle="",
+                        markersize=8,
                         color="red",
+                        alpha=0.5,
                         label=r"$\epsilon=+1$",
                     )
                     if self.is_truth:
@@ -365,7 +371,9 @@ class Plotter:
             0.5,
             f"Events / {self._bin_width:.3f} GeV",
             ha="center",
+            va="center",
             rotation="vertical",
+            rotation_mode="anchor",
             fontsize=20,
         )
         fig.legend(handles=[pos_plot, neg_plot], loc="upper right")
@@ -1080,7 +1088,8 @@ class Plotter:
         for a single mass bin. The matrix is then plotted as a heatmap, with its values.
 
         Args:
-            columns (List[str]): bootstrap df columns to calculate the correlation matrix for
+            columns (List[str]): bootstrap df columns to calculate the correlation
+                matrix for
             mass_bin (int | str): mass bin, either as integer (bin #) or string
                 ("bin_low-bin_high")
             method (str, optional): Method of correlation. Defaults to "pearson", but
@@ -1143,6 +1152,83 @@ class Plotter:
 
         plt.show()
 
+        pass
+
+    def pull_distribution(
+        self,
+        columns: str | List[str],
+        y_limits: List[int] = None,
+        scale: bool = False,
+        scale_factor: int = 500,
+        **legend_kwargs,
+    ) -> None:
+        """Plot the pull distribution of a single column
+
+        A pull distribution is the difference between the nominal fit value and the true
+        value, divided by the error on the nominal fit value. This is then plotted as a
+        function of mass. The truth information is required for this plot. The pull
+        distribution is a good way to check if the nominal fit is systematically biased
+        in one direction.
+
+        Args:
+            columns (str | List[str]): column(s) to plot the pull distribution for
+            y_limits (List[int], optional): y-axis limits. Defaults to None, and is
+                automatically set to the max pull value.
+            scale (bool, optional): scale the marker size by the nominal fit values of
+                the column. Works well for intensities to show relative sizes. Defaults
+                to False.
+            scale_factor (int, optional): factor to scale the marker size by if scale is
+                True. Often needs tuning to get the right size. Defaults to 500.
+            **legend_kwargs: additional keyword arguments to pass to the legend.
+        Raises:
+            ValueError: Truth information is required for pull distribution
+        """
+        if not self.is_truth:
+            raise ValueError("Truth information is required for pull distribution")
+
+        if isinstance(columns, str):
+            columns = [columns]
+
+        # Create a color cycle using the Dark2 colormap
+        color_cycle = cycler(color=matplotlib.cm.Dark2.colors)
+        fig, ax = plt.subplots()
+        ax.set_prop_cycle(color_cycle)
+
+        if scale:
+            # get normalized max values in the columns to determine marker size
+            norm = max([self.df[col].max() for col in columns])
+
+        max_pull = 0
+        for column in columns:
+            # calculate pull and store the max value
+            pull = (self.df[column] - self.truth_df[column]) / self.df[f"{column}_err"]
+            max_pull = max(max_pull, pull.abs().max())
+
+            marker_sizes = scale_factor * (self.df[column] / norm) if scale else 1
+
+            ax.scatter(
+                self._mass_bins,
+                pull,
+                linestyle="",
+                s=marker_sizes,
+                label=convert_amp_name(column),
+            )
+
+        # solid line at 0 to indicate no pull, and better determine spread around it
+        ax.plot(
+            self._mass_bins,
+            np.zeros_like(self._mass_bins),
+            linestyle="-",
+            color="black",
+        )
+
+        ax.set_ylim(y_limits) if y_limits else ax.set_ylim(-max_pull, max_pull)
+        ax.set_ylabel(r"Pull $\frac{fit - truth}{\sigma_{fit}}$", loc="top")
+        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
+        ax.legend(**legend_kwargs)
+
+        plt.minorticks_on()
+        plt.show()
         pass
 
     def diagnose_bootstraps(
@@ -1419,8 +1505,8 @@ class Plotter:
             bins (List[int|str], optional): mass bins to plot on the y-axis. Can use bin
                 range strings, or bin # integers, or a mix of both. Defaults to None,
                 and uses all bins.
-            colors (List[tuple], optional): matplotlib colormap as a list. This means only
-                qualitative maps can be used. Defaults to None, and uses
+            colors (List[tuple], optional): matplotlib colormap as a list. This means
+                only qualitative maps can be used. Defaults to None, and uses
                 list(matplotlib.colormaps["Accent"].colors).
             is_sparse_labels (bool, optional): when True, only bins that start at values
                 divisible by 10 are labelled. Defaults to True.

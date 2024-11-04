@@ -18,10 +18,7 @@ def main(args: dict) -> None:
         "2018_08": 5,
     }
 
-    # ensure that phasespace files only use generated photons
-    phasespace_option = args["mc_option"]
-    if "noaccidental" not in phasespace_option:
-        phasespace_option += "_noaccidental"
+    acc_flag = "_noaccidental" if args["remove_accidentals"] else ""
 
     # execute DSelector for each run period
     for run_period in args["run_periods"]:
@@ -42,7 +39,7 @@ def main(args: dict) -> None:
                 "runSelector.C("
                 f'"{run_number:02d}",'
                 f' "{SIGNAL_PATH}/{signal_name}",'
-                f' "{args["mc_option"]}"'
+                f' "{args["mc_option"]}{acc_flag}"'
                 ")"
             ),
         ]
@@ -56,7 +53,7 @@ def main(args: dict) -> None:
                 "runSelector.C("
                 f'"{run_number:02d}",'
                 f' "{PHASESPACE_PATH}/{phasespace_name}",'
-                f' "{phasespace_option}"'
+                f' "{args["mc_option"]}_noaccidental"'  # phsp always uses gen'd photons
                 ")"
             ),
         ]
@@ -66,15 +63,17 @@ def main(args: dict) -> None:
             "AmpToolsInputTree.root",
             (
                 "AmpToolsInputTree_sum_PARA_0_"
-                f"{run_period}{SIGNAL_VERSION}_mc{args['mc_option']}.root"
+                f"{run_period}{SIGNAL_VERSION}_mc{args['mc_option']}{acc_flag}.root"
             ),
         ]
+        # if using an option, an extra underscore is needed
+        phsp_option = f"_{args['mc_option']}" if args["mc_option"] else ""
         mv_phasespace_command = [
             "mv",
             "AmpToolsInputTree.root",
             (
                 "anglesOmegaPiPhaseSpaceAcc_"
-                f"{run_period}{PHASESPACE_VERSION}_{phasespace_option}.root"
+                f"{run_period}{PHASESPACE_VERSION}{phsp_option}.root"
             ),
         ]
 
@@ -107,14 +106,12 @@ def main(args: dict) -> None:
         gen_phasespace_command.append(
             phasespace_command[-1]
             .replace(phasespace_name, phasespace_name.replace(TREE_NAME, "tree_thrown"))
-            .replace(phasespace_option, "thrown")
+            .replace(args["mc_option"], "thrown")
         )
 
         gen_mv_phasespace_command = mv_phasespace_command[:-1]
         gen_mv_phasespace_command.append(
-            mv_phasespace_command[-1]
-            .replace("Acc", "Gen")
-            .replace(phasespace_option, "")
+            mv_phasespace_command[-1].replace("Acc", "Gen").replace(phsp_option, "")
         )
 
         # run the generated trees for signal and phasespace MC
@@ -139,29 +136,32 @@ def parse_args() -> dict:
             "",
             "accept",
             "matched",
-            "noaccidental",
-            "accept_noaccidental",
-            "matched_noaccidental",
         ],
         help=(
             "Options for the DSelector to use when processing Monte Carlo trees."
-            " Default: '', which means treat just like data."
-            " accept: use thrown P4s in generated order (no mis-ID, resolution or"
-            " combinatorics)."
-            " matched: use reconstructed P4s for matches to thrown particles"
-            " (no mis-ID or combinatorics, but resolution affects apply)."
-            " noaccidental: use only the beam photons which generated the event."
+            " '' (default): apply all effects and treat like real data"
+            " accept: apply detector acceptance effects but use thrown P4s."
+            " matched: match the reconstructed P4s to the thrown P4s to remove"
+            " bad combinatorics effects, but still use reconstructed P4 values"
+        ),
+    )
+    parser.add_argument(
+        "--remove_accidentals",
+        action="store_true",
+        help=(
+            "Option to add 'noaccidental' flag to the mc_option, which removes"
+            " sideband subtraction of accidental beam photons"
         ),
     )
     parser.add_argument(
         "--make_gen_trees",
         action="store_true",
-        help="Option to turn on/off generated trees creation.",
+        help=("Option to turn on/off generated trees creation."),
     )
     parser.add_argument(
         "--make_phasespace_trees",
         action="store_true",
-        help="Option to turn on/off phasespace trees creation.",
+        help=("Option to turn on/off phasespace trees creation."),
     )
     parser.add_argument(
         "-r",

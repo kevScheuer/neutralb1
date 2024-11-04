@@ -24,7 +24,8 @@ void DSelector_omegapi_all::Init(TTree *locTree)
 		return; // have already created histograms, etc. below: exit
 
 	// avoids a crash when analyzing thrown trees
-	if (dOption.Contains("thrown") && dTreeInterface->Get_Branch("NumCombos") == NULL) {
+	if (dOption.Contains("thrown") && dTreeInterface->Get_Branch("NumCombos") == NULL)
+	{
 		dSkipNoTriggerEvents = false;
 	}
 
@@ -61,6 +62,7 @@ void DSelector_omegapi_all::Init(TTree *locTree)
 
 	dHist_4piMassSum = new TH1F("4piMassSum", ";Invariant Mass (GeV)", 200, 1.0, 2.0);
 	dHist_3piMassSum = new TH1F("3piMassSum", ";Invariant Mass (GeV)", 200, 0.5, 1.5);
+	dHist_3piMassSumMatched = new TH1F("3piMassSumMatched", ";Invariant Mass (GeV)", 200, 0.5, 1.5);
 	dHist_2gammaMassSum = new TH1F("2gammaMassSum", ";Invariant Mass (GeV)", 500, 0.07, 0.20);
 	dHist_KinFitChiSq = new TH1F("KinFitChiSq", ";#chi^{2}/NDF", 100, 0, 25);
 
@@ -128,14 +130,20 @@ Bool_t DSelector_omegapi_all::Process(Long64_t locEntry)
 	TLorentzVector loc4piThrownP4;
 	TLorentzVector locProtonPiThrownP4;
 	double loctThrown = 0;
+	int locPi0OmegaIndex = -1;
 	if (Get_NumThrown() > 0)
 	{
 		for (UInt_t i = 0; i < Get_NumThrown(); i++)
 		{
 			dThrownWrapper->Set_ArrayIndex(i);
 			Int_t locThrownPID = dThrownWrapper->Get_PID();
+			// get Pi0s first to set proper order for AmpTools
 			if (locThrownPID == 7)
-				locPi0ThrownP4.push_back(dThrownWrapper->Get_P4()); // get Pi0s first to set proper order for AmpTools
+			{
+				locPi0ThrownP4.push_back(dThrownWrapper->Get_P4());
+				if (locPi0OmegaIndex < 0)
+					locPi0OmegaIndex = i;
+			}
 		}
 
 		for (UInt_t i = 0; i < Get_NumThrown(); i++)
@@ -235,6 +243,60 @@ Bool_t DSelector_omegapi_all::Process(Long64_t locEntry)
 		// Step 2
 		Int_t locPhoton3NeutralID = dPhoton3Wrapper->Get_NeutralID();
 		Int_t locPhoton4NeutralID = dPhoton4Wrapper->Get_NeutralID();
+
+		// check matched tracks and showers
+		Bool_t locMatchedDecayingPi01 = false;
+		Bool_t locMatchedDecayingPi02 = false;
+
+		if (dOption.Contains("matched"))
+		{
+			if (dPhoton1Wrapper->Get_ThrownIndex() < 0 || dPhoton2Wrapper->Get_ThrownIndex() < 0 || dPhoton3Wrapper->Get_ThrownIndex() < 0 || dPhoton4Wrapper->Get_ThrownIndex() < 0)
+			{
+				continue;
+			}
+
+			dThrownWrapper->Set_ArrayIndex(dPhoton1Wrapper->Get_ThrownIndex());
+			Bool_t locMatchPhoton1 = dThrownWrapper->Get_MatchID() == locPhoton1NeutralID;
+			Int_t locParentPhoton1 = dThrownWrapper->Get_ParentIndex();
+
+			dThrownWrapper->Set_ArrayIndex(dPhoton2Wrapper->Get_ThrownIndex());
+			Bool_t locMatchPhoton2 = dThrownWrapper->Get_MatchID() == locPhoton2NeutralID;
+			Int_t locParentPhoton2 = dThrownWrapper->Get_ParentIndex();
+
+			dThrownWrapper->Set_ArrayIndex(dPhoton3Wrapper->Get_ThrownIndex());
+			Bool_t locMatchPhoton3 = dThrownWrapper->Get_MatchID() == locPhoton3NeutralID;
+			Int_t locParentPhoton3 = dThrownWrapper->Get_ParentIndex();
+
+			dThrownWrapper->Set_ArrayIndex(dPhoton4Wrapper->Get_ThrownIndex());
+			Bool_t locMatchPhoton4 = dThrownWrapper->Get_MatchID() == locPhoton4NeutralID;
+			Int_t locParentPhoton4 = dThrownWrapper->Get_ParentIndex();
+
+			// skip combos that are not matched to 4 thrown photons
+			if (!locMatchPhoton1 || !locMatchPhoton2 || !locMatchPhoton3 || !locMatchPhoton4)
+				continue;
+
+			// find which pi0 is from omega decay
+			if (locParentPhoton1 == locPi0OmegaIndex && locParentPhoton2 == locPi0OmegaIndex)
+				locMatchedDecayingPi01 = true;
+			else if (locParentPhoton3 == locPi0OmegaIndex && locParentPhoton4 == locPi0OmegaIndex)
+				locMatchedDecayingPi02 = true;
+			else
+				continue; // skip cases where neither pi0 is matched
+
+			/*
+						// option to require charged particle match
+						if(dProtonWrapper->Get_ThrownIndex()<0 || dPiPlusWrapper->Get_ThrownIndex()<0 || dPiMinusWrapper->Get_ThrownIndex()<0) continue;
+
+						dThrownWrapper->Set_ArrayIndex(dProtonWrapper->Get_ThrownIndex());
+						Bool_t locMatchProton = dThrownWrapper->Get_MatchID() == locProtonTrackID;
+						dThrownWrapper->Set_ArrayIndex(dPiPlusWrapper->Get_ThrownIndex());
+						Bool_t locMatchPiPlus = dThrownWrapper->Get_MatchID() == locPiPlusTrackID;
+						dThrownWrapper->Set_ArrayIndex(dPiMinusWrapper->Get_ThrownIndex());
+						Bool_t locMatchPiMinus = dThrownWrapper->Get_MatchID() == locPiMinusTrackID;
+
+						if(!locMatchProton || !locMatchPiPlus || !locMatchPiMinus) continue;
+			*/
+		}
 
 		/*********************************************** GET FOUR-MOMENTUM **********************************************/
 
@@ -340,6 +402,16 @@ Bool_t DSelector_omegapi_all::Process(Long64_t locEntry)
 				continue;
 
 			dHist_3piMassSum->Fill(loc3PiMass);
+
+			if (dOption.Contains("matched"))
+			{
+				// only use the matched pi0 for filling reconstructed histograms and trees
+				if (locMatchedDecayingPi01 && i == 1)
+					continue;
+				if (locMatchedDecayingPi02 && i == 0)
+					continue;
+				dHist_3piMassSumMatched->Fill(loc3PiMass);
+			}
 
 			// t cut
 			double loct = -1. * (locProtonP4 - dTargetP4).M2();

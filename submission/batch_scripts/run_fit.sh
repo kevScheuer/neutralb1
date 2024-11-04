@@ -1,7 +1,7 @@
 #!/bin/sh
 echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
-# cleanup local running directory
+# cleanup directory
 rm ./*.fit 
 rm ./bestFitPars.txt
 rm ./vecps_fitPars.txt
@@ -17,7 +17,7 @@ rm ./*.ni
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-O] [-s] [-C] [-R] [-b] [-t]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-s] [-C] [-R] [-b] [-t]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
@@ -25,8 +25,7 @@ usage() {
     echo " -d       version # of data trees"
     echo " -D       MC selector option for data trees"
     echo " -p       version # of phasespace trees"
-    echo " -P       MC selector option for phasespace trees"
-    echo " -O       Data output directory on \volatile"
+    echo " -P       MC selector option for phasespace trees"    
     echo " -s       directory where data Source files are stored"
     echo " -C       Code directory where scripts are stored"
     echo " -R       Reaction name of fit"        
@@ -35,7 +34,7 @@ usage() {
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:D:p:P:O:s:C:R:b:t:h:" opt; do
+while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -65,10 +64,6 @@ while getopts ":o:r:n:d:D:p:P:O:s:C:R:b:t:h:" opt; do
     P)
         echo -e "phasespace MC option: $OPTARG\n"
         my_phasespace_option=$OPTARG
-    ;;
-    O)
-        echo -e "data out dir: \t\t$OPTARG\n"
-        my_data_out_dir=$OPTARG
     ;;
     s)
         echo -e "source file dir: \t$OPTARG\n"
@@ -110,7 +105,7 @@ echo -e "check if GPU Card is active for GPU fits:\n"
 nvidia-smi
 pwd
 
-# LINK FILES TO THIS RUNNING DIRECTORY AND THE OUTPUT DIRECTORY
+### LINK ROOT FILES ###
 tree="AmpToolsInputTree_sum"
 amp_string="anglesOmegaPiAmplitude"
 ph_string="anglesOmegaPiPhaseSpace"
@@ -121,15 +116,11 @@ for ont in ${my_orientations}; do
 
     ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}${my_data_option}.root\
      ./${amp_string}_${ont_num}.root
-    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}${my_data_option}.root\
-     ${my_data_out_dir}/${amp_string}_${ont_num}.root
 done
 
 # link generated phasespace
 ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_version}.root\
  ./${ph_string}.root
-ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_version}.root\
- ${my_data_out_dir}/${ph_string}.root
 
 # link accepted phasespace
 if [[ $my_data_option == *"_mcthrown"* ]]; then
@@ -140,8 +131,6 @@ else
 fi
 ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
  ./${ph_string}Acc.root
-ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
- ${my_data_out_dir}/${ph_string}Acc.root
 
 
 ls -al 
@@ -199,13 +188,13 @@ ls -al
 
 # move all the randomized fits to the rand directory
 if [ $my_num_rand_fits -ne 0 ]; then
-mv -f "$my_reaction"_*.fit rand/
-mv -f bestFitPars_*.txt rand/
-mv -f "$my_reaction".ni rand/
-mv -f rand_fit_diagnostic.pdf rand/
-echo -e "\n\n==================================================\n
-Randomized fits have completed and been moved to the rand subdirectory\n\n"
-ls -al
+    mv -f "$my_reaction"_*.fit rand/
+    mv -f bestFitPars_*.txt rand/
+    mv -f "$my_reaction".ni rand/
+    mv -f rand_fit_diagnostic.pdf rand/
+    echo -e "\n\n==================================================\n
+    Randomized fits have completed and been moved to the rand subdirectory\n\n"
+    ls -al
 fi
 
 
@@ -239,32 +228,8 @@ if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
     ls -al
 fi
 
-# cleanup data out directory 
-rm "$my_data_out_dir"/*.fit
-rm "$my_data_out_dir"/*.txt
-
-# move fit results to output directory (force overwrite)
-if [ -z "$my_truth_file" ]; then
-    cp -f fit.cfg $my_data_out_dir
-    cp -f best.fit $my_data_out_dir    
-else
-    cp -f $my_truth_file $my_data_out_dir
+# rename truth file outputs
+if [ ! -z "$my_truth_file" ]; then
     mv -f best.fit best_truth.fit
-    cp -f best_truth.fit $my_data_out_dir
     mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
 fi
-
-if [ $my_num_rand_fits -ne 0 ]; then
-    cp -f rand/"$my_reaction"_*.fit "$my_data_out_dir"/rand/
-    cp -f rand/"$my_reaction".ni "$my_data_out_dir"/rand/
-    cp -f rand/rand_fit_diagnostic.pdf "$my_data_out_dir"/rand/
-fi
-
-if [[ $my_bootstrap_bool == "True" ]]; then
-    cp -f bootstrap/"$my_reaction"_*.fit "$my_data_out_dir"/bootstrap/
-    cp -f bootstrap/"$my_reaction".ni "$my_data_out_dir"/bootstrap/
-fi
-
-cp -f vecps_* $my_data_out_dir
-cp -f *.pdf $my_data_out_dir
-cp -f bestFitPars.txt $my_data_out_dir

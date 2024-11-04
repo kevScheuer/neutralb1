@@ -33,7 +33,7 @@ class DSelector_omegapi_all : public DSelector
 		bool dIsMC;
 
 		TH1F *dHist_KinFitChiSq;
-                TH1F *dHist_4piMassSum, *dHist_3piMassSum, *dHist_2gammaMassSum;
+                TH1F *dHist_4piMassSum, *dHist_3piMassSum, *dHist_3piMassSumMatched, *dHist_2gammaMassSum;
                 TH2F *dHist_3piMassCorrWeight, *dHist_3piMassCorr[10], *dHist_3piMassCorr2DWeight[10];
 
 		TH2F *dHist_cosTheta_4piMass, *dHist_phi_4piMass;
