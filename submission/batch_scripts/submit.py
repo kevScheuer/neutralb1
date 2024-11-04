@@ -2,9 +2,6 @@
 
 See README for process architecture, or run with "--help" to understand variable usage
 
-TODO: change bootstrap option to default to 0, and accept an integer value for the
-    number of bootstrap fits to perform.
-
 Optional improvements to make script more generalized:
     - Ability to choose polar coordinates. Means init_imag -> init_phase
     - Ability or some handling of matching the GPU architecture
@@ -19,6 +16,7 @@ TODO: Possible bug in mass/t bin creation, where the last bin gets skipped. Prob
 """
 
 import argparse
+import math
 import os
 import pathlib
 import pwd
@@ -552,7 +550,7 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
                 )
             )
         min, max, width = args
-        n_bins = int((max - min) / width)
+        n_bins = math.ceil((max - min) / width)
         if n_bins == 0:
             n_bins = 1
         for i in range(n_bins):
