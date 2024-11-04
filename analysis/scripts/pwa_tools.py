@@ -68,8 +68,8 @@ class Plotter:
         if any(status != 3 for status in self.df["eMatrixStatus"]):
             warnings.warn(
                 (
-                    "WARNING: the following indices contain fit results whose"
-                    "covariance matrix is not full and accurate."
+                    "the following indices contain fit results whose"
+                    " covariance matrix is not full and accurate."
                 )
             )
             print(self.df[self.df["eMatrixStatus"] != 3]["eMatrixStatus"])
@@ -247,7 +247,7 @@ class Plotter:
         Since the matrix plot is generally too small to see bin to bin features, this
         method plots every amplitude's intensity contribution in a grid format.
         Columns = m-projections, rows = JPL combinations. Reflectivities are plotted
-        together on each subplot        
+        together on each subplot
 
         Args:
             is_fit_fraction (bool, optional): Scales all values by dividing them by the
