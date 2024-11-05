@@ -656,7 +656,6 @@ def parse_args() -> dict:
         "--ds_ratio",
         type=str,
         default="",
-        nargs=1,
         choices=["free", "fixed", "split"],
         help=(
             "option to modify the ratio & phase between the D/S waves."
