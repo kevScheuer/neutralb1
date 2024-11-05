@@ -77,6 +77,10 @@ def main(args: dict) -> None:
     low_t_edges, high_t_edges = make_bins(args["t_momenta"])
     low_mass_edges, high_mass_edges = make_bins(args["masses"])
 
+    # round the mass bins to 3 decimal places (single MeV precision)
+    low_mass_edges = [round(m, 3) for m in low_mass_edges]
+    high_mass_edges = [round(m, 3) for m in high_mass_edges]
+
     # create ROOT data files with cuts if not yet done
     create_data_files(
         low_t_edges,
