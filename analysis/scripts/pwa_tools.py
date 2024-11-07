@@ -295,12 +295,19 @@ class Plotter:
             for col, m in enumerate(m_ints):
                 JPmL = f"{jpl[0:2]}{int_to_char[m]}{jpl[-1]}"
 
+                # force sci notation so large ticklabels don't overlap with neighboring
+                # plots if not plotting fit fraction
+                if not is_fit_fraction:
+                    axs[row, col].ticklabel_format(
+                        axis="y", style="sci", scilimits=(0, 0)
+                    )
+
                 # set the title and ylabel for the first row and column
                 if row == 0:
-                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}")
+                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}", fontsize=18)
                 if col == 0:
                     axs[row, col].set_ylabel(
-                        rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$",
+                        rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$", fontsize=18
                     )
 
                 # plot the negative reflectivity contribution
@@ -321,7 +328,7 @@ class Plotter:
                         markersize=8,
                         color="blue",
                         alpha=0.5,
-                        label=r"$\epsilon=-1$",
+                        label=r"$\varepsilon=-1$",
                     )
                     if self.is_truth:
                         axs[row, col].plot(
@@ -349,7 +356,7 @@ class Plotter:
                         markersize=8,
                         color="red",
                         alpha=0.5,
-                        label=r"$\epsilon=+1$",
+                        label=r"$\varepsilon=+1$",
                     )
                     if self.is_truth:
                         axs[row, col].plot(
@@ -620,7 +627,7 @@ class Plotter:
                         "s",
                         color="blue",
                         markersize=2,
-                        label=r"$\epsilon=-1$",
+                        label=r"$\varepsilon=-1$",
                     )
                     pos_plot = axs[i, j].errorbar(
                         self._mass_bins,
@@ -630,7 +637,7 @@ class Plotter:
                         "o",
                         color="red",
                         markersize=2,
-                        label=r"$\epsilon=+1$",
+                        label=r"$\varepsilon=+1$",
                     )
                     if self.is_truth:
                         axs[i, j].plot(
