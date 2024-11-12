@@ -1162,7 +1162,7 @@ class Plotter:
         scale_factor: int = 500,
         **legend_kwargs,
     ) -> None:
-        """Plot the pull distribution of a single column
+        """Plot the pull distribution of column(s)
 
         A pull distribution is the difference between the nominal fit value and the true
         value, divided by the error on the nominal fit value. This is then plotted as a
@@ -1190,7 +1190,7 @@ class Plotter:
             columns = [columns]
 
         # Create a color cycle using the Dark2 colormap
-        color_cycle = cycler(color=matplotlib.cm.Dark2.colors)
+        color_cycle = cycler(color=matplotlib.cm.Accent.colors)
         fig, ax = plt.subplots()
         ax.set_prop_cycle(color_cycle)
 
@@ -1214,13 +1214,8 @@ class Plotter:
                 label=convert_amp_name(column),
             )
 
-        # solid line at 0 to indicate no pull, and better determine spread around it
-        ax.plot(
-            self._mass_bins,
-            np.zeros_like(self._mass_bins),
-            linestyle="-",
-            color="black",
-        )
+        # central line at 0
+        ax.axhline(y=0, linestyle="-", color="black")
 
         ax.set_ylim(y_limits) if y_limits else ax.set_ylim(-max_pull, max_pull)
         ax.set_ylabel(r"Pull $\frac{fit - truth}{\sigma_{fit}}$", loc="top")
