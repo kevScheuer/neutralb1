@@ -1,8 +1,10 @@
-""" Collect all bootstrap fits in a t-bin into a csv, labelled by their mass bin
+"""Collect all bootstrap fits in a t-bin into a csv, labelled by their mass bin
 
+!!!! DEPRECATED. CHANGE FOR NEW FIT CONVERTER !!!!
+TODO: this is extremely slow, new fit converter may have much better method
 This script will iterate over all the mass subdirectories of a t-bin, and collect their
-bootstrap fits. Every row of the resulting csv is labelled with the mass range it was 
-done in, and the bin index it corresponds to. The mass ranges are also sorted so the 
+bootstrap fits. Every row of the resulting csv is labelled with the mass range it was
+done in, and the bin index it corresponds to. The mass ranges are also sorted so the
 csv is easier to read directly
 """
 

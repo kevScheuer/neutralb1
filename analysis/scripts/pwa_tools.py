@@ -79,10 +79,8 @@ class Plotter:
         self.phase_differences = get_phase_differences(self.df)
 
         # private attributes
-        self._mass_bins = self.data_df["mass_mean"]
-        self._bin_width = (
-            self.data_df["mass_high_edge"] - self.data_df["mass_low_edge"]
-        )[0]
+        self._mass_bins = self.data_df["m_center"]
+        self._bin_width = (self.data_df["m_high"] - self.data_df["m_low"])[0]
 
         # --DATA PREPARATION--
 
@@ -181,8 +179,8 @@ class Plotter:
         # plot data
         ax.errorbar(
             self._mass_bins,
-            self.data_df["bin_contents"],
-            self.data_df["bin_error"],
+            self.data_df["events"],
+            self.data_df["events_error"],
             self._bin_width / 2,
             fmt="k.",
             label=data_label,
