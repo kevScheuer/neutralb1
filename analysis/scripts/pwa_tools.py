@@ -1723,10 +1723,8 @@ class Plotter:
         pass
 
 
-def wrap_phases(
-    df: pd.DataFrame = pd.DataFrame([]), series: pd.Series = pd.Series([], dtype=float)
-) -> None:
-    """Wrap phase differences to be from -pi to pi & convert from radians to degrees
+def wrap_phases(df: pd.DataFrame = None, series: pd.Series = None) -> None:
+    """Wrap phase differences to be from (-pi, pi] & convert from radians to degrees
 
     Two options of passing either a pandas dataframe, or series. The dataframe case
     handles avoiding editing any non phase difference columns. The series case is much
@@ -1742,21 +1740,21 @@ def wrap_phases(
         None: Edits the df or series itself
     """
 
-    # wraps phase (in radians) to -pi < x < pi and convert to degrees
+    if df is None and series is None:
+        raise ValueError(
+            "Both parameters are None. Provide either a dataframe or a series."
+        )
+
+    if df is not None and series is not None:
+        raise ValueError("Only dataframe or series should be passed, NOT both.")
+
+    # wraps phase (in radians) to -pi < x <= pi and convert to degrees
     def wrap(phase):
-        if phase > np.pi or phase < -np.pi:
-            phase = (phase + np.pi) % (2 * np.pi) - np.pi
-        return np.rad2deg(phase)
+        return np.rad2deg(np.angle(np.exp(1j * phase)))
 
-    if not series.empty:
-        if not df.empty:
-            raise ValueError(
-                "Only dataframe or series should be passed, NOT both. Exiting"
-            )
-        series = series.apply(wrap)
-
-    if df.empty:
-        raise ValueError("Parameters are both empty. Exiting")
+    if series is not None:
+        series.apply(wrap, inplace=True)
+        return
 
     phase_diffs = get_phase_differences(df)
     for col in set(phase_diffs.values()):
@@ -1770,7 +1768,7 @@ def parse_amplitude(amp: str) -> Dict[str, str]:
     """parse 'eJPmL' style amplitude string into its individual quantum numbers
 
     Args:
-        amp (str): string like eJPmL, JPmL, JPm, JPL, eJPm, eJPL, eJP, JP
+        amp (str): string like eJPmL, JPmL, JPL, eJPL, eJP, JP
 
     Returns:
         dict: keys = quantum numbers (e, J, P, m, l). values = found values from string,
@@ -1800,17 +1798,17 @@ def parse_amplitude(amp: str) -> Dict[str, str]:
     return result_dict
 
 
-def get_coherent_sums(df: pd.DataFrame) -> dict:
+def get_coherent_sums(df: pd.DataFrame) -> Dict[str, set]:
     """Returns a dict of coherent sums from a fit results dataframe
 
     Args:
         df (pd.DataFrame): dataframe of fit results loaded from csv
     Returns:
-        dict: Is of the form
-        {Coherent sum : set(amplitudes)} e.g. {"eJPmL", ["p1p0S", "m1mpP",...]}
+        dict: Is of the form {Coherent sum string: set(amplitudes)}
+        e.g. {"eJPmL": ["p1p0S", "m1mpP", ...]}
     """
     # create an empty list for every type of coherent sum
-    sum_types = ["eJPmL", "JPmL", "JPm", "JPL", "eJPm", "eJPL", "eJP", "JP"]
+    sum_types = ["eJPmL", "JPmL", "eJPL", "JPL", "eJP", "JP", "e"]
     coherent_sums = {d: set() for d in sum_types}
 
     # grab all eJPml columns
@@ -1823,7 +1821,7 @@ def get_coherent_sums(df: pd.DataFrame) -> dict:
         # only add to key if all elements of key are in the column
         for key in coherent_sums.keys():
             split_key = list(key.lower())
-            if True in [res[char] == "" for char in split_key]:
+            if any(res[char] == "" for char in split_key):
                 continue
             coh_sum = "".join([res[char] for char in split_key])
             coherent_sums[key].add(coh_sum)
@@ -1832,15 +1830,15 @@ def get_coherent_sums(df: pd.DataFrame) -> dict:
 
 
 def convert_amp_name(input_string: str) -> str:
-    """Converts amplitude type string to J^P L_m^(e) LaTeX style string
+    """Converts amplitude string to J^P L_m^(e) LaTeX style string
 
     Function can handle both amplitudes and phase differences. If input_string is not
     of eJPmL format, or subset of it i.e. eJPL, then the output will be undefined.
 
     Args:
-        input_string (str): amplitude string in eJPmL format
+        input_string (str): string in eJPmL format
     Returns:
-        str: Prettier LaTeX style amplitude in J^P L_m^(e) format. If it's a phase
+        str: Prettier LaTeX style string in J^P L_m^(e) format. If it's a phase
             difference it's then J^P L_m^(e) - J^P L_m^(e)
     """
 
