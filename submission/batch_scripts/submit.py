@@ -3,11 +3,11 @@
 See README for process architecture, or run with "--help" to understand variable usage
 
 Optional improvements to make script more generalized:
-        Ability to choose polar coordinates. Means init_imag -> init_phase
-        Ability or some handling of matching the GPU architecture
+    - Ability to choose polar coordinates. Means init_imag -> init_phase
+    - Ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
-    Arg for the reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
-    Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
+    - Arg for the reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
+    - Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
 
 SLURM INFO (https://scicomp.jlab.org/scicomp/slurmJob/slurmInfo)
 
@@ -16,6 +16,7 @@ TODO: Possible bug in mass/t bin creation, where the last bin gets skipped. Prob
 """
 
 import argparse
+import math
 import os
 import pathlib
 import pwd
@@ -75,6 +76,10 @@ def main(args: dict) -> None:
     # get t and mass bins to fit over
     low_t_edges, high_t_edges = make_bins(args["t_momenta"])
     low_mass_edges, high_mass_edges = make_bins(args["masses"])
+
+    # round the mass bins to 3 decimal places (single MeV precision)
+    low_mass_edges = [round(m, 3) for m in low_mass_edges]
+    high_mass_edges = [round(m, 3) for m in high_mass_edges]
 
     # create ROOT data files with cuts if not yet done
     create_data_files(
@@ -549,7 +554,7 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
                 )
             )
         min, max, width = args
-        n_bins = int((max - min) / width)
+        n_bins = math.ceil((max - min) / width)
         if n_bins == 0:
             n_bins = 1
         for i in range(n_bins):
@@ -634,7 +639,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "--phase_reference",
-        type=str.lower,
+        type=str,
         metavar="JPmL",
         default="",
         help=(
@@ -644,11 +649,9 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "--phaselock",
-        type=bool,
-        metavar="bool",
-        default=False,
+        action="store_true",
         help=(
-            "If True uses 'phaselock' model, where phases are common across"
+            "Option to turn on the 'phaselock' model, where phases are common across"
             " m-projections for a particular eJPL combination"
         ),
     )
@@ -657,7 +660,6 @@ def parse_args() -> dict:
         "--ds_ratio",
         type=str,
         default="",
-        nargs=1,
         choices=["free", "fixed", "split"],
         help=(
             "option to modify the ratio & phase between the D/S waves."
