@@ -9,8 +9,6 @@ NOTE: This file (and other batch files) are tuned specifically to omegapi0
 TODO:
     - see if force_refl can only be implemented in get_waves_and_breit_wigners, and
         recognized in subsequent functions when the refl isn't in the waveset
-    - Adjust the constrained_phase to handle if one of the reflectivities for that
-        wave has been explicitly removed
 """
 
 from collections import defaultdict
@@ -49,14 +47,6 @@ class Wave:
 
 def main(args: dict):
     """Write AmpTools config file using the parsed args from submit.py"""
-
-    # check for conflicting arguments
-    jpml_set = {wave_string[1:] for wave_string in args["remove_waves"]}
-    if args["phase_reference"] in jpml_set:
-        raise ValueError(
-            f"User requested to remove the reference wave {args['phase_reference']}"
-            " from the waveset"
-        )
 
     # convert the user requested wave string into lists of waves/bw's that contain all
     # the necessary info for each wave/bw
@@ -100,14 +90,39 @@ def main(args: dict):
                 cfg_file, is_dalitz, args["orientations"], args["reaction"]
             )
 
-        # check that the reference wave is in the waveset if requested, otherwise
-        # set the reference to be the first wave in the waveset
+        # check that the reference waves are in the waveset if requested, otherwise
+        # set the reference to be the first wave in the waveset that has both
+        # reflectivities
+        phase_reference = []
         if args["phase_reference"]:
-            if not is_reference_wave_in_waveset(args["phase_reference"], waves):
-                raise ValueError(f"{args['phase_reference']} is not in waveset")
-            phase_reference = args["phase_reference"]
+            for wave in waves:
+                if wave.name.lower() in [
+                    ref.lower() for ref in args["phase_reference"]
+                ]:
+                    phase_reference.append(wave)
+            if len(phase_reference) != 2:
+                raise ValueError(
+                    f"The phase reference waves {args['phase_reference']} were not"
+                    " found in the requested waveset"
+                )
         else:
-            phase_reference = waves[0].name[1:]
+            for wave1, wave2 in product(waves, waves):
+                if (
+                    wave1.reflectivity == -1
+                    and wave2.reflectivity == 1
+                    and wave1.spin == wave2.spin
+                    and wave1.parity == wave2.parity
+                    and wave1.m == wave2.m
+                    and wave1.l == wave2.l
+                ):
+                    phase_reference.append(wave1)
+                    phase_reference.append(wave2)
+                    break
+        if not phase_reference:
+            raise ValueError(
+                "Phase reference wave was not specified, but could not be"
+                " automatically determined as no wave has both reflectivities"
+            )
 
         # phaselock function needs its own reference wave method
         if not args["phaselock"]:
@@ -115,7 +130,6 @@ def main(args: dict):
             write_phase_convention(
                 cfg_file,
                 phase_reference,
-                args["force_refl"],
                 args["orientations"],
                 args["reaction"],
             )
@@ -548,8 +562,7 @@ def write_isotropic_background(
 
 def write_phase_convention(
     cfg_file: TextIO,
-    wave: str,
-    force_refl: int,
+    waves: List[Wave],
     orientations: List[str],
     reaction: str,
 ) -> None:
@@ -563,28 +576,21 @@ def write_phase_convention(
 
     Args:
         cfg_file (TextIO): cfg file being written to
-        wave (str): wave written in jpml format that will be set to be purely real. Uses
-            jpml format since both reflectivities for that wave are set to be real
-        force_refl (int): if non-zero, only the chosen reflectivity will be written
+        waves (List[Wave]): the two Wave objects that will be set to be purely real.
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
-
-    # ensure last character of wave (L value) is capitalized
-    wave = wave[:-1] + wave[-1].upper()
-
     cfg_file.write("\n# fix phase\n")
 
-    short_refl_dict = {"ImagNegSign": -1, "ImagPosSign": 1}
     for ont in orientations:
-        for sum_label, refl_sign in short_refl_dict.items():
-            if force_refl and refl_sign != force_refl:
-                continue
-            refl_char = "m" if refl_sign == -1 else "p"
-            cfg_file.write(
-                f"initialize {reaction}_{POL_DICT[ont]['angle']}"
-                f"::{sum_label}::{refl_char}{wave} cartesian 100 0 real\n"
-            )
+        for sum_label, refl_sign in REFLECTIVITY_DICT.items():
+            for wave in waves:
+                if wave.reflectivity != refl_sign:
+                    continue
+                cfg_file.write(
+                    f"initialize {reaction}_{POL_DICT[ont]['angle']}"
+                    f"::{sum_label}::{wave.name} cartesian 100 0 real\n"
+                )
 
     return
 
@@ -851,28 +857,3 @@ def int_to_char(x: int, is_ang_momentum: bool = False) -> str:
         map = {0: "S", 1: "P", 2: "D", 3: "F", 4: "G"}
 
     return map[x]
-
-
-def is_reference_wave_in_waveset(reference_wave: str, waves: List[Wave]) -> bool:
-    """Check if reference wave is in waveset
-
-    Args:
-        reference_wave (str): user chosen wave that will be fixed to be real, in jpml
-            format
-        waves (List[Wave]): list of Wave dataclasses that contain all necessary info.
-            See 'get_waves_and_breit_wigners' for details
-
-    Returns:
-        bool: True if reference wave is in waveset, False otherwise
-    """
-
-    if reference_wave == "":
-        return False
-    elif len(reference_wave) != 4:
-        raise ValueError("Reference wave must be in jpml format")
-
-    for wave in waves:
-        jpml = wave.name[1:]
-        if jpml.lower() == reference_wave.lower():
-            return True
-    return False

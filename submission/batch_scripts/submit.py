@@ -10,9 +10,6 @@ Optional improvements to make script more generalized:
     - Ability to pass extra user options like 'omega3pi' (which is currently hardcoded)
 
 SLURM INFO (https://scicomp.jlab.org/scicomp/slurmJob/slurmInfo)
-
-TODO: Possible bug in mass/t bin creation, where the last bin gets skipped. Probably due
-    to some floating point precision error.
 """
 
 import argparse
@@ -29,8 +26,7 @@ import write_config
 # Constants
 USER = pwd.getpwuid(os.getuid())[0]
 VOLATILE_DIR = f"/volatile/halld/home/{USER}"
-# TODO: change this based off cwd and not user hardcoded
-CODE_DIR = f"/w/halld-scshelf2101/{USER}/neutralb1/submission/batch_scripts/"
+CODE_DIR = str(pathlib.Path(__file__).resolve().parent) + "/"
 
 
 def main(args: dict) -> None:
@@ -72,6 +68,15 @@ def main(args: dict) -> None:
         raise ValueError("Must specify at LEAST two arguments for t and mass bins")
     if not args["waveset"]:
         raise ValueError("Must specify a waveset to fit with")
+    if args["phase_reference"]:
+        if any(
+            phase_ref in args["remove_waves"] for phase_ref in args["phase_reference"]
+        ):
+            raise ValueError(
+                "Phase reference waves cannot be in the list of waves to remove"
+            )
+        if args["phase_reference"][0][0] == args["phase_reference"][1][0]:
+            raise ValueError("Phase references must be in opposite reflectivities")
 
     # get t and mass bins to fit over
     low_t_edges, high_t_edges = make_bins(args["t_momenta"])
@@ -638,13 +643,14 @@ def parse_args() -> dict:
         help="Waveset to fit with",
     )
     parser.add_argument(
-        "--phase_reference",
+        "--phase-reference",
         type=str,
-        metavar="JPmL",
+        nargs=2,
+        metavar="pJPmL, mJPmL",
         default="",
         help=(
-            "Flag the wave (in 'JPmL' format) whose phase will be constrained to 0."
-            " Empty (default) picks lowest JP, m, L combination"
+            "Flag the waves (in 'eJPmL' format) for each reflectivity whose phase will"
+            " be constrained to 0. Empty (default) picks first JP, m, L combination"
         ),
     )
     parser.add_argument(
@@ -657,7 +663,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "-ds",
-        "--ds_ratio",
+        "--ds-ratio",
         type=str,
         default="",
         choices=["free", "fixed", "split"],
@@ -679,35 +685,35 @@ def parse_args() -> dict:
         help="change decay frame used, empty default means helicity will be used",
     )
     parser.add_argument(
-        "--force_refl",
+        "--force-refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="only allow a single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init_refl",
+        "--init-refl",
         type=int,
         default=0,
         choices=[-1, 1],
         help="initialize single reflectivity by setting to +1 or -1",
     )
     parser.add_argument(
-        "--init_real",
+        "--init-real",
         type=float,
         default=100.0,
         metavar=("real_part"),
         help="value to initialize real cartesian part of amplitude to",
     )
     parser.add_argument(
-        "--init_imag",
+        "--init-imag",
         type=float,
         default=100.0,
         metavar=("imag_part"),
         help="value to initialize imaginary cartesian part of amplitude to",
     )
     parser.add_argument(
-        "--remove_waves",
+        "--remove-waves",
         nargs="+",
         default=[],
         help="waves given in 'eJPmL' format to remove from the waveset",
@@ -733,7 +739,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "-r",
-        "--run_periods",
+        "--run-periods",
         nargs="*",
         default=["allPeriods"],
         choices=["allPeriods", "2017_01", "2018_01", "2018_08"],
@@ -752,7 +758,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "-t",
-        "--t_momenta",
+        "--t-momenta",
         nargs="+",
         type=check_positive_float,
         default=[0.1, 0.5, 0.1],
@@ -780,13 +786,13 @@ def parse_args() -> dict:
         ),
     )
     parser.add_argument(
-        "--data_dir",
+        "--data-dir",
         type=str,
         default="/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/data",
         help="directory where data files are stored",
     )
     parser.add_argument(
-        "--data_version",
+        "--data-version",
         type=str,
         default="data",
         help=(
@@ -795,7 +801,7 @@ def parse_args() -> dict:
         ),
     )
     parser.add_argument(
-        "--data_option",
+        "--data-option",
         type=str,
         default="",
         help=(
@@ -812,13 +818,13 @@ def parse_args() -> dict:
         help="directory where phasespace files are stored",
     )
     parser.add_argument(
-        "--phasespace_version",
+        "--phasespace-version",
         type=str,
         default="ver03",
         help="phasespace version to use for fits",
     )
     parser.add_argument(
-        "--phasespace_option",
+        "--phasespace-option",
         type=str,
         default="",
         help=(
@@ -828,7 +834,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "-c",
-        "--cut_recoil_pi_mass",
+        "--cut-recoil-pi-mass",
         type=float,
         default=1.4,
         help=(
@@ -851,7 +857,7 @@ def parse_args() -> dict:
 
     # other arguments
     parser.add_argument(
-        "--template_name",
+        "--template-name",
         type=str,
         default="template.cfg",
         help="template with default values to copy and overwrite",
@@ -872,7 +878,7 @@ def parse_args() -> dict:
         help=("when email address given, mails address when a job starts/stops/fails."),
     )
     parser.add_argument(
-        "--email_type",
+        "--email-type",
         type=str,
         default=["BEGIN", "END", "FAIL"],
         nargs="+",
@@ -883,7 +889,7 @@ def parse_args() -> dict:
         ),
     )
     parser.add_argument(
-        "--time_limit",
+        "--time-limit",
         type=str,
         default="01:00:00",
         help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),
