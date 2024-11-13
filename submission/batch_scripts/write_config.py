@@ -269,7 +269,7 @@ def get_waves_and_breit_wigners(
         for wave in waveset_all
         if wave.name.lower()[1:3] in requested_jp_and_bw
         and wave.name.lower() not in [rm_wave.lower() for rm_wave in waves_to_remove]
-        and (single_refl and wave.reflectivity == single_refl)
+        and (single_refl == 0 or wave.reflectivity == single_refl)
     ]
 
     breit_wigner_dict = {
