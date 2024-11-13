@@ -6,9 +6,6 @@ user requested waveset and all its modifications to write the necessary AmpTools
 recognized lines to the cfg file
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
-TODO:
-    - see if force_refl can only be implemented in get_waves_and_breit_wigners, and
-        recognized in subsequent functions when the refl isn't in the waveset
 """
 
 from collections import defaultdict
@@ -51,7 +48,7 @@ def main(args: dict):
     # convert the user requested wave string into lists of waves/bw's that contain all
     # the necessary info for each wave/bw
     waves, breit_wigners = get_waves_and_breit_wigners(
-        args["waveset"], args["remove_waves"]
+        args["waveset"], args["remove_waves"], args["single_refl"]
     )
 
     # parse out special options aside from the waves and bw's
@@ -74,7 +71,6 @@ def main(args: dict):
         write_waves(
             cfg_file,
             waves,
-            args["force_refl"],
             args["init_refl"],
             args["init_real"],
             args["init_imag"],
@@ -140,7 +136,6 @@ def main(args: dict):
                 cfg_file,
                 waves,
                 breit_wigners,
-                args["force_refl"],
                 args["orientations"],
                 args["reaction"],
             )
@@ -152,7 +147,6 @@ def main(args: dict):
                 cfg_file,
                 waves,
                 args["ds_ratio"],
-                args["force_refl"],
                 args["phaselock"],
                 args["orientations"],
                 args["reaction"],
@@ -164,7 +158,7 @@ def main(args: dict):
                 cfg_file,
                 waves,
                 phase_reference,
-                args["force_refl"],
+                args["single_refl"],
                 args["init_refl"],
                 args["init_real"],
                 args["orientations"],
@@ -175,7 +169,7 @@ def main(args: dict):
 
 
 def get_waves_and_breit_wigners(
-    requested_jp_and_bw: List[str], waves_to_remove: List[str]
+    requested_jp_and_bw: List[str], waves_to_remove: List[str], single_refl: int
 ) -> tuple[List[Wave], List[dict]]:
     """Converts list of JP waves and breit wigners into code interpretable lists
 
@@ -190,6 +184,8 @@ def get_waves_and_breit_wigners(
             built in cfg file e.g. ["1p", "1m", "b1"]
         waves_to_remove (List[str]): user passed waves to remove from waveset in eJPmL
             format.
+        single_refl (int): when non-zero, only waves with the chosen reflectivity will
+            be written
     Returns:
         Two lists. The first is a list of Wave dataclasses that contain all necessary
         info for each wave requested. The second is a list of dicts that contain all
@@ -267,12 +263,13 @@ def get_waves_and_breit_wigners(
                 " wave"
             )
 
-    # Remove waves if requested, and add requested waves to final waveset
+    # Add requested waves, if not to be removed or do not match requested reflectivity
     waveset = [
         wave
         for wave in waveset_all
         if wave.name.lower()[1:3] in requested_jp_and_bw
         and wave.name.lower() not in [rm_wave.lower() for rm_wave in waves_to_remove]
+        and (single_refl and wave.reflectivity == single_refl)
     ]
 
     breit_wigner_dict = {
@@ -396,7 +393,6 @@ def write_data_lines(
 def write_waves(
     cfg_file: TextIO,
     waves: List[Wave],
-    force_refl: int,
     init_refl: int,
     init_real: float,
     init_imag: float,
@@ -422,7 +418,6 @@ def write_waves(
         cfg_file (TextIO): cfg file being written to
         waves (List[Wave]): list of Wave dataclasses that contain all necessary info
             See 'get_waves_and_breit_wigners' for details
-        force_refl (int): if non-zero, only the chosen reflectivity will be written
         init_refl (int): if non-zero, the real and imaginary parts of the amplitudes
             that don't match the chosen reflectivity will be initialized to 0
         init_real (float): initialization value for real part of amplitudes.
@@ -437,9 +432,6 @@ def write_waves(
 
     # write the amplitude lines for each wave in the waveset
     for wave in waves:
-        if force_refl and wave.reflectivity != force_refl:
-            continue
-
         cfg_file.write(f"\n#{'-'*4} {wave.name} {'-'*4}\n")
 
         # each reflectivity has 2 coherent sums, so loop over them
@@ -599,7 +591,6 @@ def write_breit_wigners(
     cfg_file: TextIO,
     waves: List[Wave],
     breit_wigners: List[dict],
-    force_refl: int,
     orientations: List[str],
     reaction: str,
 ) -> None:
@@ -611,7 +602,6 @@ def write_breit_wigners(
             See 'get_waves_and_breit_wigners' for details
         breit_wigners (List[dict]): list of bw dicts that contain all necessary info.
             See 'get_waves_and_breit_wigners' for details
-        force_refl (int): if non-zero, only the chosen reflectivity will be written
         orientations (List[str]): diamond orientation settings
         reaction (str): user-defined reaction name
     """
@@ -651,9 +641,7 @@ def write_breit_wigners(
             if bw["jp"] != wave.name[1:3]:
                 continue
             for sum_label, refl_sign in REFLECTIVITY_DICT.items():
-                if refl_sign != wave.reflectivity or (
-                    force_refl and refl_sign != force_refl
-                ):
+                if refl_sign != wave.reflectivity:
                     continue
                 for ont in orientations:
                     cfg_file.write(
@@ -670,7 +658,6 @@ def write_ds_ratio(
     cfg_file: TextIO,
     waves: List[Wave],
     ds_option: str,
-    force_refl: int,
     is_phaselock: bool,
     orientations: List[str],
     reaction: str,
@@ -687,7 +674,6 @@ def write_ds_ratio(
             See 'get_waves_and_breit_wigners' for details
         ds_option (str): user option to fix the ratio to E852 values, split it between,
             reflectivities, or let float between 0 and 1
-        force_refl (int): if non-zero, only the chosen reflectivity will be written
         is_phaselock (bool): user option to constrain phases between eJPl amplitudes.
             In this function it fixes the "dsphase" parameter to 0
         orientations (List[str]): diamond orientation settings
@@ -727,8 +713,6 @@ def write_ds_ratio(
                 cfg_file.write(f"parRange {phase} -3.14159 3.14159\n")
 
             for sum_label, refl_sign in REFLECTIVITY_DICT.items():
-                if force_refl and refl_sign != force_refl:
-                    continue
                 for wave in waves:
                     if wave.reflectivity != refl_sign or (
                         wave.spin != 1 or wave.parity != 1 or wave.l != 0
@@ -754,7 +738,7 @@ def write_phaselock(
     cfg_file: TextIO,
     waves: List[Wave],
     reference_wave: str,
-    force_refl: int,
+    single_refl: int,
     init_refl: int,
     init_real: float,
     orientations: List[str],
@@ -772,7 +756,7 @@ def write_phaselock(
             See 'get_waves_and_breit_wigners' for details
         reference_wave (str): All m projections with this jpl combination will be fixed
             to be real.
-        force_refl (int): if non-zero, only the chosen reflectivity will be written
+        single_refl (int): if non-zero, only the chosen reflectivity will be written
         init_refl (int): if non-zero, the real and imaginary parts of the amplitudes
             that don't match the chosen reflectivity will be initialized to 0
         init_real (float): initialization value for real part of amplitudes.
@@ -797,7 +781,7 @@ def write_phaselock(
 
         # write the parameter for each reflectivity once
         for refl_sign in set(REFLECTIVITY_DICT.values()):
-            if force_refl and refl_sign != force_refl:
+            if single_refl and refl_sign != single_refl:
                 continue
             phaselock_string = f"phase_{int_to_char(refl_sign)}{jpl}"
             if reference_wave[:2] + reference_wave[-1] == jpl:
@@ -810,8 +794,6 @@ def write_phaselock(
 
         # write the amplitude lines for each wave in the waveset
         for coh_sum_label, refl_sign in REFLECTIVITY_DICT.items():
-            if force_refl and refl_sign != force_refl:
-                continue
             phaselock_string = f"phase_{int_to_char(refl_sign)}{jpl}"
 
             for wave in wave_group:

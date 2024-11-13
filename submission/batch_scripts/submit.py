@@ -75,7 +75,10 @@ def main(args: dict) -> None:
             raise ValueError(
                 "Phase reference waves cannot be in the list of waves to remove"
             )
-        if args["phase_reference"][0][0] == args["phase_reference"][1][0]:
+        if (
+            args["phase_reference"][0][0] == args["phase_reference"][1][0]
+            and not args["single_refl"]
+        ):
             raise ValueError("Phase references must be in opposite reflectivities")
 
     # get t and mass bins to fit over
@@ -685,7 +688,7 @@ def parse_args() -> dict:
         help="change decay frame used, empty default means helicity will be used",
     )
     parser.add_argument(
-        "--force-refl",
+        "--single-refl",
         type=int,
         default=0,
         choices=[-1, 1],
