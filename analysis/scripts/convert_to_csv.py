@@ -8,8 +8,9 @@ Behind the scenes, this script calls a ROOT macro for either situation.
 
 import argparse
 import os
-import re
 import subprocess
+
+import utils
 
 
 def main(args: dict) -> None:
@@ -35,7 +36,9 @@ def main(args: dict) -> None:
         )
 
     # sort the input files based off the last number in the file name or path
-    input_files = sort_input_files(args["input"]) if args["sorted"] else args["input"]
+    input_files = (
+        utils.sort_input_files(args["input"]) if args["sorted"] else args["input"]
+    )
 
     if args["preview"]:
         print("Files that will be processed:")
@@ -142,16 +145,6 @@ def parse_args() -> dict:
         help=("When passed, print out the files that will be processed and exit."),
     )
     return vars(parser.parse_args())
-
-
-def sort_input_files(input_files: list) -> list:
-    """Sort the input files based off the last number in the file name or path"""
-
-    def extract_last_number(full_path: str) -> float:
-        numbers = re.findall(r"(?:\d*\.*\d+)", full_path)
-        return float(numbers[-1]) if numbers else float("inf")
-
-    return sorted(input_files, key=extract_last_number)
 
 
 if __name__ == "__main__":
