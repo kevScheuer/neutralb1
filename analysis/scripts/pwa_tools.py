@@ -254,25 +254,14 @@ class Plotter:
                 False
         """
 
-        char_to_int = {
-            "n": -2,
-            "m": -1,
-            "0": 0,
-            "p": +1,
-            "q": +2,
-            "S": 0,
-            "P": 1,
-            "D": 2,
-            "F": 3,
-        }
         int_to_char = {-1: "m", 0: "0", +1: "p"}
         pm_dict = {"m": "-", "p": "+"}
 
         # sort the JPL values by the order of S, P, D, F waves, and the m-projections
         jpl_values = sorted(
-            self.coherent_sums["JPL"], key=lambda JPL: char_to_int[JPL[-1]]
+            self.coherent_sums["JPL"], key=lambda JPL: char_to_int(JPL[-1])
         )
-        m_ints = sorted({char_to_int[JPm[-1]] for JPm in self.coherent_sums["JPm"]})
+        m_ints = sorted({char_to_int(JPm[-1]) for JPm in self.coherent_sums["JPm"]})
 
         fig, axs = plt.subplots(
             len(jpl_values),
@@ -302,7 +291,7 @@ class Plotter:
 
                 # set the title and ylabel for the first row and column
                 if row == 0:
-                    axs[row, col].set_title(f"m={char_to_int[JPmL[-2]]}", fontsize=18)
+                    axs[row, col].set_title(f"m={char_to_int(JPmL[-2])}", fontsize=18)
                 if col == 0:
                     axs[row, col].set_ylabel(
                         rf"${JPmL[0]}^{{{pm_dict[JPmL[1]]}}}{JPmL[-1]}$", fontsize=18
@@ -2017,3 +2006,26 @@ def breit_wigner(
     denominator = complex(np.square(bw_mass) - np.square(mass), -1.0 * bw_mass * width)
 
     return F * numerator / denominator
+
+
+def char_to_int(char: str) -> int:
+    """Convert m-projection or L angular momenta character to integer value
+
+    Args:
+        char (str): single character. lowercase assumes m-projection and uppercase
+            assumes it's an L value
+    Returns:
+        int: integer that char is representing
+    """
+    d = {
+        "n": -2,
+        "m": -1,
+        "0": 0,
+        "p": +1,
+        "q": +2,
+        "S": 0,
+        "P": 1,
+        "D": 2,
+        "F": 3,
+    }
+    return d[char]
