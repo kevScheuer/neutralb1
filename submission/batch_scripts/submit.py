@@ -780,7 +780,7 @@ def parse_args() -> dict:
         help="range of beam energy to fit to. Default is coherent peak region",
     )
     parser.add_argument(
-        "--truth_file",
+        "--truth-file",
         type=str,
         default="",
         help=(
