@@ -162,7 +162,7 @@ fi
 
 if ! [ -f "$my_reaction.fit" ]; then
     echo -e "\n\nError: $my_reaction.fit not found, assuming fit failed. Exiting."
-    exit
+    exit 1
 fi
 
 # run diagnostic plotters
