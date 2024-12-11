@@ -10,33 +10,49 @@ NOTE: This script assumes that the amplitudes are written in the vec-ps eJPmL fo
 For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be written
 in the cfg file as [reaction]::RealNegSign::p1p0S.
 
+If a custom scale parameter is used to multiply the complex values, the script assumes
+that this parameter contains the word "scale" in the name.
+
 TODO: handle free floating parameters like the D/S ratio
 """
 
 import argparse
 import itertools
 import os
-from dataclasses import dataclass
-from typing import List, Set, TextIO
+import timeit
+from typing import List, Set, TextIO  # type hinting
 
-import numba
+import numba  # speed up for loop calculations
 import numpy as np
 import pandas as pd
 import pwa_tools
+import spherical
 import utils
-from sympy.physics.quantum.cg import CG
+from sympy.physics.quantum.cg import CG  # clebsch-gordan coefficients
+
+spec = [
+    ("name", numba.types.unicode_type),
+    ("reflectivity", numba.int32),
+    ("spin", numba.int32),
+    ("parity", numba.int32),
+    ("l", numba.int32),
+    ("m", numba.int32),
+    ("real", numba.float64),
+    ("imaginary", numba.float64),
+]
 
 
-@dataclass(frozen=True)
+@numba.experimental.jitclass(spec)
 class Wave:
-    name: str
-    reflectivity: int
-    spin: int
-    parity: int
-    m: int
-    l: int
-    real: float
-    imaginary: float
+    def __init__(self, name, reflectivity, spin, parity, m, l, real, imaginary):
+        self.name = name
+        self.reflectivity = reflectivity
+        self.spin = spin
+        self.parity = parity
+        self.m = m
+        self.l = l
+        self.real = real
+        self.imaginary = imaginary
 
 
 def main(args: dict) -> None:
@@ -49,6 +65,8 @@ def main(args: dict) -> None:
         args["output"] += ".csv"
     else:
         args["output"] = "moments.csv"
+    if not all(input_file.endswith(".txt") for input_file in args["input"]):
+        raise ValueError("Input file(s) must be .txt files")
 
     input_files = (
         utils.sort_input_files(args["input"]) if args["sorted"] else args["input"]
@@ -64,6 +82,8 @@ def main(args: dict) -> None:
     df = pd.DataFrame(index=input_files)
 
     # Loop to calculate moments for each input file
+    start_time = timeit.default_timer()
+
     for file in input_files:
         waves = get_waves(file)  # obtain waves from the input file
 
@@ -72,13 +92,11 @@ def main(args: dict) -> None:
         # (-) Lambda values are directly proportional to (+) ones, no need to calculate
         Lambda_array = np.arange(0, 3)
 
-        min_J = min(wave.spin for wave in waves)
         max_J = max(wave.spin for wave in waves)
-        J_array = np.arange(min_J, max_J + 1)
+        J_array = np.arange(0, 2 * max_J + 1)
 
-        min_m = max(min(wave.m for wave in waves), 0)  # don't need min below 0
         max_m = max(wave.m for wave in waves)
-        M_array = np.arange(min_m, max_m + 1)  # like Lambda, -m ∝ +m moments
+        M_array = np.arange(0, max_m + 1)  # like Lambda, -m ∝ +m moments
 
         # calculate each moment and add it to the dataframe
         for alpha in range(3):
@@ -86,9 +104,15 @@ def main(args: dict) -> None:
                 Jv_array, Lambda_array, J_array, M_array
             ):
                 moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
-                moment_val = calculate_moment(alpha, Jv, Lambda, J, M, waves)
+                moment_val = calculate_moment(alpha, Jv, Lambda, J, M, list(waves))
+                # TODO: below line causes bad performance. Need to not insert, but update
+                # df row all at once, or something along those lines
                 df.at[file, moment_str] = moment_val
 
+    elapsed_time = timeit.default_timer() - start_time
+    print(f"Time taken for processing: {elapsed_time:.2f} seconds")
+
+    df.to_csv(args["output"])  # save the dataframe to a csv file
     pass
 
 
@@ -101,14 +125,24 @@ def get_waves(file: TextIO) -> Set[Wave]:
     Returns:
         Set[Wave]: all the waves and their information found in the file
     """
+
+    scale = 1.0
+    # scan the file for an optional scale parameter that multiplies the complex values
+    with open(file, "r") as f:
+        for line in f:
+            if "parameter" in line and "scale" in line:
+                scale = float(line.split()[-1])
+                break
+
     waves = set()
     with open(file, "r") as f:
         for line in f:
             if (
-                line.startswith("#")
-                or not line.strip()
-                or "isotropic" in line
+                line.startswith("#")  # skip comments
+                or not line.strip()  # skip empty lines
+                or "isotropic" in line  # skip background wave
                 or "Bkgd" in line
+                or "parameter" in line  # skip scale parameter
             ):
                 continue
             parts = line.split()
@@ -125,16 +159,19 @@ def get_waves(file: TextIO) -> Set[Wave]:
             l = pwa_tools.char_to_int(amplitude[4])
 
             # obtain real and imaginary parts
-            if parts[2] == "cartesian":
-                re = float(parts[3])
-                im = float(parts[4])
-            elif parts[2] == "polar":
-                magnitude = float(parts[3])
-                phase = float(parts[4])
-                re = magnitude * np.cos(phase)
-                im = magnitude * np.sin(phase)
-            else:
-                raise ValueError(f"Unexpected complex number format in file {file}")
+            match parts[2]:
+                case "cartesian":
+                    re = scale * float(parts[3])
+                    im = scale * float(parts[4])
+                case "polar":
+                    # TODO: check if scale parameter multiplies the polar form, or if
+                    # AmpTools scales the cartesian form
+                    magnitude = scale * float(parts[3])
+                    phase = scale * float(parts[4])
+                    re = magnitude * np.cos(phase)
+                    im = magnitude * np.sin(phase)
+                case _:
+                    raise ValueError(f"Unexpected complex number format in file {file}")
 
             waves.add(
                 Wave(
@@ -178,7 +215,7 @@ def calculate_moment(
         float: value of the moment
     """
 
-    max_J = max(wave.spin for wave in waves)
+    max_J = max([wave.spin for wave in waves])
 
     moment = 0
     # for loops are done to best match the mathematical notation
@@ -186,21 +223,9 @@ def calculate_moment(
         for li in range(Ji + 1):
             for Jj in range(max_J + 1):
                 factor = 1 / ((2 * Jj + 1) * 3)
-
                 for lj in range(Jj + 1):
                     for mi in range(-Ji, Ji + 1):
-                        if not any(  # skip calculation if wave doesn't exist
-                            wave.spin == Ji and wave.l == li and wave.m == mi
-                            for wave in waves
-                        ):
-                            continue
                         for mj in range(-Jj, Jj + 1):
-                            if not any(  # skip calculation if wave doesn't exist
-                                wave.spin == Jj and wave.l == lj and wave.m == mj
-                                for wave in waves
-                            ):
-                                continue
-
                             sdme = calculate_SDME(alpha, Ji, li, mi, Jj, lj, mj, waves)
                             # if 0 then no need to calculate CG coefficients below
                             if sdme == 0.0:
@@ -208,20 +233,26 @@ def calculate_moment(
 
                             for lambda_i in range(-1, 2):
                                 for lambda_j in range(-1, 2):
-                                    cgs = (
-                                        CG(li, 0, 1, lambda_i, Ji, lambda_i)
-                                        * CG(lj, 0, 1, lambda_j, Jj, lambda_j)
-                                        * CG(1, lambda_i, Jv, Lambda, 1, lambda_j)
-                                        * CG(1, 0, Jv, 0, 1, 0)
-                                        * CG(Ji, mi, J, M, Jj, mj)
-                                        * CG(Ji, lambda_i, J, Lambda, Jj, lambda_j)
+                                    cgs = calculate_clebsch_gordans(
+                                        Jv,
+                                        Lambda,
+                                        J,
+                                        M,
+                                        Ji,
+                                        li,
+                                        mi,
+                                        lambda_i,
+                                        Jj,
+                                        lj,
+                                        mj,
+                                        lambda_j,
                                     )
                                     moment += factor * cgs * sdme
 
     return moment
 
 
-@numba.njit
+@numba.njit(cache=True)
 def sign(i):
     # replaces calculating costly (-1)^x powers in the SDMEs
     return 1 if i % 2 == 0 else -1
@@ -260,6 +291,7 @@ def calculate_SDME(
 
     reflectivities = [-1, 1]
     result = 0
+    c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
 
     match alpha:
         case 0:
@@ -334,6 +366,41 @@ def calculate_SDME(
             raise ValueError(f"Invalid alpha value {alpha}")
 
     return result
+
+
+@numba.njit(cache=True)
+def calculate_clebsch_gordans(
+    Jv, Lambda, J, M, Ji, li, mi, lambda_i, Jj, lj, mj, lambda_j
+) -> float:
+    """Calculate the clebsch gordan coefficients for a generic moment
+
+    Args:
+        Jv (_type_): _description_
+        Lambda (_type_): _description_
+        J (_type_): _description_
+        M (_type_): _description_
+        Ji (_type_): _description_
+        li (_type_): _description_
+        mi (_type_): _description_
+        lambda_i (_type_): _description_
+        Jj (_type_): _description_
+        lj (_type_): _description_
+        mj (_type_): _description_
+        lambda_j (_type_): _description_
+
+    Returns:
+        float: _description_
+    """
+    cgs = (
+        spherical.clebsch_gordan(li, 0, 1, lambda_i, Ji, lambda_i)
+        * spherical.clebsch_gordan(lj, 0, 1, lambda_j, Jj, lambda_j)
+        * spherical.clebsch_gordan(1, lambda_i, Jv, Lambda, 1, lambda_j)
+        * spherical.clebsch_gordan(1, 0, Jv, 0, 1, 0)
+        * spherical.clebsch_gordan(Ji, mi, J, M, Jj, mj)
+        * spherical.clebsch_gordan(Ji, lambda_i, J, Lambda, Jj, lambda_j)
+    )
+
+    return cgs
 
 
 def parse_args() -> dict:
