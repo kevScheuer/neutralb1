@@ -19,7 +19,6 @@ TODO: handle free floating parameters like the D/S ratio
 import argparse
 import itertools
 import os
-import timeit
 from typing import List, Set, TextIO  # type hinting
 
 import numba  # speed up for loop calculations
@@ -78,13 +77,12 @@ def main(args: dict) -> None:
             print(f"\t{file}")
         return
 
-    # create a dataframe to store the moments, with file names as the index
-    df = pd.DataFrame(index=input_files)
+    # create an empty dictionary to store the moments
+    data_dict = {}
 
     # Loop to calculate moments for each input file
-    start_time = timeit.default_timer()
-
     for file in input_files:
+        mass = get_mass(file)  # obtain center of mass bin for Breit Wigner values
         waves = get_waves(file)  # obtain waves from the input file
 
         # Prepare quantum numbers of moments
@@ -105,15 +103,53 @@ def main(args: dict) -> None:
             ):
                 moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
                 moment_val = calculate_moment(alpha, Jv, Lambda, J, M, list(waves))
-                # TODO: below line causes bad performance. Need to not insert, but update
-                # df row all at once, or something along those lines
-                df.at[file, moment_str] = moment_val
 
-    elapsed_time = timeit.default_timer() - start_time
-    print(f"Time taken for processing: {elapsed_time:.2f} seconds")
+                # if moment string not in dictionary, add it with an empty list
+                if moment_str not in data_dict.keys():
+                    data_dict[moment_str] = []
+                data_dict[moment_str].append(moment_val)
 
-    df.to_csv(args["output"])  # save the dataframe to a csv file
+    # check that every data file has the same number of moments
+    if not all(
+        len(data) == len(data_dict["H0(0,0,0,0)"]) for data in data_dict.values()
+    ):
+        raise ValueError("Number of moments calculated is not consistent across files")
+
+    # save moments to a csv file, with the input files as the index
+    df = pd.DataFrame.from_dict(data_dict)
+    df.index = input_files
+    df.to_csv(args["output"], index_label="file")
+
     pass
+
+
+def get_mass(file: str) -> float:
+    """Obtain the mass bin's center from a subdirectory within the file path
+
+    TODO: this is a very setup-dependent way to get this info, but only other
+    # option would be to implement this all in c++ to use the FitResults class
+
+    Args:
+        file (str): full file path assumed to be setup like "path/to/mass_0-100/fit.txt"
+            or "path/to/mass_0-100/subdirectory/fit.txt"
+
+    Raises:
+        ValueError: since only 2 cases are handled above, this error is raised if
+            the mass range cannot be obtained from the file path
+
+    Returns:
+        float: average of the two values found in the mass range
+    """
+
+    if "mass" in file.split("/")[-3]:
+        mass_range = file.split("/")[-3].split("_")[-1]
+    elif "mass" in file.split("/")[-2]:
+        mass_range = file.split("/")[-2].split("_")[-1]
+    else:
+        raise ValueError("Mass range could not be obtained from file path")
+    mass = (float(mass_range.split("-")[0]) + float(mass_range.split("-")[1])) / 2.0
+
+    return mass
 
 
 def get_waves(file: TextIO) -> Set[Wave]:
@@ -189,7 +225,7 @@ def get_waves(file: TextIO) -> Set[Wave]:
     return waves
 
 
-@numba.njit(cache=True)
+@numba.njit
 def calculate_moment(
     alpha: int, Jv: int, Lambda: int, J: int, M: int, waves: List[Wave]
 ) -> float:
@@ -258,7 +294,7 @@ def sign(i):
     return 1 if i % 2 == 0 else -1
 
 
-@numba.njit(cache=True)
+@numba.njit
 def calculate_SDME(
     alpha: int, Ji: int, li: int, mi: int, Jj: int, lj: int, mj: int, waves: List[Wave]
 ) -> float:
@@ -292,6 +328,10 @@ def calculate_SDME(
     reflectivities = [-1, 1]
     result = 0
     c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
+
+    # TODO: multiply each production coefficient by its Breit Wigner. This is a pain
+    # though, so I'm asking Matt if I can do this at the FitResults level. It would
+    # save me a LOT of headache in pwa_tools.Plotter
 
     match alpha:
         case 0:
@@ -364,13 +404,26 @@ def calculate_SDME(
             result *= complex(0, 1)  # H2 is the purely imaginary moment
         case _:
             raise ValueError(f"Invalid alpha value {alpha}")
-
+    # if alpha == 0:
+    #     print(f"alpha = {alpha}, Jml_i={Ji}{li}{mi}\t Jml_j={Jj}{lj}{mj}")
+    #     print("\t", result.real, " + ", result.imag)
     return result
 
 
 @numba.njit(cache=True)
 def calculate_clebsch_gordans(
-    Jv, Lambda, J, M, Ji, li, mi, lambda_i, Jj, lj, mj, lambda_j
+    Jv: int,
+    Lambda: int,
+    J: int,
+    M: int,
+    Ji: int,
+    li: int,
+    mi: int,
+    lambda_i: int,
+    Jj: int,
+    lj: int,
+    mj: int,
+    lambda_j: int,
 ) -> float:
     """Calculate the clebsch gordan coefficients for a generic moment
 
