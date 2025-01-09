@@ -16,7 +16,13 @@ that this parameter contains the word "scale" in the name.
 TODO: handle free floating parameters like the D/S ratio
 """
 
+BREIT_WIGNERS = {
+    "1p": {"mass": 1.235, "width": 0.142},
+    "1m": {"mass": 1.465, "width": 0.4},
+}
+
 import argparse
+import cmath
 import itertools
 import os
 from typing import List, Set, TextIO  # type hinting
@@ -29,6 +35,9 @@ import spherical
 import utils
 from sympy.physics.quantum.cg import CG  # clebsch-gordan coefficients
 
+numba.config.DISABLE_JIT = True  # uncomment for debugging
+
+# define the structure of the Wave class for numba to compile
 spec = [
     ("name", numba.types.unicode_type),
     ("reflectivity", numba.int32),
@@ -52,6 +61,14 @@ class Wave:
         self.l = l
         self.real = real
         self.imaginary = imaginary
+
+    def __eq__(self, other):
+        if isinstance(other, Wave):
+            return self.name == other.name
+        return False
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 def main(args: dict) -> None:
@@ -83,7 +100,7 @@ def main(args: dict) -> None:
     # Loop to calculate moments for each input file
     for file in input_files:
         mass = get_mass(file)  # obtain center of mass bin for Breit Wigner values
-        waves = get_waves(file)  # obtain waves from the input file
+        waves = get_waves(file, mass, args["breit_wigner"])  # obtain waves from file
 
         # Prepare quantum numbers of moments
         Jv_array = np.array([0, 2])  # CG coefficient always makes Jv=1 be 0
@@ -127,7 +144,7 @@ def get_mass(file: str) -> float:
     """Obtain the mass bin's center from a subdirectory within the file path
 
     TODO: this is a very setup-dependent way to get this info, but only other
-    # option would be to implement this all in c++ to use the FitResults class
+        option would be to implement this all in c++ to use the FitResults class
 
     Args:
         file (str): full file path assumed to be setup like "path/to/mass_0-100/fit.txt"
@@ -152,12 +169,15 @@ def get_mass(file: str) -> float:
     return mass
 
 
-def get_waves(file: TextIO) -> Set[Wave]:
+def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
     """Obtain the set of waves, with their real and imaginary parts, from a fit result
 
     Args:
         file (TextIO): best fit parameters file, obtained using the "-s" flag on the fit
             command, that contains the real and imaginary parts of the best fit result
+        mass (float): center of mass bin for the Breit Wigner values
+        use_breit_wigner (bool): whether to modify the production coefficients by the
+            appropriate Breit-Wigner values
     Returns:
         Set[Wave]: all the waves and their information found in the file
     """
@@ -194,21 +214,30 @@ def get_waves(file: TextIO) -> Set[Wave]:
             m = pwa_tools.char_to_int(amplitude[3])
             l = pwa_tools.char_to_int(amplitude[4])
 
+            # get breit wigner if requested
+            breit_wigner = 1.0
+            if use_breit_wigner and amplitude[1:3] in BREIT_WIGNERS.keys():
+                bw_mass = BREIT_WIGNERS[amplitude[1:3]]["mass"]
+                bw_width = BREIT_WIGNERS[amplitude[1:3]]["width"]
+                breit_wigner = pwa_tools.breit_wigner(mass, bw_mass, bw_width, l)
+
             # obtain real and imaginary parts
             match parts[2]:
                 case "cartesian":
-                    re = scale * float(parts[3])
-                    im = scale * float(parts[4])
+                    prod_coeff = complex(
+                        scale * float(parts[3]), scale * float(parts[4])
+                    )
+                    prod_coeff *= breit_wigner
                 case "polar":
                     # TODO: check if scale parameter multiplies the polar form, or if
                     # AmpTools scales the cartesian form
-                    magnitude = scale * float(parts[3])
-                    phase = scale * float(parts[4])
-                    re = magnitude * np.cos(phase)
-                    im = magnitude * np.sin(phase)
+                    prod_coeff = cmath.rect(
+                        scale * float(parts[3]), scale * float(parts[4])
+                    )
+                    prod_coeff *= breit_wigner
                 case _:
                     raise ValueError(f"Unexpected complex number format in file {file}")
-
+            re, im = prod_coeff.real, prod_coeff.imag
             waves.add(
                 Wave(
                     name=amplitude,
@@ -264,7 +293,7 @@ def calculate_moment(
                         for mj in range(-Jj, Jj + 1):
                             sdme = calculate_SDME(alpha, Ji, li, mi, Jj, lj, mj, waves)
                             # if 0 then no need to calculate CG coefficients below
-                            if sdme == 0.0:
+                            if sdme.real == 0.0 and sdme.imag == 0.0:
                                 continue
 
                             for lambda_i in range(-1, 2):
@@ -297,7 +326,7 @@ def sign(i):
 @numba.njit
 def calculate_SDME(
     alpha: int, Ji: int, li: int, mi: int, Jj: int, lj: int, mj: int, waves: List[Wave]
-) -> float:
+) -> complex:
     """Calculate the spin density matrix element using complex production coefficients
 
     The SDMEs are separated into 3 cases depending on the value of alpha (which indexes
@@ -326,16 +355,12 @@ def calculate_SDME(
     """
 
     reflectivities = [-1, 1]
-    result = 0
-    c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
-
-    # TODO: multiply each production coefficient by its Breit Wigner. This is a pain
-    # though, so I'm asking Matt if I can do this at the FitResults level. It would
-    # save me a LOT of headache in pwa_tools.Plotter
+    result = complex(0.0, 0.0)
 
     match alpha:
         case 0:
             for e in reflectivities:
+                c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
                 for wave in waves:
                     conditions = {
                         "c1": wave.spin == Ji and wave.l == li and wave.m == mi,
@@ -357,6 +382,7 @@ def calculate_SDME(
                 result += c1 * c2 + sign(mi + mj + li + lj + Ji + Jj) * c3 * c4
         case 1:
             for e in reflectivities:
+                c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
                 for wave in waves:
                     conditions = {
                         "c1": wave.spin == Ji and wave.l == li and wave.m == -mi,
@@ -380,6 +406,7 @@ def calculate_SDME(
                 )
         case 2:
             for e in reflectivities:
+                c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
                 for wave in waves:
                     conditions = {
                         "c1": wave.spin == Ji and wave.l == li and wave.m == -mi,
@@ -404,9 +431,7 @@ def calculate_SDME(
             result *= complex(0, 1)  # H2 is the purely imaginary moment
         case _:
             raise ValueError(f"Invalid alpha value {alpha}")
-    # if alpha == 0:
-    #     print(f"alpha = {alpha}, Jml_i={Ji}{li}{mi}\t Jml_j={Jj}{lj}{mj}")
-    #     print("\t", result.real, " + ", result.imag)
+
     return result
 
 
@@ -489,6 +514,15 @@ def parse_args() -> dict:
         "--preview",
         action="store_true",
         help=("When passed, print out the files that will be processed and exit."),
+    )
+    parser.add_argument(
+        "-b",
+        "--breit-wigner",
+        action="store_true",
+        help=(
+            "When passed, modify the production coefficients by the appropriate"
+            " Breit-Wigner values. Note these are currently hard-coded in the script."
+        ),
     )
 
     return vars(parser.parse_args())
