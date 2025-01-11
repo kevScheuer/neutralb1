@@ -16,11 +16,6 @@ that this parameter contains the word "scale" in the name.
 TODO: handle free floating parameters like the D/S ratio
 """
 
-BREIT_WIGNERS = {
-    "1p": {"mass": 1.235, "width": 0.142},
-    "1m": {"mass": 1.465, "width": 0.4},
-}
-
 import argparse
 import cmath
 import itertools
@@ -33,9 +28,13 @@ import pandas as pd
 import pwa_tools
 import spherical
 import utils
-from sympy.physics.quantum.cg import CG  # clebsch-gordan coefficients
 
-numba.config.DISABLE_JIT = True  # uncomment for debugging
+BREIT_WIGNERS = {
+    "1p": {"mass": 1.235, "width": 0.142},
+    "1m": {"mass": 1.465, "width": 0.4},
+}
+
+# numba.config.DISABLE_JIT = True  # uncomment for debugging
 
 # define the structure of the Wave class for numba to compile
 spec = [

@@ -14,7 +14,8 @@
                 "-i", 
                 "/lustre24/expphy/volatile/halld/home/kscheuer/ampToolsFits/omegapi/allPeriods/PARA_0/ver03.1_mc/ver03/1m_1p_iso/recoil-pi-mass_1.4/t_0.30-0.50/mass_1.200-1.220/truth/bestFitPars.txt",
                 "-b"
-            ]
+            ],
+            "python": "/w/halld-scshelf2101/kscheuer/miniforge3/envs/neutralb1/bin/python"
         }
     ]
 }
