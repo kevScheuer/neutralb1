@@ -123,6 +123,7 @@ def main(args: dict) -> None:
         for low_t, high_t in zip(low_t_edges, high_t_edges):
             for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
                 truth_subdir = "truth/" if args["truth_file"] else ""
+                truth_init_subdir = "init/" if "init" in args["truth_file"] else ""
 
                 # PREPARE DIRECTORIES
                 running_dir = "/".join(
@@ -139,6 +140,7 @@ def main(args: dict) -> None:
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
                         truth_subdir,
+                        truth_init_subdir,
                     )
                 )
                 pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
@@ -196,6 +198,8 @@ def main(args: dict) -> None:
                 # copy in needed files
                 if args["truth_file"]:
                     os.system(f"cp -f {CODE_DIR}{args['truth_file']} {running_dir}")
+                    if "init" in args["truth_file"]:
+                        prepare_init_directory(running_dir)
                 else:
                     os.system(f"cp -f {CODE_DIR}fit.cfg {running_dir}")
 
@@ -520,7 +524,7 @@ def submit_slurm_job(
 
     # wait half a second to avoid job skip error if too many submitted quickly
     time.sleep(0.5)
-    subprocess.call(["sbatch", "tempSlurm.txt"])
+    # subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
@@ -619,6 +623,60 @@ def volatile_path(
             f"mass_{low_mass:.3f}-{high_mass:.3f}",
         )
     )
+
+
+def prepare_init_directory(
+    running_dir: str, scale_par_name: str = "intensity_scale"
+) -> None:
+    """Create the necessary scale.txt file for truth initialized fits to run
+
+    A truth initialized fit requires a scale.txt file that simply has a intensity_scale
+    parameter that multiplies all amplitudes by a constant factor, in order to properly
+    initialize the amplitudes to the right value. This function creates that file by
+    assuming that a truth fit has already been run and the scale factor is stored in the
+    best_truth.fit file. If the best_truth.fit file is not found, the function will exit
+
+    Args:
+        running_dir (str): directory where the scale.txt file will be created
+    Raises:
+        FileNotFoundError: if the best_truth.fit file is not found
+        ValueError: if the scale factor is not found in the best_truth.fit file
+    """
+
+    # running (truth-init) directory is subdirectory of the truth directory
+    truth_dir = running_dir.rsplit("/", 2)[0]
+
+    # find the scale factor from the best_truth.fit file
+    truth_fit = f"{truth_dir}best_truth.fit"
+    if not os.path.isfile(truth_fit):
+        raise FileNotFoundError(f"File {truth_fit} not found!")
+
+    scale_factor = 0.0
+    is_searching = False
+    with open(truth_fit, "r") as f:
+        for line in f:
+            # begin search within the parameter values and errors section
+            if "Parameter Values and Errors" in line:
+                is_searching = True
+            if not is_searching:
+                continue
+
+            if scale_par_name in line.split()[0]:
+                scale_factor = float(line.split()[1])
+                break
+
+            # if we've hit the normalization integrals, we've gone too far
+            if "Normalization Integrals" in line:
+                break
+
+    if scale_factor == 0.0:
+        raise ValueError("Scale factor was not found in the best_truth.fit file!")
+
+    # write the scale factor to the scale.txt file
+    with open(f"{running_dir}scale.txt", "w") as f:
+        f.write(f"parameter intensity_scale {scale_factor} fixed")
+
+    return
 
 
 def parse_args() -> dict:
@@ -785,7 +843,7 @@ def parse_args() -> dict:
         default="",
         help=(
             "cfg file used to generate signal MC, with fixed parameters. Used for"
-            " input-output testing"
+            " input-output testing. This can also be a truth initialized cfg file"
         ),
     )
     parser.add_argument(
