@@ -452,7 +452,7 @@ def create_data_files(
             " Please wait for them to finish before submitting PWA fits."
             " Job progress can be monitored at"
             " https://scicomp.jlab.org/scicomp/slurmJob/activeJob, or by running"
-            " 'squeue -u $USER' in a terminal"
+            " 'squeue --me' in a terminal"
         )
         exit()
 
@@ -524,7 +524,7 @@ def submit_slurm_job(
 
     # wait half a second to avoid job skip error if too many submitted quickly
     time.sleep(0.5)
-    # subprocess.call(["sbatch", "tempSlurm.txt"])
+    subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
     os.remove("tempSlurm.txt")
@@ -890,7 +890,7 @@ def parse_args() -> dict:
         default="",
         help=(
             "Monte Carlo option used in DSelector. Default assumes no special options"
-            " were used. An option like '_accept_noaccidental' could be used."
+            " were used. An option like '_accept' could be used."
         ),
     )
     parser.add_argument(
