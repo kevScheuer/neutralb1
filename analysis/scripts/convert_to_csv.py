@@ -37,8 +37,12 @@ def main(args: dict) -> None:
 
     # sort the input files based off the last number in the file name or path
     input_files = (
-        utils.sort_input_files(args["input"]) if args["sorted"] else args["input"]
+        utils.sort_input_files(args["input"], args["sort_index"])
+        if args["sorted"]
+        else args["input"]
     )
+    for file in input_files:
+        print(file)
 
     if args["preview"]:
         print("Files that will be processed:")
@@ -111,6 +115,16 @@ def parse_args() -> dict:
             "Sort the input files by last number in the file name or path. Defaults"
             " to True, so that the index of each csv row matches the ordering of the"
             " input files"
+        ),
+    )
+    parser.add_argument(
+        "--sort-index",
+        type=int,
+        default=-1,
+        help=(
+            "Determines what number in the file path is used for sorting. Defaults to"
+            " -1, so that the last number in the path is used. See "
+            " utils.sort_input_files for details."
         ),
     )
     parser.add_argument(
