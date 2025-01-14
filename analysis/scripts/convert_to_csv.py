@@ -59,7 +59,7 @@ def main(args: dict) -> None:
         output_file_name = "fits.csv" if not args["output"] else args["output"]
         command = (
             f'.x {script_dir}/extract_fit_results.cc("{input_files}",'
-            f' "{output_file_name}", {is_acceptance_corrected}")\n'
+            f' "{output_file_name}", {is_acceptance_corrected})\n'
         )
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]

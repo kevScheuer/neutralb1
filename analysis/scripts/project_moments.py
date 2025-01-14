@@ -78,7 +78,7 @@ def main(args: dict) -> None:
             raise ValueError(f"Input file {input_file} does not exist")
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] += ".csv"
-    else:
+    elif not args["output"]:
         args["output"] = "moments.csv"
     if not all(input_file.endswith(".txt") for input_file in args["input"]):
         raise ValueError("Input file(s) must be .txt files")
@@ -156,12 +156,11 @@ def get_mass(file: str) -> float:
     Returns:
         float: average of the two values found in the mass range
     """
-
-    if "mass" in file.split("/")[-3]:
-        mass_range = file.split("/")[-3].split("_")[-1]
-    elif "mass" in file.split("/")[-2]:
-        mass_range = file.split("/")[-2].split("_")[-1]
-    else:
+    mass_range = ""
+    for subdir in file.split("/"):
+        if subdir.startswith("mass"):
+            mass_range = subdir.split("_")[-1]
+    if not mass_range:
         raise ValueError("Mass range could not be obtained from file path")
     mass = (float(mass_range.split("-")[0]) + float(mass_range.split("-")[1])) / 2.0
 
