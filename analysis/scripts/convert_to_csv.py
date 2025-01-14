@@ -41,8 +41,6 @@ def main(args: dict) -> None:
         if args["sorted"]
         else args["input"]
     )
-    for file in input_files:
-        print(file)
 
     if args["preview"]:
         print("Files that will be processed:")
@@ -56,11 +54,12 @@ def main(args: dict) -> None:
     # hand off the files to the macro as a single space-separated string
     input_files = " ".join(input_files)
 
+    is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
     if file_type == "fit":
         output_file_name = "fits.csv" if not args["output"] else args["output"]
         command = (
             f'.x {script_dir}/extract_fit_results.cc("{input_files}",'
-            f" \"{output_file_name}\", \"{args['acceptance_corrected']}\")\n"
+            f' "{output_file_name}", {is_acceptance_corrected}")\n'
         )
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
@@ -133,10 +132,9 @@ def parse_args() -> dict:
     parser.add_argument(
         "-a",
         "--acceptance-corrected",
-        type=bool,
-        default=False,
+        action="store_true",
         help=(
-            "When True, the amplitude intensities are corrected for acceptance. These"
+            "When passed, the amplitude intensities are corrected for acceptance. These"
             " are the true 'generated' values with no detector effects. Defaults to"
             " False, or the 'reconstructed' values"
         ),

@@ -180,7 +180,7 @@ class Plotter:
         ax.errorbar(
             self._mass_bins,
             self.data_df["events"],
-            self.data_df["events_error"],
+            self.data_df["events_err"],
             self._bin_width / 2,
             fmt="k.",
             label=data_label,
