@@ -261,7 +261,7 @@ class Plotter:
         jpl_values = sorted(
             self.coherent_sums["JPL"], key=lambda JPL: char_to_int(JPL[-1])
         )
-        m_ints = sorted({char_to_int(JPm[-1]) for JPm in self.coherent_sums["JPm"]})
+        m_ints = sorted({char_to_int(JPmL[-2]) for JPmL in self.coherent_sums["JPmL"]})
 
         fig, axs = plt.subplots(
             len(jpl_values),
