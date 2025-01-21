@@ -1,4 +1,5 @@
 #!/bin/sh
+#TODO: change bootstrap bool name to be an integer of number of fits
 echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup directory

@@ -14,6 +14,7 @@ If a custom scale parameter is used to multiply the complex values, the script a
 that this parameter contains the word "scale" in the name.
 
 TODO: handle free floating parameters like the D/S ratio
+TODO: Parse Breit-Wigners instead of hard-coding them
 """
 
 import argparse
@@ -46,12 +47,13 @@ spec = [
     ("m", numba.int32),
     ("real", numba.float64),
     ("imaginary", numba.float64),
+    ("scale", numba.float64),
 ]
 
 
 @numba.experimental.jitclass(spec)
 class Wave:
-    def __init__(self, name, reflectivity, spin, parity, m, l, real, imaginary):
+    def __init__(self, name, reflectivity, spin, parity, m, l, real, imaginary, scale):
         self.name = name
         self.reflectivity = reflectivity
         self.spin = spin
@@ -60,6 +62,7 @@ class Wave:
         self.l = l
         self.real = real
         self.imaginary = imaginary
+        self.scale = scale
 
     def __eq__(self, other):
         if isinstance(other, Wave):
@@ -80,8 +83,8 @@ def main(args: dict) -> None:
         args["output"] += ".csv"
     elif not args["output"]:
         args["output"] = "moments.csv"
-    if not all(input_file.endswith(".txt") for input_file in args["input"]):
-        raise ValueError("Input file(s) must be .txt files")
+    if not all(input_file.endswith(".fit") for input_file in args["input"]):
+        raise ValueError("Input file(s) must be .fit files")
 
     input_files = (
         utils.sort_input_files(args["input"]) if args["sorted"] else args["input"]
@@ -179,75 +182,105 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
     Returns:
         Set[Wave]: all the waves and their information found in the file
     """
-
-    scale = 1.0
-    # scan the file for an optional scale parameter that multiplies the complex values
-    with open(file, "r") as f:
-        for line in f:
-            if "parameter" in line and "scale" in line:
-                scale = float(line.split()[-1])
-                break
-
     waves = set()
+    searching_for_scale = False
+    searching_for_amplitudes = False
     with open(file, "r") as f:
         for line in f:
+            # general line filtering
             if (
                 line.startswith("#")  # skip comments
                 or not line.strip()  # skip empty lines
                 or "isotropic" in line  # skip background wave
                 or "Bkgd" in line
-                or "parameter" in line  # skip scale parameter
             ):
                 continue
-            parts = line.split()
 
-            if "::" not in parts[1]:
-                raise ValueError(f"Unexpected line format in file {file}")
+            # this section of .fit file contains the amplitude scale values
+            if "Reactions, Amplitudes, and Scale Parameters" in line:
+                searching_for_scale = True
+                continue
+            # this section of .fit file contains the amplitude re/im parts
+            if "Parameter Values and Errors" in line:
+                searching_for_scale = False
+                searching_for_amplitudes = True
+                continue
+            # stop file scanning if we've gotten to the normalization integrals
+            if "Normalization Integrals" in line:
+                break
+
+            if "::" not in line:  # skip lines without amplitudes
+                continue
+
+            parts = line.split()  # split line into its components
+
+            if searching_for_scale:
+                # if we've hit this section header, stop searching for the scales
+                if "Likelihood Total and Partial Sums" in line:
+                    searching_for_scale = False
+                    continue
+                if "scale" not in line:
+                    continue
+
+                amplitude = parts[0].split("::")[-1]
+                # parse amplitude into its quantum numbers
+                parsed_amp = pwa_tools.parse_amplitude(amplitude.split("_")[0])
+                reflectivity = pwa_tools.char_to_int(parsed_amp["e"])
+                spin = int(parsed_amp["j"])
+                parity = pwa_tools.char_to_int(parsed_amp["p"])
+                m = pwa_tools.char_to_int(parsed_amp["m"])
+                l = pwa_tools.char_to_int(parsed_amp["l"])
+
+                # add scale parameter and amplitude info to wave set
+                waves.add(
+                    Wave(
+                        name=amplitude,
+                        reflectivity=reflectivity,
+                        spin=spin,
+                        parity=parity,
+                        m=m,
+                        l=l,
+                        real=np.nan,
+                        imaginary=np.nan,
+                        scale=float(parts[-1]),
+                    )
+                )
 
             # parse amplitude into its quantum number values
-            amplitude = parts[1].split("::")[-1]
-            reflectivity = 1 if amplitude[0] == "p" else -1
-            spin = int(amplitude[1])
-            parity = 1 if amplitude[2] == "p" else -1
-            m = pwa_tools.char_to_int(amplitude[3])
-            l = pwa_tools.char_to_int(amplitude[4])
+            if searching_for_amplitudes:
+                amplitude_re_im = parts[0].split("::")[-1]  # form eJPmL_re or eJPmL_im
+                amplitude = amplitude_re_im.split("_")[0]  # eJPmL
+                re_im_flag = amplitude_re_im.split("_")[-1]  # re or im
 
-            # get breit wigner if requested
-            breit_wigner = 1.0
-            if use_breit_wigner and amplitude[1:3] in BREIT_WIGNERS.keys():
-                bw_mass = BREIT_WIGNERS[amplitude[1:3]]["mass"]
-                bw_width = BREIT_WIGNERS[amplitude[1:3]]["width"]
-                breit_wigner = pwa_tools.breit_wigner(mass, bw_mass, bw_width, l)
+                # obtain real and imaginary parts and add to appropriate wave
+                wave = [w for w in waves if w.name == amplitude][0]
+                scaled_part = wave.scale * float(parts[-1])
+                match re_im_flag:
+                    case "re":
+                        wave.real = scaled_part
+                    case "im":
+                        wave.imaginary = scaled_part
+                    case _:
+                        raise ValueError(
+                            f"Unexpected amplitude format {amplitude} in file {file}"
+                        )
 
-            # obtain real and imaginary parts
-            match parts[2]:
-                case "cartesian":
-                    prod_coeff = complex(
-                        scale * float(parts[3]), scale * float(parts[4])
-                    )
-                    prod_coeff *= breit_wigner
-                case "polar":
-                    # TODO: check if scale parameter multiplies the polar form, or if
-                    # AmpTools scales the cartesian form
-                    prod_coeff = cmath.rect(
-                        scale * float(parts[3]), scale * float(parts[4])
-                    )
-                    prod_coeff *= breit_wigner
-                case _:
-                    raise ValueError(f"Unexpected complex number format in file {file}")
-            re, im = prod_coeff.real, prod_coeff.imag
-            waves.add(
-                Wave(
-                    name=amplitude,
-                    reflectivity=reflectivity,
-                    spin=spin,
-                    parity=parity,
-                    m=m,
-                    l=l,
-                    real=re,
-                    imaginary=im,
-                )
-            )
+    # If breit wigners are used, we need to multiply the re/im parts for each wave
+    # get breit wigner if requested
+    if use_breit_wigner:
+        for wave in waves:
+            bw_mass = BREIT_WIGNERS[wave.name[1:3]]["mass"]
+            bw_width = BREIT_WIGNERS[wave.name[1:3]]["width"]
+            breit_wigner = pwa_tools.breit_wigner(mass, bw_mass, bw_width, wave.l)
+            c = complex(wave.real, wave.imaginary) * breit_wigner
+            wave.real = c.real
+            wave.imaginary = c.imag
+
+    # Check that real and imaginary parts were found for all waves
+    if not all(w.real and w.imaginary for w in waves):
+        raise ValueError(
+            f"Real and imaginary parts not found for all waves in file {file}"
+        )
 
     return waves
 
