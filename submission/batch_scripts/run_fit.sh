@@ -1,5 +1,5 @@
 #!/bin/sh
-#TODO: change bootstrap bool name to be an integer of number of fits
+start_time=$(date +%s)
 echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup directory
@@ -79,8 +79,8 @@ while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
         my_reaction=$OPTARG
     ;;
     b)
-        echo -e "bootstrapped: \t\t$OPTARG\n"
-        my_bootstrap_bool=$OPTARG
+        echo -e "num bootstrap fits: \t\t$OPTARG\n"
+        my_num_bootstrap_fits=$OPTARG
     ;;
     t)
         echo -e "truth file: \t\t$OPTARG\n"
@@ -198,20 +198,25 @@ if [ $my_num_rand_fits -ne 0 ]; then
     ls -al
 fi
 
-
-# Perform bootstrapping if requested
-if [ $my_bootstrap_bool -ne 0 ] && [ -z "$my_truth_file" ]; then
+if [ $my_num_bootstrap_fits -ne 0 ]; then
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
-    # create special bootstrap cfg and set it to start at the best fit values
-    cp -f fit.cfg bootstrap_fit.cfg
-    echo "include bestFitPars.txt" >> bootstrap_fit.cfg
+
+    # truth files are already set up to start at the "best" values
+    if ! [ -z "$my_truth_file" ]; then
+        cp -f $my_truth_file bootstrap_fit.cfg
+    else
+        # create special bootstrap cfg and set it to start at the best fit values
+        cp -f fit.cfg bootstrap_fit.cfg
+        echo "include bestFitPars.txt" >> bootstrap_fit.cfg
+    fi
 
     # replace data reader with bootstrap version for just the "data" file
     sed -i -e 's/data LOOPREAC ROOTDataReader LOOPDATA/data LOOPREAC ROOTDataReaderBootstrap LOOPDATA 0/' bootstrap_fit.cfg
 
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
-    for ((i=1;i<=$my_bootstrap_bool;i++)); do
-        echo -e "\nBOOTSTRAP FIT: $i\n"        
+    for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
+        echo -e "\nBOOTSTRAP FIT: $i\n"      
+        # replace the bootstrap seed in the cfg  
         sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA $((i-1))/ROOTDataReaderBootstrap LOOPDATA $i/" bootstrap_fit.cfg
         # run fit
         if [ "$use_mpi" = true ]; then 
@@ -234,3 +239,7 @@ if [ ! -z "$my_truth_file" ]; then
     mv -f best.fit best_truth.fit
     mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
 fi
+
+end_time=$(date +%s)
+elapsed_time=$((end_time - start_time))
+echo "Execution time: $elapsed_time seconds"

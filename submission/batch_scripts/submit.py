@@ -147,13 +147,13 @@ def main(args: dict) -> None:
 
                 log_dir = running_dir + "log/"
                 pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
+                bootstrap_dir = running_dir + "bootstrap/"
+                pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
 
-                # truth fits don't require rand or bootstrap fits
+                # truth fits don't require rand fits, so don't make the directory
                 if not args["truth_file"]:
                     rand_dir = running_dir + "rand/"
-                    bootstrap_dir = running_dir + "bootstrap/"
                     pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
-                    pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
 
                 # location of pre-selected data file
                 source_file_dir = volatile_path(
@@ -552,7 +552,7 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
     """
     low_edges = []
     high_edges = []
-    delta = 1e-15
+    delta = 1e-10
     diff = args[-2] - args[0]
     # case 1: list = [min, max, width]. The width MUST always be smaller than the
     #   difference between the max and min bins. The "or" statement handles floating
@@ -566,12 +566,14 @@ def make_bins(args: List[float]) -> tuple[List[float], List[float]]:
                 )
             )
         min, max, width = args
-        n_bins = math.ceil((max - min) / width)
-        if n_bins == 0:
+        n_bins = math.floor((max - min) / width + delta)
+        if n_bins == 0:  # ensure at least one bin
             n_bins = 1
         for i in range(n_bins):
-            low_edges.append(min + width * i)
-            high_edges.append(min + width * (i + 1))
+            low_edge = min + width * i
+            high_edge = min + width * (i + 1)
+            low_edges.append(low_edge)
+            high_edges.append(high_edge)
     # case 2: list =[bin_1, bin_i..., bin_n. ]. Because the last value is ALWAYS
     # greater than the 2nd to last, this will never accidentally fall into case 2
     else:
