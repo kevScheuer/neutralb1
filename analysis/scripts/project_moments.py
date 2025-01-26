@@ -13,8 +13,10 @@ in the cfg file as [reaction]::RealNegSign::p1p0S.
 If a custom scale parameter is used to multiply the complex values, the script assumes
 that this parameter contains the word "scale" in the name.
 
+TODO: The D waves aren't being added to H0(0,0,0,0) moment, potentially any other moment
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
+TODO: The moment matrix is calculated for every file, but only needs to be done once
 """
 
 import argparse
@@ -96,10 +98,8 @@ def main(args: dict) -> None:
         return
 
     # create empty dictionaries for
-    # 1. The moments calculated for each file
-    # 2. The production coefficient pairs that contribute to each moment
-    data_dict = {}
-    matrix_dict = {}
+    data_dict = {}  # The moments calculated for each file
+    matrix_dict = {}  # The production coefficient pairs that contribute to each moment
     # since this next dict is passed to numba functions, it must be explicitly typed
     coefficient_dict = numba.typed.Dict.empty(
         key_type=numba.types.UniTuple(numba.types.unicode_type, 2),
@@ -138,9 +138,8 @@ def main(args: dict) -> None:
                 moment_val = calculate_moment(
                     alpha, Jv, Lambda, J, M, list(waves), coefficient_dict
                 )
-
                 # save the results for this moment
-                matrix_dict[moment_str] = coefficient_dict
+                matrix_dict[moment_str] = coefficient_dict.copy()
                 data_dict[moment_str].append(moment_val)
 
     # check that every data file has the same number of moments
@@ -155,6 +154,7 @@ def main(args: dict) -> None:
     df.to_csv(args["output"], index_label="file")
 
     matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
+    matrix_df.fillna(0, inplace=True)
     matrix_df.to_csv(args["output"].replace(".csv", "_matrix.csv"))
 
     pass
@@ -371,7 +371,6 @@ def calculate_moment(
                                 mj,
                                 waves,
                             )
-                            # if 0 then no need to calculate CG coefficients below
                             if sdme.real == 0.0 and sdme.imag == 0.0:
                                 continue
 
@@ -395,13 +394,11 @@ def calculate_moment(
                                     # production coefficients that contribute to SDME
                                     if cgs != 0:
                                         for pair in pairs:
-                                            coefficient_dict[pair] = (
-                                                coefficient_dict.get(pair, 0.0) + cgs
-                                            )
+                                            pair_value = coefficient_dict.get(pair, 0.0)
+                                            coefficient_dict[pair] = pair_value + cgs
 
                                     # finally, calculate the moment
                                     moment += factor * cgs * sdme
-
     return moment
 
 
@@ -537,28 +534,32 @@ def calculate_SDME(
 
     reflectivities = [-1, 1]
     result = complex(0.0, 0.0)
+    pairs = []
 
     # calculate the sdme according to the alpha value
     match alpha:
         case 0:
             for e in reflectivities:
-                c1, c2, c3, c4, pairs = process_waves(
+                c1, c2, c3, c4, new_pairs = process_waves(
                     waves, Ji, li, mi, Jj, lj, mj, e, alpha
                 )
+                pairs.extend(new_pairs)
                 result += c1 * c2 + sign(mi + mj + li + lj + Ji + Jj) * c3 * c4
         case 1:
             for e in reflectivities:
-                c1, c2, c3, c4, pairs = process_waves(
+                c1, c2, c3, c4, new_pairs = process_waves(
                     waves, Ji, li, mi, Jj, lj, mj, e, alpha
                 )
+                pairs.extend(new_pairs)
                 result += e * (
                     sign(1 + mi + li + Ji) * c1 * c2 + sign(1 + mj + lj + Jj) * c3 * c4
                 )
         case 2:
             for e in reflectivities:
-                c1, c2, c3, c4, pairs = process_waves(
+                c1, c2, c3, c4, new_pairs = process_waves(
                     waves, Ji, li, mi, Jj, lj, mj, e, alpha
                 )
+                pairs.extend(new_pairs)
                 result += e * (
                     sign(mi + li + Ji) * c1 * c2 - sign(mj + lj + Jj) * c3 * c4
                 )
