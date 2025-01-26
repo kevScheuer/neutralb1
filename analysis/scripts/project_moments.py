@@ -13,7 +13,6 @@ in the cfg file as [reaction]::RealNegSign::p1p0S.
 If a custom scale parameter is used to multiply the complex values, the script assumes
 that this parameter contains the word "scale" in the name.
 
-TODO: The D waves aren't being added to H0(0,0,0,0) moment, potentially any other moment
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
 TODO: The moment matrix is calculated for every file, but only needs to be done once
@@ -353,10 +352,10 @@ def calculate_moment(
     moment = 0
     # for loops are done here to best match the mathematical notation
     for Ji in range(max_J + 1):
-        for li in range(Ji + 1):
+        for li in range(Ji + 2):  # mesons can have spin up to J+1
             for Jj in range(max_J + 1):
                 factor = 1 / ((2 * Jj + 1) * 3)
-                for lj in range(Jj + 1):
+                for lj in range(Jj + 2):
                     for mi in range(-Ji, Ji + 1):
                         for mj in range(-Jj, Jj + 1):
                             # calculate the sdme and save the production coefficient

@@ -79,7 +79,7 @@ while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
         my_reaction=$OPTARG
     ;;
     b)
-        echo -e "num bootstrap fits: \t\t$OPTARG\n"
+        echo -e "num bootstrap fits: \t$OPTARG\n"
         my_num_bootstrap_fits=$OPTARG
     ;;
     t)
