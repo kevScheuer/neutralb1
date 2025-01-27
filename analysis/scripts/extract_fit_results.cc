@@ -1,5 +1,6 @@
 /* Extract the fit results from a list of AmpTools output files and writes them to a csv
 The csv file will have the following columns, and their errors if applicable:
+    - file name
     - eMatrixStatus
     - lastMinuitCommandStatus
     - likelihood
@@ -81,7 +82,7 @@ void extract_fit_results(std::string files, std::string csv_name, bool is_accept
     // An individual amplitude such as the positive reflectivity, JP=1+, S-wave with a
     // +1 m-projection is then stored like:
     // "eJPmL -> "p1p0S" -> {xx::ImagPosSign::p1p0S, xx::RealNegSign::p1p0S}
-    // An example of a coherent sum such as the over all JP=1+ states would be:
+    // A coherent sum such as the one over all JP=1+ states would be:
     // "JP" -> "1p" -> {xx::ImagNegSign::m1p0S, xx::RealNegSign::p1ppD, ...}
 
     // Initialize the map for all coherent sum types
@@ -136,6 +137,7 @@ void extract_fit_results(std::string files, std::string csv_name, bool is_accept
         if (csv_file.tellp() == 0)
         {
             // 1. standard results (these already have _err values)
+            csv_file << "file" << ",";
             for (const auto &pair : standard_results)
             {
                 csv_file << pair.first << ",";
@@ -159,9 +161,9 @@ void extract_fit_results(std::string files, std::string csv_name, bool is_accept
             // 4. eJPmL based coherent sum titles
             for (const auto &pair : coherent_sums)
             {
-                for (const auto &pair : coherent_sums[pair.first])
+                for (const auto &sub_pair : coherent_sums[pair.first])
                 {
-                    csv_file << pair.first << "," << pair.first << "_err,";
+                    csv_file << sub_pair.first << "," << sub_pair.first << "_err,";
                 }
             }
             // 5. phase difference names in eJPmL_eJPmL format
@@ -179,6 +181,7 @@ void extract_fit_results(std::string files, std::string csv_name, bool is_accept
 
         // now write the values in the same order of map loops
         // 1. standard results
+        csv_file << file << ",";
         for (const auto &pair : standard_results)
         {
             csv_file << pair.second << ",";
