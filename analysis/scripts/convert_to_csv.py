@@ -15,20 +15,31 @@ import utils
 
 def main(args: dict) -> None:
 
-    # Error / value handling
+    # ERROR / VALUE HANDLING
     if not os.environ["ROOTSYS"]:
         raise EnvironmentError(
             "ROOTSYS path is not loaded. Make sure to run 'source setup_gluex.csh'\n"
         )
+
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] = args["output"] + ".csv"
-    for input_file in args["input"]:
-        if not os.path.exists(input_file):
-            print(f"File {input_file} does not exist, exiting")
+
+    # Check if args["input"] is a file containing a list of result files
+    input_files = []
+    if len(args["input"]) == 1 and os.path.isfile(args["input"][0]):
+        with open(args["input"][0], "r") as file:
+            input_files = [line.strip() for line in file if line.strip()]
+    else:
+        input_files = args["input"]
+
+    for f in input_files:
+        if not os.path.exists(f):
+            print(f"File {f} does not exist, exiting")
             return
-    if all(file.endswith(".fit") for file in args["input"]):
+
+    if all(file.endswith(".fit") for file in input_files):
         file_type = "fit"
-    elif all(file.endswith(".root") for file in args["input"]):
+    elif all(file.endswith(".root") for file in input_files):
         file_type = "root"
     else:
         raise ValueError(
@@ -37,9 +48,9 @@ def main(args: dict) -> None:
 
     # sort the input files based off the last number in the file name or path
     input_files = (
-        utils.sort_input_files(args["input"], args["sort_index"])
+        utils.sort_input_files(input_files, args["sort_index"])
         if args["sorted"]
-        else args["input"]
+        else input_files
     )
 
     if args["preview"]:
@@ -100,8 +111,8 @@ def parse_args() -> dict:
         "-i",
         "--input",
         help=(
-            "Input .fit file(s). Also accepts path(s) with a wildcard '*' and finds all"
-            " matching files"
+            "Input file(s). Also accepts path(s) with a wildcard '*' and finds all"
+            " matching files. Can also accept a file containing a list of files"
         ),
         nargs="+",
     )
