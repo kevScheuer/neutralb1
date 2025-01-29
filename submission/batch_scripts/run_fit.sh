@@ -112,6 +112,7 @@ amp_string="anglesOmegaPiAmplitude"
 ph_string="anglesOmegaPiPhaseSpace"
 
 # link data files
+link_start_time=$(date +%s)
 for ont in ${my_orientations}; do
     ont_num="$(cut -d'_' -f2 <<<"$ont")" # get the angle integer e.g. PARA_90 -> 90
 
@@ -133,6 +134,8 @@ fi
 ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
  ./${ph_string}Acc.root
 
+link_end_time=$(date +%s)
+echo "Linking files took: $((link_end_time - link_start_time)) seconds"
 
 ls -al 
 
@@ -147,6 +150,7 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
     use_mpi=true
 fi
 
+run_start_time=$(date +%s)
 if ! [ -z "$my_truth_file" ]; then
     fit -c $my_truth_file -m 1000000 -s "bestFitPars"
 elif [ "$use_mpi" = true ]; then
@@ -161,6 +165,9 @@ else
     fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars"
 fi
 
+run_end_time=$(date +%s)
+echo "Fitting took: $((run_end_time - run_start_time)) seconds"
+
 if ! [ -f "$my_reaction.fit" ]; then
     echo -e "\n\nError: $my_reaction.fit not found, assuming fit failed. Exiting."
     exit 1
@@ -168,11 +175,14 @@ fi
 
 # run diagnostic plotters
 mv "$my_reaction".fit best.fit
+vecps_start_time=$(date +%s)
 vecps_plotter best.fit
+vecps_end_time=$(date +%s)
+echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
 if [ -z "$my_truth_file" ]; then
     cwd=$(pwd)
-    root -l -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")"
+    root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")"
 fi
 
 # produce diagnostic plots of angles and mass distributions
@@ -183,7 +193,10 @@ elif [[ $my_data_option == *"_mcthrown"* ]]; then
 else
     my_label="Recon MC"
 fi
-root -l -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
+plot_start_time=$(date +%s)
+root -l -n -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
+plot_end_time=$(date +%s)
+echo "angle_plotter took: $((plot_end_time - plot_start_time)) seconds"
 
 ls -al
 
@@ -199,6 +212,7 @@ if [ $my_num_rand_fits -ne 0 ]; then
 fi
 
 if [ $my_num_bootstrap_fits -ne 0 ]; then
+    all_bootstrap_start_time=$(date +%s)
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
 
     # truth files are already set up to start at the "best" values
@@ -219,17 +233,22 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         # replace the bootstrap seed in the cfg  
         sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA $((i-1))/ROOTDataReaderBootstrap LOOPDATA $i/" bootstrap_fit.cfg
         # run fit
+        bootstrap_start_time=$(date +%s)
         if [ "$use_mpi" = true ]; then 
             mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
         else
             fit -c bootstrap_fit.cfg -m 1000000
         fi
         mv "$my_reaction".fit "$my_reaction"_"$i".fit
+        bootstrap_end_time=$(date +%s)
+        echo "Bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
     done    
 
     ls -al 
     mv -f "$my_reaction"_*.fit bootstrap/
     mv -f "$my_reaction".ni bootstrap/
+    all_bootstrap_end_time=$(date +%s)
+    echo "All bootstrap fits took: $((all_bootstrap_end_time - all_bootstrap_start_time)) seconds"
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
     ls -al
 fi
