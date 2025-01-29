@@ -73,21 +73,33 @@ class Wave:
 
 def main(args: dict) -> None:
 
-    # Error / default value handling
-    for input_file in args["input"]:
-        if not os.path.isfile(input_file):
-            raise ValueError(f"Input file {input_file} does not exist")
+    # ERROR / VALUE HANDLING
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] += ".csv"
     elif not args["output"]:
         args["output"] = "moments.csv"
-    if not all(input_file.endswith(".fit") for input_file in args["input"]):
+
+    # Check if args["input"] is a file containing a list of result files
+    input_files = []
+    if (
+        len(args["input"]) == 1
+        and os.path.isfile(args["input"][0])
+        and not args["input"][0].endswith(".fit")
+    ):
+        with open(args["input"][0], "r") as file:
+            input_files = [line.strip() for line in file if line.strip()]
+    else:
+        input_files = args["input"]
+
+    for f in input_files:
+        if not os.path.exists(f):
+            raise FileNotFoundError(f"File {f} does not exist")
+
+    if not all(f.endswith(".fit") for f in input_files):
         raise ValueError("Input file(s) must be .fit files")
 
     # sort the input files if requested
-    input_files = (
-        utils.sort_input_files(args["input"]) if args["sorted"] else args["input"]
-    )
+    input_files = utils.sort_input_files(input_files) if args["sorted"] else input_files
 
     # only print out the files that will be processed if preview flag is passed
     if args["preview"]:
@@ -107,7 +119,10 @@ def main(args: dict) -> None:
 
     # Loop to calculate moments for each input file
     for file in input_files:
-        mass = get_mass(file)  # obtain center of mass bin for Breit Wigner calculation
+        if args["breit_wigner"]:
+            mass = get_mass(file)  # obtain center of mass bin for BW calculation
+        else:
+            mass = 0.0
         waves = get_waves(file, mass, args["breit_wigner"])  # obtain waves from file
 
         # PREPARE QUANTUM NUMBERS OF MOMENTS
@@ -151,10 +166,12 @@ def main(args: dict) -> None:
     df = pd.DataFrame.from_dict(data_dict)
     df.index = input_files
     df.to_csv(args["output"], index_label="file")
+    print("Moments saved to", args["output"])
 
     matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
     matrix_df.fillna(0, inplace=True)
     matrix_df.to_csv(args["output"].replace(".csv", "_matrix.csv"))
+    print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
 
     pass
 
