@@ -225,13 +225,13 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     fi
 
     # replace data reader with bootstrap version for just the "data" file
-    sed -i -e 's/data LOOPREAC ROOTDataReader LOOPDATA/data LOOPREAC ROOTDataReaderBootstrap LOOPDATA 0/' bootstrap_fit.cfg
+    sed -i -e '/data/s/ROOTDataReader/ROOTDataReaderBootstrap/' bootstrap_fit.cfg
 
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
     for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
         echo -e "\nBOOTSTRAP FIT: $i\n"      
         # replace the bootstrap seed in the cfg  
-        sed -i -e "s/ROOTDataReaderBootstrap LOOPDATA $((i-1))/ROOTDataReaderBootstrap LOOPDATA $i/" bootstrap_fit.cfg
+        sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit.cfg        
         # run fit
         bootstrap_start_time=$(date +%s)
         if [ "$use_mpi" = true ]; then 
