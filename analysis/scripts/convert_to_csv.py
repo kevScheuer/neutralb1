@@ -9,6 +9,7 @@ Behind the scenes, this script calls a ROOT macro for either situation.
 import argparse
 import os
 import subprocess
+import tempfile
 
 import utils
 
@@ -24,14 +25,20 @@ def main(args: dict) -> None:
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] = args["output"] + ".csv"
 
-    # Check if args["input"] is a file containing a list of result files
+    # Check if args["input"] is a file containing a list of result files, and save
+    # the list of files to input_files
     input_files = []
-    if len(args["input"]) == 1 and os.path.isfile(args["input"][0]):
+    if (
+        len(args["input"]) == 1
+        and os.path.isfile(args["input"][0])
+        and not args["input"][0].endswith(".fit")
+    ):
         with open(args["input"][0], "r") as file:
             input_files = [line.strip() for line in file if line.strip()]
     else:
         input_files = args["input"]
 
+    # Check if all input files exist
     for f in input_files:
         if not os.path.exists(f):
             print(f"File {f} does not exist, exiting")
@@ -46,7 +53,7 @@ def main(args: dict) -> None:
             "All input files must be of the same type: either .fit or .root files"
         )
 
-    # sort the input files based off the last number in the file name or path
+    # sort the input files
     input_files = (
         utils.sort_input_files(input_files, args["sort_index"])
         if args["sorted"]
@@ -62,45 +69,55 @@ def main(args: dict) -> None:
     # get the script directory to properly call the script with the right path
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # hand off the files to the macro as a single space-separated string
-    input_files = " ".join(input_files)
+    # hand off the files to the macro as a tempfile, where each file is on a newline
+    # this seems to improve the speed of subprocess.Popen
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_file:
+        temp_file.write("\n".join(input_files))
+        temp_file_path = temp_file.name
+    print(f"Temp file created at {temp_file_path}")
 
+    # convert this flag into bool integers for the ROOT macro to interpret
     is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
+
+    # setup ROOT command with appropriate arguments
+    amptools = ""
     if file_type == "fit":
         output_file_name = "fits.csv" if not args["output"] else args["output"]
         command = (
-            f'.x {script_dir}/extract_fit_results.cc("{input_files}",'
-            f' "{output_file_name}", {is_acceptance_corrected})\n'
+            f'{script_dir}/extract_fit_results.cc("{temp_file_path}",'
+            f' "{output_file_name}", {is_acceptance_corrected})'
         )
+        amptools = "loadAmpTools.C"
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
         command = (
-            f'.x {script_dir}/extract_bin_info.cc("{input_files}",'
-            f" \"{output_file_name}\", \"{args['mass_branch']}\")\n"
+            f'{script_dir}/extract_bin_info.cc("{input_files}",'
+            f" \"{output_file_name}\", \"{args['mass_branch']}\")"
         )
     else:
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
+    command = ["root", "-n", "-l", "-b", "-q", amptools, command]
+
+    print("Running ROOT macro...")
     # call the ROOT macro
     proc = subprocess.Popen(
-        ["root", "-n", "-l", "-b"],
+        command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
-    if file_type == "fit":
-        proc.stdin.write(".x loadAmpTools.C\n")  # load the AmpTools libraries for fits
-    proc.stdin.write(command)
-    proc.stdin.flush()
-    stdout, stderr = proc.communicate()
-    proc.stdin.close()
-    proc.wait()
-    print(stdout)
-    print(stderr)
-
-    if not stderr:
-        print(f"Results successfully written to: {output_file_name}")
+    # print the output of the ROOT macro as it runs
+    for line in iter(proc.stdout.readline, ""):
+        print(line, end="")
+    proc.wait()  # wait for the process to finish and update the return code
+    if proc.returncode != 0:
+        print("Error while running ROOT macro:")
+        for line in iter(proc.stderr.readline, ""):
+            print(line, end="")
+    else:
+        print("ROOT macro completed successfully")
 
     return
 
