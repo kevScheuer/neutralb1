@@ -7,10 +7,12 @@ Behind the scenes, this script calls a ROOT macro for either situation.
 """
 
 import argparse
+import multiprocessing
 import os
 import subprocess
 import tempfile
 
+import numpy as np
 import utils
 
 
@@ -39,10 +41,15 @@ def main(args: dict) -> None:
         input_files = args["input"]
 
     # Check if all input files exist
-    for f in input_files:
-        if not os.path.exists(f):
-            print(f"File {f} does not exist, exiting")
-            return
+    print("Checking if all input files exist...")
+    selector = np.array(
+        multiprocessing.Pool(8).map(os.path.exists, np.array(input_files))
+    )
+    paths_not_existing = np.array(input_files)[~selector]
+    if len(paths_not_existing) > 0:
+        raise FileNotFoundError(
+            "The following files do not exist:\n" + "\n".join(paths_not_existing)
+        )
 
     if all(file.endswith(".fit") for file in input_files):
         file_type = "fit"
