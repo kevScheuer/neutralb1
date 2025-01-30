@@ -224,8 +224,8 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         echo "include bestFitPars.txt" >> bootstrap_fit.cfg
     fi
 
-    # replace data reader with bootstrap version for just the "data" file
-    sed -i -e '/data/s/ROOTDataReader/ROOTDataReaderBootstrap/' bootstrap_fit.cfg
+    # replace data reader with bootstrap version for just the "data" file    
+    sed -i -e '/data/s/ROOTDataReader \([^ ]\+\)/ROOTDataReaderBootstrap \1 0/' bootstrap_fit.cfg
 
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
     for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
