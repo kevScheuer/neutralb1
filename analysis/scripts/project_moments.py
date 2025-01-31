@@ -15,13 +15,25 @@ that this parameter contains the word "scale" in the name.
 
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
-TODO: The moment matrix is calculated for every file, but only needs to be done once
+
+TODO: The big piece missing is the coefficient matrix, but I really don't like that its
+calculated for every file, there must be a better way. Remember to also change all the
+docstrings and add comments as needed once the edits are done
+TODO: manually cache the moment values. Basically if I calculate the moment, with a
+    given set of quantum numbers, and the same set of waves, I should just return the
+    value from the cache instead of recalculating it. This will be a huge speedup. Make
+    sure that "same" waveset is comparing all its member values, but they need to be
+    within some tolerance since some values are floats.
 """
 
 import argparse
+import concurrent.futures
+import functools
 import itertools
 import os
-from typing import Dict, List, Set, TextIO, Tuple  # type hinting
+import re
+import timeit
+from typing import Dict, List, Tuple  # type hinting
 
 import numba  # speed up for-loop calculations
 import numpy as np
@@ -62,22 +74,17 @@ class Wave:
         self.imaginary = imaginary
         self.scale = scale
 
-    def __eq__(self, other):
-        if isinstance(other, Wave):
-            return self.name == other.name
-        return False
-
-    def __hash__(self):
-        return hash(self.name)
-
 
 def main(args: dict) -> None:
-
+    start_time = timeit.default_timer()
     # ERROR / VALUE HANDLING
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] += ".csv"
     elif not args["output"]:
         args["output"] = "moments.csv"
+
+    # limit the number of workers to a max of 50 to prevent hogging resources
+    args["workers"] = min(args["workers"], 50)
 
     # Check if args["input"] is a file containing a list of result files
     input_files = []
@@ -91,10 +98,10 @@ def main(args: dict) -> None:
     else:
         input_files = args["input"]
 
+    # Ensure all input files exist and are .fit files
     for f in input_files:
         if not os.path.exists(f):
             raise FileNotFoundError(f"File {f} does not exist")
-
     if not all(f.endswith(".fit") for f in input_files):
         raise ValueError("Input file(s) must be .fit files")
 
@@ -108,103 +115,118 @@ def main(args: dict) -> None:
             print(f"\t{file}")
         return
 
-    # create empty dictionaries for
-    data_dict = {}  # The moments calculated for each file
+    # create empty dictionaries for:
+    moment_dict = {}  # The moments calculated for each file
     matrix_dict = {}  # The production coefficient pairs that contribute to each moment
-    # since this next dict is passed to numba functions, it must be explicitly typed
-    coefficient_dict = numba.typed.Dict.empty(
-        key_type=numba.types.UniTuple(numba.types.unicode_type, 2),
-        value_type=numba.types.float64,
-    )
 
-    # Loop to calculate moments for each input file
-    for file in input_files:
-        if args["breit_wigner"]:
-            mass = get_mass(file)  # obtain center of mass bin for BW calculation
-        else:
-            mass = 0.0
-        waves = get_waves(file, mass, args["breit_wigner"])  # obtain waves from file
+    # process each file in parallel
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=args["workers"]
+    ) as executor:
+        results = list(
+            executor.map(process_file, input_files, [args] * len(input_files))
+        )
 
-        # PREPARE QUANTUM NUMBERS OF MOMENTS
-        Jv_array = np.array([0, 2])  # CG coefficient always makes Jv=1 be 0
-        # (-) Lambda values are directly proportional to (+) ones, no need to calculate
-        Lambda_array = np.arange(0, 3)
-
-        max_J = max(wave.spin for wave in waves)
-        J_array = np.arange(0, 2 * max_J + 1)
-
-        max_m = max(wave.m for wave in waves)
-        M_array = np.arange(0, max_m + 1)  # like Lambda, -m ∝ +m moments
-
-        # calculate each moment and what production coefficients contribute to it
-        # and add to the dictionaries
-        for alpha in range(3):
-            for Jv, Lambda, J, M in itertools.product(
-                Jv_array, Lambda_array, J_array, M_array
-            ):
-                moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
-
-                # this is a new moment, so create list to store results for each file
-                if moment_str not in data_dict.keys():
-                    data_dict[moment_str] = []
-
-                coefficient_dict.clear()
-                moment_val = calculate_moment(
-                    alpha, Jv, Lambda, J, M, list(waves), coefficient_dict
-                )
-                # save the results for this moment
-                matrix_dict[moment_str] = coefficient_dict.copy()
-                data_dict[moment_str].append(moment_val)
+    # unpack the results into the data dictionary
+    for file, file_moments, file_matrix in results:
+        for key, val in file_moments.items():
+            if key not in moment_dict:
+                moment_dict[key] = []
+            moment_dict[key].append(val)
 
     # check that every data file has the same number of moments
     if not all(
-        len(data) == len(data_dict["H0(0,0,0,0)"]) for data in data_dict.values()
+        len(data) == len(moment_dict["H0(0,0,0,0)"]) for data in moment_dict.values()
     ):
         raise ValueError("Number of moments calculated is not consistent across files")
 
-    # save moments and matrix to csv files
-    df = pd.DataFrame.from_dict(data_dict)
+    # save moments to csv file
+    df = pd.DataFrame.from_dict(moment_dict)
     df.index = input_files
     df.to_csv(args["output"], index_label="file")
     print("Moments saved to", args["output"])
 
-    matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
-    matrix_df.fillna(0, inplace=True)
-    matrix_df.to_csv(args["output"].replace(".csv", "_matrix.csv"))
-    print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
-
+    # matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
+    # matrix_df.fillna(0, inplace=True)
+    # matrix_df.to_csv(args["output"].replace(".csv", "_matrix.csv"))
+    # print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
+    end_time = timeit.default_timer()
+    print(f"Total time taken: {end_time - start_time:.4f} seconds")
     pass
 
 
+def process_file(file: str, args: dict):
+
+    if args["breit_wigner"]:
+        # obtain center of mass bin for BW calculation. Split off the file name to make
+        # use of function cache for repeated mass values
+        mass = get_mass(file.rsplit("/", 1)[0])
+    else:
+        mass = 0.0
+    waves = get_waves(file, mass, args["breit_wigner"])  # obtain waves from file
+
+    if args["verbose"]:
+        start_time = timeit.default_timer()
+    # PREPARE QUANTUM NUMBERS OF MOMENTS
+    Jv_array = np.array([0, 2])  # CG coefficient always makes Jv=1 be 0
+    # (-) Lambda values are directly proportional to (+) ones, no need to calculate
+    Lambda_array = np.arange(0, 3)
+
+    max_J = max(wave.spin for wave in waves)
+    J_array = np.arange(0, 2 * max_J + 1)
+
+    max_m = max(wave.m for wave in waves)
+    M_array = np.arange(0, max_m + 1)  # like Lambda, -m ∝ +m moments
+
+    # calculate each moment and what production coefficients contribute to it
+    # and add to the dictionaries
+    moment_dict = {}
+    matrix_dict = {}  # TODO: fill this dictionary with the production coefficient pairs
+    for alpha in range(3):
+        for Jv, Lambda, J, M in itertools.product(
+            Jv_array, Lambda_array, J_array, M_array
+        ):
+            moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
+
+            moment_val = calculate_moment(
+                alpha, Jv, Lambda, J, M, numba.typed.List(waves)
+            )
+            # save the results for this moment
+            moment_dict[moment_str] = moment_val
+    if args["verbose"]:
+        elapsed = timeit.default_timer() - start_time
+        print(f"Time taken to process {file}: {elapsed:.4f} seconds")
+
+    return file, moment_dict, matrix_dict
+
+
+@functools.cache
 def get_mass(file: str) -> float:
     """Obtain the mass bin's center from a subdirectory within the file path
 
     TODO: this is a very setup-dependent way to get this info, but only other
-        option would be to implement this all in c++ to use the FitResults class
+        option would be to load the ROOT data file in the .fit file and plot its mass
+        histogram and get the bin center.
 
     Args:
-        file (str): full file path assumed to be setup like "path/to/mass_0-100/fit.txt"
-            or "path/to/mass_0-100/subdirectory/fit.txt"
+        file (str): full file path of .fit file, assumes that mass range is somewhere
+            in the path as "subdir/mass_X-Y/"
 
     Raises:
-        ValueError: since only 2 cases are handled above, this error is raised if
-            the mass range cannot be obtained from the file path
+        ValueError: raised if the mass range could not be obtained from the file path
 
     Returns:
         float: average of the two values found in the mass range
     """
-    mass_range = ""
-    for subdir in file.split("/"):
-        if subdir.startswith("mass"):
-            mass_range = subdir.split("_")[-1]
-    if not mass_range:
+    match = re.search(r"/mass_([\d.]+)-([\d.]+)", file)
+    if not match:
         raise ValueError("Mass range could not be obtained from file path")
-    mass = (float(mass_range.split("-")[0]) + float(mass_range.split("-")[1])) / 2.0
 
+    mass = (float(match.group(1)) + float(match.group(2))) / 2.0
     return mass
 
 
-def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
+def get_waves(file: str, mass: float, use_breit_wigner: bool) -> List[Wave]:
     """Obtain the set of waves, with their real and imaginary parts, from a fit result
 
     Args:
@@ -216,7 +238,7 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
     Returns:
         Set[Wave]: all the waves and their information found in the file
     """
-    waves = set()
+    waves = {}
     searching_for_scale = False
     searching_for_amplitudes = False
     with open(file, "r") as f:
@@ -266,18 +288,16 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
                 l = pwa_tools.char_to_int(parsed_amp["l"])
 
                 # add scale parameter and amplitude info to wave set
-                waves.add(
-                    Wave(
-                        name=amplitude,
-                        reflectivity=reflectivity,
-                        spin=spin,
-                        parity=parity,
-                        m=m,
-                        l=l,
-                        real=np.nan,
-                        imaginary=np.nan,
-                        scale=float(parts[-1]),
-                    )
+                waves[amplitude] = Wave(
+                    name=amplitude,
+                    reflectivity=reflectivity,
+                    spin=spin,
+                    parity=parity,
+                    m=m,
+                    l=l,
+                    real=np.nan,
+                    imaginary=np.nan,
+                    scale=float(parts[-1]),
                 )
 
             # find the real and imaginary parts of the amplitudes
@@ -287,10 +307,9 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
                 re_im_flag = amplitude_re_im.split("_")[-1]  # re or im
 
                 # obtain real and imaginary parts and add to appropriate wave
-                wave = [w for w in waves if w.name == amplitude]
-                assert len(wave) != 0, f"Amplitude {amplitude} not found in file {file}"
-                assert len(wave) == 1, f"File {file} contains duplicates of {amplitude}"
-                wave = wave[0]
+                wave = waves.get(amplitude)
+                if wave is None:
+                    raise ValueError(f"Amplitude {amplitude} not found in file {file}")
                 scaled_part = wave.scale * float(parts[-1])
                 match re_im_flag:
                     case "re":
@@ -305,7 +324,7 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
     # If breit wigners are used, we need to multiply the re/im parts for each wave
     # get breit wigner if requested
     if use_breit_wigner:
-        for wave in waves:
+        for wave in waves.values():
             try:
                 bw_mass = BREIT_WIGNERS[wave.name[1:3]]["mass"]
                 bw_width = BREIT_WIGNERS[wave.name[1:3]]["width"]
@@ -320,15 +339,15 @@ def get_waves(file: TextIO, mass: float, use_breit_wigner: bool) -> Set[Wave]:
             wave.imaginary = c.imag
 
     # Check that real and imaginary parts were found for all waves
-    if not all(w.real and w.imaginary for w in waves):
+    if not all(w.real and w.imaginary for w in waves.values()):
         raise ValueError(
             f"Real and imaginary parts not found for all waves in file {file}"
         )
 
-    return waves
+    return list(waves.values())
 
 
-@numba.njit
+@numba.njit(cache=True)
 def calculate_moment(
     alpha: int,
     Jv: int,
@@ -336,7 +355,6 @@ def calculate_moment(
     J: int,
     M: int,
     waves: List[Wave],
-    coefficient_dict: Dict[Tuple[str, str], float],
 ) -> float:
     """Calculate the moment for a given set of quantum numbers
 
@@ -365,7 +383,6 @@ def calculate_moment(
     """
 
     max_J = max([wave.spin for wave in waves])
-
     moment = 0
     # for loops are done here to best match the mathematical notation
     for Ji in range(max_J + 1):
@@ -408,10 +425,10 @@ def calculate_moment(
                                     )
                                     # add the CG coefficients to every pair of
                                     # production coefficients that contribute to SDME
-                                    if cgs != 0:
-                                        for pair in pairs:
-                                            pair_value = coefficient_dict.get(pair, 0.0)
-                                            coefficient_dict[pair] = pair_value + cgs
+                                    # if cgs != 0:
+                                    #     for pair in pairs:
+                                    #         pair_value = coefficient_dict.get(pair, 0.0)
+                                    #         coefficient_dict[pair] = pair_value + cgs
 
                                     # finally, calculate the moment
                                     moment += factor * cgs * sdme
@@ -424,7 +441,75 @@ def sign(i):
     return 1 if i % 2 == 0 else -1
 
 
-@numba.njit
+@numba.njit(cache=True)
+def calculate_SDME(
+    alpha: int,
+    Ji: int,
+    li: int,
+    mi: int,
+    Jj: int,
+    lj: int,
+    mj: int,
+    waves: List[Wave],
+) -> Tuple[complex, List[Tuple[str, str]]]:
+    """Calculate the spin density matrix element using complex production coefficients
+
+    The SDMEs are separated into 3 cases depending on the value of alpha (which indexes
+    the intensity component). They each contain a sum over the two reflectivity values.
+    The calculation is done by storing the 4 complex values in each sum and calculating
+    the result. The pairs of production coefficients that contribute to this SDME are
+    also stored in a list to be used later in the clebsch gordan matrix.
+
+    Args:
+        alpha (int):indexes which term of the intensity the moment is associated with
+            0: unpolarized
+            1: polarized cos(2*Phi)
+            2: polarized sin(2*Phi)
+        Ji (int): 1st wave spin
+        li (int): 1st wave angular momenta
+        mi (int): 1st wave m-projection
+        Jj (int): 2nd wave spin
+        lj (int): 2nd wave angular momenta
+        mj (int): 2nd wave spin
+        waves (List[Wave]): List of all waves found in input file
+
+    Raises:
+        ValueError: if alpha value is not 0, 1, or 2
+
+    Returns:
+        complex: SDME value for the corresponding alpha value
+        List[Tuple[str, str]]: list of pairs of production coefficients that contribute
+            to the SDME
+    """
+    reflectivities = [-1, 1]
+    result = complex(0.0, 0.0)
+    pairs = []
+
+    # calculate the sdme according to the alpha value
+    for e in reflectivities:
+        c1, c2, c3, c4, new_pairs = process_waves(
+            waves, Ji, li, mi, Jj, lj, mj, e, alpha
+        )
+        pairs.extend(new_pairs)
+        match alpha:
+            case 0:
+                result += c1 * c2 + sign(mi + mj + li + lj + Ji + Jj) * c3 * c4
+            case 1:
+                result += e * (
+                    sign(1 + mi + li + Ji) * c1 * c2 + sign(1 + mj + lj + Jj) * c3 * c4
+                )
+            case 2:
+                result += e * (
+                    sign(mi + li + Ji) * c1 * c2 - sign(mj + lj + Jj) * c3 * c4
+                )
+            case _:
+                raise ValueError(f"Invalid alpha value {alpha}")
+    if alpha == 2:
+        result *= complex(0, 1)
+    return result, pairs
+
+
+@numba.njit(cache=True)
 def process_waves(
     waves: List[Wave],
     Ji: int,
@@ -464,36 +549,27 @@ def process_waves(
             SDME.
     """
 
-    c1, c2, c3, c4 = 0.0, 0.0, 0.0, 0.0
+    c1, c2, c3, c4 = complex(0, 0), complex(0, 0), complex(0, 0), complex(0, 0)
     pairs = []
     c1_name, c2_name, c3_name, c4_name = "", "", "", ""
     for wave in waves:
-        conditions = {
-            "c1": (
-                wave.spin == Ji
-                and wave.l == li
-                and wave.m == (mi if alpha == 0 else -mi)
-            ),
-            "c2": (wave.spin == Jj and wave.l == lj and wave.m == mj),
-            "c3": (
-                wave.spin == Ji
-                and wave.l == li
-                and wave.m == (-mi if alpha == 0 else mi)
-            ),
-            "c4": (wave.spin == Jj and wave.l == lj and wave.m == -mj),
-        }
         if wave.reflectivity != e:
             continue
-        if conditions["c1"]:
+
+        wave_J = wave.spin
+        wave_l = wave.l
+        wave_m = wave.m
+
+        if wave_J == Ji and wave_l == li and wave_m == (mi if alpha == 0 else -mi):
             c1 = complex(wave.real, wave.imaginary)
             c1_name = wave.name
-        if conditions["c2"]:
+        if wave_J == Jj and wave_l == lj and wave_m == mj:
             c2 = complex(wave.real, -wave.imaginary)
             c2_name = wave.name
-        if conditions["c3"]:
+        if wave_J == Ji and wave_l == li and wave_m == (-mi if alpha == 0 else mi):
             c3 = complex(wave.real, wave.imaginary)
             c3_name = wave.name
-        if conditions["c4"]:
+        if wave_J == Jj and wave_l == lj and wave_m == -mj:
             c4 = complex(wave.real, -wave.imaginary)
             c4_name = wave.name
 
@@ -504,86 +580,6 @@ def process_waves(
         if c3_name and c4_name:
             pairs.append((c3_name, c4_name))
     return c1, c2, c3, c4, pairs
-
-
-@numba.njit
-def calculate_SDME(
-    alpha: int,
-    Ji: int,
-    li: int,
-    mi: int,
-    Jj: int,
-    lj: int,
-    mj: int,
-    waves: List[Wave],
-) -> Tuple[complex, List[Tuple[str, str]]]:
-    """Calculate the spin density matrix element using complex production coefficients
-
-    The SDMEs are separated into 3 cases depending on the value of alpha (which indexes
-    the intensity component). They each contain a sum over the two reflectivity values.
-    The calculation is done by storing the 4 complex values in each sum and calculating
-    the result. The pairs of production coefficients that contribute to this SDME are
-    also stored in a list to be used later in the clebsch gordan matrix.
-
-    Args:
-        alpha (int):indexes which term of the intensity the moment is associated with
-            0: unpolarized
-            1: polarized cos(2*Phi)
-            2: polarized sin(2*Phi)
-        Ji (int): 1st wave spin
-        li (int): 1st wave angular momenta
-        mi (int): 1st wave m-projection
-        Jj (int): 2nd wave spin
-        lj (int): 2nd wave angular momenta
-        mj (int): 2nd wave spin
-        waves (List[Wave]): List of all waves found in input file
-        coefficient_dict (Dict[Tuple[str, str], float]): see calculate_moment docstring
-
-    Raises:
-        ValueError: if alpha value is not 0, 1, or 2
-
-    Returns:
-        complex: SDME value for the corresponding alpha value
-        List[Tuple[str, str]]: list of pairs of production coefficients that contribute
-            to the SDME
-    """
-
-    reflectivities = [-1, 1]
-    result = complex(0.0, 0.0)
-    pairs = []
-
-    # calculate the sdme according to the alpha value
-    match alpha:
-        case 0:
-            for e in reflectivities:
-                c1, c2, c3, c4, new_pairs = process_waves(
-                    waves, Ji, li, mi, Jj, lj, mj, e, alpha
-                )
-                pairs.extend(new_pairs)
-                result += c1 * c2 + sign(mi + mj + li + lj + Ji + Jj) * c3 * c4
-        case 1:
-            for e in reflectivities:
-                c1, c2, c3, c4, new_pairs = process_waves(
-                    waves, Ji, li, mi, Jj, lj, mj, e, alpha
-                )
-                pairs.extend(new_pairs)
-                result += e * (
-                    sign(1 + mi + li + Ji) * c1 * c2 + sign(1 + mj + lj + Jj) * c3 * c4
-                )
-        case 2:
-            for e in reflectivities:
-                c1, c2, c3, c4, new_pairs = process_waves(
-                    waves, Ji, li, mi, Jj, lj, mj, e, alpha
-                )
-                pairs.extend(new_pairs)
-                result += e * (
-                    sign(mi + li + Ji) * c1 * c2 - sign(mj + lj + Jj) * c3 * c4
-                )
-            result *= complex(0, 1)  # H2 is the purely imaginary moment
-        case _:
-            raise ValueError(f"Invalid alpha value {alpha}")
-
-    return result, pairs
 
 
 @numba.njit(cache=True)
@@ -655,6 +651,22 @@ def parse_args() -> dict:
         help=(
             "When passed, modify the production coefficients by the appropriate"
             " Breit-Wigner values. Note these are currently hard-coded in the script."
+        ),
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print out additional information during the script execution",
+    )
+    parser.add_argument(
+        "-w",
+        "--workers",
+        type=int,
+        default=1,
+        help=(
+            "Number of workers to use for parallel processing. Defaults to 1, which"
+            " means no parallel processing"
         ),
     )
 
