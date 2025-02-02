@@ -19,11 +19,6 @@ TODO: Parse Breit-Wigners instead of hard-coding them
 TODO: The big piece missing is the coefficient matrix, but I really don't like that its
 calculated for every file, there must be a better way. Remember to also change all the
 docstrings and add comments as needed once the edits are done
-TODO: manually cache the moment values. Basically if I calculate the moment, with a
-    given set of quantum numbers, and the same set of waves, I should just return the
-    value from the cache instead of recalculating it. This will be a huge speedup. Make
-    sure that "same" waveset is comparing all its member values, but they need to be
-    within some tolerance since some values are floats.
 """
 
 import argparse
@@ -83,8 +78,8 @@ def main(args: dict) -> None:
     elif not args["output"]:
         args["output"] = "moments.csv"
 
-    # limit the number of workers to a max of 50 to prevent hogging resources
-    args["workers"] = min(args["workers"], 50)
+    # limit the number of workers to a max of 10 to prevent hogging resources
+    args["workers"] = min(args["workers"], 10)
 
     # Check if args["input"] is a file containing a list of result files
     input_files = []
