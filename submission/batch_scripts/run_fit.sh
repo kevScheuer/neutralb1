@@ -100,6 +100,7 @@ done
 # ==== END GETTING ARGUMENTS ====
 
 source $my_code_dir/setup_gluex.sh
+conda activate neutralb1
 
 # print some details to log
 echo -e "check if GPU Card is active for GPU fits:\n"
@@ -112,7 +113,6 @@ amp_string="anglesOmegaPiAmplitude"
 ph_string="anglesOmegaPiPhaseSpace"
 
 # link data files
-link_start_time=$(date +%s)
 for ont in ${my_orientations}; do
     ont_num="$(cut -d'_' -f2 <<<"$ont")" # get the angle integer e.g. PARA_90 -> 90
 
@@ -133,9 +133,6 @@ else
 fi
 ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
  ./${ph_string}Acc.root
-
-link_end_time=$(date +%s)
-echo "Linking files took: $((link_end_time - link_start_time)) seconds"
 
 ls -al 
 
@@ -173,7 +170,7 @@ if ! [ -f "$my_reaction.fit" ]; then
     exit 1
 fi
 
-# run diagnostic plotters
+### FIT DIAGNOSTICS AND RESULTS ###
 mv "$my_reaction".fit best.fit
 vecps_start_time=$(date +%s)
 vecps_plotter best.fit
@@ -182,7 +179,7 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
 if [ -z "$my_truth_file" ]; then
     cwd=$(pwd)
-    root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")"
+    root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" # TODO: replace with python script
 fi
 
 # produce diagnostic plots of angles and mass distributions
@@ -193,24 +190,35 @@ elif [[ $my_data_option == *"_mcthrown"* ]]; then
 else
     my_label="Recon MC"
 fi
-plot_start_time=$(date +%s)
 root -l -n -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
-plot_end_time=$(date +%s)
-echo "angle_plotter took: $((plot_end_time - plot_start_time)) seconds"
 
-ls -al
+# get total data csv file
+hadd all_data.root ${amp_string}_*.root
+python $my_code_dir/convert_to_csv.py -i $(pwd)/all_data.root -o $(pwd)/data.csv
 
-# move all the randomized fits to the rand directory
-if [ $my_num_rand_fits -ne 0 ]; then
+# convert best fit results to a csv file and moments
+python $my_code_dir/convert_to_csv.py -i $(pwd)/best.fit -o $(pwd)/best.csv
+breit_wigner_arg=""
+if ! [ -z "$my_truth_file" ]; then
+    $breit_wigner_arg = " -b" # truth files use breit wigner parameters
+fi
+python $my_code_dir/project_moments.py -i $(pwd)/best.fit -o $(pwd)/best_moments.csv $breit_wigner_arg
+
+# process random fits
+if [ $my_num_rand_fits -ne 0 ] && [ -z "$my_truth_file" ]; then
+    python $my_code_dir/convert_to_csv.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv    
+    python $my_code_dir/project_moments.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv -w 10
     mv -f "$my_reaction"_*.fit rand/
     mv -f bestFitPars_*.txt rand/
     mv -f "$my_reaction".ni rand/
     mv -f rand_fit_diagnostic.pdf rand/
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
-    ls -al
 fi
 
+ls -al
+
+## BOOTSTRAP FITS ##
 if [ $my_num_bootstrap_fits -ne 0 ]; then
     all_bootstrap_start_time=$(date +%s)
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
@@ -219,7 +227,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     if ! [ -z "$my_truth_file" ]; then
         cp -f $my_truth_file bootstrap_fit.cfg
     else
-        # create special bootstrap cfg and set it to start at the best fit values
+        # otherwise create special bootstrap cfg and set it to start at the best fit values
         cp -f fit.cfg bootstrap_fit.cfg
         echo "include bestFitPars.txt" >> bootstrap_fit.cfg
     fi
@@ -245,6 +253,9 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     done    
 
     ls -al 
+    # convert bootstrap fits to csv and move them to a subdirectory
+    python $my_code_dir/convert_to_csv.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
+    python $my_code_dir/project_moments.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv -w 10 $breit_wigner_arg
     mv -f "$my_reaction"_*.fit bootstrap/
     mv -f "$my_reaction".ni bootstrap/
     all_bootstrap_end_time=$(date +%s)

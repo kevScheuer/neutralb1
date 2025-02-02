@@ -13,7 +13,8 @@ import subprocess
 import tempfile
 
 import numpy as np
-import utils
+
+from ...analysis.scripts import utils
 
 
 def main(args: dict) -> None:

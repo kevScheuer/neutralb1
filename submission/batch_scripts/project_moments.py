@@ -33,9 +33,9 @@ from typing import Dict, List, Tuple  # type hinting
 import numba  # speed up for-loop calculations
 import numpy as np
 import pandas as pd
-import pwa_tools
 import spherical
-import utils
+
+from ...analysis.scripts import pwa_tools, utils
 
 BREIT_WIGNERS = {
     "1p": {"mass": 1.235, "width": 0.142},
