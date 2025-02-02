@@ -43,7 +43,7 @@ def main(args: dict) -> None:
     # Check if all input files exist
     print("Checking if all input files exist...")
     selector = np.array(
-        multiprocessing.Pool(8).map(os.path.exists, np.array(input_files))
+        multiprocessing.Pool(5).map(os.path.exists, np.array(input_files))
     )
     paths_not_existing = np.array(input_files)[~selector]
     if len(paths_not_existing) > 0:
@@ -116,8 +116,9 @@ def main(args: dict) -> None:
         text=True,
     )
     # print the output of the ROOT macro as it runs
-    for line in iter(proc.stdout.readline, ""):
-        print(line, end="")
+    if args["verbose"]:
+        for line in iter(proc.stdout.readline, ""):
+            print(line, end="")
     proc.wait()  # wait for the process to finish and update the return code
     if proc.returncode != 0:
         print("Error while running ROOT macro:")
@@ -190,6 +191,12 @@ def parse_args() -> dict:
         "--preview",
         action="store_true",
         help=("When passed, print out the files that will be processed and exit."),
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print out more information while running the script",
     )
     return vars(parser.parse_args())
 
