@@ -7,12 +7,12 @@ The csv file will have columns for:
 
 NOTE:
 This script assumes that the original Flat Tree data files have been cut to their
-respective bin, and that they contain the t, E_beam, and Weight branches. The 
-Weight branch is used for sideband subtraction, and so if a separate "background" file 
+respective bin, and that they contain the t, E_beam, and Weight branches. The
+Weight branch is used for sideband subtraction, and so if a separate "background" file
 is used, then it will need to be implemented here.
  */
 
-#include <cmath> // for power function
+#include <cmath>   // for power function
 #include <fstream> // for writing csv
 #include <iostream>
 #include <sstream> // for std::istringstream
@@ -20,21 +20,22 @@ is used, then it will need to be implemented here.
 #include <vector>
 
 // forward declarations
-std::pair<double,double> get_hist_edges(TH1D* h, int round_to_decimals);
+std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals);
 
-void extract_bin_info(std::string files, std::string csv_name, std::string mass_branch)
+void extract_bin_info(std::string file_path, std::string csv_name, std::string mass_branch)
 {
-    // store space-separated list of files into a vector
+    // file path is a text file with a list of ROOT files, each on a newline
     std::vector<std::string> file_vector;
-    std::istringstream iss(files);
-    std::string file;
-    while (iss >> file)
+    std::ifstream infile(file_path);
+    std::string line;
+    while (std::getline(infile, line))
     {
-        file_vector.push_back(file);
+        file_vector.push_back(line);
     }
 
     // Define header row and corresponding values
     std::vector<std::string> headers = {
+        "file",
         "t_low",
         "t_high",
         "t_center",
@@ -74,7 +75,7 @@ void extract_bin_info(std::string files, std::string csv_name, std::string mass_
         TH1D *h_t = (TH1D *)gPad->GetPrimitive("h_t");
         tree->Draw("E_Beam>>h_e", "Weight");
         TH1D *h_e = (TH1D *)gPad->GetPrimitive("h_e");
-        tree->Draw((mass_branch+">>h_m").c_str(), "Weight");
+        tree->Draw((mass_branch + ">>h_m").c_str(), "Weight");
         TH1D *h_m = (TH1D *)gPad->GetPrimitive("h_m");
 
         // Fill the map. Round -t and E_beam to 2nd decimal, and the mass values to
@@ -90,7 +91,7 @@ void extract_bin_info(std::string files, std::string csv_name, std::string mass_
         value_map["t_center"] = (t_high + t_low) / 2.0;
         value_map["t_avg"] = h_t->GetMean();
         value_map["t_rms"] = h_t->GetRMS();
-                
+
         double e_low, e_high;
         std::tie(e_low, e_high) = get_hist_edges(h_e, 2);
         value_map["e_low"] = e_low;
@@ -132,12 +133,13 @@ void extract_bin_info(std::string files, std::string csv_name, std::string mass_
     csv_file << "\n";
 
     // Write values
-    for (const auto &value_map : values)
+    for (size_t i = 0; i < values.size(); ++i)
     {
-        for (size_t i = 0; i < headers.size(); ++i)
+        csv_file << file_vector[i] << ",";
+        for (size_t j = 1; j < headers.size(); ++j)
         {
-            csv_file << value_map.at(headers[i]);
-            if (i < headers.size() - 1)
+            csv_file << values[i].at(headers[j]);
+            if (j < headers.size() - 1)
             {
                 csv_file << ",";
             }
@@ -149,21 +151,25 @@ void extract_bin_info(std::string files, std::string csv_name, std::string mass_
 }
 
 // Get the min / max non-zero bin edges of a histogram
-std::pair<double,double> get_hist_edges(TH1D* h, int round_to_decimals) {
+std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals)
+{
     double min = std::numeric_limits<double>::max();
     double max = std::numeric_limits<double>::min();
 
-    for (int i=1; i<=h->GetNbinsX(); ++i) {
+    for (int i = 1; i <= h->GetNbinsX(); ++i)
+    {
         double bin_content = h->GetBinContent(i);
-        if (bin_content > 0 && h->GetXaxis()->GetBinLowEdge(i) < min) {
+        if (bin_content > 0 && h->GetXaxis()->GetBinLowEdge(i) < min)
+        {
             min = h->GetXaxis()->GetBinLowEdge(i);
         }
-        if (bin_content > 0 && h->GetXaxis()->GetBinUpEdge(i) > max) {
+        if (bin_content > 0 && h->GetXaxis()->GetBinUpEdge(i) > max)
+        {
             max = h->GetXaxis()->GetBinUpEdge(i);
         }
     }
     // round values to requested decimal place
     min = std::round((min * std::pow(10, round_to_decimals))) / std::pow(10, round_to_decimals);
-    max = std::round((max * std::pow(10,round_to_decimals))) / std::pow(10, round_to_decimals);
+    max = std::round((max * std::pow(10, round_to_decimals))) / std::pow(10, round_to_decimals);
     return std::make_pair(min, max);
 }

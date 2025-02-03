@@ -52,7 +52,7 @@ std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(s
 
 void extract_fit_results(std::string file_path, std::string csv_name, bool is_acceptance_corrected)
 {
-    // store space-separated list of files into a vector
+    // file path is a text file with a list of AmpTools output files, each on a newline
     std::vector<std::string> file_vector;
     std::ifstream infile(file_path);
     std::string line;
