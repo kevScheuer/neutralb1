@@ -27,6 +27,7 @@ import functools
 import itertools
 import os
 import re
+import sys
 import timeit
 from typing import Dict, List, Tuple  # type hinting
 
@@ -35,7 +36,9 @@ import numpy as np
 import pandas as pd
 import spherical
 
-from ...analysis.scripts import pwa_tools, utils
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from analysis.scripts import pwa_tools, utils
 
 BREIT_WIGNERS = {
     "1p": {"mass": 1.235, "width": 0.142},

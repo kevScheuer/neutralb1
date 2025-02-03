@@ -10,11 +10,14 @@ import argparse
 import multiprocessing
 import os
 import subprocess
+import sys
 import tempfile
 
 import numpy as np
 
-from ...analysis.scripts import utils
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from analysis.scripts import utils
 
 
 def main(args: dict) -> None:
@@ -35,6 +38,7 @@ def main(args: dict) -> None:
         len(args["input"]) == 1
         and os.path.isfile(args["input"][0])
         and not args["input"][0].endswith(".fit")
+        and not args["input"][0].endswith(".root")
     ):
         with open(args["input"][0], "r") as file:
             input_files = [line.strip() for line in file if line.strip()]
@@ -99,7 +103,7 @@ def main(args: dict) -> None:
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
         command = (
-            f'{script_dir}/extract_bin_info.cc("{input_files}",'
+            f'{script_dir}/extract_bin_info.cc("{temp_file_path}",'
             f" \"{output_file_name}\", \"{args['mass_branch']}\")"
         )
     else:
