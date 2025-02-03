@@ -15,10 +15,6 @@ that this parameter contains the word "scale" in the name.
 
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
-
-TODO: The big piece missing is the coefficient matrix, but I really don't like that its
-calculated for every file, there must be a better way. Remember to also change all the
-docstrings and add comments as needed once the edits are done
 """
 
 import argparse
@@ -113,9 +109,8 @@ def main(args: dict) -> None:
             print(f"\t{file}")
         return
 
-    # create empty dictionaries for:
-    moment_dict = {}  # The moments calculated for each file
-    matrix_dict = {}  # The production coefficient pairs that contribute to each moment
+    # create empty dictionaries for the moments calculated for each file
+    moment_dict = {}
 
     # process each file in parallel
     with concurrent.futures.ProcessPoolExecutor(
@@ -131,6 +126,7 @@ def main(args: dict) -> None:
             if key not in moment_dict:
                 moment_dict[key] = []
             moment_dict[key].append(val)
+        matrix_dict = file_matrix
 
     # check that every data file has the same number of moments
     if not all(
@@ -144,16 +140,42 @@ def main(args: dict) -> None:
     df.to_csv(args["output"], index_label="file")
     print("Moments saved to", args["output"])
 
-    # matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
-    # matrix_df.fillna(0, inplace=True)
-    # matrix_df.to_csv(args["output"].replace(".csv", "_matrix.csv"))
-    # print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
+    matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
+
+    matrix_df.fillna(0, inplace=True)
+    matrix_df.reset_index(names=["wave1", "wave2"]).to_csv(
+        args["output"].replace(".csv", "_matrix.csv"), index=False
+    )
+    print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
     end_time = timeit.default_timer()
     print(f"Total time taken: {end_time - start_time:.4f} seconds")
     pass
 
 
-def process_file(file: str, args: dict):
+def process_file(
+    file: str, args: dict
+) -> Tuple[str, Dict[str, float], Dict[str, Dict[Tuple[str, str], float]]]:
+    """Process a single file to calculate the moments and production coefficient pairs
+
+    Args:
+        file (str): path to the .fit file to process
+        args (dict): dictionary of arguments passed to the script
+
+    Returns:
+        Tuple[str, Dict[str, float], Dict[str, Dict[Tuple[str,str], float]]]:
+            file path,
+            moments and their values
+            the clebsch-gordan values that multiply the production coefficient pairs
+                who contribute to each moment
+    """
+
+    # initialize the dictionary to store the production coefficient pairs and their CGs
+    # we have to init it here outside the function because jit doesn't support
+    # type-expression in the function
+    coefficient_dict = numba.typed.Dict.empty(
+        key_type=numba.types.UniTuple(numba.types.unicode_type, 2),
+        value_type=numba.types.float64,
+    )
 
     if args["breit_wigner"]:
         # obtain center of mass bin for BW calculation. Split off the file name to make
@@ -179,17 +201,21 @@ def process_file(file: str, args: dict):
     # calculate each moment and what production coefficients contribute to it
     # and add to the dictionaries
     moment_dict = {}
-    matrix_dict = {}  # TODO: fill this dictionary with the production coefficient pairs
+    matrix_dict = {}
     for alpha in range(3):
         for Jv, Lambda, J, M in itertools.product(
             Jv_array, Lambda_array, J_array, M_array
         ):
             moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
 
+            coefficient_dict.clear()
             moment_val = calculate_moment(
-                alpha, Jv, Lambda, J, M, numba.typed.List(waves)
+                alpha, Jv, Lambda, J, M, numba.typed.List(waves), coefficient_dict
             )
-            # save the results for this moment
+            # save the results for this moment. The dictionary is copied to avoid
+            # reference issues, and converted back to a python dict so it is pickleable
+            # for the parallel processing
+            matrix_dict[moment_str] = dict(coefficient_dict.copy())
             moment_dict[moment_str] = moment_val
     if args["verbose"]:
         elapsed = timeit.default_timer() - start_time
@@ -353,6 +379,7 @@ def calculate_moment(
     J: int,
     M: int,
     waves: List[Wave],
+    coefficient_dict: Dict[Tuple[str, str], float],
 ) -> float:
     """Calculate the moment for a given set of quantum numbers
 
@@ -423,10 +450,10 @@ def calculate_moment(
                                     )
                                     # add the CG coefficients to every pair of
                                     # production coefficients that contribute to SDME
-                                    # if cgs != 0:
-                                    #     for pair in pairs:
-                                    #         pair_value = coefficient_dict.get(pair, 0.0)
-                                    #         coefficient_dict[pair] = pair_value + cgs
+                                    if cgs != 0:
+                                        for pair in pairs:
+                                            pair_value = coefficient_dict.get(pair, 0.0)
+                                            coefficient_dict[pair] = pair_value + cgs
 
                                     # finally, calculate the moment
                                     moment += factor * cgs * sdme
@@ -571,8 +598,7 @@ def process_waves(
             c4 = complex(wave.real, -wave.imaginary)
             c4_name = wave.name
 
-        # if the pair of waves is used in the SDME, add it to the coefficient dict, but
-        # only if it hasn't been added before
+        # if both waves are found, add the pair to the list
         if c1_name and c2_name:
             pairs.append((c1_name, c2_name))
         if c3_name and c4_name:
