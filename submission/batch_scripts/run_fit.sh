@@ -6,15 +6,18 @@ echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 rm ./*.fit 
 rm ./bestFitPars.txt
 rm ./vecps_fitPars.txt
+rm ./*.pdf
+rm ./*.csv
+rm ./*.root
+rm ./*.ni
 rm ./rand/*.fit
 rm ./rand/bestFitPars*.txt
 rm ./rand/*.ni
 rm ./rand/*.pdf
+rm ./rand/*.csv
 rm ./bootstrap/*.fit
 rm ./bootstrap/*.ni
-rm ./*.pdf
-rm ./*.root
-rm ./*.ni
+rm ./bootstrap/*.csv
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
@@ -100,6 +103,7 @@ done
 # ==== END GETTING ARGUMENTS ====
 
 source $my_code_dir/setup_gluex.sh
+source /home/kscheuer/.bashrc # loading conda env allows for running python scripts below
 conda activate neutralb1
 
 # print some details to log
