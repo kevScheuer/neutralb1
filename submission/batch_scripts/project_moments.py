@@ -15,6 +15,12 @@ that this parameter contains the word "scale" in the name.
 
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
+TODO: Coefficient matrix is calculated for every file, but only the last one is saved
+    This makes the assumption that every file has the same set of waves, and
+    unnecessarily increases the time taken to process the files. Saving the values to
+    build the matrix is deep in the calculation though, all the way down to the SDMEs,
+    so a bool flag is needed through every function to avoid this redundancy. Or I could
+    simply save the matrix for every file, but this could create a massive set of files
 """
 
 import argparse
