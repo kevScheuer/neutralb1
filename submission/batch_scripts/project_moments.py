@@ -1,15 +1,14 @@
 """Project vector-pseudoscalar PWA fit results to moments
 
-This script uses the conversion from partial wave complex values to moments to "project"
-the potentially ambiguous PWA fit results into unique moments. The input is .fit
-file(s), which are the output of an AmpTools fit The moments are computed and saved to
-an output csv file. Multiple files can be given as input, with optional sorting based on
-the file name or path.
+This script uses the conversion from partial wave complex values to "project" PWA fit
+results into unique moments. The input is .fit file(s), which are the output of an
+AmpTools fit. The moments are computed and saved to an output csv file. Multiple files
+can be given as input, with optional sorting based on the file name or path.
 
 NOTE: This script assumes that the amplitudes are written in the vec-ps eJPmL format.
 For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be written
-in the cfg file as [reaction]::RealNegSign::p1p0S.
-
+in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
+you'll have to account for it when parsing the amplitude name in the get_waves function.
 If a custom scale parameter is used to multiply the complex values, the script assumes
 that this parameter contains the word "scale" in the name.
 
@@ -31,7 +30,7 @@ import os
 import re
 import sys
 import timeit
-from typing import Dict, List, Tuple  # type hinting
+from typing import Dict, List, Tuple
 
 import numba  # speed up for-loop calculations
 import numpy as np
@@ -77,7 +76,7 @@ class Wave:
 
 def main(args: dict) -> None:
     start_time = timeit.default_timer()
-    # ERROR / VALUE HANDLING
+    # ===CHECK arguments===
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] += ".csv"
     elif not args["output"]:
@@ -115,10 +114,7 @@ def main(args: dict) -> None:
             print(f"\t{file}")
         return
 
-    # create empty dictionaries for the moments calculated for each file
-    moment_dict = {}
-
-    # process each file in parallel
+    # ===PROCESS each file in parallel===
     with concurrent.futures.ProcessPoolExecutor(
         max_workers=args["workers"]
     ) as executor:
@@ -126,19 +122,26 @@ def main(args: dict) -> None:
             executor.map(process_file, input_files, [args] * len(input_files))
         )
 
-    # unpack the results into the data dictionary
-    for file, file_moments, file_matrix in results:
-        for key, val in file_moments.items():
-            if key not in moment_dict:
-                moment_dict[key] = []
-            moment_dict[key].append(val)
-        matrix_dict = file_matrix
+    # ===COLLECT each files results into dictionaries===
+    moment_dict = {}
+    all_keys = set()
 
-    # check that every data file has the same number of moments
-    if not all(
-        len(data) == len(moment_dict["H0(0,0,0,0)"]) for data in moment_dict.values()
-    ):
-        raise ValueError("Number of moments calculated is not consistent across files")
+    # first lets collect all the moment strings
+    for file_moments, _ in results:
+        all_keys.update(file_moments.keys())
+
+    # initialize the dictionary with empty lists for each moment
+    for key in all_keys:
+        moment_dict[key] = []
+
+    # now we'll populate the moment and matrix dictionaries
+    for file_moments, file_matrix in results:
+        for key in all_keys:
+            if key in file_moments:
+                moment_dict[key].append(file_moments[key])
+            else:
+                moment_dict[key].append(complex(0, 0))
+        matrix_dict = file_matrix
 
     # save moments to csv file
     df = pd.DataFrame.from_dict(moment_dict)
@@ -168,8 +171,7 @@ def process_file(
         args (dict): dictionary of arguments passed to the script
 
     Returns:
-        Tuple[str, Dict[str, float], Dict[str, Dict[Tuple[str,str], float]]]:
-            file path,
+        Tuple[Dict[str, float], Dict[str, Dict[Tuple[str,str], float]]]:
             moments and their values
             the clebsch-gordan values that multiply the production coefficient pairs
                 who contribute to each moment
@@ -227,7 +229,7 @@ def process_file(
         elapsed = timeit.default_timer() - start_time
         print(f"Time taken to process {file}: {elapsed:.4f} seconds")
 
-    return file, moment_dict, matrix_dict
+    return moment_dict, matrix_dict
 
 
 @functools.cache
