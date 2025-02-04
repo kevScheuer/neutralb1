@@ -204,7 +204,7 @@ python $my_code_dir/convert_to_csv.py -i $(pwd)/all_data.root -o $(pwd)/data.csv
 python $my_code_dir/convert_to_csv.py -i $(pwd)/best.fit -o $(pwd)/best.csv
 breit_wigner_arg=""
 if ! [ -z "$my_truth_file" ]; then
-    $breit_wigner_arg = " -b" # truth files use breit wigner parameters
+    breit_wigner_arg=" -b" # truth files use breit wigner parameters
 fi
 python $my_code_dir/project_moments.py -i $(pwd)/best.fit -o $(pwd)/best_moments.csv $breit_wigner_arg
 
