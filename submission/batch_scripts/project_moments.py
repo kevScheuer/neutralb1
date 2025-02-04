@@ -9,17 +9,16 @@ NOTE: This script assumes that the amplitudes are written in the vec-ps eJPmL fo
 For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be written
 in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
 you'll have to account for it when parsing the amplitude name in the get_waves function.
-If a custom scale parameter is used to multiply the complex values, the script assumes
-that this parameter contains the word "scale" in the name.
+
 
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
-TODO: Coefficient matrix is calculated for every file, but only the last one is saved
+TODO: Coefficient table is calculated for every file, but only the last one is saved
     This makes the assumption that every file has the same set of waves, and
     unnecessarily increases the time taken to process the files. Saving the values to
-    build the matrix is deep in the calculation though, all the way down to the SDMEs,
+    build the table is deep in the calculation though, all the way down to the SDMEs,
     so a bool flag is needed through every function to avoid this redundancy. Or I could
-    simply save the matrix for every file, but this could create a massive set of files
+    simply save the table for every file, but this could create a massive set of files
 """
 
 import argparse
@@ -37,8 +36,8 @@ import numpy as np
 import pandas as pd
 import spherical
 
+# imports below need the path to work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 from analysis.scripts import pwa_tools, utils
 
 BREIT_WIGNERS = {
@@ -134,14 +133,14 @@ def main(args: dict) -> None:
     for key in all_keys:
         moment_dict[key] = []
 
-    # now we'll populate the moment and matrix dictionaries
-    for file_moments, file_matrix in results:
+    # now we'll populate the moment and table dictionaries
+    for file_moments, file_table in results:
         for key in all_keys:
             if key in file_moments:
                 moment_dict[key].append(file_moments[key])
             else:
                 moment_dict[key].append(complex(0, 0))
-        matrix_dict = file_matrix
+        table_dict = file_table
 
     # save moments to csv file
     df = pd.DataFrame.from_dict(moment_dict)
@@ -149,13 +148,15 @@ def main(args: dict) -> None:
     df.to_csv(args["output"], index_label="file")
     print("Moments saved to", args["output"])
 
-    matrix_df = pd.DataFrame.from_dict(matrix_dict, orient="index").T
-
-    matrix_df.fillna(0, inplace=True)
-    matrix_df.reset_index(names=["wave1", "wave2"]).to_csv(
-        args["output"].replace(".csv", "_matrix.csv"), index=False
+    # save a table of the production coefficient pairs that contribute to each moment,
+    # with the clebsch-gordan values that multiply them in the cells
+    table_df = pd.DataFrame.from_dict(table_dict, orient="index").T
+    table_df.fillna(0, inplace=True)
+    table_df.reset_index(names=["wave1", "wave2"]).to_csv(
+        args["output"].replace(".csv", "_table.csv"), index=False
     )
-    print("Moment matrix saved to", args["output"].replace(".csv", "_matrix.csv"))
+    print("Moment table saved to", args["output"].replace(".csv", "_table.csv"))
+
     end_time = timeit.default_timer()
     print(f"Total time taken: {end_time - start_time:.4f} seconds")
     pass
@@ -191,11 +192,13 @@ def process_file(
         mass = get_mass(file.rsplit("/", 1)[0])
     else:
         mass = 0.0
-    waves = get_waves(file, mass, args["breit_wigner"])  # obtain waves from file
+
+    # find all the partial waves in the file
+    waves = get_waves(file, mass, args["breit_wigner"])
 
     if args["verbose"]:
         start_time = timeit.default_timer()
-    # PREPARE QUANTUM NUMBERS OF MOMENTS
+    # ===PREPARE quantum numbers of moments===
     Jv_array = np.array([0, 2])  # CG coefficient always makes Jv=1 be 0
     # (-) Lambda values are directly proportional to (+) ones, no need to calculate
     Lambda_array = np.arange(0, 3)
@@ -206,10 +209,9 @@ def process_file(
     max_m = max(wave.m for wave in waves)
     M_array = np.arange(0, max_m + 1)  # like Lambda, -m ∝ +m moments
 
-    # calculate each moment and what production coefficients contribute to it
-    # and add to the dictionaries
+    # ===CALCULATE each moment and what production coefficients contribute to it===
     moment_dict = {}
-    matrix_dict = {}
+    table_dict = {}
     for alpha in range(3):
         for Jv, Lambda, J, M in itertools.product(
             Jv_array, Lambda_array, J_array, M_array
@@ -223,13 +225,13 @@ def process_file(
             # save the results for this moment. The dictionary is copied to avoid
             # reference issues, and converted back to a python dict so it is pickleable
             # for the parallel processing
-            matrix_dict[moment_str] = dict(coefficient_dict.copy())
+            table_dict[moment_str] = dict(coefficient_dict.copy())
             moment_dict[moment_str] = moment_val
     if args["verbose"]:
         elapsed = timeit.default_timer() - start_time
         print(f"Time taken to process {file}: {elapsed:.4f} seconds")
 
-    return moment_dict, matrix_dict
+    return moment_dict, table_dict
 
 
 @functools.cache
@@ -262,9 +264,9 @@ def get_waves(file: str, mass: float, use_breit_wigner: bool) -> List[Wave]:
     """Obtain the set of waves, with their real and imaginary parts, from a fit result
 
     Args:
-        file (TextIO): best fit parameters file, obtained using the "-s" flag on the fit
+        file (str): best fit parameters file, obtained using the "-s" flag on the fit
             command, that contains the real and imaginary parts of the best fit result
-        mass (float): center of mass bin for the Breit Wigner values
+        mass (float): center of mass bin, only used for the Breit Wigner calculations
         use_breit_wigner (bool): whether to modify the production coefficients by the
             appropriate Breit-Wigner values
     Returns:
@@ -306,8 +308,6 @@ def get_waves(file: str, mass: float, use_breit_wigner: bool) -> List[Wave]:
                 # if we've hit this section header, stop searching for the scales
                 if "Likelihood Total and Partial Sums" in line:
                     searching_for_scale = False
-                    continue
-                if "scale" not in line:
                     continue
 
                 amplitude = parts[0].split("::")[-1]
@@ -491,7 +491,7 @@ def calculate_SDME(
     the intensity component). They each contain a sum over the two reflectivity values.
     The calculation is done by storing the 4 complex values in each sum and calculating
     the result. The pairs of production coefficients that contribute to this SDME are
-    also stored in a list to be used later in the clebsch gordan matrix.
+    also stored in a list to be used later in the clebsch gordan table.
 
     Args:
         alpha (int):indexes which term of the intensity the moment is associated with
@@ -558,7 +558,7 @@ def process_waves(
 
     This function iterates over all waves to find the 4 complex values that are used in
     the SDME calculation. It also stores the pairs of production coefficients that
-    contribute to the SDME in a list to be used later in the clebsch gordan matrix.
+    contribute to the SDME in a list to be used later in the clebsch gordan table.
     This function has common code for the 3 cases of alpha, so it is extracted for
     readability and maintainability.
 
