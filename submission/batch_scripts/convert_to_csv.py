@@ -45,16 +45,13 @@ def main(args: dict) -> None:
     else:
         input_files = args["input"]
 
-    # Check if all input files exist
+    # Check if all input files exist, and expand it full path if just a file name
     print("Checking if all input files exist...")
-    selector = np.array(
-        multiprocessing.Pool(5).map(os.path.exists, np.array(input_files))
-    )
-    paths_not_existing = np.array(input_files)[~selector]
-    if len(paths_not_existing) > 0:
-        raise FileNotFoundError(
-            "The following files do not exist:\n" + "\n".join(paths_not_existing)
-        )
+    for file in input_files:
+        if not os.path.exists(file):
+            raise FileNotFoundError(f"The file {file} does not exist")
+        if not os.path.isabs(file):
+            input_files[input_files.index(file)] = os.path.abspath(file)
 
     if all(file.endswith(".fit") for file in input_files):
         file_type = "fit"
