@@ -715,11 +715,11 @@ def write_ds_ratio(
             for sum_label, refl_sign in REFLECTIVITY_DICT.items():
                 for wave in waves:
                     if wave.reflectivity != refl_sign or (
-                        wave.spin != 1 or wave.parity != 1 or wave.l != 0
+                        wave.spin != 1 or wave.parity != 1 or wave.l != 2
                     ):
                         continue
 
-                    # write out the S wave amplitude line
+                    # write out the D wave amplitude line
                     cfg_file.write(
                         f"amplitude {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
                         f"{wave.name} ComplexCoeff [{ratio}] [{phase}] MagPhi\n"
@@ -728,7 +728,7 @@ def write_ds_ratio(
                     cfg_file.write(
                         f"constrain {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
                         f"{wave.name} {reaction}_{POL_DICT[ont]['angle']}::"
-                        f"{sum_label}::{wave.name.replace("S", "D")}\n"
+                        f"{sum_label}::{wave.name.replace("D", "S")}\n"
                     )
 
     return
