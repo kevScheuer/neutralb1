@@ -1922,6 +1922,81 @@ def human_format(num: float) -> str:
     return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
 
 
+def breakup_momentum(
+    parent_mass: float, daughter1_mass: float, daughter2_mass: float
+) -> float:
+    """Breakup momentum of a parent particle into two daughter particles
+
+    Pythonized version of https://github.com/JeffersonLab/halld_sim/blob/master/src/
+    libraries/AMPTOOLS_AMPS/breakupMomentum.cc. Returned value is independent of which
+    particle is considered daughter1 or daughter2. Take care to units are consistent
+    between masses.
+
+    Args:
+        parent_mass (float): mass of parent particle
+        daughter1_mass (float): mass of one of the daughter particles
+        daughter2_mass (float): mass of the other daughter particle
+
+    Returns:
+        float: Breakup momentum of the parent particle.
+    """
+    return np.sqrt(
+        np.abs(
+            np.power(parent_mass, 4)
+            + np.power(daughter1_mass, 4)
+            + np.power(daughter2_mass, 4)
+            - 2.0 * np.square(parent_mass) * np.square(daughter1_mass)
+            - 2.0 * np.square(parent_mass) * np.square(daughter2_mass)
+            - 2.0 * np.square(daughter1_mass) * np.square(daughter2_mass)
+        )
+    ) / (2.0 * parent_mass)
+
+
+def barrier_factor(
+    parent_mass: float, daughter1_mass: float, daughter2_mass: float, l: int
+) -> float:
+    """Blatt-Weisskopf barrier factor for a given parent-daughter system
+
+    Pythonized version of https://github.com/JeffersonLab/halld_sim/blob/master/src/
+    libraries/AMPTOOLS_AMPS/barrierFactor.cc. This parameterization often suppresses
+    values near threshold, and amplifies values at higher masses, especially for large
+    l values.
+
+    Args:
+        parent_mass (float): mass of the parent particle
+        daughter1_mass (float): mass of the first daughter particle
+        daughter2_mass (float): mass of the second daughter particle
+        l (int): orbital angular momentum quantum number of the parent particle
+
+    Returns:
+        float: barrier factor
+    """
+
+    q = np.abs(breakup_momentum(parent_mass, daughter1_mass, daughter2_mass))
+    z = np.square(q) / np.square(0.1973)
+
+    match l:
+        case 0:
+            barrier = 1.0
+        case 1:
+            barrier = (2.0 * z) / (z + 1.0)
+        case 2:
+            barrier = (13.0 * np.square(z)) / (np.square(z - 3.0) + 9.0 * z)
+        case 3:
+            barrier = (277.0 * np.power(z, 3)) / (
+                z * np.square(z - 15.0) + 9.0 * np.square(2.0 * z - 5.0)
+            )
+        case 4:
+            barrier = (12746.0 * np.power(z, 4)) / (
+                np.square((np.square(z) - 45.0 * z + 105.0))
+                + 25.0 * z * np.square(2.0 * z - 21.0)
+            )
+        case _:
+            barrier = 0.0
+
+    return np.sqrt(barrier)
+
+
 def breit_wigner(
     mass: float,
     bw_mass: float,
@@ -1956,49 +2031,11 @@ def breit_wigner(
         complex: value of the breit wigner at the mass value
     """
 
-    def breakup_momentum(m0: float, m1: float, m2: float):
-        # breakup momenta of parent (m0) -> daughter particles (m1,m2) in center of
-        # momenta frame
-        return np.sqrt(
-            np.abs(
-                np.power(m0, 4)
-                + np.power(m1, 4)
-                + np.power(m2, 4)
-                - 2.0 * np.square(m0) * np.square(m1)
-                - 2.0 * np.square(m0) * np.square(m2)
-                - 2.0 * np.square(m1) * np.square(m2)
-            )
-        ) / (2.0 * m0)
-
-    def barrier_factor(q: float, l: int):
-        # barrier factor suppression based on angular momenta
-        z = np.square(q) / np.square(0.1973)
-        match l:
-            case 0:
-                barrier = 1.0
-            case 1:
-                barrier = (2.0 * z) / (z + 1.0)
-            case 2:
-                barrier = (13.0 * np.square(z)) / (np.square(z - 3.0) + 9.0 * z)
-            case 3:
-                barrier = (277.0 * np.power(z, 3)) / (
-                    z * np.square(z - 15.0) + 9.0 * np.square(2.0 * z - 5.0)
-                )
-            case 4:
-                barrier = (12746.0 * np.power(z, 4)) / (
-                    np.square((np.square(z) - 45.0 * z + 105.0))
-                    + 25.0 * z * np.square(2.0 * z - 21.0)
-                )
-            case _:
-                barrier = 0.0
-
-        return np.sqrt(barrier)
-
     q0 = np.abs(breakup_momentum(bw_mass, daughter1_mass, daughter2_mass))
     q = np.abs(breakup_momentum(mass, daughter1_mass, daughter2_mass))
 
-    F0 = barrier_factor(q0, bw_l)
-    F = barrier_factor(q, bw_l)
+    F0 = barrier_factor(bw_mass, daughter1_mass, daughter2_mass, bw_l)
+    F = barrier_factor(mass, daughter1_mass, daughter2_mass, bw_l)
 
     width = bw_width * (bw_mass / mass) * (q / q0) * np.square(F / F0)
 
