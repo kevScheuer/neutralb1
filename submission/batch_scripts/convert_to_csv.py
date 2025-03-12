@@ -7,13 +7,10 @@ Behind the scenes, this script calls a ROOT macro for either situation.
 """
 
 import argparse
-import multiprocessing
 import os
 import subprocess
 import sys
 import tempfile
-
-import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -45,7 +42,7 @@ def main(args: dict) -> None:
     else:
         input_files = args["input"]
 
-    # Check if all input files exist, and expand it full path if just a file name
+    # Check if all input files exist, and expand its full path if just a file name
     print("Checking if all input files exist...")
     for file in input_files:
         if not os.path.exists(file):

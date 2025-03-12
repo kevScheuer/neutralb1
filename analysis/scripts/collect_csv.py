@@ -35,6 +35,8 @@ def main(args: dict) -> None:
         input_files = args["input"]
 
     # Ensure all input files exist and are .csv files
+    if input_files == []:
+        raise ValueError("No input files provided.")
     for f in input_files:
         if not os.path.exists(f):
             raise FileNotFoundError(f"File not found: {f}")
@@ -42,7 +44,11 @@ def main(args: dict) -> None:
             raise ValueError(f"Input file must be a .csv file: {f}")
 
     # Sort the input files if requested
-    input_files = utils.sort_input_files(input_files) if args["sorted"] else input_files
+    input_files = (
+        utils.sort_input_files(input_files, args["sort_index"])
+        if args["sorted"]
+        else input_files
+    )
 
     # Only print out the files that will be processed if preview flag is passed
     if args["preview"]:
@@ -85,6 +91,16 @@ def parse_args() -> dict:
         "--preview",
         action="store_true",
         help="When passed, print out the files that will be processed and exit.",
+    )
+    parser.add_argument(
+        "--sort-index",
+        type=int,
+        default=-1,
+        help=(
+            "Determines what number in the file path is used for sorting. Defaults to"
+            " -1, so that the last number in the path is used. See "
+            " utils.sort_input_files for details."
+        ),
     )
     return vars(parser.parse_args())
 
