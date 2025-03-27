@@ -745,41 +745,46 @@ def parse_args() -> dict:
         default="",
         choices=["GJ", "Adair"],
         metavar="decay frame option",
-        help="change decay frame used, empty default means helicity will be used",
+        help="change decay frame used, empty (default) means helicity will be used",
     )
     parser.add_argument(
         "--single-refl",
         type=int,
         default=0,
         choices=[-1, 1],
-        help="only allow a single reflectivity by setting to +1 or -1",
+        help="only allow a single reflectivity by setting to +1 or -1, defaults to 0",
     )
     parser.add_argument(
         "--init-refl",
         type=int,
         default=0,
         choices=[-1, 1],
-        help="initialize single reflectivity by setting to +1 or -1",
+        help="initialize single reflectivity by setting to +1 or -1, defaults to 0",
     )
     parser.add_argument(
         "--init-real",
         type=float,
         default=100.0,
         metavar=("real_part"),
-        help="value to initialize real cartesian part of amplitude to",
+        help=(
+            "value to initialize real cartesian part of amplitude to, defaults to 100.0"
+        ),
     )
     parser.add_argument(
         "--init-imag",
         type=float,
         default=100.0,
         metavar=("imag_part"),
-        help="value to initialize imaginary cartesian part of amplitude to",
+        help=(
+            "value to initialize imaginary cartesian part of amplitude to, defaults to"
+            " 100.0"
+        ),
     )
     parser.add_argument(
         "--remove-waves",
         nargs="+",
         default=[],
-        help="waves given in 'eJPmL' format to remove from the waveset",
+        help="waves given in 'eJPmL' format to remove from the waveset, defaults to []",
     )
 
     # details of fit type
@@ -787,10 +792,14 @@ def parse_args() -> dict:
         "--reaction",
         type=str,
         default="omegapi",
-        help="base reaction name to be used in cfg files",
+        help="base reaction name to be used in cfg files, defaults to 'omegapi'",
     )
     parser.add_argument(
-        "-n", "--nrand", type=int, default=20, help="number of random fits"
+        "-n",
+        "--nrand",
+        type=int,
+        default=20,
+        help="number of random fits, defaults to 20",
     )
     parser.add_argument(
         "-o",
@@ -798,7 +807,7 @@ def parse_args() -> dict:
         nargs="*",
         default=["PARA_0"],
         choices=["PARA_0", "PARA_135", "PERP_45", "PERP_90", "ALL"],
-        help="diamond orientations",
+        help="diamond orientations, defaults to ['PARA_0']",
     )
     parser.add_argument(
         "-r",
@@ -806,14 +815,13 @@ def parse_args() -> dict:
         nargs="*",
         default=["allPeriods"],
         choices=["allPeriods", "2017_01", "2018_01", "2018_08"],
-        help="run periods of data/MC to fit",
+        help="run periods of data/MC to fit, defaults to ['allPeriods']",
     )
     parser.add_argument(
         "-m",
         "--masses",
         nargs="+",
         type=check_positive_float,
-        default=[1.0, 1.5, 0.05],
         help=(
             "start, end, and width of mass bins to fit to. Alternatively the user may"
             " pass their own list of mass bins, ex: -m 1.0 1.1 1.5"
@@ -824,7 +832,6 @@ def parse_args() -> dict:
         "--t-momenta",
         nargs="+",
         type=check_positive_float,
-        default=[0.1, 0.5, 0.1],
         help=(
             "start, end, and width of t bins to fit to. Alternatively the user may"
             " pass their own list of t bins, ex: -t 0.2 0.3 0.6"
@@ -837,7 +844,9 @@ def parse_args() -> dict:
         type=check_positive_float,
         default=[8.2, 8.8],
         metavar=("low_E_edge", "high_E_edge"),
-        help="range of beam energy to fit to. Default is coherent peak region",
+        help=(
+            "range of beam energy to fit to. Default is coherent peak region [8.2, 8.8]"
+        ),
     )
     parser.add_argument(
         "--truth-file",
@@ -845,14 +854,18 @@ def parse_args() -> dict:
         default="",
         help=(
             "cfg file used to generate signal MC, with fixed parameters. Used for"
-            " input-output testing. This can also be a truth initialized cfg file"
+            " input-output testing. This can also be a truth initialized cfg file."
+            " Defaults to an empty string."
         ),
     )
     parser.add_argument(
         "--data-dir",
         type=str,
         default="/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/data",
-        help="directory where data files are stored",
+        help=(
+            "directory where data files are stored. Defaults to"
+            " submission/source_files/data."
+        ),
     )
     parser.add_argument(
         "--data-version",
@@ -860,7 +873,7 @@ def parse_args() -> dict:
         default="data",
         help=(
             "data version to use for fits. GlueX data is typically 'data', and Monte"
-            " uses the actual version number i.e. 'verXY.Z'"
+            " uses the actual version number i.e. 'verXY.Z'. Defaults to 'data'"
         ),
     )
     parser.add_argument(
@@ -868,8 +881,8 @@ def parse_args() -> dict:
         type=str,
         default="",
         help=(
-            "Monte Carlo option used in DSelector. Default assumes real data is used."
-            " Options are typically '_mcthrown', '_mc', etc."
+            "Monte Carlo option used in DSelector. Default (empty) assumes real data is"
+            " used. Options are typically '_mcthrown', '_mc', etc."
         ),
     )
     parser.add_argument(
@@ -878,21 +891,24 @@ def parse_args() -> dict:
         default=(
             "/w/halld-scshelf2101/kscheuer/neutralb1/submission/source_files/phasespace"
         ),
-        help="directory where phasespace files are stored",
+        help=(
+            "directory where phasespace files are stored. Defaults to"
+            " submission/source_files/phasespace."
+        ),
     )
     parser.add_argument(
         "--phasespace-version",
         type=str,
         default="ver03",
-        help="phasespace version to use for fits",
+        help="phasespace version to use for fits. Defaults to ver03.",
     )
     parser.add_argument(
         "--phasespace-option",
         type=str,
         default="",
         help=(
-            "Monte Carlo option used in DSelector. Default assumes no special options"
-            " were used. An option like '_accept' could be used."
+            "Monte Carlo option used in DSelector. Default (empty) assumes no special"
+            " options were used. An option like '_accept' could be used."
         ),
     )
     parser.add_argument(
@@ -903,7 +919,8 @@ def parse_args() -> dict:
         help=(
             "Cuts events below the given value in the recoil-pion mass spectrum, i.e."
             " a value of 1.3 selects events like 'MRecoilPi > 1.3' when the trees are"
-            " copied. This flag assumes the ROOT data files has an 'MRecoilPi' leaf"
+            " copied. This flag assumes the ROOT data files has an 'MRecoilPi' leaf."
+            " Defaults to 1.4."
         ),
     )
     parser.add_argument(
@@ -914,7 +931,7 @@ def parse_args() -> dict:
         help=(
             "When non-zero value passed, the requested number of bootstrap fits will"
             " be performed starting from the nominal values found at the end of all the"
-            " --nrand fits in each bin"
+            " --nrand fits in each bin. Defaults to 0."
         ),
     )
 
@@ -923,7 +940,10 @@ def parse_args() -> dict:
         "--template-name",
         type=str,
         default="template.cfg",
-        help="template with default values to copy and overwrite",
+        help=(
+            "template with default values to copy and overwrite. Defaults to"
+            " template.cfg."
+        ),
     )
     parser.add_argument(
         "-g",
@@ -932,13 +952,18 @@ def parse_args() -> dict:
         default=["0", ""],
         choices=["1", "2", "3", "4", "T4", "TitanRTX", "A100", "A800"],
         metavar=("#GPUs", "CARD"),
-        help="set # of GPUs to use for a card. Default assumes only CPU fits",
+        help=(
+            "set # of GPUs to use for a card. Default ['0', ''] assumes only CPU fits."
+        ),
     )
     parser.add_argument(
         "--email",
         type=str,
         default="",
-        help=("when email address given, mails address when a job starts/stops/fails."),
+        help=(
+            "when email address given, mails address when a job starts/stops/fails."
+            " Defaults to an empty string."
+        ),
     )
     parser.add_argument(
         "--email-type",
@@ -948,14 +973,14 @@ def parse_args() -> dict:
         choices=["BEGIN", "END", "FAIL"],
         help=(
             "If email flag is used, this argument handles the cases when an email is"
-            " sent. Default is 'BEGIN,END,FAIL'"
+            " sent. Defaults to ['BEGIN', 'END', 'FAIL']."
         ),
     )
     parser.add_argument(
         "--time-limit",
         type=str,
         default="01:00:00",
-        help=("Max walltime for each slurm job. Default assumes quick jobs (1 hr)"),
+        help=("Max walltime for each slurm job. Defaults to quick jobs (1 hr)."),
     )
 
     args = parser.parse_args()
