@@ -3,7 +3,6 @@
 See README for process architecture, or run with "--help" to understand variable usage
 
 Optional improvements to make script more generalized:
-    - Ability to choose polar coordinates. Means init_imag -> init_phase
     - Ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
     - Arg for the reaction line, right now hardcoded to "Beam Proton Pi01 Pi02 Pi+ Pi-"
@@ -107,6 +106,7 @@ def main(args: dict) -> None:
         args["phasespace_option"],
         args["cut_recoil_pi_mass"],
         args["reaction"],
+        args["test"],
     )
 
     # Create config file template "fit.cfg" that works for any bin
@@ -150,12 +150,12 @@ def main(args: dict) -> None:
                 bootstrap_dir = running_dir + "bootstrap/"
                 pathlib.Path(bootstrap_dir).mkdir(parents=True, exist_ok=True)
 
-                # truth fits don't require rand fits, so don't make the directory
+                # truth fits don't require rand fits, so don't make the directory if so
                 if not args["truth_file"]:
                     rand_dir = running_dir + "rand/"
                     pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
 
-                # location of pre-selected data file
+                # location of the pre-selected data files
                 source_file_dir = volatile_path(
                     args["reaction"],
                     args["cut_recoil_pi_mass"],
@@ -218,7 +218,8 @@ def main(args: dict) -> None:
                     )
                 )
 
-                # handoff arguments to bash script that will run on the ifarm
+                # setup command to handoff arguments to the actual bash script that
+                # will run on the farm
                 script_command = " ".join(
                     (
                         f"{CODE_DIR}run_fit.sh",
@@ -249,6 +250,7 @@ def main(args: dict) -> None:
                     args["email"],
                     args["email_type"],
                     args["time_limit"],
+                    is_test=args["test"],
                 )
 
     return
@@ -271,6 +273,7 @@ def create_data_files(
     phasespace_option: str,
     cut_recoil_pi_mass: float,
     reaction: str,
+    is_test: bool,
 ) -> None:
     """Create data files with cuts and store them in volatile
 
@@ -298,6 +301,8 @@ def create_data_files(
         phasespace_option (str): MC option string in file name,
             e.g. _accept_noaccidental
         cut_recoil_pi_mass (float): removes events below the given recoil-pion mass
+        reaction (str): base reaction name to be used in cfg files
+        test (bool): if True, will not submit jobs to create data files
     Raises:
         FileExistsError: Generated phasespace file not found
         FileExistsError: Accepted phasespace file not found
@@ -444,6 +449,7 @@ def create_data_files(
                         email_type=[],
                         time_limit="00:30:00",
                         n_cpus=8,
+                        is_test=is_test,
                     )
 
     if jobs_submitted:
@@ -471,6 +477,7 @@ def submit_slurm_job(
     time_limit: str,
     mem_per_cpu: str = "5000M",
     n_cpus: int = 32,
+    is_test: bool = False,
 ) -> None:
     """Submit a slurm job to the ifarm using an mpi+gpu build
 
@@ -488,6 +495,7 @@ def submit_slurm_job(
             jobs, though small jobs like phasespace generation can use less
         n_cpus (int, optional): Number of mpi cpus to use (only used if n_gpus=0).
             Defaults to 32.
+        is_test (bool, optional): if True, will not submit the job to the farm.
     """
 
     with open("tempSlurm.txt", "w") as slurm_out:
@@ -523,11 +531,13 @@ def submit_slurm_job(
         slurm_out.write(script_command)
 
     # wait half a second to avoid job skip error if too many submitted quickly
-    time.sleep(0.5)
-    subprocess.call(["sbatch", "tempSlurm.txt"])
+    if not is_test:
+        time.sleep(0.5)
+        subprocess.call(["sbatch", "tempSlurm.txt"])
 
     # remove temporary submission file
-    os.remove("tempSlurm.txt")
+    if not is_test:
+        os.remove("tempSlurm.txt")
     return
 
 
@@ -981,6 +991,13 @@ def parse_args() -> dict:
         type=str,
         default="01:00:00",
         help=("Max walltime for each slurm job. Defaults to quick jobs (1 hr)."),
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help=(
+            "Test mode. Will do everything except execute the jobs. Defaults to False."
+        ),
     )
 
     args = parser.parse_args()
