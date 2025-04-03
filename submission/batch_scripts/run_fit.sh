@@ -21,7 +21,7 @@ rm ./bootstrap/*.csv
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-s] [-C] [-R] [-b] [-t]"
+    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-S] [-C] [-R] [-b] [-s] [-t] [-h]"
     echo "Options:"
     echo " -o       polarization orientations with '-' delimeter" 
     echo " -r       GlueX run period"
@@ -30,15 +30,17 @@ usage() {
     echo " -D       MC selector option for data trees"
     echo " -p       version # of phasespace trees"
     echo " -P       MC selector option for phasespace trees"    
-    echo " -s       directory where data Source files are stored"
+    echo " -S       directory where data Source files are stored"
     echo " -C       Code directory where scripts are stored"
     echo " -R       Reaction name of fit"        
-    echo " -b       Perform bootstrapping for uncertainty estimation"
-    echo " -t       Use cfg that generated signal MC to fit and obtain truth info"
+    echo " -b       Number of bootstrap fits to perform for uncertainty estimation"
+    echo " -s       Optional seed to use for randomized fits"
+    echo " -t       Optional cfg file that mimics generated signal MC, to fit and obtain truth info. Using this will override some other options."    
+    echo " -h       Display this help message"
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
+while getopts ":o:r:n:d:D:p:P:S:C:R:b:s:t:h:" opt; do
     case "${opt}" in
     o)
         echo -e "orientations: \t\t$OPTARG\n"        
@@ -69,7 +71,7 @@ while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
         echo -e "phasespace MC option: $OPTARG\n"
         my_phasespace_option=$OPTARG
     ;;
-    s)
+    S)
         echo -e "source file dir: \t$OPTARG\n"
         my_source_file_dir=$OPTARG
     ;;
@@ -84,6 +86,10 @@ while getopts ":o:r:n:d:D:p:P:s:C:R:b:t:h:" opt; do
     b)
         echo -e "num bootstrap fits: \t$OPTARG\n"
         my_num_bootstrap_fits=$OPTARG
+    ;;
+    s)
+        echo -e "seed: \t\t\t\t$OPTARG\n"
+        my_seed="-rs $OPTARG"
     ;;
     t)
         echo -e "truth file: \t\t$OPTARG\n"
@@ -161,9 +167,9 @@ elif [ "$use_mpi" = true ]; then
     which mpirun
     which mpicxx
 
-    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars"
+    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars" $my_seed
 else
-    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars"
+    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars" $my_seed
 fi
 
 run_end_time=$(date +%s)

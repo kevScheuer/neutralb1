@@ -228,12 +228,14 @@ def main(args: dict) -> None:
                         f"-n {args['nrand']}",
                         f"-d {args['data_version']}",
                         f"-p {args['phasespace_version']}",
-                        f"-s {source_file_dir}",
+                        f"-S {source_file_dir}",
                         f"-C {CODE_DIR}",
                         f"-R {args['reaction']}",
                         f"-b {args['bootstrap']}",
                     )
                 )
+                if args["random_seed"]:
+                    script_command += f" -s {args['random_seed']}"
                 if args["truth_file"]:
                     script_command += f" -t {args['truth_file']}"
                 if args["data_option"]:
@@ -810,6 +812,16 @@ def parse_args() -> dict:
         type=int,
         default=20,
         help="number of random fits, defaults to 20",
+    )
+    parser.add_argument(
+        "-s",
+        "--random-seed",
+        type=int,
+        default=0,
+        help=(
+            "seed for randomized fits. Defaults to 0 (unset), meaning it will use the"
+            " time at execution as the seed instead."
+        ),
     )
     parser.add_argument(
         "-o",
