@@ -18,15 +18,18 @@ effects those waves create.
 #include "TFile.h"
 #include "TLegend.h"
 
-struct JP_props {
+// struct to hold the properties of each JP contribution
+struct JP_props
+{
     TString legend;
-    TColor* color;
+    TColor *color;
     int marker;
 };
 
+// forward declarations
 void plot1D(TFile *f, TString dir, TString data_title, TString reac);
 void plot2D(TFile *f, TString dir, TString reac);
-std::vector<TColor*> create_custom_colors();
+std::vector<TColor *> create_custom_colors();
 const std::map<TString, JP_props> create_jp_map();
 
 void angle_plotter(TString file_name = "vecps_plot.root",
@@ -37,9 +40,9 @@ void angle_plotter(TString file_name = "vecps_plot.root",
     gStyle->SetOptStat(0);
 
     TFile *f = TFile::Open(dir + file_name);
-    if (!f)
+    if (!f || f->IsZombie())
     {
-        cout << "File" << dir + file_name << "doesn't exist! Exiting" << "\n";
+        cout << "File" << dir + file_name << "doesn't exist or is corrupted! Exiting" << "\n";
         exit(1);
     }
 
@@ -54,7 +57,6 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
 {
     std::vector<TString> distributions = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
                                           "Prod_Ang", "MVecPs", "MProtonPs"};
-    std::map<TString, std::map<TString, TString>> amp_map;
     const std::map<TString, JP_props> jp_properties = create_jp_map();
 
     // iterate through the histograms in the file and find the JP contributions
@@ -64,7 +66,7 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     {
         TString key_name = keys->At(i)->GetName();
 
-        // regex pattern for capturing a JP key (number + letter after an "_")        
+        // regex pattern for capturing a JP key (number + letter after an "_")
         std::regex regex_pattern(".*_(\\d[a-zA-Z]).*");
         std::smatch match;
         std::string key_name_str = key_name.Data();
@@ -93,8 +95,10 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     int plot_count = 0;
     for (auto distribution : distributions)
     {
+        // avoid plotting on the first subplot, since it will be used for the legend
         cc->cd(plot_count + 2);
-        // first plot the data for this variable
+
+        // first plot the data for this distribution
         TH1F *hdat = (TH1F *)f->Get(reac + distribution + "dat");
         if (!hdat)
         {
@@ -128,13 +132,13 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
         hfit->Draw("same HIST");
         if (plot_count == 0)
             leg1->AddEntry(hfit, "Fit Result", "f");
-        
-        // now we can loop through the JP contributions and plot them 
+
+        // now we can loop through the JP contributions and plot them
         for (const TString &jp : jp_keys_found)
         {
             TString hist_name = reac + distribution + "acc" + "_" + jp;
             TH1F *hjp = (TH1F *)f->Get(hist_name);
-                        
+
             if (!hjp)
             {
                 cout << Form("Plot %s doesn't exist! exiting", hist_name.Data()) << "\n";
@@ -149,7 +153,7 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
             if (plot_count == 0)
                 leg1->AddEntry(hjp, jp_properties.at(jp).legend, "ep");
         }
-        plot_count += 1;        
+        plot_count += 1;
     }
 
     // finally draw the legend on the 1st subplot
@@ -252,8 +256,9 @@ void plot2D(TFile *f, TString dir, TString reac)
 
     return;
 }
+
 // Mimic the colors of matplotlib's Dark2 colormap for plotting consistency
-std::vector<TColor*> create_custom_colors()
+std::vector<TColor *> create_custom_colors()
 {
     // rgb values from matplotlib's Dark2 colormap
     std::vector<std::vector<float>> mpl_Dark2_rgb_values = {
@@ -268,11 +273,11 @@ std::vector<TColor*> create_custom_colors()
 
     // Create TColor objects for each RGB value
     // and store them in a vector
-    std::vector<TColor*> custom_colors;
+    std::vector<TColor *> custom_colors;
     for (const auto &rgb : mpl_Dark2_rgb_values)
     {
         int color_index = TColor::GetFreeColorIndex();
-        TColor *color = new TColor(color_index, rgb[0], rgb[1], rgb[2]);        
+        TColor *color = new TColor(color_index, rgb[0], rgb[1], rgb[2]);
         custom_colors.push_back(color);
     }
     return custom_colors;
@@ -283,7 +288,7 @@ std::vector<TColor*> create_custom_colors()
 */
 const std::map<TString, JP_props> create_jp_map()
 {
-    std::vector<TColor*> custom_colors = create_custom_colors();
+    std::vector<TColor *> custom_colors = create_custom_colors();
 
     const std::map<TString, JP_props> jp_map = {
         {"0m", JP_props{"#[]{0^{#minus}}^{(#pm)} (P)", custom_colors[1], 5}},
