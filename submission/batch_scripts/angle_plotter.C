@@ -9,6 +9,7 @@ effects those waves create.
 */
 
 #include <iostream>
+#include <regex>
 
 #include "glueXstyle.C"
 #include "TCanvas.h"
@@ -17,8 +18,16 @@ effects those waves create.
 #include "TFile.h"
 #include "TLegend.h"
 
+struct JP_props {
+    TString legend;
+    TColor* color;
+    int marker;
+};
+
 void plot1D(TFile *f, TString dir, TString data_title, TString reac);
 void plot2D(TFile *f, TString dir, TString reac);
+std::vector<TColor*> create_custom_colors();
+const std::map<TString, JP_props> create_jp_map();
 
 void angle_plotter(TString file_name = "vecps_plot.root",
                    TString dir = "./", TString data_title = "GlueX Data",
@@ -40,33 +49,31 @@ void angle_plotter(TString file_name = "vecps_plot.root",
     return;
 }
 
+// Make the 1D histograms of interest from vecps_plotter
 void plot1D(TFile *f, TString dir, TString data_title, TString reac)
 {
-    /* Make the 1D histograms of interest from vecps_plotter
-     */
-    std::vector<TString> plot_names = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
-                                       "Prod_Ang", "MVecPs", "MProtonPs"};
+    std::vector<TString> distributions = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
+                                          "Prod_Ang", "MVecPs", "MProtonPs"};
     std::map<TString, std::map<TString, TString>> amp_map;
-    
-    amp_map["fit"]["plot_name"] = "";
-    amp_map["fit"]["title"] = "Fit Result";
-    amp_map["fit"]["draw_option"] = "f";
-    amp_map["fit"]["color"] = "16";
+    const std::map<TString, JP_props> jp_properties = create_jp_map();
 
-    amp_map["0m"]["plot_name"] = "_0m";
-    amp_map["0m"]["title"] = "#[]{0^{#minus}}^{(#pm)} (P)";
-    amp_map["0m"]["draw_option"] = "ep";
-    amp_map["0m"]["color"] = "6";
+    // iterate through the histograms in the file and find the JP contributions
+    std::set<TString> jp_keys_found;
+    TList *keys = f->GetListOfKeys();
+    for (int i = 0; i < keys->GetSize(); i++)
+    {
+        TString key_name = keys->At(i)->GetName();
 
-    amp_map["1p"]["plot_name"] = "_1p";
-    amp_map["1p"]["title"] = "#[]{1^{#plus}}^{(#pm)} (S+D)";
-    amp_map["1p"]["draw_option"] = "ep";
-    amp_map["1p"]["color"] = "2";
-
-    amp_map["1m"]["plot_name"] = "_1m";
-    amp_map["1m"]["title"] = "#[]{1^{#minus}}^{(#pm)} P";
-    amp_map["1m"]["draw_option"] = "ep";
-    amp_map["1m"]["color"] = "4";
+        // regex pattern for capturing a JP key (number + letter after an "_")        
+        std::regex regex_pattern(".*_(\\d[a-zA-Z]).*");
+        std::smatch match;
+        std::string key_name_str = key_name.Data();
+        if (std::regex_match(key_name_str, match, regex_pattern))
+        {
+            TString jp_key = match[1].str();
+            jp_keys_found.insert(jp_key);
+        }
+    }
 
     // create canvas and setup some plot parameters
     TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
@@ -84,14 +91,14 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     leg1->SetLineColor(kWhite);
 
     int plot_count = 0;
-    for (auto plot_name : plot_names)
+    for (auto distribution : distributions)
     {
         cc->cd(plot_count + 2);
         // first plot the data for this variable
-        TH1F *hdat = (TH1F *)f->Get(reac + plot_name + "dat");
+        TH1F *hdat = (TH1F *)f->Get(reac + distribution + "dat");
         if (!hdat)
         {
-            cout << Form("hdat Plot %s doesn't exist! exiting", (reac + plot_name + "dat").Data()) << "\n";
+            cout << Form("hdat Plot %s doesn't exist! exiting", (reac + distribution + "dat").Data()) << "\n";
             exit(1);
         }
 
@@ -108,39 +115,41 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
         if (plot_count == 0)
             leg1->AddEntry(hdat, data_title, "ep");
 
-        // now for each variable, we iterate through each JP's contribution that is
-        // modified by the detector acceptance (acc)
-        for (auto const &map_itr : amp_map)
+        // now plot the fit result, which is a special case
+        TH1F *hfit = (TH1F *)f->Get(reac + distribution + "acc");
+        if (!hfit)
         {
-            auto key = map_itr.first;
-            auto val = map_itr.second;
-            TH1F *hacc = (TH1F *)f->Get(reac + plot_name + "acc" + val.at("plot_name"));
-
-            if (!hacc)
+            cout << Form("hfit Plot %s doesn't exist! exiting", (reac + distribution + "acc").Data()) << "\n";
+            exit(1);
+        }
+        hfit->SetFillStyle(1001);
+        hfit->SetFillColorAlpha(16, 0.2);
+        hfit->SetLineColor(16);
+        hfit->Draw("same HIST");
+        if (plot_count == 0)
+            leg1->AddEntry(hfit, "Fit Result", "f");
+        
+        // now we can loop through the JP contributions and plot them 
+        for (const TString &jp : jp_keys_found)
+        {
+            TString hist_name = reac + distribution + "acc" + "_" + jp;
+            TH1F *hjp = (TH1F *)f->Get(hist_name);
+                        
+            if (!hjp)
             {
-                cout << Form("hacc Plot %s/%s doesn't exist! exiting", plot_name.Data(), val.at("plot_name").Data()) << "\n";
+                cout << Form("Plot %s doesn't exist! exiting", hist_name.Data()) << "\n";
                 exit(1);
             }
-
-            if (val.at("plot_name") == "")
-            { // fit result plotted with gray fill style
-                hacc->SetFillColorAlpha((val.at("color")).Atoi(), 0.2);
-                hacc->Draw("same HIST");
-            }
-            else
-            { // all other plots get markers
-                hacc->SetMarkerColor((val.at("color")).Atoi());
-                hacc->SetMarkerSize(0.6);
-                hacc->SetMarkerStyle(20);
-                hacc->Draw("same" + val.at("draw_option"));
-            }
-            hacc->SetLineColor((val.at("color")).Atoi());
+            hjp->SetMarkerColor(jp_properties.at(jp).color->GetNumber());
+            hjp->SetLineColor(jp_properties.at(jp).color->GetNumber());
+            hjp->SetMarkerSize(0.6);
+            hjp->SetMarkerStyle(jp_properties.at(jp).marker);
+            hjp->Draw("same ep");
 
             if (plot_count == 0)
-                leg1->AddEntry(hacc, val.at("title"), val.at("draw_option"));
+                leg1->AddEntry(hjp, jp_properties.at(jp).legend, "ep");
         }
-        plot_count += 1;
-        // hdat->Draw("same");
+        plot_count += 1;        
     }
 
     // finally draw the legend on the 1st subplot
@@ -153,12 +162,11 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reac)
     return;
 }
 
+/* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
+so no legend is required here
+*/
 void plot2D(TFile *f, TString dir, TString reac)
 {
-    /* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
-    so no legend is required here
-    */
-
     // Note Psi = phi - Prod_Ang (Phi)
     std::vector<std::pair<TString, TString>> plot_pairs = {
         {"Psi", "CosTheta"},
@@ -243,4 +251,48 @@ void plot2D(TFile *f, TString dir, TString reac)
     cacc->Print(dir + "fit2D_acc.pdf");
 
     return;
+}
+// Mimic the colors of matplotlib's Dark2 colormap for plotting consistency
+std::vector<TColor*> create_custom_colors()
+{
+    // rgb values from matplotlib's Dark2 colormap
+    std::vector<std::vector<float>> mpl_Dark2_rgb_values = {
+        {0.10588235294117647, 0.6196078431372549, 0.4666666666666667},
+        {0.8509803921568627, 0.37254901960784315, 0.00784313725490196},
+        {0.4588235294117647, 0.4392156862745098, 0.7019607843137254},
+        {0.9058823529411765, 0.1607843137254902, 0.5411764705882353},
+        {0.4, 0.6509803921568628, 0.11764705882352941},
+        {0.9019607843137255, 0.6705882352941176, 0.00784313725490196},
+        {0.6509803921568628, 0.4627450980392157, 0.11372549019607843},
+        {0.4, 0.4, 0.4}};
+
+    // Create TColor objects for each RGB value
+    // and store them in a vector
+    std::vector<TColor*> custom_colors;
+    for (const auto &rgb : mpl_Dark2_rgb_values)
+    {
+        int color_index = TColor::GetFreeColorIndex();
+        TColor *color = new TColor(color_index, rgb[0], rgb[1], rgb[2]);        
+        custom_colors.push_back(color);
+    }
+    return custom_colors;
+}
+
+/* Create a map of the JP contributions to their properties. Matches the jp_map
+    used in pwa_tools.py for consistency.
+*/
+const std::map<TString, JP_props> create_jp_map()
+{
+    std::vector<TColor*> custom_colors = create_custom_colors();
+
+    const std::map<TString, JP_props> jp_map = {
+        {"0m", JP_props{"#[]{0^{#minus}}^{(#pm)} (P)", custom_colors[1], 5}},
+        {"1p", JP_props{"#[]{1^{#plus}}^{(#pm)} (S+D)", custom_colors[2], 20}},
+        {"1m", JP_props{"#[]{1^{#minus}}^{(#pm)} (P)", custom_colors[3], 21}},
+        {"2m", JP_props{"#[]{2^{#minus}}^{(#pm)} (P+F)", custom_colors[4], 29}},
+        {"2p", JP_props{"#[]{2^{#plus}}^{(#pm)} (D)", custom_colors[5], 34}},
+        {"3m", JP_props{"#[]{3^{#minus}}^{(#pm)} (F)", custom_colors[6], 33}},
+    };
+
+    return jp_map;
 }

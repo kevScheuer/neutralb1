@@ -164,12 +164,11 @@ class Plotter:
         colors = matplotlib.colormaps["Dark2"].colors
         jp_map = {
             "Bkgd": {"color": colors[0], "marker": "."},
-            "0m": {"color": colors[1], "marker": "1"},
+            "0m": {"color": colors[1], "marker": "x"},
             "1p": {"color": colors[2], "marker": "o"},
             "1m": {"color": colors[3], "marker": "s"},
-            "2p": {"color": colors[4], "marker": "p"},
-            "2m": {"color": colors[5], "marker": "h"},
-            "3p": {"color": colors[6], "marker": "x"},
+            "2p": {"color": colors[4], "marker": "P"},
+            "2m": {"color": colors[5], "marker": "*"},
             "3m": {"color": colors[7], "marker": "d"},
         }
         for d in jp_map.values():
