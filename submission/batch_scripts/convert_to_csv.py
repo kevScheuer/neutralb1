@@ -75,7 +75,7 @@ def main(args: dict) -> None:
     # get the script directory to properly call the script with the right path
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # hand off the files to the macro as a tempfile, where each file is on a newline
+    # create a tempfile that contains the list of input files
     # this seems to improve the speed of subprocess.Popen
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_file:
         temp_file.write("\n".join(input_files))
@@ -86,29 +86,48 @@ def main(args: dict) -> None:
     is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
 
     # setup ROOT command with appropriate arguments
-    amptools = ""
+    amptools_command = ""
     if file_type == "fit":
         output_file_name = "fits.csv" if not args["output"] else args["output"]
-        command = (
-            f'{script_dir}/extract_fit_results.cc("{temp_file_path}",'
-            f' "{output_file_name}", {is_acceptance_corrected})'
-        )
-        amptools = "loadAmpTools.C"
+        command = [
+            (
+                f'{script_dir}/extract_fit_results.cc("{temp_file_path}",'
+                f' "{output_file_name}", {is_acceptance_corrected})'
+            )
+        ]
+        amptools_command = "loadAmpTools.C"
+
+        if args["correlation"]:
+            corr_output_name = output_file_name.replace(".csv", "_corr.csv")
+            command.append(
+                f'{script_dir}/extract_corr_matrix.cc("{temp_file_path}",'
+                f' "{corr_output_name}")'
+            )
+        if args["covariance"]:
+            cov_output_name = output_file_name.replace(".csv", "_cov.csv")
+            command.append(
+                f'{script_dir}/extract_cov_matrix.cc("{temp_file_path}",'
+                f' "{cov_output_name}")'
+            )
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
-        command = (
-            f'{script_dir}/extract_bin_info.cc("{temp_file_path}",'
-            f" \"{output_file_name}\", \"{args['mass_branch']}\")"
-        )
+        command = [
+            (
+                f'{script_dir}/extract_bin_info.cc("{temp_file_path}",'
+                f" \"{output_file_name}\", \"{args['mass_branch']}\")"
+            )
+        ]
     else:
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
-    command = ["root", "-n", "-l", "-b", "-q", amptools, command]
+    proc_command = ["root", "-n", "-l", "-b", "-q"]
+    proc_command.append(amptools_command)
+    proc_command.extend(command)
 
-    print("Running ROOT macro...")
+    print(f"Running ROOT macro with command: {proc_command}")
     # call the ROOT macro
     proc = subprocess.Popen(
-        command,
+        proc_command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -196,6 +215,24 @@ def parse_args() -> dict:
         "--verbose",
         action="store_true",
         help="Print out more information while running the script",
+    )
+    parser.add_argument(
+        "--correlation",
+        type=bool,
+        default=True,
+        help=(
+            "When passed, the correlation matrix of each fit is included in a separate"
+            " csv file. Defaults to True."
+        ),
+    )
+    parser.add_argument(
+        "--covariance",
+        type=bool,
+        default=True,
+        help=(
+            "When passed, the covariance matrix of each fit is included in a separate"
+            " csv file. Defaults to True."
+        ),
     )
     return vars(parser.parse_args())
 
