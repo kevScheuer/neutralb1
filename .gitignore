@@ -10,6 +10,8 @@ bin_template.cfg
 *.pdf
 *.png
 *.fit
+*.out
+*.log
 
 
 # caches
