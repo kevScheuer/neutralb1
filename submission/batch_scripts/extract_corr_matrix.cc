@@ -6,9 +6,9 @@ The csv file produced will contain all correlation values, with the labelled col
 rows corresponding to the parameters
 
 This is essentially a copy of extract_cov_matrix.cc, but written in a separate file to
-prevent the user from having to manually calculate the correlations by accessing all the 
+prevent the user from having to manually calculate the correlations by accessing all the
 parameter errors.
-    
+
 NOTE: This script assumes that 4 coherent sums, 2 for each reflectivity, are present,
 and that the reflectivities are constrained to each other. Thus we don't print 1/2 of
 the reflectivity dependent parameters, as they're information is fixed to the other
@@ -46,6 +46,8 @@ void extract_corr_matrix(std::string file_path, std::string csv_name)
     // ==== BEGIN FILE ITERATION ====
     // Iterate over each file, and label each correlation matrix block with the file
     // name
+    bool is_header_written = false; // only write header once
+    int num_params = 0; // store number of parameters to ensure other files match
     for (const std::string &file : file_vector)
     {
         std::cout << "Analyzing File: " << file << "\n";
@@ -56,22 +58,43 @@ void extract_corr_matrix(std::string file_path, std::string csv_name)
             continue;
         }
         // write the header row
-        csv_data << "file" << ",";
-        csv_data << "parameter";
-        for (const auto &par : results.parNameList())
+        if (!is_header_written)
         {
-            // skip parameters constrained across coherent sums. We only need the
-            // "Real" coherent sums, as the "Imag" ones are constrained to them.
-            // (ImagNegSign <-> RealPosSign) and (ImagPosSign <-> RealNegSign).
-            if (par.find("Imag") != std::string::npos)
-                continue;
-            csv_data << "," << par;
-        }
-        csv_data << "\n";
-        // end header row
+            is_header_written = true;
+            csv_data << "file" << ",";
+            csv_data << "parameter";
+            
+            num_params = results.parNameList().size();
+            for (const auto &par : results.parNameList())
+            {
+                // skip parameters constrained across coherent sums. We only need the
+                // "Real" coherent sums, as the "Imag" ones are constrained to them.
+                // (ImagNegSign <-> RealPosSign) and (ImagPosSign <-> RealNegSign).
+                if (par.find("Imag") != std::string::npos)
+                    continue;
+                csv_data << "," << par;
+            }
+            csv_data << "\n";
+        } // end header row
 
         // get the covariance matrix
         const std::vector<std::vector<double>> cov_matrix = results.errorMatrix();
+
+        // check that the covariance matrix matches the number of parameters
+        if (cov_matrix.size() != results.parNameList().size())
+        {
+            std::cout << "Error: Covariance matrix size does not match number of parameters. Exiting! \n";
+            exit(1);
+        }
+        // check that this file has the same number of parameters as the first file
+        if (num_params != results.parNameList().size())
+        {
+            std::cout << "Error: Number of parameters in file " << file
+                      << " does not match those of " << file_vector[0] 
+                      << " Exiting! \n";
+            exit(1);
+        }
+
         for (int row = 0; row < cov_matrix.size(); row++)
         {
             const std::string row_par = results.parNameList()[row];
@@ -79,7 +102,7 @@ void extract_corr_matrix(std::string file_path, std::string csv_name)
             if (row_par.find("Imag") != std::string::npos)
                 continue;
 
-            // repeat file name to label each block of the correlation matrix, and 
+            // repeat file name to label each block of the correlation matrix, and
             // then write the parameter name in the index column
             csv_data << file << ",";
             csv_data << row_par;

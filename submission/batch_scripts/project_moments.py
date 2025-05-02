@@ -13,10 +13,10 @@ you'll have to account for it when parsing the amplitude name in the get_waves f
 TODO: Add barrier factor to the wave real/im parts
 TODO: Change moment output to be in H<alpha>_<Jv><Labmda><J><M> format to match the
     direct moment fit format
-TODO: Remove H<alpha>_<2><Lambda><J><M> moments where J=0 OR M=0, as they are directly
-    related to the H<alpha>_<0><Lambda><J><M> moments
 TODO: Remove H<alpha>_<Jv><Lambda><J><M> moments where Lambda > Jv, because they will
     always be 0. This is because OmegaH Wigner D function is 0 for these values
+TODO: Remove H<alpha>_<2><Lambda><J><M> moments where Jv=2 AND Lambda==0, as they are
+    directly related to the H<alpha>_<0><0><J><M> moments
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
 TODO: Coefficient table is calculated for every file, but only the last one is saved
