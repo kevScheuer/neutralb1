@@ -10,6 +10,8 @@ For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be wr
 in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
 you'll have to account for it when parsing the amplitude name in the get_waves function.
 
+BUG: The range of M values is wrong, should go from 0 to 2*max(m), so we've missed
+    moments
 TODO: Add barrier factor to the wave real/im parts
 TODO: Change moment output to be in H<alpha>_<Jv><Labmda><J><M> format to match the
     direct moment fit format
