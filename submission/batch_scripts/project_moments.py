@@ -10,9 +10,6 @@ For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be wr
 in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
 you'll have to account for it when parsing the amplitude name in the get_waves function.
 
-TODO: Add barrier factor to the wave real/im parts
-TODO: Change moment output to be in H<alpha>_<Jv><Labmda><J><M> format to match the
-    direct moment fit format
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
 TODO: Coefficient table is calculated for every file, but only the last one is saved
@@ -238,7 +235,7 @@ def process_file(
             if alpha == 2 and Lambda == 0 and M == 0:
                 continue
 
-            moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
+            moment_str = f"H{alpha}_{Jv}{Lambda}{J}{M}"
 
             coefficient_dict.clear()
             moment_val = calculate_moment(
