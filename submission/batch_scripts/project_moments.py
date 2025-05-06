@@ -204,6 +204,12 @@ def process_file(
     # find all the partial waves in the file
     waves = get_waves(file, mass, args["breit_wigner"])
 
+    for wave in waves:
+        print(wave.name)
+        print("\tre: ", wave.real)
+        print("\tim: ", wave.imaginary)
+    exit(0)
+
     if args["verbose"]:
         start_time = timeit.default_timer()
     # ===PREPARE quantum numbers of moments===
@@ -359,6 +365,11 @@ def get_waves(file: str, mass: float, use_breit_wigner: bool) -> List[Wave]:
                 if wave is None:
                     raise ValueError(f"Amplitude {amplitude} not found in file {file}")
                 scaled_part = wave.scale * float(parts[-1])
+
+                # modify component by the barrier factor
+                barrier = pwa_tools.barrier_factor(mass, 0.1349768, 0.78266, wave.l)
+                scaled_part *= barrier
+
                 match re_im_flag:
                     case "re":
                         wave.real = scaled_part
