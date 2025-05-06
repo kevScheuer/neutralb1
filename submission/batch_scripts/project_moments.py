@@ -10,15 +10,9 @@ For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be wr
 in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
 you'll have to account for it when parsing the amplitude name in the get_waves function.
 
-BUG: The range of M values is wrong, should go from 0 to 2*max(m), so we've missed
-    moments
 TODO: Add barrier factor to the wave real/im parts
 TODO: Change moment output to be in H<alpha>_<Jv><Labmda><J><M> format to match the
     direct moment fit format
-TODO: Remove H<alpha>_<Jv><Lambda><J><M> moments where Lambda > Jv, because they will
-    always be 0. This is because OmegaH Wigner D function is 0 for these values
-TODO: Remove H<alpha>_<2><Lambda><J><M> moments where Jv=2 AND Lambda==0, as they are
-    directly related to the H<alpha>_<0><0><J><M> moments
 TODO: handle free floating parameters like the D/S ratio
 TODO: Parse Breit-Wigners instead of hard-coding them
 TODO: Coefficient table is calculated for every file, but only the last one is saved
@@ -221,7 +215,7 @@ def process_file(
     J_array = np.arange(0, 2 * max_J + 1)
 
     max_m = max(wave.m for wave in waves)
-    M_array = np.arange(0, max_m + 1)  # like Lambda, -m ∝ +m moments
+    M_array = np.arange(0, 2 * max_m + 1)  # like Lambda, -m ∝ +m moments
 
     # ===CALCULATE each moment and what production coefficients contribute to it===
     moment_dict = {}
@@ -230,6 +224,14 @@ def process_file(
         for Jv, Lambda, J, M in itertools.product(
             Jv_array, Lambda_array, J_array, M_array
         ):
+            # moments with these quantum #s will always be 0, because their Wigner D
+            # functions are 0
+            if M > J or Lambda > J or Lambda > Jv:
+                continue
+            # Wishart section 5.10.2 proves H2(Jv,0,J,0) = 0 for any Jv, J
+            if alpha == 2 and Lambda == 0 and M == 0:
+                continue
+
             moment_str = f"H{alpha}({Jv},{Lambda},{J},{M})"
 
             coefficient_dict.clear()
