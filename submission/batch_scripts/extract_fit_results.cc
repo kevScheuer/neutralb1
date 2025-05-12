@@ -292,18 +292,19 @@ void fill_maps(
             // store the phase differences
             for (std::string pd_amplitude : results.ampList(reaction))
             {
-                std::string pd_e, pd_JP, pd_m, pd_L;
-                std::tie(pd_e, pd_JP, pd_m, pd_L) = parse_amplitude(pd_amplitude);
-                std::string pd_eJPmL = pd_e + pd_JP + pd_m + pd_L;
-
-                if (pd_eJPmL == eJPmL)
-                    continue; // don't compare to itself
                 // isotropic background cannot have a phase difference
                 if (pd_amplitude.find("Bkgd") != std::string::npos ||
                     pd_amplitude.find("iso") != std::string::npos)
                 {
                     continue;
                 }
+                
+                std::string pd_e, pd_JP, pd_m, pd_L;
+                std::tie(pd_e, pd_JP, pd_m, pd_L) = parse_amplitude(pd_amplitude);
+                std::string pd_eJPmL = pd_e + pd_JP + pd_m + pd_L;
+
+                if (pd_eJPmL == eJPmL)
+                    continue; // don't compare to itself
 
                 // avoid duplicates due to reverse ordering of names
                 if (phase_diffs.find(pd_eJPmL + "_" + eJPmL) != phase_diffs.end())
