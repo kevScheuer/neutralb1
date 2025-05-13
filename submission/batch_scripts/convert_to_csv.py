@@ -160,6 +160,9 @@ def parse_args() -> dict:
         nargs="+",
     )
     parser.add_argument(
+        "-o", "--output", default="", help="File name of output .csv file"
+    )
+    parser.add_argument(
         "-s",
         "--sorted",
         type=bool,
@@ -179,9 +182,6 @@ def parse_args() -> dict:
             " -1, so that the last number in the path is used. See "
             " utils.sort_input_files for details."
         ),
-    )
-    parser.add_argument(
-        "-o", "--output", default="", help="File name of output .csv file"
     )
     parser.add_argument(
         "-a",
