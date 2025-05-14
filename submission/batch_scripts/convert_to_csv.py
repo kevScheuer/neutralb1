@@ -2,8 +2,10 @@
 
 This script is used for two fit result purposes:
 1. To aggregate the AmpTools .fit files into a single .csv file for easier analysis.
+    a. The covariance and correlation matrices are also included in separate .csv files
 2. To convert the ROOT files that the .fit files are based off of into a .csv file.
-Behind the scenes, this script calls a ROOT macro for either situation.
+
+Behind the scenes, this runs compiled c++ scripts for either situation.
 """
 
 import argparse
@@ -18,12 +20,6 @@ from analysis.scripts import utils
 
 
 def main(args: dict) -> None:
-
-    # ERROR / VALUE HANDLING
-    if not os.environ["ROOTSYS"]:
-        raise EnvironmentError(
-            "ROOTSYS path is not loaded. Make sure to run 'source setup_gluex.csh'\n"
-        )
 
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] = args["output"] + ".csv"
@@ -82,20 +78,18 @@ def main(args: dict) -> None:
         temp_file_path = temp_file.name
     print(f"Temp file created at {temp_file_path}")
 
-    # convert this flag into bool integers for the ROOT macro to interpret
+    # convert this flag into bool integers for the c++ script to interpret
     is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
 
-    # setup ROOT command with appropriate arguments
-    amptools_command = ""
+    # setup c++ command with appropriate arguments
     if file_type == "fit":
         output_file_name = "fits.csv" if not args["output"] else args["output"]
         command = [
-            (
-                f'{script_dir}/extract_fit_results.cc("{temp_file_path}",'
-                f' "{output_file_name}", {is_acceptance_corrected})'
-            )
+            f"{script_dir}/extract_fit_results",
+            f"{temp_file_path}",
+            f"{output_file_name}",
+            f"{is_acceptance_corrected}",
         ]
-        amptools_command = "loadAmpTools.C"
 
         if args["correlation"]:
             corr_output_name = output_file_name.replace(".csv", "_corr.csv")
@@ -120,30 +114,26 @@ def main(args: dict) -> None:
     else:
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
-    proc_command = ["root", "-n", "-l", "-b", "-q"]
-    proc_command.append(amptools_command)
-    proc_command.extend(command)
-
-    print(f"Running ROOT macro with command: {proc_command}")
-    # call the ROOT macro
+    print(f"Running command: {command}")
+    # call the commmand with subprocess
     proc = subprocess.Popen(
-        proc_command,
+        command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
-    # print the output of the ROOT macro as it runs
+    # if requested, print the output of the command as it runs
     if args["verbose"]:
         for line in iter(proc.stdout.readline, ""):
             print(line, end="")
     proc.wait()  # wait for the process to finish and update the return code
     if proc.returncode != 0:
-        print("Error while running ROOT macro:")
+        print("Error while running command:")
         for line in iter(proc.stderr.readline, ""):
             print(line, end="")
     else:
-        print("ROOT macro completed successfully")
+        print("Process completed successfully")
 
     return
 
@@ -218,20 +208,18 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         "--correlation",
-        type=bool,
-        default=True,
+        action=argparse.BooleanOptionalAction,
         help=(
             "When passed, the correlation matrix of each fit is included in a separate"
-            " csv file. Defaults to True."
+            " csv file. Pass --no-correlation to disable this. Defaults to None."
         ),
     )
     parser.add_argument(
         "--covariance",
-        type=bool,
-        default=True,
+        action=argparse.BooleanOptionalAction,
         help=(
             "When passed, the covariance matrix of each fit is included in a separate"
-            " csv file. Defaults to True."
+            " csv file. Pass --no-covariance to disable this. Defaults to None."
         ),
     )
     return vars(parser.parse_args())
