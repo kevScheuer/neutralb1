@@ -50,9 +50,10 @@ void fill_maps(
 
 std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude);
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if (argc < 3) {
+    if (argc < 3)
+    {
         std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv> [acceptance_corrected (0/1)]\n";
         return 1;
     }
@@ -60,11 +61,13 @@ int main(int argc, char* argv[])
     std::string file_path = argv[1];
     std::string csv_name = argv[2];
     bool is_acceptance_corrected = false;
-    if (argc > 3) {
+    if (argc > 3)
+    {
         is_acceptance_corrected = (std::string(argv[3]) == "1");
     }
 
     // file path is a text file with a list of AmpTools output files, each on a newline
+    // load this into a vector
     std::vector<std::string> file_vector;
     std::ifstream infile(file_path);
     std::string line;
@@ -234,7 +237,7 @@ int main(int argc, char* argv[])
         {
             std::string phase1 = it->second.first;
             std::string phase2 = it->second.second;
-            auto phase_diff = results.phaseDiff(phase1, phase2);            
+            auto phase_diff = results.phaseDiff(phase1, phase2);
             csv_data << phase_diff.first << ","; // value
             csv_data << phase_diff.second;       // error
             if (std::next(it) != phase_diffs.end())
@@ -288,6 +291,12 @@ void fill_maps(
             // split the "eJPmL" part of the amplitude into its components
             std::string e, JP, m, L;
             std::tie(e, JP, m, L) = parse_amplitude(amplitude);
+            if (e.empty() || JP.empty() || m.empty() || L.empty())
+            {
+                std::cout << "Amplitude format " << amplitude
+                          << " not recognized, skipping\n";
+                continue;
+            }
 
             std::string eJPmL = e + JP + m + L;
 
@@ -312,7 +321,7 @@ void fill_maps(
                 {
                     continue;
                 }
-                
+
                 std::string pd_e, pd_JP, pd_m, pd_L;
                 std::tie(pd_e, pd_JP, pd_m, pd_L) = parse_amplitude(pd_amplitude);
                 std::string pd_eJPmL = pd_e + pd_JP + pd_m + pd_L;
@@ -344,6 +353,13 @@ std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(s
     // NOTE: this assumes the amplitude is named in the "eJPmL" format already, and will
     // need to be adjusted if the naming convention is different
     std::string eJPmL = amplitude.substr(amplitude.rfind("::") + 2);
+
+    // return blanks (handled later) if the format is not recognized
+    if (eJPmL.size() != 5)
+    {
+        return std::make_tuple("", "", "", "");
+    }
+
     std::string e, JP, m, L;
     e = eJPmL.substr(0, 1);
     JP = eJPmL.substr(1, 2);
