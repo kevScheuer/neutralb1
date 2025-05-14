@@ -50,8 +50,20 @@ void fill_maps(
 
 std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude);
 
-void extract_fit_results(std::string file_path, std::string csv_name, bool is_acceptance_corrected)
+int main(int argc, char* argv[])
 {
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv> [acceptance_corrected (0/1)]\n";
+        return 1;
+    }
+
+    std::string file_path = argv[1];
+    std::string csv_name = argv[2];
+    bool is_acceptance_corrected = false;
+    if (argc > 3) {
+        is_acceptance_corrected = (std::string(argv[3]) == "1");
+    }
+
     // file path is a text file with a list of AmpTools output files, each on a newline
     std::vector<std::string> file_vector;
     std::ifstream infile(file_path);
@@ -236,6 +248,8 @@ void extract_fit_results(std::string file_path, std::string csv_name, bool is_ac
     // Write all collected data to the CSV file at once
     csv_file << csv_data.str();
     csv_file.close();
+
+    return 0;
 }
 
 // fill all the fit results maps for a single file
