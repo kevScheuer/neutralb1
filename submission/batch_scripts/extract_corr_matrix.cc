@@ -26,8 +26,17 @@ remove any lines that "continue" when the "Imag" substring is found.
 
 #include "IUAmpTools/FitResults.h"
 
-void extract_corr_matrix(std::string file_path, std::string csv_name)
+int main(int argc, char* argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv>\n";
+        return 1;
+    }
+
+    std::string file_path = argv[1];
+    std::string csv_name = argv[2];
+
     // file path is a text file with a list of AmpTools output files, each on a newline
     std::vector<std::string> file_vector;
     std::ifstream infile(file_path);
@@ -119,7 +128,7 @@ void extract_corr_matrix(std::string file_path, std::string csv_name)
                 // parameter name
                 if (cov_matrix[row][col] != results.covariance(row_par, col_par))
                 {
-                    cout << "Error: Mismatch in covariance values between parameters "
+                    std::cout << "Error: Mismatch in covariance values between parameters "
                          << row_par << " and " << col_par << ". Exiting! \n";
                     exit(1);
                 }
@@ -149,5 +158,5 @@ void extract_corr_matrix(std::string file_path, std::string csv_name)
     csv_file << csv_data.str();
     csv_file.close();
 
-    return;
+    return 0;
 }

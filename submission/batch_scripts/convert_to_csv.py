@@ -6,6 +6,10 @@ This script is used for two fit result purposes:
 2. To convert the ROOT files that the .fit files are based off of into a .csv file.
 
 Behind the scenes, this runs compiled c++ scripts for either situation.
+
+TODO: Convert data reader to a binary, and have it as an optional command that can be
+    run in conjuction with other requested outputs.
+TODO: Eventually, the fit converter should simply include the needed data info in it
 """
 
 import argparse
@@ -90,19 +94,24 @@ def main(args: dict) -> None:
             f"{output_file_name}",
             f"{is_acceptance_corrected}",
         ]
+        run_process(command, args["verbose"])
 
         if args["correlation"]:
             corr_output_name = output_file_name.replace(".csv", "_corr.csv")
-            command.append(
-                f'{script_dir}/extract_corr_matrix.cc("{temp_file_path}",'
-                f' "{corr_output_name}")'
-            )
+            corr_command = [
+                f"{script_dir}/extract_corr_matrix",
+                f"{temp_file_path}",
+                f"{corr_output_name}",
+            ]
+            run_process(corr_command, args["verbose"])
         if args["covariance"]:
             cov_output_name = output_file_name.replace(".csv", "_cov.csv")
-            command.append(
-                f'{script_dir}/extract_cov_matrix.cc("{temp_file_path}",'
-                f' "{cov_output_name}")'
-            )
+            cov_command = [
+                f"{script_dir}/extract_cov_matrix",
+                f"{temp_file_path}",
+                f"{cov_output_name}",
+            ]
+            run_process(cov_command, args["verbose"])
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
         command = [
@@ -114,8 +123,12 @@ def main(args: dict) -> None:
     else:
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
-    print(f"Running command: {command}")
-    # call the commmand with subprocess
+    return
+
+
+def run_process(command: list, is_verbose: bool) -> None:
+    """Run a command with subprocess and print the output if requested"""
+    print("Running command:", command)
     proc = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -123,8 +136,7 @@ def main(args: dict) -> None:
         stderr=subprocess.PIPE,
         text=True,
     )
-    # if requested, print the output of the command as it runs
-    if args["verbose"]:
+    if is_verbose:
         for line in iter(proc.stdout.readline, ""):
             print(line, end="")
     proc.wait()  # wait for the process to finish and update the return code
