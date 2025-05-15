@@ -8,7 +8,7 @@ This script is used for two fit result purposes:
 Behind the scenes, this runs compiled c++ scripts for either situation.
 
 TODO: Convert data reader to a binary, and have it as an optional command that can be
-    run in conjuction with other requested outputs.
+    run in conjunction with other requested outputs.
 TODO: Eventually, the fit converter should simply include the needed data info in it
 """
 
@@ -114,12 +114,13 @@ def main(args: dict) -> None:
             run_process(cov_command, args["verbose"])
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
-        command = [
-            (
-                f'{script_dir}/extract_bin_info.cc("{temp_file_path}",'
-                f" \"{output_file_name}\", \"{args['mass_branch']}\")"
-            )
+        bin_command = [
+            f"{script_dir}/extract_bin_info",
+            f"{temp_file_path}",
+            f"{output_file_name}",
+            f"{args['mass_branch']}",
         ]
+        run_process(bin_command, args["verbose"])
     else:
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
@@ -137,13 +138,15 @@ def run_process(command: list, is_verbose: bool) -> None:
         text=True,
     )
     if is_verbose:
-        for line in iter(proc.stdout.readline, ""):
-            print(line, end="")
+        if proc.stdout is not None:
+            for line in iter(proc.stdout.readline, ""):
+                print(line, end="")
     proc.wait()  # wait for the process to finish and update the return code
     if proc.returncode != 0:
         print("Error while running command:")
-        for line in iter(proc.stderr.readline, ""):
-            print(line, end="")
+        if proc.stderr is not None:
+            for line in iter(proc.stderr.readline, ""):
+                print(line, end="")
     else:
         print("Process completed successfully")
 

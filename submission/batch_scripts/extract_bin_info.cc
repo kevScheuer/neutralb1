@@ -19,11 +19,26 @@ is used, then it will need to be implemented here.
 #include <string>
 #include <vector>
 
+#include "TH1D.h"
+#include "TCanvas.h"
+#include "TFile.h"
+#include "TTree.h"
+
 // forward declarations
 std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals);
 
-void extract_bin_info(std::string file_path, std::string csv_name, std::string mass_branch)
+int main(int argc, char *argv[])
 {
+    if (argc < 4)
+    {
+        std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv> <mass_branch>\n";
+        return 1;
+    }
+
+    std::string file_path = argv[1];
+    std::string csv_name = argv[2];
+    std::string mass_branch = argv[3];
+
     // file path is a text file with a list of ROOT files, each on a newline
     std::vector<std::string> file_vector;
     std::ifstream infile(file_path);
@@ -148,6 +163,7 @@ void extract_bin_info(std::string file_path, std::string csv_name, std::string m
     }
 
     csv_file.close();
+    return 0;
 }
 
 // Get the min / max non-zero bin edges of a histogram
