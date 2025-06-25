@@ -6,9 +6,10 @@ analyzing fit results
 
 import cmath
 import itertools
+import os
 import re
 import warnings
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, cast
 
 import joypy
 import matplotlib
@@ -17,6 +18,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from cycler import cycler
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 class Plotter:
@@ -75,15 +77,19 @@ class Plotter:
         if self.fit_df.shape[0] != self.data_df.shape[0]:
             raise ValueError(
                 "df and data_df must have same number of rows!\n"
-                f"df: {self.fit_df.shape[0]},"
+                f"df: {self.fit_df.shape[0]},\n"
                 f" data_df: {self.data_df.shape[0]}"
             )
         if self.bootstrap_df is not None and (
-            len(self.bootstrap_df["file"].unique()) != self.fit_df.shape[0]
+            len(self.bootstrap_df["file"].apply(lambda x: os.path.dirname(x)).unique())
+            != self.fit_df.shape[0]
         ):
+            unique_directories = len(
+                self.bootstrap_df["file"].apply(lambda x: os.path.dirname(x)).unique()
+            )
             raise ValueError(
                 "There must be a set of bootstrap fits for each fit result entry\n"
-                f"bootstrap_df: {len(self.bootstrap_df["file"].unique())},"
+                f"bootstrap_df: {unique_directories},\n"
                 f" df: {self.fit_df.shape[0]}"
             )
         if self.truth_df is not None and (
@@ -103,13 +109,11 @@ class Plotter:
 
         # warn user of incomplete fits
         if any(status != 3 for status in self.fit_df["eMatrixStatus"]):
+            bad_files = self.fit_df[self.fit_df["eMatrixStatus"] != 3]["file"].to_list()
             warnings.warn(
-                (
-                    "the following indices contain fit results whose"
-                    " covariance matrix is not full and accurate."
-                )
+                f"The following files contain fit results whose covariance matrix is"
+                f" not full and accurate:\n{"\n".join(bad_files)}"
             )
-            print(self.fit_df[self.fit_df["eMatrixStatus"] != 3]["eMatrixStatus"])
 
         # public attributes
         self.coherent_sums = get_coherent_sums(self.fit_df)
@@ -125,6 +129,13 @@ class Plotter:
         wrap_phases(self.fit_df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
+
+        # add a column for common directories between files for the bootstrap df, to
+        # allow for easier chunking of bootstrap samples later
+        if self.bootstrap_df is not None:
+            self.bootstrap_df["directory"] = self.bootstrap_df["file"].apply(
+                lambda x: os.path.dirname(x)
+            )
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
         if self.truth_df is not None:
@@ -587,7 +598,7 @@ class Plotter:
         pass
 
     def matrix(self) -> None:
-        """Scatter plot-like matrix of subplots, for intensities and phase differences
+        """Scatterplot-like matrix of subplots, for intensities and phase differences
 
         The diagonal of the plot contains the intensity of each wave, in both
         reflectivities. The off diagonals are the phase difference between each wave,
@@ -612,11 +623,11 @@ class Plotter:
         max_diag = max([self.fit_df[x].max() for x in self.coherent_sums["eJPmL"]])
         data_y_ticks = np.linspace(0, max_diag, 4)
         axs[0, 0].set_yticks(data_y_ticks, [human_format(num) for num in data_y_ticks])
+
         for i, JPmL in enumerate(self.coherent_sums["JPmL"]):
             for j, JPmL_dif in enumerate(self.coherent_sums["JPmL"]):
                 # change tick label sizes for all plots and the max
                 axs[i, j].tick_params("both", labelsize=6)
-                axs[i, j].set_ylim(top=max_diag)
 
                 # write mass ticks for only the bottom row
                 if i == len(self.coherent_sums["JPmL"]) - 1:
@@ -624,6 +635,7 @@ class Plotter:
 
                 # PLOT DIAGONALS
                 if i == j:
+                    axs[i, j].set_ylim(top=max_diag)
                     # make outline of the plot thick to set them apart
                     spines = ["left", "right", "top", "bottom"]
                     for sp in spines:
@@ -834,13 +846,14 @@ class Plotter:
     def ds_ratio(self) -> None:
         """Plot the ratio and phase between the D and S waves
 
-        The plots chang depending on whether the model had a defined D/S ratio. If it is
-        defined then the covariance of the ratio and phase parameters are plotted, but
-        if not then its the correlation. Due to plotting style, plots have fixed sizes.
+        The plots change depending on whether the model had a defined D/S ratio. If it
+        is defined then the covariance of the ratio and phase parameters are plotted,
+        but if not, then its the correlation. Due to plotting style, plots have fixed
+        sizes.
 
         TODO: Add a raise if D or S wave are not present, and the reflectivities
         """
-        #
+
         if "dsratio" in self.fit_df.columns:
             fig, axs = plt.subplots(
                 3, 1, sharex=True, gridspec_kw={"wspace": 0.0, "hspace": 0.12}
@@ -1056,32 +1069,31 @@ class Plotter:
     def correlation_matrix(
         self,
         columns: List[str],
-        mass_bin: int | str,
+        pdf_path: str,
         method: "Literal['pearson', 'kendall', 'spearman']" = "pearson",
+        directories: Optional[List[str]] = None,
     ) -> None:
-        """Plot the correlation matrix in a single mass bin
-
-        The correlation matrix is calculated for the columns in the bootstrap dataframe
-        for a single mass bin. The matrix is then plotted as a heatmap, with its values.
+        """
+        Plot correlation matrix of requested columns, for every bootstrap sample
 
         Args:
             columns (List[str]): bootstrap df columns to calculate the correlation
                 matrix for
-            mass_bin (int | str): mass bin, either as integer (bin #) or string
-                ("bin_low-bin_high")
-            method (str, optional): Method of correlation. Defaults to "pearson", but
-                can also be kendall or spearman.
+            pdf_path (str): Save all matrices to this PDF file.
+            method (str,optional): Method of correlation. Defaults to "pearson", but can
+                also be kendall or spearman.
+            directories (List[str], optional): Bootstrap samples are grouped by
+                directory. If provided, only the directories (groups) requested will be
+                plotted. Default to None, so that all samples are plotted
 
         Raises:
             ValueError: if bootstrap df was not defined, since its optional upon init
             ValueError: requested columns not in the bootstrap dataframe
-            ValueError: mass bin is not in dataframe, or is not string or integer
+            ValueError: file(s) not found in dataframe
         """
-
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
 
-        # check if requested columns are in the dataframe
         missing_columns = [
             col for col in columns if col not in self.bootstrap_df.columns
         ]
@@ -1090,44 +1102,45 @@ class Plotter:
                 f"The following columns are not in bootstrap_df: {missing_columns}"
             )
 
-        # calculate the correlation matrix
-        if isinstance(mass_bin, str):
-            corr_matrix = self.bootstrap_df[self.bootstrap_df["bin_range"] == mass_bin][
-                columns
-            ].corr(method=method)
-        elif isinstance(mass_bin, int):
-            corr_matrix = self.bootstrap_df[self.bootstrap_df["bin"] == mass_bin][
-                columns
-            ].corr(method=method)
-        else:
-            raise ValueError("Mass bin must be a string or integer")
+        if directories is not None:
+            if not self.bootstrap_df["directory"].isin(directories).any():
+                raise ValueError(
+                    "Not all requested directories were found in the bootstrap df"
+                )
 
-        # check that the mass bin was found in the dataframe
-        corr_matrix.dropna(inplace=True)
-        if corr_matrix.empty:
-            raise ValueError(f"Mass bin {mass_bin} not found in bootstrap df")
+        # Ensure directories is always a list
+        if directories is None:
+            directories = self.bootstrap_df["directory"].unique().tolist()
+        elif not isinstance(directories, list):
+            directories = list(directories)
+        directories = cast(List[str], directories)
 
-        # round to 2 decimal places
-        corr_matrix = corr_matrix.round(2)
+        pdf = PdfPages(pdf_path)
 
-        # rename the columns to prettier LaTeX names
-        renamed_titles = {}
-        for col in columns:
-            if any(
-                col in sublist for sublist in self.coherent_sums.values()
-            ) or col in set(self.phase_differences.values()):
-                renamed_titles[col] = convert_amp_name(col)
-        corr_matrix.rename(index=renamed_titles, columns=renamed_titles, inplace=True)
+        for d in directories:
+            selected_df = self.bootstrap_df[self.bootstrap_df["directory"] == d]
+            corr_matrix = selected_df[columns].corr(method=method).round(2)
+            renamed_titles = {}
+            for col in columns:
+                if any(
+                    col in sublist for sublist in self.coherent_sums.values()
+                ) or col in set(self.phase_differences.values()):
+                    renamed_titles[col] = convert_amp_name(col)
+            corr_matrix.rename(
+                index=renamed_titles, columns=renamed_titles, inplace=True
+            )
 
-        # plot the matrix as a heatmap
-        plt.figure(figsize=(10, 8))  # slightly longer figure to accommodate color bar
-        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+            plt.title(f"Correlation Matrix for {d}")
+            plt.yticks(rotation=0)
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            pdf.savefig()
+            plt.close()
 
-        # rotate titles for better viewing
-        plt.yticks(rotation=0)
-        plt.xticks(rotation=45, ha="right")
-
-        plt.show()
+        print("Saved correlation matrices to", pdf_path)
+        pdf.close()
 
         pass
 
