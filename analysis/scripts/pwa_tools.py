@@ -8,7 +8,7 @@ import cmath
 import itertools
 import re
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Literal, Optional
 
 import joypy
 import matplotlib
@@ -24,8 +24,8 @@ class Plotter:
         self,
         df: pd.DataFrame,
         data_df: pd.DataFrame,
-        bootstrap_df: pd.DataFrame = None,
-        truth_df: pd.DataFrame = None,
+        bootstrap_df: "Optional[pd.DataFrame]" = None,
+        truth_df: "Optional[pd.DataFrame]" = None,
     ) -> None:
         """Initialize object with pandas dataframes
 
@@ -45,38 +45,75 @@ class Plotter:
                 generate the MC sample. When non-empty, many plots will display a
                 solid line for the truth information
         """
-        self.df = df
+        # --ERROR HANDLING--
+        # verify that all inputs are dataframes
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("df must be a pandas DataFrame")
+        if not isinstance(data_df, pd.DataFrame):
+            raise TypeError("data_df must be a pandas DataFrame")
+        if bootstrap_df is not None and not isinstance(bootstrap_df, pd.DataFrame):
+            raise TypeError("bootstrap_df must be a pandas DataFrame or None (empty)")
+        if truth_df is not None and not isinstance(truth_df, pd.DataFrame):
+            raise TypeError("truth_df must be a pandas DataFrame or None (empty)")
+
+        # assign dataframes to public variables
+        self.fit_df = df
         self.data_df = data_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
+        # Validate data
+        if self.fit_df.empty:
+            raise ValueError("df is empty, cannot plot without fit results.")
+        if self.data_df.empty:
+            raise ValueError("data_df is empty, cannot plot without data points.")
+        if self.bootstrap_df is not None and self.bootstrap_df.empty:
+            raise ValueError("bootstrap_df was passed but is empty")
+        if self.truth_df is not None and self.truth_df.empty:
+            raise ValueError("truth_df was passed but is empty")
+
+        if self.fit_df.shape[0] != self.data_df.shape[0]:
+            raise ValueError(
+                "df and data_df must have same number of rows!\n"
+                f"df: {self.fit_df.shape[0]},"
+                f" data_df: {self.data_df.shape[0]}"
+            )
+        if self.bootstrap_df is not None and (
+            len(self.bootstrap_df["file"].unique()) != self.fit_df.shape[0]
+        ):
+            raise ValueError(
+                "There must be a set of bootstrap fits for each fit result entry\n"
+                f"bootstrap_df: {len(self.bootstrap_df["file"].unique())},"
+                f" df: {self.fit_df.shape[0]}"
+            )
+        if self.truth_df is not None and (
+            self.fit_df.shape[0] != self.truth_df.shape[0]
+        ):
+            raise ValueError(
+                "Fit and truth dataframes must have same number of rows!\n"
+                f"df: {self.fit_df.shape[0]},"
+                f" truth_df: {self.truth_df.shape[0]}"
+            )
+
+        # load in matplotlib style for this class
         plt.style.use(
             "/w/halld-scshelf2101/kscheuer/neutralb1/analysis/scripts/"
             "pwa_plotter.mplstyle"
-        )  # load in default matplotlib style
+        )
 
-        # Error handling
-        if self.df.empty or self.data_df.empty:
-            raise ValueError("dataframes are empty.")
-        if self.df.shape[0] != self.data_df.shape[0]:
-            raise ValueError(
-                "df and data_df must have same number of rows!\n"
-                f"df: {self.df.shape[0]},"
-                f" data_df: {self.data_df.shape[0]}"
-            )
-
-        if any(status != 3 for status in self.df["eMatrixStatus"]):
+        # warn user of incomplete fits
+        if any(status != 3 for status in self.fit_df["eMatrixStatus"]):
             warnings.warn(
                 (
                     "the following indices contain fit results whose"
                     " covariance matrix is not full and accurate."
                 )
             )
-            print(self.df[self.df["eMatrixStatus"] != 3]["eMatrixStatus"])
+            print(self.fit_df[self.fit_df["eMatrixStatus"] != 3]["eMatrixStatus"])
 
         # public attributes
-        self.coherent_sums = get_coherent_sums(self.df)
-        self.phase_differences = get_phase_differences(self.df)
+        self.coherent_sums = get_coherent_sums(self.fit_df)
+        self.phase_differences = get_phase_differences(self.fit_df)
 
         # private attributes
         self._mass_bins = self.data_df["m_center"]
@@ -85,19 +122,12 @@ class Plotter:
         # --DATA PREPARATION--
 
         # wrap phases from -pi to pi range
-        wrap_phases(self.df)
+        wrap_phases(self.fit_df)
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
-        self.is_truth = True if self.truth_df is not None else False
-        if self.is_truth:
-            if self.df.shape[0] != self.truth_df.shape[0]:
-                raise ValueError(
-                    "Fit and truth dataframes must have same number of rows!\n"
-                    f"df: {self.df.shape[0]},"
-                    f" truth_df: {self.truth_df.shape[0]}"
-                )
+        if self.truth_df is not None:
             # phases in truth fits are wrong, so must be "manually" set to the correct
             # values. Then we can wrap them
             self._reset_truth_phases(self.truth_df, self._mass_bins)
@@ -111,14 +141,14 @@ class Plotter:
                     if sum not in self.truth_df.columns:
                         cols_to_add.append(
                             pd.DataFrame(
-                                np.zeros_like(self.df[sum]),
+                                np.zeros_like(self.fit_df[sum]),
                                 index=self.truth_df.index,
                                 columns=[sum],
                             )
                         )
                         cols_to_add.append(
                             pd.DataFrame(
-                                np.zeros_like(self.df[sum]),
+                                np.zeros_like(self.fit_df[sum]),
                                 index=self.truth_df.index,
                                 columns=[f"{sum}_err"],
                             )
@@ -139,14 +169,14 @@ class Plotter:
                 if phase_dif not in self.truth_df.columns:
                     cols_to_add.append(
                         pd.DataFrame(
-                            np.zeros_like(self.df[phase_dif]),
+                            np.zeros_like(self.fit_df[phase_dif]),
                             index=self.truth_df.index,
                             columns=[phase_dif],
                         )
                     )
                     cols_to_add.append(
                         pd.DataFrame(
-                            np.zeros_like(self.df[phase_dif]),
+                            np.zeros_like(self.fit_df[phase_dif]),
                             index=self.truth_df.index,
                             columns=[f"{phase_dif}_err"],
                         )
@@ -161,7 +191,7 @@ class Plotter:
         """Plot each JP contribution to the total intensity as a function of mass"""
 
         # a map ensures consistency no matter the # of jps
-        colors = matplotlib.colormaps["Dark2"].colors
+        colors = matplotlib.colormaps["Dark2"].colors  # type: ignore
         jp_map = {
             "Bkgd": {"color": colors[0], "marker": "."},
             "0m": {"color": colors[1], "marker": "x"},
@@ -188,7 +218,7 @@ class Plotter:
         # Plot Fit Result as a grey histogram with its error bars
         ax.bar(
             self._mass_bins,
-            self.df["detected_events"],
+            self.fit_df["detected_events"],
             width=self._bin_width,
             color="0.1",
             alpha=0.15,
@@ -196,8 +226,8 @@ class Plotter:
         )
         ax.errorbar(
             self._mass_bins,
-            self.df["detected_events"],
-            self.df["detected_events_err"],
+            self.fit_df["detected_events"],
+            self.fit_df["detected_events_err"],
             fmt=",",
             color="0.1",
             alpha=0.2,
@@ -206,12 +236,12 @@ class Plotter:
 
         # plot each jp contribution
         for jp, props in jp_map.items():
-            if jp in self.df.columns:
+            if jp in self.fit_df.columns:
                 l = convert_amp_name(jp) if jp != "Bkgd" else "Iso. Background"
                 ax.errorbar(
                     self._mass_bins,
-                    self.df[jp],
-                    self.df[f"{jp}_err"],
+                    self.fit_df[jp],
+                    self.fit_df[f"{jp}_err"],
                     self._bin_width / 2,
                     label=l,
                     linestyle="",
@@ -219,7 +249,7 @@ class Plotter:
                 )
 
         # plot jp contributions for truth df
-        if self.is_truth:
+        if self.truth_df is not None:
             for jp, props in jp_map.items():
                 if jp in self.truth_df.columns:
                     ax.plot(
@@ -238,7 +268,7 @@ class Plotter:
         plt.show()
         pass
 
-    def intensities(self, is_fit_fraction: bool = False, sharey: bool = False) -> None:
+    def intensities(self, fractional: bool = False, sharey: bool = False) -> None:
         """Plot all the amplitude intensities in a grid format
 
         Since the matrix plot is generally too small to see bin to bin features, this
@@ -247,7 +277,7 @@ class Plotter:
         together on each subplot
 
         Args:
-            is_fit_fraction (bool, optional): Scales all values by dividing them by the
+            fractional (bool, optional): Scales all values by dividing them by the
                 total intensity in each bin. Defaults to False.
             sharey (bool, optional): Sets each row to share a y-axis scale. Defaults to
                 False
@@ -270,11 +300,15 @@ class Plotter:
             figsize=(15, 10),
         )
 
-        total = self.df["detected_events"] if is_fit_fraction else 1
-        total_err = self.df["detected_events_err"] if is_fit_fraction else 0
+        pos_plot = None
+        neg_plot = None
 
-        if self.is_truth:
-            truth_total = self.truth_df["detected_events"] if is_fit_fraction else 1
+        total = self.fit_df["detected_events"] if fractional else 1
+        total_err = self.fit_df["detected_events_err"] if fractional else 0
+        truth_total = 1
+
+        if self.truth_df is not None and fractional:
+            truth_total = self.truth_df["detected_events"]
 
         # iterate through JPL (sorted like S, P, D, F wave) and sorted m-projections
         for row, jpl in enumerate(jpl_values):
@@ -283,7 +317,7 @@ class Plotter:
 
                 # force sci notation so large ticklabels don't overlap with neighboring
                 # plots if not plotting fit fraction
-                if not is_fit_fraction:
+                if not fractional:
                     axs[row, col].ticklabel_format(
                         axis="y", style="sci", scilimits=(0, 0)
                     )
@@ -298,9 +332,9 @@ class Plotter:
 
                 # plot the negative reflectivity contribution
                 if "m" + JPmL in self.coherent_sums["eJPmL"]:
-                    neg_refl = self.df["m" + JPmL] / total
+                    neg_refl = self.fit_df["m" + JPmL] / total
                     neg_refl_err = neg_refl * np.sqrt(
-                        np.square(self.df[f"m{JPmL}_err"] / self.df["m" + JPmL])
+                        np.square(self.fit_df[f"m{JPmL}_err"] / self.fit_df["m" + JPmL])
                         + np.square(total_err / total)
                     )
 
@@ -316,7 +350,7 @@ class Plotter:
                         alpha=0.5,
                         label=r"$\varepsilon=-1$",
                     )
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         axs[row, col].plot(
                             self._mass_bins,
                             self.truth_df["m" + JPmL] / truth_total,
@@ -326,9 +360,9 @@ class Plotter:
                         )
                 # plot the positive reflectivity contribution
                 if "p" + JPmL in self.coherent_sums["eJPmL"]:
-                    pos_refl = self.df["p" + JPmL] / total
+                    pos_refl = self.fit_df["p" + JPmL] / total
                     pos_refl_err = pos_refl * np.sqrt(
-                        np.square(self.df[f"p{JPmL}_err"] / self.df["p" + JPmL])
+                        np.square(self.fit_df[f"p{JPmL}_err"] / self.fit_df["p" + JPmL])
                         + np.square(total_err / total)
                     )
 
@@ -344,7 +378,7 @@ class Plotter:
                         alpha=0.5,
                         label=r"$\varepsilon=+1$",
                     )
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         axs[row, col].plot(
                             self._mass_bins,
                             self.truth_df["p" + JPmL] / truth_total,
@@ -369,7 +403,13 @@ class Plotter:
             rotation_mode="anchor",
             fontsize=20,
         )
-        fig.legend(handles=[pos_plot, neg_plot], loc="upper right")
+        legend_handles = []
+        if pos_plot is not None:
+            legend_handles.append(pos_plot)
+        if neg_plot is not None:
+            legend_handles.append(neg_plot)
+        if legend_handles:
+            fig.legend(handles=legend_handles, loc="upper right")
         plt.show()
         pass
 
@@ -401,8 +441,8 @@ class Plotter:
         fig, ax = plt.subplots()
         ax.errorbar(
             self._mass_bins,
-            self.df[phase_dif],
-            self.df[f"{phase_dif}_err"].abs(),
+            self.fit_df[phase_dif],
+            self.fit_df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             label=convert_amp_name(phase_dif),
             linestyle="",
@@ -412,15 +452,15 @@ class Plotter:
         # plot the negative as well (natural sign ambiguity in the model)
         ax.errorbar(
             self._mass_bins,
-            -self.df[phase_dif],
-            self.df[f"{phase_dif}_err"].abs(),
+            -self.fit_df[phase_dif],
+            self.fit_df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
             color=color,
         )
 
-        if self.is_truth:
+        if self.truth_df is not None:
             ax.plot(
                 self._mass_bins,
                 self.truth_df[phase_dif],
@@ -471,8 +511,8 @@ class Plotter:
         # plot the two amplitudes
         axs[0].errorbar(
             self._mass_bins,
-            self.df[amp1],
-            self.df[f"{amp1}_err"],
+            self.fit_df[amp1],
+            self.fit_df[f"{amp1}_err"],
             self._bin_width / 2,
             "o",
             color=color,
@@ -480,15 +520,15 @@ class Plotter:
         )
         axs[0].errorbar(
             self._mass_bins,
-            self.df[amp2],
-            self.df[f"{amp2}_err"],
+            self.fit_df[amp2],
+            self.fit_df[f"{amp2}_err"],
             self._bin_width / 2,
             "s",
             color=color,
             label=convert_amp_name(amp2),
         )
 
-        if self.is_truth:
+        if self.truth_df is not None:
             axs[0].plot(
                 self._mass_bins,
                 self.truth_df[amp1],
@@ -508,8 +548,8 @@ class Plotter:
         phase_dif = self.phase_differences[(amp1, amp2)]
         axs[1].errorbar(
             self._mass_bins,
-            self.df[phase_dif],
-            self.df[f"{phase_dif}_err"].abs(),
+            self.fit_df[phase_dif],
+            self.fit_df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
@@ -517,14 +557,14 @@ class Plotter:
         )
         axs[1].errorbar(
             self._mass_bins,
-            -self.df[phase_dif],
-            self.df[f"{phase_dif}_err"].abs(),
+            -self.fit_df[phase_dif],
+            self.fit_df[f"{phase_dif}_err"].abs(),
             self._bin_width / 2,
             linestyle="",
             marker=".",
             color=color,
         )
-        if self.is_truth:
+        if self.truth_df is not None:
             axs[1].plot(
                 self._mass_bins,
                 self.truth_df[phase_dif],
@@ -564,8 +604,12 @@ class Plotter:
             figsize=(13, 8),
             dpi=500,
         )
+
+        pos_plot = None
+        neg_plot = None
+
         # only the top left corner plot will have ticks for the data scale
-        max_diag = max([self.df[x].max() for x in self.coherent_sums["eJPmL"]])
+        max_diag = max([self.fit_df[x].max() for x in self.coherent_sums["eJPmL"]])
         data_y_ticks = np.linspace(0, max_diag, 4)
         axs[0, 0].set_yticks(data_y_ticks, [human_format(num) for num in data_y_ticks])
         for i, JPmL in enumerate(self.coherent_sums["JPmL"]):
@@ -607,8 +651,8 @@ class Plotter:
                     # plot the reflectivity contributions
                     neg_plot = axs[i, j].errorbar(
                         self._mass_bins,
-                        self.df[f"m{JPmL}"],
-                        self.df[f"m{JPmL}_err"],
+                        self.fit_df[f"m{JPmL}"],
+                        self.fit_df[f"m{JPmL}_err"],
                         self._bin_width / 2,
                         "s",
                         color="blue",
@@ -617,15 +661,15 @@ class Plotter:
                     )
                     pos_plot = axs[i, j].errorbar(
                         self._mass_bins,
-                        self.df[f"p{JPmL}"],
-                        self.df[f"p{JPmL}_err"],
+                        self.fit_df[f"p{JPmL}"],
+                        self.fit_df[f"p{JPmL}_err"],
                         self._bin_width / 2,
                         "o",
                         color="red",
                         markersize=2,
                         label=r"$\varepsilon=+1$",
                     )
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         axs[i, j].plot(
                             self._mass_bins,
                             self.truth_df[f"m{JPmL}"],
@@ -661,7 +705,7 @@ class Plotter:
                     # plot phase and its sign ambiguity, with error bands
                     axs[i, j].plot(
                         self._mass_bins,
-                        self.df[phase_dif].abs(),
+                        self.fit_df[phase_dif].abs(),
                         linestyle="",
                         color="red",
                         marker=".",
@@ -669,14 +713,16 @@ class Plotter:
                     )
                     axs[i, j].fill_between(
                         self._mass_bins,
-                        self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
-                        self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        self.fit_df[phase_dif].abs()
+                        - self.fit_df[f"{phase_dif}_err"].abs(),
+                        self.fit_df[phase_dif].abs()
+                        + self.fit_df[f"{phase_dif}_err"].abs(),
                         color="red",
                         alpha=0.2,
                     )
                     axs[i, j].plot(
                         self._mass_bins,
-                        -self.df[phase_dif].abs(),
+                        -self.fit_df[phase_dif].abs(),
                         linestyle="",
                         color="red",
                         marker=".",
@@ -684,13 +730,15 @@ class Plotter:
                     )
                     axs[i, j].fill_between(
                         self._mass_bins,
-                        -self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
-                        -self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        -self.fit_df[phase_dif].abs()
+                        - self.fit_df[f"{phase_dif}_err"].abs(),
+                        -self.fit_df[phase_dif].abs()
+                        + self.fit_df[f"{phase_dif}_err"].abs(),
                         color="red",
                         alpha=0.2,
                     )
 
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         axs[i, j].plot(
                             self._mass_bins,
                             self.truth_df[phase_dif],
@@ -719,7 +767,7 @@ class Plotter:
                     # plot phase and its sign ambiguity, with error bands
                     axs[i, j].plot(
                         self._mass_bins,
-                        self.df[phase_dif].abs(),
+                        self.fit_df[phase_dif].abs(),
                         linestyle="",
                         color="blue",
                         marker=".",
@@ -727,14 +775,16 @@ class Plotter:
                     )
                     axs[i, j].fill_between(
                         self._mass_bins,
-                        self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
-                        self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        self.fit_df[phase_dif].abs()
+                        - self.fit_df[f"{phase_dif}_err"].abs(),
+                        self.fit_df[phase_dif].abs()
+                        + self.fit_df[f"{phase_dif}_err"].abs(),
                         color="blue",
                         alpha=0.2,
                     )
                     axs[i, j].plot(
                         self._mass_bins,
-                        -self.df[phase_dif].abs(),
+                        -self.fit_df[phase_dif].abs(),
                         linestyle="",
                         color="blue",
                         marker=".",
@@ -742,12 +792,14 @@ class Plotter:
                     )
                     axs[i, j].fill_between(
                         self._mass_bins,
-                        -self.df[phase_dif].abs() - self.df[f"{phase_dif}_err"].abs(),
-                        -self.df[phase_dif].abs() + self.df[f"{phase_dif}_err"].abs(),
+                        -self.fit_df[phase_dif].abs()
+                        - self.fit_df[f"{phase_dif}_err"].abs(),
+                        -self.fit_df[phase_dif].abs()
+                        + self.fit_df[f"{phase_dif}_err"].abs(),
                         color="blue",
                         alpha=0.2,
                     )
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         axs[i, j].plot(
                             self._mass_bins,
                             self.truth_df[phase_dif],
@@ -768,7 +820,13 @@ class Plotter:
             fontsize=15,
             rotation="vertical",
         )
-        fig.legend(handles=[pos_plot, neg_plot], fontsize=12, loc="upper right")
+        legend_handles = []
+        if pos_plot is not None:
+            legend_handles.append(pos_plot)
+        if neg_plot is not None:
+            legend_handles.append(neg_plot)
+        if legend_handles:
+            fig.legend(handles=legend_handles, fontsize=12, loc="upper right")
 
         plt.show()
         pass
@@ -783,7 +841,7 @@ class Plotter:
         TODO: Add a raise if D or S wave are not present, and the reflectivities
         """
         #
-        if "dsratio" in self.df.columns:
+        if "dsratio" in self.fit_df.columns:
             fig, axs = plt.subplots(
                 3, 1, sharex=True, gridspec_kw={"wspace": 0.0, "hspace": 0.12}
             )
@@ -797,8 +855,8 @@ class Plotter:
             )
             ax_ratio.errorbar(
                 self._mass_bins,
-                self.df["dsratio"],
-                self.df["dsratio_err"],
+                self.fit_df["dsratio"],
+                self.fit_df["dsratio_err"],
                 self._bin_width / 2,
                 marker=".",
                 linestyle="",
@@ -814,8 +872,8 @@ class Plotter:
             ax_phase.plot(self._mass_bins, np.full_like(self._mass_bins, -10.54), "k--")
             ax_phase.errorbar(
                 self._mass_bins,
-                self.df["dphase"],
-                self.df["dphase_err"].abs(),
+                self.fit_df["dphase"],
+                self.fit_df["dphase_err"].abs(),
                 self._bin_width / 2,
                 marker=".",
                 linestyle="",
@@ -823,8 +881,8 @@ class Plotter:
             )
             ax_phase.errorbar(
                 self._mass_bins,
-                -self.df["dphase"],
-                self.df["dphase_err"].abs(),
+                -self.fit_df["dphase"],
+                self.fit_df["dphase_err"].abs(),
                 self._bin_width / 2,
                 marker=".",
                 linestyle="",
@@ -834,8 +892,8 @@ class Plotter:
             ax_corr.plot(
                 self._mass_bins,
                 (
-                    self.df["cov_dsratio_dphase"]
-                    / (self.df["dsratio_err"] * self.df["dphase_err"])
+                    self.fit_df["cov_dsratio_dphase"]
+                    / (self.fit_df["dsratio_err"] * self.fit_df["dphase_err"])
                 ).fillna(0),
                 marker="8",
                 linestyle="",
@@ -889,19 +947,21 @@ class Plotter:
                 S_wave = eJPmL[:-1] + "S"
 
                 # get ratio and phase difference
-                ratio = self.df[D_wave].apply(np.sqrt) / self.df[S_wave].apply(np.sqrt)
+                ratio = self.fit_df[D_wave].apply(np.sqrt) / self.fit_df[S_wave].apply(
+                    np.sqrt
+                )
                 ratio_err = ratio * np.sqrt(
                     np.square(
-                        self.df[f"{D_wave}_err"].apply(np.sqrt)
-                        / self.df[D_wave].apply(np.sqrt)
+                        self.fit_df[f"{D_wave}_err"].apply(np.sqrt)
+                        / self.fit_df[D_wave].apply(np.sqrt)
                     )
                     + np.square(
-                        self.df[f"{S_wave}_err"].apply(np.sqrt)
-                        / self.df[S_wave].apply(np.sqrt)
+                        self.fit_df[f"{S_wave}_err"].apply(np.sqrt)
+                        / self.fit_df[S_wave].apply(np.sqrt)
                     )
                 )
-                phase = self.df[self.phase_differences[(D_wave, S_wave)]]
-                phase_err = self.df[
+                phase = self.fit_df[self.phase_differences[(D_wave, S_wave)]]
+                phase_err = self.fit_df[
                     f"{self.phase_differences[(D_wave, S_wave)]}_err"
                 ].abs()
 
@@ -993,87 +1053,11 @@ class Plotter:
             plt.show()
         pass
 
-    def mean_correlation(
-        self,
-        column_groups: List[List[str]] = None,
-        labels: List[str] = None,
-        method: str = "pearson",
-    ) -> None:
-        """Plots mean correlation magnitude of each column group as a function of mass
-
-        A correlation matrix is constructed for each group of dataframe columns, and
-        the mean correlation magnitude is the averaged sum of the absolute value of the
-        correlation matrix. This mean value is then plotted as a function of mass.
-        This essentially boils an entire corr matrix down to one parameter, defined
-        from [0,1], that reports how correlated all the columns are with each other.
-
-        Generally the more columns in each group, the less sensitive this parameter
-        becomes to individual strong correlations.
-
-        Args:
-            column_groups (List[List[str]], optional): The mean correlation magnitude is
-                calculated for all the columns in a sub-list (or group). This value for
-                each group is then plotted together. Defaults to None, and instead uses
-                all real and imaginary production parameters.
-            labels (list, optional): Legend label for each group of columns. Defaults to
-                None, and sets the label to be the real and imaginary production
-                parameters.
-            method (str, optional): Method to calculate the correlation matrix. Defaults
-                to pearson, but can also be kendall or spearman.
-
-        Raises:
-            ValueError: if bootstrap df was not defined, since its optional upon init
-            ValueError: need to have same number of labels as column groups
-        """
-        if self.bootstrap_df is None:
-            raise ValueError("Bootstrap df was not defined on instantiation")
-
-        # when no columns requested, build a list from real and imag production params
-        if not column_groups:
-            column_groups = [
-                list(
-                    itertools.chain.from_iterable(
-                        (x + "_re", x + "_im") for x in self.coherent_sums["eJPmL"]
-                    )
-                )
-            ]
-            labels = [r"$[c^i]_m^{(\varepsilon)}$"]
-
-        if len(column_groups) != len(labels):
-            raise ValueError(
-                "Number and position of labels must match those of each sub-list of"
-                " columns"
-            )
-
-        fig, ax = plt.subplots()
-        for group, label in zip(column_groups, labels):
-            mcm = []
-            # get mean correlation magnitude for each bin using the bootstrap df to
-            # calculate the correlation matrix
-            for i in self.df.index:
-                # Take absolute value to make it a magnitude matrix
-                abs_corr_matrix = (
-                    self.bootstrap_df[self.bootstrap_df["bin"] == i][group]
-                    .corr(method=method)
-                    .apply(lambda x: abs(x))
-                )
-                mcm.append(
-                    abs_corr_matrix.sum().sum()
-                    / np.square(len(abs_corr_matrix.columns))
-                )
-            ax.plot(self._mass_bins, mcm, linestyle="-", label=label)
-
-        # cosmetics
-        ax.set_ylim(bottom=0.0, top=1.0)
-        ax.set_ylabel("Mean Correlation Magnitude", loc="top")
-        ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
-
-        ax.legend()
-        plt.show()
-        pass
-
     def correlation_matrix(
-        self, columns: List[str], mass_bin: int | str, method: str = "pearson"
+        self,
+        columns: List[str],
+        mass_bin: int | str,
+        method: "Literal['pearson', 'kendall', 'spearman']" = "pearson",
     ) -> None:
         """Plot the correlation matrix in a single mass bin
 
@@ -1150,7 +1134,7 @@ class Plotter:
     def pull_distribution(
         self,
         columns: str | List[str],
-        y_limits: List[int] = None,
+        y_limits: Optional[List[int]] = None,
         scale: bool = False,
         scale_factor: int = 500,
         **legend_kwargs,
@@ -1176,28 +1160,31 @@ class Plotter:
         Raises:
             ValueError: Truth information is required for pull distribution
         """
-        if not self.is_truth:
+        if self.truth_df is None:
             raise ValueError("Truth information is required for pull distribution")
 
         if isinstance(columns, str):
             columns = [columns]
 
-        # Create a color cycle using the Dark2 colormap
-        color_cycle = cycler(color=matplotlib.cm.Accent.colors)
+        # Create a color cycle using the Accent colormap
+        color_cycle = cycler(color=matplotlib.cm.Accent.colors)  # type: ignore
         fig, ax = plt.subplots()
         ax.set_prop_cycle(color_cycle)
 
+        norm = 1
         if scale:
             # get normalized max values in the columns to determine marker size
-            norm = max([self.df[col].max() for col in columns])
+            norm = max([self.fit_df[col].max() for col in columns])
 
         max_pull = 0
         for column in columns:
             # calculate pull and store the max value
-            pull = (self.df[column] - self.truth_df[column]) / self.df[f"{column}_err"]
+            pull = (self.fit_df[column] - self.truth_df[column]) / self.fit_df[
+                f"{column}_err"
+            ]
             max_pull = max(max_pull, pull.abs().max())
 
-            marker_sizes = scale_factor * (self.df[column] / norm) if scale else 1
+            marker_sizes = scale_factor * (self.fit_df[column] / norm) if scale else 1
 
             ax.scatter(
                 self._mass_bins,
@@ -1211,7 +1198,9 @@ class Plotter:
         ax.axhline(y=0, linestyle="-", color="black")
 
         ax.set_ylim(y_limits) if y_limits else ax.set_ylim(-max_pull, max_pull)
-        ax.set_ylabel(r"Pull $\frac{fit - truth}{\sigma_{fit}}$", loc="top")
+        ax.set_ylabel(
+            r"Pull $\frac{\text{fit} - \text{truth}}{\sigma_{\text{fit}}}$", loc="top"
+        )
         ax.set_xlabel(r"$\omega\pi^0$ inv. mass $(GeV)$", loc="right")
         ax.legend(**legend_kwargs)
 
@@ -1221,7 +1210,7 @@ class Plotter:
 
     def diagnose_bootstraps(
         self,
-        columns: list = None,
+        columns: Optional[list] = None,
         mean_flag: float = 0.0,
         chi2_flag: float = 1.0,
         width_flag: float = 4.0,
@@ -1276,9 +1265,9 @@ class Plotter:
                 ][0]
 
         # make selection to reduce dataset size as we work with it
-        cut_df = self.df.loc[bins].copy()
+        cut_df = self.fit_df.loc[bins].copy()
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
-        if self.is_truth:
+        if self.truth_df is not None:
             cut_truth_df = self.truth_df.loc[bins].copy()
 
         # we want plotted amplitudes to be their fit fraction, so use separate df
@@ -1328,11 +1317,11 @@ class Plotter:
                 x_truth_scale, y_truth_scale = 1.0, 1.0
                 if any(col_label in sublist for sublist in self.coherent_sums.values()):
                     x_scaling = cut_df["detected_events"]
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         x_truth_scale = cut_truth_df["detected_events"]
                 if any(row_label in sublist for sublist in self.coherent_sums.values()):
                     y_scaling = cut_df["detected_events"]
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         y_truth_scale = cut_truth_df["detected_events"]
 
                 # plot band of MINUIT uncertainty centered around nominal fit
@@ -1349,7 +1338,7 @@ class Plotter:
                     )
 
                 # plot marker for truth (if applicable)
-                if self.is_truth and row == col:
+                if self.truth_df is not None and row == col:
                     for i in range(len(cut_truth_df[col_label])):
                         pg.axes[row, col].axline(
                             xy1=(
@@ -1379,7 +1368,7 @@ class Plotter:
                             alpha=0.2,
                         )
                     # plot "X" marker for truth value location
-                    if self.is_truth:
+                    if self.truth_df is not None:
                         for i in range(len(cut_truth_df[row_label])):
                             pg.axes[row, col].scatter(
                                 cut_truth_df[col_label].div(x_truth_scale).iloc[i],
@@ -1542,7 +1531,7 @@ class Plotter:
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
         x_max = cut_bootstrap_df[columns].max().max()
         x_min = cut_bootstrap_df[columns].min().min()
-        if self.is_truth:
+        if self.truth_df is not None:
             cut_truth_df = self.truth_df.loc[bins].copy()
             x_max = max(x_max, cut_truth_df[columns].max().max())
             x_min = min(x_min, cut_truth_df[columns].min().min())
@@ -1614,7 +1603,7 @@ class Plotter:
         )
 
         # plot the truth value as a vertical line on each axis
-        if self.is_truth:
+        if self.truth_df is not None:
             for bin, ax in zip(bins, axes):
                 # get the max y value in each bin by getting the kde max (kde's are the
                 # odd values in ax.lines)
@@ -1649,7 +1638,7 @@ class Plotter:
 
         pass
 
-    def _reset_truth_phases(self, df: pd.DataFrame, mass_bins: List[int]) -> None:
+    def _reset_truth_phases(self, df: pd.DataFrame, mass_bins: pd.Series) -> None:
         """Reset the phase differences of mass dependent truth csv
 
         The phase differences in the truth csv are not natively comparable. Because the
@@ -1709,43 +1698,35 @@ class Plotter:
         pass
 
 
-def wrap_phases(df: pd.DataFrame = None, series: pd.Series = None) -> None:
+def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
     """Wrap phase differences to be from (-pi, pi] & convert from radians to degrees
 
-    Two options of passing either a pandas dataframe, or series. The dataframe case
-    handles avoiding editing any non phase difference columns. The series case is much
-    simpler, and just applies the wrapping to each value
+    Accepts either a pandas DataFrame or Series. For DataFrames, only phase difference
+    columns and their errors are wrapped. For Series, all values are wrapped.
 
     Args:
-        df (pd.DataFrame, optional): dataframe of fit results loaded from csv
-            Defaults to pd.DataFrame([]).
-        series (pd.Series, optional): pandas series of phase difference values.
-            Defaults to pd.Series([], dtype=float).
+        obj (pd.DataFrame | pd.Series): DataFrame of fit results or Series of phase
+            difference values.
+    Raises:
+        ValueError: If obj is not a DataFrame or Series.
 
     Returns:
-        None: Edits the df or series itself
+        None: Edits the df or series in place
     """
-
-    if df is None and series is None:
-        raise ValueError(
-            "Both parameters are None. Provide either a dataframe or a series."
-        )
-
-    if df is not None and series is not None:
-        raise ValueError("Only dataframe or series should be passed, NOT both.")
 
     # wraps phase (in radians) to -pi < x <= pi and convert to degrees
     def wrap(phase):
         return np.rad2deg(np.angle(np.exp(1j * phase)))
 
-    if series is not None:
-        series.apply(wrap, inplace=True)
-        return
-
-    phase_diffs = get_phase_differences(df)
-    for col in set(phase_diffs.values()):
-        df[col] = df[col].apply(wrap)
-        df[f"{col}_err"] = df[f"{col}_err"].apply(wrap)
+    if isinstance(obj, pd.Series):
+        obj.update(obj.apply(wrap))
+    elif isinstance(obj, pd.DataFrame):
+        phase_diffs = get_phase_differences(obj)
+        for col in set(phase_diffs.values()):
+            obj[col] = obj[col].apply(wrap)
+            obj[f"{col}_err"] = obj[f"{col}_err"].apply(wrap)
+    else:
+        raise ValueError("Input must be a pandas DataFrame or Series.")
 
     return
 
@@ -1784,7 +1765,7 @@ def parse_amplitude(amp: str) -> Dict[str, str]:
     return result_dict
 
 
-def get_coherent_sums(df: pd.DataFrame) -> Dict[str, set]:
+def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
     """Returns a dict of coherent sums from a fit results dataframe
 
     Args:
@@ -1803,13 +1784,13 @@ def get_coherent_sums(df: pd.DataFrame) -> Dict[str, set]:
         if "_" in column or len(column) > 5:
             continue
 
-        res = parse_amplitude(column)
+        result_dict = parse_amplitude(column)
         # only add to key if all elements of key are in the column
         for key in coherent_sums.keys():
             split_key = list(key.lower())
-            if any(res[char] == "" for char in split_key):
+            if any(result_dict[char] == "" for char in split_key):
                 continue
-            coh_sum = "".join([res[char] for char in split_key])
+            coh_sum = "".join([result_dict[char] for char in split_key])
             coherent_sums[key].add(coh_sum)
 
     return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
