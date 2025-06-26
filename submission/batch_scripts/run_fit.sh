@@ -200,6 +200,7 @@ elif [[ $my_data_option == *"_mcthrown"* ]]; then
 else
     my_label="Recon MC"
 fi
+# TODO: compile this script
 root -l -n -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
 
 # get total data csv file
@@ -216,12 +217,12 @@ python $my_code_dir/project_moments.py -i $(pwd)/best.fit -o $(pwd)/best_moments
 
 # process random fits
 if [ $my_num_rand_fits -ne 0 ] && [ -z "$my_truth_file" ]; then
-    python $my_code_dir/convert_to_csv.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv    
-    python $my_code_dir/project_moments.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv -w 10
     mv -f "$my_reaction"_*.fit rand/
     mv -f bestFitPars_*.txt rand/
     mv -f "$my_reaction".ni rand/
     mv -f rand_fit_diagnostic.pdf rand/
+    python $my_code_dir/convert_to_csv.py -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv    
+    python $my_code_dir/project_moments.py -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv -w 10
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
 fi
@@ -264,10 +265,10 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
 
     ls -al 
     # convert bootstrap fits to csv and move them to a subdirectory
-    python $my_code_dir/convert_to_csv.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
-    python $my_code_dir/project_moments.py -i $(pwd)/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv -w 10 $breit_wigner_arg
     mv -f "$my_reaction"_*.fit bootstrap/
     mv -f "$my_reaction".ni bootstrap/
+    python $my_code_dir/convert_to_csv.py -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
+    python $my_code_dir/project_moments.py -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv -w 10 $breit_wigner_arg
     all_bootstrap_end_time=$(date +%s)
     echo "All bootstrap fits took: $((all_bootstrap_end_time - all_bootstrap_start_time)) seconds"
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
