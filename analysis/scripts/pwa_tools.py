@@ -58,11 +58,13 @@ class Plotter:
         if truth_df is not None and not isinstance(truth_df, pd.DataFrame):
             raise TypeError("truth_df must be a pandas DataFrame or None (empty)")
 
-        # assign dataframes to public variables
-        self.fit_df = df
-        self.data_df = data_df
-        self.bootstrap_df = bootstrap_df
-        self.truth_df = truth_df
+        # assign dataframes to public variables, copying to avoid modifying originals
+        self.fit_df = df.copy(deep=True)
+        self.data_df = data_df.copy(deep=True)
+        self.bootstrap_df = (
+            bootstrap_df.copy(deep=True) if bootstrap_df is not None else None
+        )
+        self.truth_df = truth_df.copy(deep=True) if truth_df is not None else None
 
         # Validate data
         if self.fit_df.empty:
@@ -130,11 +132,16 @@ class Plotter:
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
-        # add a column for common directories between files for the bootstrap df, to
-        # allow for easier chunking of bootstrap samples later
         if self.bootstrap_df is not None:
+            # add a column for common directories between files for the bootstrap df, to
+            # allow for easier chunking of bootstrap samples later
             self.bootstrap_df["directory"] = self.bootstrap_df["file"].apply(
                 lambda x: os.path.dirname(x)
+            )
+            # create a map between the bootstrap samples and their associated fit result
+            # that sourced them
+            self.bootstrap_map = self._pair_fit_and_bootstrap(
+                self.fit_df, self.bootstrap_df
             )
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
@@ -1242,20 +1249,20 @@ class Plotter:
         pass
 
     def bootstrap_matrix(
-        self, bins: List[int | str], columns: List[str], **kwargs
+        self, directories: List[str], columns: List[str], **kwargs
     ) -> None:
         """Plot matrix of the bootstrap fit results with nominal fit overlaid
 
         View the relations between fit parameters (selected with "columns") from the
-        bootstrap fit results in a single bin (chosen with bin_index). The matrix is of
-        the form: histogram + its kde on the diagonal, scatter plots on the lower
-        triangle, and 2D kde's on the upper triangle. Every plot has a thick green line
-        overlaid to indicate the nominal fit result values. Plots framed by a solid
-        black line indicate a strong correlation between those variables (>0.7). All
-        amplitudes are plotted in fit fractions.
+        bootstrap fit results in a single group or multiple groups (chosen with the
+        directories parameter). The matrix is of the form: histogram + its kde on the
+        diagonal, scatter plots on the lower triangle, and 2D kde's on the upper
+        triangle. Every plot has a thick green line overlaid to indicate the nominal fit
+        result values. Plots framed by a solid black line indicate a strong correlation
+        between those variables (>0.7). All amplitudes are plotted in fit fractions.
 
         Args:
-            bins (List[int|str]): mass bins to plot
+            directories (List[str]): directory groups to plot
             columns (List[str]): fit parameters to plot
             **kwargs: specifically for the seaborn pairplot object
 
@@ -1265,19 +1272,18 @@ class Plotter:
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
-        if not bins:
-            raise ValueError("No bins selected to plot")
+        if not directories:
+            raise ValueError("No directories selected to plot")
         if not columns:
             raise ValueError("No columns selected to plot")
 
-        # convert any string bin ranges to ints
-        for i, bin in enumerate(bins):
-            if isinstance(bin, str):
-                bins[i] = self.bootstrap_df.loc[self.bootstrap_df["bin_range"] == bin][
-                    "bin"
-                ][0]
+        # ensure every requested directory is in the dataframe
+        if not self.bootstrap_df["directory"].isin(directories).any():
+            raise ValueError(
+                "Not all requested directories were found in the bootstrap df"
+            )
 
-        # make selection to reduce dataset size as we work with it
+        # select the groups requested
         cut_df = self.fit_df.loc[bins].copy()
         cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
         if self.truth_df is not None:
@@ -1709,6 +1715,68 @@ class Plotter:
                 l2,
             )
         pass
+
+    def _pair_fit_and_bootstrap(
+        self, fit_df: pd.DataFrame, bootstrap_df: pd.DataFrame
+    ) -> Dict[str, List[str]]:
+        """
+        Create a mapping between each fit file and its corresponding bootstrap samples.
+
+        Each fit file is mapped to a list of bootstrap sample file paths that originate
+        from the same parent directory (excluding the '/bootstrap' subdirectory).
+
+        Args:
+            fit_df (pd.DataFrame): DataFrame containing fit results
+            bootstrap_df (pd.DataFrame): DataFrame containing bootstrap results
+
+        Raises:
+            ValueError: If bootstrap_df does not have a 'directory' column.
+
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping each fit file path to a list of
+                bootstrap file paths associated with it.
+        """
+
+        if bootstrap_df["directory"].isnull().any():
+            raise ValueError(
+                "Bootstrap DataFrame must have a 'directory' column. Should have been"
+                " created at class initialization"
+            )
+
+        # Extract parent directory for each fit file
+        fit_df = fit_df.copy()
+        fit_df["parent_dir"] = fit_df["file"].apply(lambda x: os.path.dirname(x))
+
+        # Bootstrap files exist in a "bootstrap" subdir of the fit dir, so we need to
+        # remove the "/bootstrap" part off of directory
+        bootstrap_df = bootstrap_df.copy()
+        bootstrap_df["parent_dir"] = bootstrap_df["directory"].apply(
+            lambda x: (os.path.dirname(x))
+        )
+
+        # Build mapping: fit file -> list of bootstrap files
+        mapping = {}
+        for _, fit_row in fit_df.iterrows():
+            parent = fit_row["parent_dir"]
+            fit_file = fit_row["file"]
+            # Find all bootstrap files in the corresponding bootstrap subdirectory
+            boots = bootstrap_df[bootstrap_df["parent_dir"] == parent]["file"].tolist()
+            mapping[fit_file] = boots
+
+        if all(not val for val in mapping.values()):
+            raise FileNotFoundError(
+                "No bootstrap samples could be found in subdirectories of main fit"
+                " results"
+            )
+
+        for key, val in mapping.items():
+            if not val:
+                warnings.warn(
+                    f"The following fit file has no bootstrap samples associated with"
+                    f" it: {key}"
+                )
+
+        return mapping
 
 
 def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
