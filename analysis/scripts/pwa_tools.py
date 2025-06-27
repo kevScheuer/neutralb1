@@ -83,11 +83,11 @@ class Plotter:
                 f" data_df: {self.data_df.shape[0]}"
             )
         if self.bootstrap_df is not None and (
-            len(self.bootstrap_df["file"].apply(lambda x: os.path.dirname(x)).unique())
+            len(self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique())
             != self.fit_df.shape[0]
         ):
             unique_directories = len(
-                self.bootstrap_df["file"].apply(lambda x: os.path.dirname(x)).unique()
+                self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique()
             )
             raise ValueError(
                 "There must be a set of bootstrap fits for each fit result entry\n"
@@ -135,14 +135,11 @@ class Plotter:
         if self.bootstrap_df is not None:
             # add a column for common directories between files for the bootstrap df, to
             # allow for easier chunking of bootstrap samples later
-            self.bootstrap_df["directory"] = self.bootstrap_df["file"].apply(
-                lambda x: os.path.dirname(x)
+            self.bootstrap_df["directory"] = (
+                self.bootstrap_df["file"].str.rsplit("/", n=1).str[0]
             )
-            # create a map between the bootstrap samples and their associated fit result
-            # that sourced them
-            self.bootstrap_map = self._pair_fit_and_bootstrap(
-                self.fit_df, self.bootstrap_df
-            )
+            # link the bootstrap files to the corresponding fit indices
+            self._link_bootstrap_to_fit()
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
         if self.truth_df is not None:
@@ -150,6 +147,9 @@ class Plotter:
             # values. Then we can wrap them
             self._reset_truth_phases(self.truth_df, self._mass_bins)
             wrap_phases(self.truth_df)
+
+            # link the truth files to the corresponding fit indices
+            self._link_truth_to_fit()
 
             # set non-existent columns to zero. Needed since the fit dataframe may use
             # a different waveset from the truth fit
@@ -1293,53 +1293,70 @@ class Plotter:
 
         # ensure every fit has an associated bootstrap sample, and exists in the df
         for f in fits:
-            if f not in self.fit_df["file"]:
+            if f not in self.fit_df["file"].to_list():
                 raise FileNotFoundError(
                     f"Requested fit file {f} could not be found in the fit result"
                     " DataFrame"
                 )
-            if not self.bootstrap_map[f]:
+            if (
+                not self.fit_df.index[self.fit_df["file"] == f]
+                .isin(self.bootstrap_df["fit_index"])
+                .any()
+            ):
                 raise FileNotFoundError(
                     f"Requested fit file {f} does not have any bootstrap results"
                     " associated with it. Check the bootstrap csv to ensure its file"
                     f" paths are in a '/bootstrap/' subdirectory of the requested file"
                 )
 
-        # select the samples
-        cut_df = self.fit_df[self.fit_df["file"].isin(fits)].copy()
-        bootstrap_files = [self.bootstrap_map[f] for f in fits]
-        cut_bootstrap_df = self.bootstrap_df[
-            self.bootstrap_df["file"].isin(bootstrap_files)
-        ].copy()
-        if self.truth_df is not None:
-            cut_truth_df = self.truth_df.loc[bins].copy()
+        # in case only some error columns are provided, remove them and re-add them
+        # separately
+        for c in columns:
+            columns.remove(c) if "_err" in c else None
+        err_columns = [f"{c}_err" for c in columns]
+        selected_columns = columns + err_columns + ["detected_events"]
 
-        # we want plotted amplitudes to be their fit fraction, so use separate df
-        plotter_df = cut_bootstrap_df[columns].copy()
+        # select the samples
+        cut_df = self.fit_df[self.fit_df["file"].isin(fits)][selected_columns].copy()
+        cut_bootstrap_df = self.bootstrap_df[
+            self.bootstrap_df["fit_index"].isin(cut_df.index)
+        ][selected_columns + ["fit_index"]].copy()
+        if self.truth_df is not None:
+            cut_truth_df = self.truth_df[self.truth_df["fit_index"].isin(cut_df.index)][
+                selected_columns + ["fit_index"]
+            ].copy()
+        else:
+            cut_truth_df = None
+
+        # we want plotted amplitudes to be their fit fraction for easier visuals
+        plotter_df = cut_bootstrap_df.copy()
         for col in plotter_df:
             if any(col in sublist for sublist in self.coherent_sums.values()):
-                plotter_df.loc[:, col] = plotter_df[col].div(
+                plotter_df[col] = plotter_df[col].div(
                     cut_bootstrap_df["detected_events"], axis="index"
                 )
 
         # scale truth phases to be the same sign as the nominal fit phases. Due to phase
         # ambiguity in model, the nominal fit can obtain +/-|truth_phase|.
-        for phase in set(self.phase_differences.values()):
-            cut_truth_df[phase] = cut_truth_df[phase].where(
-                np.sign(cut_truth_df[phase]) == np.sign(cut_df[phase]),
-                -1.0 * cut_truth_df[phase],
-            )
-
-        plotter_df["bin_range"] = cut_bootstrap_df["bin_range"]
+        if cut_truth_df is not None:
+            for phase in set(self.phase_differences.values()):
+                cut_truth_df[phase] = cut_truth_df[phase].where(
+                    np.sign(cut_truth_df[phase]) == np.sign(cut_df[phase]),
+                    -1.0 * cut_truth_df[phase],
+                )
 
         # get default color palette for hue plotting
-        n_colors = plotter_df["bin_range"].nunique() if "bin_range" in plotter_df else 1
-        palette = sns.color_palette(n_colors=n_colors)
+        palette = sns.color_palette(n_colors=plotter_df["file_index"].nunique())
 
-        pg = sns.PairGrid(plotter_df, hue="bin_range", palette=palette, **kwargs)
+        pg = sns.PairGrid(
+            plotter_df[columns + ["fit_index"]],
+            hue="file_index",
+            palette=palette,
+            **kwargs,
+        )
         # overlay a kde on the hist to compare nominal fit line to kde peak
         # if many bins are plotted, remove the histogram
-        if len(bins) < 3:
+        if plotter_df["file_index"].nunique() < 4:
             pg.map_diag(sns.histplot, kde=True)
         else:
             pg.map_diag(sns.kdeplot)
@@ -1361,11 +1378,11 @@ class Plotter:
                 x_truth_scale, y_truth_scale = 1.0, 1.0
                 if any(col_label in sublist for sublist in self.coherent_sums.values()):
                     x_scaling = cut_df["detected_events"]
-                    if self.truth_df is not None:
+                    if cut_truth_df is not None:
                         x_truth_scale = cut_truth_df["detected_events"]
                 if any(row_label in sublist for sublist in self.coherent_sums.values()):
                     y_scaling = cut_df["detected_events"]
-                    if self.truth_df is not None:
+                    if cut_truth_df is not None:
                         y_truth_scale = cut_truth_df["detected_events"]
 
                 # plot band of MINUIT uncertainty centered around nominal fit
@@ -1382,7 +1399,7 @@ class Plotter:
                     )
 
                 # plot marker for truth (if applicable)
-                if self.truth_df is not None and row == col:
+                if cut_truth_df is not None and row == col:
                     for i in range(len(cut_truth_df[col_label])):
                         pg.axes[row, col].axline(
                             xy1=(
@@ -1412,7 +1429,7 @@ class Plotter:
                             alpha=0.2,
                         )
                     # plot "X" marker for truth value location
-                    if self.truth_df is not None:
+                    if cut_truth_df is not None:
                         for i in range(len(cut_truth_df[row_label])):
                             pg.axes[row, col].scatter(
                                 cut_truth_df[col_label].div(x_truth_scale).iloc[i],
@@ -1449,6 +1466,7 @@ class Plotter:
                         series = cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
                             col_label
                         ]
+                        # TODO: Circular data like this can be handled in a proper way
                         # if distribution is being split at +/- pi boundaries, then
                         # wrap it to [0, 2pi] range and use that stdev
                         # NOTE: this is sensitive to outliers and assumes distributions
@@ -1492,14 +1510,13 @@ class Plotter:
 
         # adjust legend title
         pg.add_legend()
+        leg = pg.legend
         for ax in pg.axes.flat:
-            leg = ax.get_legend()
-            if leg is not None:
+            if ax.get_legend() is not None:
+                leg = ax.get_legend()
                 break
-        if leg is None:
-            leg = pg.legend
-
-        leg.set_title("mass range")
+        if leg is not None:
+            leg.set_title("mass range")
 
         plt.show()
         pass
@@ -1760,13 +1777,13 @@ class Plotter:
 
         # Extract parent directory for each fit file
         fit_df = self.fit_df.copy()
-        fit_df["parent_dir"] = fit_df["file"].apply(lambda x: os.path.dirname(x))
+        fit_df["parent_dir"] = fit_df["file"].str.rsplit("/", n=1).str[0]
 
         # Bootstrap files exist in a "bootstrap" subdir of the fit dir, so we need to
         # remove the "/bootstrap" part off of directory
         bootstrap_df = self.bootstrap_df.copy()
-        bootstrap_df["parent_dir"] = bootstrap_df["directory"].apply(
-            lambda x: (os.path.dirname(x))
+        bootstrap_df["parent_dir"] = (
+            bootstrap_df["directory"].str.rsplit("/", n=1).str[0]
         )
 
         # Map parent_dir to fit_df index
@@ -1786,7 +1803,7 @@ class Plotter:
             )
 
         # Update self.bootstrap_df in place
-        self.bootstrap_df["fit_index"] = bootstrap_df["fit_index"]
+        self.bootstrap_df.loc[:, "fit_index"] = bootstrap_df["fit_index"].values
 
         pass
 
@@ -1797,14 +1814,12 @@ class Plotter:
 
         # Extract parent directory for each fit file
         fit_df = self.fit_df.copy()
-        fit_df["parent_dir"] = fit_df["file"].apply(lambda x: os.path.dirname(x))
+        fit_df["parent_dir"] = fit_df["file"].str.rsplit("/", n=1).str[0]
 
-        # Bootstrap files exist in a "truth" subdir of the fit dir, so we need to
-        # remove the "/bootstrap" part off of directory
+        # Truth files exist in a "truth" subdir of the fit dir, so we need to
+        # remove the "/truth" part off of directory
         truth_df = self.truth_df.copy()
-        truth_df["parent_dir"] = truth_df["file"].apply(
-            lambda x: (os.path.dirname(os.path.dirname(x)))
-        )
+        truth_df["parent_dir"] = truth_df["file"].str.rsplit("/", n=2).str[0]
 
         # Map parent_dir to fit_df index
         parent_dir_to_index = dict(zip(fit_df["parent_dir"], fit_df.index))
@@ -1823,7 +1838,7 @@ class Plotter:
             )
 
         # Update self.truth_df in place
-        self.truth_df["fit_index"] = truth_df["fit_index"]
+        self.truth_df.loc[:, "fit_index"] = truth_df["fit_index"].values
 
         pass
 
