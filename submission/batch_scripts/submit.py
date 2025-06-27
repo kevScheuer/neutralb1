@@ -122,9 +122,6 @@ def main(args: dict) -> None:
     for run_period in args["run_periods"]:
         for low_t, high_t in zip(low_t_edges, high_t_edges):
             for low_mass, high_mass in zip(low_mass_edges, high_mass_edges):
-                truth_subdir = "truth/" if args["truth_file"] else ""
-                truth_init_subdir = "init/" if "init" in args["truth_file"] else ""
-
                 # PREPARE DIRECTORIES
                 running_dir = "/".join(
                     (
@@ -139,10 +136,14 @@ def main(args: dict) -> None:
                         f"recoil-pi-mass_{args['cut_recoil_pi_mass']}",
                         f"t_{low_t:.2f}-{high_t:.2f}",
                         f"mass_{low_mass:.3f}-{high_mass:.3f}",
-                        truth_subdir,
-                        truth_init_subdir,
                     )
                 )
+                # treat the truth subdirectory as the run directory if used
+                if args["truth_file"] and "init" not in args["truth_file"]:
+                    running_dir += "/truth/"
+                elif args["truth_file"] and "init" in args["truth_file"]:
+                    running_dir += "/truth-init/"
+
                 pathlib.Path(running_dir).mkdir(parents=True, exist_ok=True)
 
                 log_dir = running_dir + "log/"
@@ -648,7 +649,7 @@ def prepare_init_directory(
     parameter that multiplies all amplitudes by a constant factor, in order to properly
     initialize the amplitudes to the right value. This function creates that file by
     assuming that a truth fit has already been run and the scale factor is stored in the
-    best_truth.fit file. If the best_truth.fit file is not found, the function will exit
+    best_truth.fit file. If the best_truth.fit file is not found, the submission stops
 
     Args:
         running_dir (str): directory where the scale.txt file will be created
@@ -657,8 +658,8 @@ def prepare_init_directory(
         ValueError: if the scale factor is not found in the best_truth.fit file
     """
 
-    # running (truth-init) directory is subdirectory of the truth directory
-    truth_dir = running_dir.rsplit("/", 2)[0]
+    # running_dir (truth-init) is a sibling of the truth directory
+    truth_dir = f"{running_dir.rsplit("/", 2)[0]}/truth/"
 
     # find the scale factor from the best_truth.fit file
     truth_fit = f"{truth_dir}best_truth.fit"
