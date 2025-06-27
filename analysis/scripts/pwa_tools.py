@@ -132,9 +132,6 @@ class Plotter:
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
-        # use file names in dataframes to link fit indices to them for easier indexing
-        self._link_fits_to_dataframes()
-
         if self.bootstrap_df is not None:
             # add a column for common directories between files for the bootstrap df, to
             # allow for easier chunking of bootstrap samples later
@@ -203,6 +200,10 @@ class Plotter:
             concat_list = [self.truth_df]
             concat_list.extend(cols_to_add)
             self.truth_df = pd.concat(concat_list, axis=1)
+
+        # use file names in dataframes to link fit indices to them for easier indexing
+        self._link_fits_to_dataframes()
+
         pass
 
     def jp(self, data_label: str = "Total (GlueX Phase-I)") -> None:
@@ -1263,8 +1264,7 @@ class Plotter:
         solid black line indicate a strong correlation between those variables (>0.7).
         All amplitudes are plotted in fit fractions.
 
-        TODO: add option to provide label for fits (raise if lengths dont' match), if
-            not given then use mass range, but if that not found then simply use an int
+        TODO: use mass bin values from data_df to label plots
 
         Args:
             fits (List[str]|str): fit files, and their associated bootstrap files
@@ -1537,7 +1537,7 @@ class Plotter:
         fits: Optional[List[str]] = None,
         colormap: Optional[str] = None,
         is_sparse_labels=True,
-        overlap: float = 2.0,
+        overlap: int = 2,
         **kwargs,
     ) -> None:
         """Plot a joyplot (or ridgeplot) of the bootstrap fit results
@@ -1606,6 +1606,7 @@ class Plotter:
             fit_indices = self.fit_df[self.fit_df["file"].isin(fits)].index
 
         # select fits from dataframes and determine min/max x values
+        cut_data_df = self.data_df[self.data_df["fit_index"].isin(fit_indices)].copy()
         cut_bootstrap_df = self.bootstrap_df[
             self.bootstrap_df["fit_index"].isin(fit_indices)
         ].copy()
@@ -1617,6 +1618,8 @@ class Plotter:
             ].copy()
             x_max = max(x_max, cut_truth_df[columns].max().max())
             x_min = min(x_min, cut_truth_df[columns].min().min())
+        else:
+            cut_truth_df = None
 
         # force x_min to be 0 if all values are coherent sums
         if all(
@@ -1634,34 +1637,27 @@ class Plotter:
                 UserWarning,
             )
 
-        # use the data df to label the mass bins
-
-        # get ordered set of bin_ranges and make their low edge the y-axis labels
-        bin_ranges = sorted(
-            list(set(cut_bootstrap_df["bin_range"])),
-            key=lambda x: float(x.split("-")[1]),
-        )
+        # setup y-axis labels to indicate bin ranges
         y_axis_labels = []
-        for bin in bin_ranges:
-            low_edge, high_edge = float(bin.split("-")[0]), float(bin.split("-")[1])
-            # if not sparse labels, then add all labels
+        for idx, (low_edge, high_edge) in enumerate(
+            zip(cut_data_df["m_low"].astype(float), cut_data_df["m_high"].astype(float))
+        ):
+            label = f"{low_edge:.2f}-{high_edge:.2f}"
+            # if not sparse labels, then simply add all labels
             if not is_sparse_labels:
-                y_axis_labels.append(f"{low_edge:.2f}")
+                y_axis_labels.append(label)
                 continue
 
             tolerance = 1e-5
-            # if first or last bin then add label
-            if (
-                bin_ranges.index(bin) == 0
-                or bin_ranges.index(bin) == len(bin_ranges) - 1
-            ):
-                y_axis_labels.append(f"{low_edge:.2f}")
-            # add label if bin start is a multiple of 10 within tolerance
+            # if first or last bin then force add label
+            if idx == 0 or idx == len(cut_data_df["m_low"]):
+                y_axis_labels.append(label)
+            # add label if low bin edge is a multiple of 10 (within tolerance)
             elif (
                 abs(low_edge * 100 % 10) < tolerance
                 or abs(low_edge * 100 % 10 - 10) < tolerance
             ):
-                y_axis_labels.append(f"{low_edge:.2f}")
+                y_axis_labels.append(f"{label}")
             # else add empty string to keep the axis clean
             else:
                 y_axis_labels.append("")
@@ -1682,7 +1678,7 @@ class Plotter:
 
         fig, axes = joypy.joyplot(
             cut_bootstrap_df,
-            by="bin_range",
+            by="fit_index",
             column=columns,
             labels=y_axis_labels,
             range_style="own",
@@ -1693,18 +1689,21 @@ class Plotter:
         )
 
         # plot the truth value as a vertical line on each axis
-        if self.truth_df is not None:
-            for bin, ax in zip(bins, axes):
-                # get the max y value in each bin by getting the kde max (kde's are the
-                # odd values in ax.lines)
+        if cut_truth_df is not None:
+            for fit_index, ax in zip(cut_bootstrap_df["fit_index"].unique(), axes):
+                # get the max y value by getting the kde max (kde's are the
+                # odd values in the ax.lines object)
                 y_maxes = [
                     line.get_ydata().max()
                     for line in ax.lines
                     if ax.lines.index(line) % 2 != 0
                 ]
                 for col, line_color in zip(columns, color_list):
+                    truth_value = cut_truth_df[cut_truth_df["fit_index"] == fit_index][
+                        col
+                    ].iloc[0]
                     ax.plot(
-                        [cut_truth_df.loc[bin, col]] * 2,
+                        [truth_value, truth_value],
                         [0.0, y_maxes[columns.index(col)]],
                         color=line_color,
                         alpha=1.0,
@@ -1798,7 +1797,8 @@ class Plotter:
 
         # -- DATA --
         data_df = self.data_df.copy()
-        data_df["parent_dir"] = data_df["file"].str.rsplit("/", n=2).str[0]
+        # data file should be sibling of the fit file
+        data_df["parent_dir"] = data_df["file"].str.rsplit("/", n=1).str[0]
         data_df["fit_index"] = data_df["parent_dir"].map(parent_dir_to_index)
         data_unmatched = data_df["fit_index"].isna()
         if data_unmatched.any():
