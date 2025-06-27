@@ -128,6 +128,15 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
 {
     std::vector<TString> distributions = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
                                           "Prod_Ang", "MVecPs", "MProtonPs"};
+    std::map<TString, TString> x_axis_titles = {
+        {"CosTheta", "cos#theta"},
+        {"Phi", "#phi [rad.]"},
+        {"CosTheta_H", "cos#theta_{H}"},
+        {"Phi_H", "#phi_{H} [rad.]"},
+        {"Prod_Ang", "#Phi [rad.]"},
+        {"MVecPs", "Vec+Ps Inv. Mass [GeV]"},
+        {"MProtonPs", "p+bachelor Ps Inv. Mass [GeV]"}
+    };
     const std::map<TString, JP_props> jp_properties = create_jp_map();
 
     // iterate through the histograms in the file and find the JP contributions
@@ -171,7 +180,7 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
         
         // Set proper margins to prevent axis title cutoff
         gPad->SetLeftMargin(0.15);
-        gPad->SetBottomMargin(0.15);
+        gPad->SetBottomMargin(0.17);
         gPad->SetRightMargin(0.05);
         gPad->SetTopMargin(0.05);
 
@@ -184,11 +193,13 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
         }
 
         // since its the first in the subplot, setup all the aesthetics
+        hdat->SetTitle("");
+        hdat->SetXTitle(x_axis_titles[distribution]);
         hdat->SetLineColor(kBlack);
         hdat->SetLabelSize(0.06, "xy");
         hdat->SetTitleSize(0.08, "xy");
-        hdat->SetTitleOffset(1.2, "x");
-        hdat->SetTitleOffset(1.3, "y");
+        hdat->SetTitleOffset(0.88, "x");
+        hdat->SetTitleOffset(1.0, "y");
         hdat->SetMinimum(0);
         hdat->SetMarkerStyle(20);
         hdat->SetMarkerSize(0.5);
