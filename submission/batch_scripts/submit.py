@@ -340,6 +340,8 @@ def create_data_files(
             if not os.path.isfile(acc_file):
                 raise FileExistsError(f"Path {acc_file} does not exist!\n")
             src_files_to_copy_to_dir[acc_file] = []
+        else:
+            acc_file = None
 
         # find data files
         data_files = []
@@ -372,7 +374,7 @@ def create_data_files(
                 # if files not already in volatile, add to list to be copied
                 if not os.path.isfile(f"{bin_dir}/{gen_file.split('/')[-1]}"):
                     src_files_to_copy_to_dir[gen_file].append(bin_dir)
-                if "mcthrown" not in data_option and not os.path.isfile(
+                if acc_file and not os.path.isfile(
                     f"{bin_dir}/{acc_file.split('/')[-1]}"
                 ):
                     src_files_to_copy_to_dir[acc_file].append(bin_dir)

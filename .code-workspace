@@ -1,6 +1,7 @@
 {
     "folders": [
-        { "path": "." }
+        { "path": "."},
+        { "path": "./analysis"},
     ],
     "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
@@ -119,6 +120,14 @@
           "markersize",
           "phaselock",
           "underconstrained"
+        ],
+        "files.exclude": {
+          "./analysis/cross_section": true,       
+          "**/*.csv": true, 
+        },
+        "python.analysis.exclude": [
+          "./analysis/cross_section",  
+          "**/*.csv"        
         ]
     }
 }
