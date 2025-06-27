@@ -6,11 +6,12 @@ diagnostic purposes, to check that the grey "Fit Result" reasonably matches the 
 data points. Each total J^P contribution is also plotted, to observe any interference
 effects those waves create.
 
-Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir]
+Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir] [--gluex-style]
   file_path:  Full path to the ROOT file (default: "./vecps_plot.root")
   data_title: Title for data in legend (default: "GlueX Data")
   reaction:   Reaction prefix for histogram names (default: "")
   output_dir: Directory to save PDF files (default: current directory)
+  --gluex-style: Apply GlueX collaboration style (optional)
 
 Output PDFs will be saved in the current directory or specified output directory.
 
@@ -18,15 +19,19 @@ Output PDFs will be saved in the current directory or specified output directory
 
 #include <iostream>
 #include <regex>
+#include <set>
 
-#include "glueXstyle.C"
 #include "TCanvas.h"
-#include "TH1.h"
-#include "TString.h"
-#include "TFile.h"
-#include "TLegend.h"
 #include "TColor.h"
+#include "TFile.h"
+#include "TROOT.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TLegend.h"
 #include "TList.h"
+#include "TString.h"
+#include "TStyle.h"
+
 
 // struct to hold the properties of each JP contribution
 struct JP_props
@@ -48,6 +53,32 @@ int main(int argc, char *argv[])
     std::string data_title = "GlueX Data";
     std::string reaction = "";
     std::string output_dir = "./";
+    bool use_gluex_style = false;
+
+    // Help message
+    auto print_help = []() {
+        std::cout << "Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir] [--gluex-style]\n"
+                  << "  file_path:     Full path to the ROOT file (default: ./vecps_plot.root)\n"
+                  << "  data_title:    Title for data in legend (default: GlueX Data)\n"
+                  << "  reaction:      Reaction prefix for histogram names (default: \"\")\n"
+                  << "  output_dir:    Directory to save PDF files (default: current directory)\n"
+                  << "  --gluex-style: Apply GlueX collaboration style (optional)\n";
+    };
+
+    // Check for help flag
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            print_help();
+            return 0;
+        }
+    }
+
+    if (argc > 6 || argc < 2) {
+        std::cerr << "Error: Invalid number of arguments.\n";
+        print_help();
+        return 1;
+    }
 
     if (argc > 1)
         file_path = argv[1];
@@ -56,7 +87,15 @@ int main(int argc, char *argv[])
     if (argc > 3)
         reaction = argv[3];
     if (argc > 4)
-        output_dir = argv[4];
+        output_dir = argv[4];    
+    
+    // Check for --gluex-style flag in any position
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--gluex-style") {
+            use_gluex_style = true;
+            break;
+        }
+    }
 
     // Ensure output directory ends with a slash
     if (!output_dir.empty() && output_dir.back() != '/' && output_dir.back() != '\\')
@@ -64,7 +103,11 @@ int main(int argc, char *argv[])
         output_dir += "/";
     }
 
-    gluex_style();
+    // Conditionally load and apply GlueX style
+    if (use_gluex_style) {
+        gROOT->ProcessLine(".L glueXstyle.C");
+        gROOT->ProcessLine("gluex_style();");
+    }
     gStyle->SetOptStat(0);
 
     TFile *f = TFile::Open(file_path.c_str());
@@ -125,6 +168,12 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
     {
         // avoid plotting on the first subplot, since it will be used for the legend
         cc->cd(plot_count + 2);
+        
+        // Set proper margins to prevent axis title cutoff
+        gPad->SetLeftMargin(0.15);
+        gPad->SetBottomMargin(0.15);
+        gPad->SetRightMargin(0.05);
+        gPad->SetTopMargin(0.05);
 
         // first plot the data for this distribution
         TH1F *hdat = (TH1F *)f->Get(reaction + distribution + "dat");
@@ -138,8 +187,8 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
         hdat->SetLineColor(kBlack);
         hdat->SetLabelSize(0.06, "xy");
         hdat->SetTitleSize(0.08, "xy");
-        hdat->SetTitleOffset(0.88, "x");
-        hdat->SetTitleOffset(0.9, "y");
+        hdat->SetTitleOffset(1.2, "x");
+        hdat->SetTitleOffset(1.3, "y");
         hdat->SetMinimum(0);
         hdat->SetMarkerStyle(20);
         hdat->SetMarkerSize(0.5);
@@ -172,6 +221,9 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
                 throw std::runtime_error(
                     Form("Plot %s doesn't exist!", hist_name.Data()));
             }
+            if (hjp->GetEntries() == 0 || hjp->Integral() == 0)
+                continue;
+
             hjp->SetMarkerColor(jp_properties.at(jp).color->GetNumber());
             hjp->SetLineColor(jp_properties.at(jp).color->GetNumber());
             hjp->SetMarkerSize(0.6);
@@ -230,6 +282,12 @@ void plot2D(TFile *f, TString dir, TString reaction)
     for (auto pair : plot_pairs)
     {
         cdat->cd(pair_count + 1);
+        
+        // Set proper margins to prevent axis title cutoff
+        gPad->SetLeftMargin(0.15);
+        gPad->SetBottomMargin(0.15);
+        gPad->SetRightMargin(0.15);  // Extra space for colorbar
+        gPad->SetTopMargin(0.05);
 
         TString plot_name = pair.first + "Vs" + pair.second;
 
@@ -241,8 +299,8 @@ void plot2D(TFile *f, TString dir, TString reaction)
         }
         hdat->SetLabelSize(0.06, "xy");
         hdat->SetTitleSize(0.08, "xy");
-        hdat->SetTitleOffset(0.88, "x");
-        hdat->SetTitleOffset(0.9, "y");
+        hdat->SetTitleOffset(1.2, "x");
+        hdat->SetTitleOffset(1.3, "y");
         hdat->SetMinimum(0);
         hdat->SetTitle(plot_titles[pair_count]);
         hdat->Draw("colz");
@@ -261,6 +319,12 @@ void plot2D(TFile *f, TString dir, TString reaction)
     {
         TString plot_name = pair.first + "Vs" + pair.second;
         cacc->cd(pair_count + 1);
+        
+        // Set proper margins to prevent axis title cutoff
+        gPad->SetLeftMargin(0.15);
+        gPad->SetBottomMargin(0.15);
+        gPad->SetRightMargin(0.15);  // Extra space for colorbar
+        gPad->SetTopMargin(0.05);
 
         TH2F *hacc = (TH2F *)f->Get(reaction + plot_name + "acc");
 
@@ -271,8 +335,8 @@ void plot2D(TFile *f, TString dir, TString reaction)
         }
         hacc->SetLabelSize(0.06, "xy");
         hacc->SetTitleSize(0.08, "xy");
-        hacc->SetTitleOffset(0.88, "x");
-        hacc->SetTitleOffset(0.9, "y");
+        hacc->SetTitleOffset(1.2, "x");
+        hacc->SetTitleOffset(1.3, "y");
         hacc->SetMinimum(0);
         hacc->SetTitle(plot_titles[pair_count]);
         hacc->Draw("colz");
