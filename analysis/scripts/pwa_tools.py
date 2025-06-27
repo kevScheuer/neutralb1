@@ -6,7 +6,6 @@ analyzing fit results
 
 import cmath
 import itertools
-import os
 import re
 import warnings
 from typing import Dict, List, Literal, Optional, cast
@@ -16,6 +15,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy
 import seaborn as sns
 from cycler import cycler
 from matplotlib.backends.backend_pdf import PdfPages
@@ -38,10 +38,9 @@ class Plotter:
         Args:
             df (pd.DataFrame): FitResults from AmpTools
             data_df (pd.DataFrame): raw data points that AmpTools is fitting to
-            bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results,
-                labelled by bin. Primary use is for plotting the distribution of
-                each parameter and using its width to estimate the error of the nominal
-                fit result in df.
+            bootstrap_df (pd.DataFrame, optional): all bootstrapped fit results.
+                Primary use is for plotting the distribution of each parameter and using
+                its width to estimate the error of the nominal fit result in df.
             truth_df (pd.DataFrame, optional): only used when df is a from fit to
                 generated signal MC. Contains the "true" parameters that were used to
                 generate the MC sample. When non-empty, many plots will display a
@@ -114,7 +113,8 @@ class Plotter:
             bad_files = self.fit_df[self.fit_df["eMatrixStatus"] != 3]["file"].to_list()
             warnings.warn(
                 f"The following files contain fit results whose covariance matrix is"
-                f" not full and accurate:\n{"\n".join(bad_files)}"
+                f" not full and accurate:\n{"\n".join(bad_files)}",
+                UserWarning,
             )
 
         # public attributes
@@ -132,14 +132,17 @@ class Plotter:
         if self.bootstrap_df is not None:
             wrap_phases(self.bootstrap_df)
 
+        # use file names in dataframes to link fit indices to them for easier indexing
+        self._link_fits_to_dataframes()
+
         if self.bootstrap_df is not None:
             # add a column for common directories between files for the bootstrap df, to
             # allow for easier chunking of bootstrap samples later
-            self.bootstrap_df["directory"] = (
-                self.bootstrap_df["file"].str.rsplit("/", n=1).str[0]
+            # Create the directory column separately to avoid fragmentation, then concat
+            directory_col = self.bootstrap_df["file"].str.rsplit("/", n=1).str[0]
+            self.bootstrap_df = pd.concat(
+                [self.bootstrap_df, directory_col.rename("directory")], axis=1
             )
-            # link the bootstrap files to the corresponding fit indices
-            self._link_bootstrap_to_fit()
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
         if self.truth_df is not None:
@@ -147,9 +150,6 @@ class Plotter:
             # values. Then we can wrap them
             self._reset_truth_phases(self.truth_df, self._mass_bins)
             wrap_phases(self.truth_df)
-
-            # link the truth files to the corresponding fit indices
-            self._link_truth_to_fit()
 
             # set non-existent columns to zero. Needed since the fit dataframe may use
             # a different waveset from the truth fit
@@ -1339,24 +1339,30 @@ class Plotter:
         # scale truth phases to be the same sign as the nominal fit phases. Due to phase
         # ambiguity in model, the nominal fit can obtain +/-|truth_phase|.
         if cut_truth_df is not None:
-            for phase in set(self.phase_differences.values()):
+            # Only process phase differences that are present in both cut_truth_df and cut_df
+            available_phases = [
+                phase
+                for phase in set(self.phase_differences.values())
+                if phase in cut_truth_df.columns and phase in cut_df.columns
+            ]
+            for phase in available_phases:
                 cut_truth_df[phase] = cut_truth_df[phase].where(
                     np.sign(cut_truth_df[phase]) == np.sign(cut_df[phase]),
                     -1.0 * cut_truth_df[phase],
                 )
 
         # get default color palette for hue plotting
-        palette = sns.color_palette(n_colors=plotter_df["file_index"].nunique())
+        palette = sns.color_palette(n_colors=plotter_df["fit_index"].nunique())
 
         pg = sns.PairGrid(
             plotter_df[columns + ["fit_index"]],
-            hue="file_index",
+            hue="fit_index",
             palette=palette,
             **kwargs,
         )
         # overlay a kde on the hist to compare nominal fit line to kde peak
         # if many bins are plotted, remove the histogram
-        if plotter_df["file_index"].nunique() < 4:
+        if plotter_df["fit_index"].nunique() < 4:
             pg.map_diag(sns.histplot, kde=True)
         else:
             pg.map_diag(sns.kdeplot)
@@ -1443,11 +1449,11 @@ class Plotter:
                     # draw black box around plot if its correlation is above |0.7|
                     # uses an average if multiple bins are being plotted
                     corrs = []
-                    for index in cut_df.index:
+                    for fit_index in cut_df.index:
                         corr = (
-                            cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
-                                [col_label, row_label]
-                            ]
+                            cut_bootstrap_df[
+                                cut_bootstrap_df["fit_index"] == fit_index
+                            ][[col_label, row_label]]
                             .corr()
                             .iat[0, 1]
                         )
@@ -1460,28 +1466,32 @@ class Plotter:
                 # uses an average if multiple bins are being plotted
                 if row == col:
                     ratios = []
-                    for index, error in zip(
+                    for fit_index, error in zip(
                         cut_df[f"{col_label}_err"].index, cut_df[f"{col_label}_err"]
                     ):
-                        series = cut_bootstrap_df[cut_bootstrap_df["bin"] == index][
-                            col_label
-                        ]
-                        # TODO: Circular data like this can be handled in a proper way
-                        # if distribution is being split at +/- pi boundaries, then
-                        # wrap it to [0, 2pi] range and use that stdev
-                        # NOTE: this is sensitive to outliers and assumes distributions
-                        # near the boundaries do NOT have many points crossing zero
-                        if (
-                            np.min(series) + 180.0 < 4.0
-                            and 180.0 - np.max(series) < 4.0
-                        ):
-                            series = series.apply(lambda x: x % 360)
-                        ratios.append(np.std(series) / error)
+                        series = cut_bootstrap_df[
+                            cut_bootstrap_df["fit_index"] == fit_index
+                        ][col_label]
+
+                        # phases differences (circular data) must have standard dev
+                        # specially calculated
+                        if col_label in set(self.phase_differences.values()):
+                            # convert to rad for scipy function
+                            radian_phases = np.deg2rad(series)
+                            stdev = scipy.stats.circstd(
+                                radian_phases, low=-np.pi, high=np.pi
+                            )
+                            # now back to degrees
+                            stdev = np.rad2deg(stdev)
+                        else:
+                            stdev = np.std(series)
+                        ratios.append(stdev / error)
                     pg.axes[row, col].text(
                         0.6,
                         0.9,
                         (
-                            rf"$\frac{{\sigma_{{bootstrap}}}}{{\sigma_{{MINUIT}}}}$"
+                            r"$\frac{{\sigma_{\text{bootstrap}}}}"
+                            r"{{\sigma_{\text{MINUIT}}}}$"
                             rf" = {np.average(ratios):.2f}"
                         ),
                         transform=pg.axes[row, col].transAxes,
@@ -1524,8 +1534,8 @@ class Plotter:
     def joyplot(
         self,
         columns: List[str],
-        bins: List[int | str] = None,
-        colors: List[tuple] = None,
+        fits: Optional[List[str]] = None,
+        colormap: Optional[str] = None,
         is_sparse_labels=True,
         overlap: float = 2.0,
         **kwargs,
@@ -1533,19 +1543,18 @@ class Plotter:
         """Plot a joyplot (or ridgeplot) of the bootstrap fit results
 
         The joyplot is a series of kde's that are stacked on top of each other, with
-        each kde representing the distribution of a fit parameter in a mass bin. Note
+        each kde representing the distribution of a fit parameter in a file. Note
         that the x-axis is shared, so its recommended to only plot like-parameters and
         not to mix columns like phases and intensities. If the truth values are present,
         overlay them as a vertical line on each axis.
 
         Args:
             columns (List[str]): bootstrap df columns to plot
-            bins (List[int|str], optional): mass bins to plot on the y-axis. Can use bin
-                range strings, or bin # integers, or a mix of both. Defaults to None,
-                and uses all bins.
-            colors (List[tuple], optional): matplotlib colormap as a list. This means
-                only qualitative maps can be used. Defaults to None, and uses
-                list(matplotlib.colormaps["Accent"].colors).
+            fits (List[str], optional): fit files (typically mass bins) to plot on the
+                y-axis. Defaults to None, using all files.
+            colormap (str, optional): name of matplotlib colormap. Recommend that only
+                "qualitative" colormaps be used. Defaults to None, and uses the
+                "Accent" map.
             is_sparse_labels (bool, optional): when True, only bins that start at values
                 divisible by 10 are labelled. Defaults to True.
             overlap (float, optional): amount of overlap between the kde's. Usually the
@@ -1553,47 +1562,59 @@ class Plotter:
             **kwargs: additional arguments to pass to the joyplot function
         Raises:
             ValueError: if bootstrap df was not defined, since its optional upon init
-            ValueError: if requested columns are not in the bootstrap dataframe
+            KeyError: if requested columns are not in the dataframes
         """
 
         if self.bootstrap_df is None:
             raise ValueError("Bootstrap df was not defined on instantiation")
-        # check if requested columns are in the dataframe
-        missing_columns = [
-            col for col in columns if col not in self.bootstrap_df.columns
-        ]
+        # check if requested columns are in the dataframes
+        missing_columns = []
+        for col in columns:
+            if col not in self.bootstrap_df.columns or col not in self.fit_df.columns:
+                missing_columns.append(col)
+            if self.truth_df is not None and col not in self.truth_df.columns:
+                missing_columns.append(col)
         if missing_columns:
-            raise ValueError(
-                f"The following columns are not in bootstrap_df: {missing_columns}"
+            raise KeyError(
+                f"The following columns were found to be missing from one or more"
+                f" dataframes: {missing_columns}"
             )
-
-        # use all bins if none are specified
-        if not bins:
-            bins = self.bootstrap_df["bin"].unique()
+        # Check if colormap is a valid matplotlib colormap name and convert to list of
+        # colors, or set default value
+        if isinstance(colormap, str):
+            if colormap in matplotlib.colormaps:
+                color_list = list(matplotlib.colormaps[colormap].colors)  # type: ignore
+            else:
+                raise KeyError(f"'{colormap}' is not a valid matplotlib colormap name.")
+        elif colormap is not None:
+            raise TypeError("Expected a string for colormap name.")
         else:
-            # convert any string bin ranges to ints
-            for i, bin in enumerate(bins):
-                if isinstance(bin, str):
-                    bins[i] = self.bootstrap_df.loc[
-                        self.bootstrap_df["bin_range"] == bin
-                    ]["bin"].iloc[0]
-
-        # default colors if none are specified
-        if colors is None:
-            colors = list(matplotlib.colormaps["Accent"].colors)
+            color_list = list(matplotlib.colormaps["Accent"].colors)  # type: ignore
 
         # Ensure colormap matches the length of columns
-        if len(colors) < len(columns):  # repeat colormap if too short
-            colors = (colors * (len(columns) // len(colors) + 1))[: len(columns)]
+        if len(color_list) < len(columns):  # repeat colormap if too short
+            color_list = (color_list * (len(columns) // len(color_list) + 1))[
+                : len(columns)
+            ]
         else:
-            colors = colors[: len(columns)]
+            color_list = color_list[: len(columns)]
 
-        # select bins from dataframes and determine min/max x values
-        cut_bootstrap_df = self.bootstrap_df[self.bootstrap_df["bin"].isin(bins)].copy()
+        # use all fits if none are specified
+        if not fits:
+            fit_indices = self.fit_df.index
+        else:
+            fit_indices = self.fit_df[self.fit_df["file"].isin(fits)].index
+
+        # select fits from dataframes and determine min/max x values
+        cut_bootstrap_df = self.bootstrap_df[
+            self.bootstrap_df["fit_index"].isin(fit_indices)
+        ].copy()
         x_max = cut_bootstrap_df[columns].max().max()
         x_min = cut_bootstrap_df[columns].min().min()
         if self.truth_df is not None:
-            cut_truth_df = self.truth_df.loc[bins].copy()
+            cut_truth_df = self.truth_df[
+                self.truth_df["fit_index"].isin(fit_indices)
+            ].copy()
             x_max = max(x_max, cut_truth_df[columns].max().max())
             x_min = min(x_min, cut_truth_df[columns].min().min())
 
@@ -1606,6 +1627,14 @@ class Plotter:
         # force x_min/x_max to be -180/180 if all values are phase differences
         elif all(col in set(self.phase_differences.values()) for col in columns):
             x_min, x_max = -180.0, 180.0
+        else:
+            warnings.warn(
+                "Columns chosen have no recognized common x-axis limits, which may lead"
+                "to misleading plots",
+                UserWarning,
+            )
+
+        # use the data df to label the mass bins
 
         # get ordered set of bin_ranges and make their low edge the y-axis labels
         bin_ranges = sorted(
@@ -1648,8 +1677,8 @@ class Plotter:
         }
         default_args.update(kwargs)  # overwrite defaults with user input
 
-        # avoid a bug within joyplot that occurs when colors is a single element list
-        joy_color = colors[0] if len(colors) == 1 else colors
+        # avoid bug within joyplot that occurs when color_list is a single element list
+        joy_color = color_list[0] if len(color_list) == 1 else color_list
 
         fig, axes = joypy.joyplot(
             cut_bootstrap_df,
@@ -1673,7 +1702,7 @@ class Plotter:
                     for line in ax.lines
                     if ax.lines.index(line) % 2 != 0
                 ]
-                for col, line_color in zip(columns, colors):
+                for col, line_color in zip(columns, color_list):
                     ax.plot(
                         [cut_truth_df.loc[bin, col]] * 2,
                         [0.0, y_maxes[columns.index(col)]],
@@ -1758,87 +1787,70 @@ class Plotter:
             )
         pass
 
-    def _link_bootstrap_to_fit(self) -> None:
-        """
-        Add the fit result index to the associated bootstrap DataFrame
-
-        For each bootstrap sample, add a column to self.bootstrap_df called 'fit_index'
-        that contains the index of the associated fit result in self.fit_df.
-
-        Raises:
-            ValueError: If the bootstrap DataFrame is not initialized.
-
-        Returns:
-            None: Internal DataFrames are modified in place
-        """
-
-        if self.bootstrap_df is None:
-            raise ValueError("Bootstrap DataFrame is not initialized.")
+    def _link_fits_to_dataframes(self) -> None:
 
         # Extract parent directory for each fit file
         fit_df = self.fit_df.copy()
         fit_df["parent_dir"] = fit_df["file"].str.rsplit("/", n=1).str[0]
 
-        # Bootstrap files exist in a "bootstrap" subdir of the fit dir, so we need to
-        # remove the "/bootstrap" part off of directory
-        bootstrap_df = self.bootstrap_df.copy()
-        bootstrap_df["parent_dir"] = (
-            bootstrap_df["directory"].str.rsplit("/", n=1).str[0]
-        )
-
         # Map parent_dir to fit_df index
         parent_dir_to_index = dict(zip(fit_df["parent_dir"], fit_df.index))
 
-        # Assign fit_index to each bootstrap sample based on parent_dir
-        bootstrap_df["fit_index"] = bootstrap_df["parent_dir"].map(parent_dir_to_index)
-
-        # Warn if any bootstrap samples could not be matched
-        unmatched = bootstrap_df["fit_index"].isna()
-        if unmatched.any():
+        # -- DATA --
+        data_df = self.data_df.copy()
+        data_df["parent_dir"] = data_df["file"].str.rsplit("/", n=2).str[0]
+        data_df["fit_index"] = data_df["parent_dir"].map(parent_dir_to_index)
+        data_unmatched = data_df["fit_index"].isna()
+        if data_unmatched.any():
             warnings.warn(
-                f"{unmatched.sum()} bootstrap samples could not be matched to a fit"
-                " result."
-                f"\nUnmatched bootstrap files:\n"
-                + "\n".join(bootstrap_df.loc[unmatched, "file"].astype(str))
+                f"{data_unmatched.sum()} data samples could not be linked to a fit"
+                " result.\nUnmatched data files:\n"
+                + "\n".join(data_df.loc[data_unmatched, "file"].astype(str)),
+                RuntimeWarning,
+            )
+        self.data_df = pd.concat([self.data_df, data_df[["fit_index"]]], axis=1)
+
+        # -- BOOTSTRAP --
+        if self.bootstrap_df is not None:
+            # Bootstrap files exist in a "bootstrap" subdir of the fit dir, so we need to
+            # remove the "/bootstrap" part off of directory
+            bootstrap_df = self.bootstrap_df.copy()
+            bootstrap_df["parent_dir"] = (
+                bootstrap_df["directory"].str.rsplit("/", n=1).str[0]
+            )
+            bootstrap_df["fit_index"] = bootstrap_df["parent_dir"].map(
+                parent_dir_to_index
+            )
+            bootstrap_unmatched = bootstrap_df["fit_index"].isna()
+            if bootstrap_unmatched.any():
+                warnings.warn(
+                    f"{bootstrap_unmatched.sum()} bootstrap samples could not be linked"
+                    f" to a fit result.\nUnmatched bootstrap files:\n"
+                    + "\n".join(
+                        bootstrap_df.loc[bootstrap_unmatched, "file"].astype(str)
+                    ),
+                    RuntimeWarning,
+                )
+            self.bootstrap_df = pd.concat(
+                [self.bootstrap_df, bootstrap_df[["fit_index"]]], axis=1
             )
 
-        # Update self.bootstrap_df in place
-        self.bootstrap_df.loc[:, "fit_index"] = bootstrap_df["fit_index"].values
-
-        pass
-
-    def _link_truth_to_fit(self) -> None:
-
-        if self.truth_df is None:
-            raise ValueError("Truth DataFrame is not initialized")
-
-        # Extract parent directory for each fit file
-        fit_df = self.fit_df.copy()
-        fit_df["parent_dir"] = fit_df["file"].str.rsplit("/", n=1).str[0]
-
-        # Truth files exist in a "truth" subdir of the fit dir, so we need to
-        # remove the "/truth" part off of directory
-        truth_df = self.truth_df.copy()
-        truth_df["parent_dir"] = truth_df["file"].str.rsplit("/", n=2).str[0]
-
-        # Map parent_dir to fit_df index
-        parent_dir_to_index = dict(zip(fit_df["parent_dir"], fit_df.index))
-
-        # Assign fit_index to each truth sample based on parent_dir
-        truth_df["fit_index"] = truth_df["parent_dir"].map(parent_dir_to_index)
-
-        # Warn if any truth samples could not be matched
-        unmatched = truth_df["fit_index"].isna()
-        if unmatched.any():
-            warnings.warn(
-                f"{unmatched.sum()} truth samples could not be matched to a fit"
-                " result."
-                f"\nUnmatched truth files:\n"
-                + "\n".join(truth_df.loc[unmatched, "file"].astype(str))
-            )
-
-        # Update self.truth_df in place
-        self.truth_df.loc[:, "fit_index"] = truth_df["fit_index"].values
+        # -- TRUTH --
+        if self.truth_df is not None:
+            # Truth files exist in a "truth" subdir of the fit dir, so we need to
+            # remove the "/truth" part off of directory
+            truth_df = self.truth_df.copy()
+            truth_df["parent_dir"] = truth_df["file"].str.rsplit("/", n=2).str[0]
+            truth_df["fit_index"] = truth_df["parent_dir"].map(parent_dir_to_index)
+            truth_unmatched = truth_df["fit_index"].isna()
+            if truth_unmatched.any():
+                warnings.warn(
+                    f"{truth_unmatched.sum()} truth samples could not be matched to a"
+                    " fit result.\nUnmatched truth files:\n"
+                    + "\n".join(truth_df.loc[truth_unmatched, "file"].astype(str)),
+                    RuntimeWarning,
+                )
+            self.truth_df = pd.concat([self.truth_df, truth_df["fit_index"]], axis=1)
 
         pass
 
