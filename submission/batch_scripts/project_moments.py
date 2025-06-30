@@ -37,7 +37,7 @@ import spherical
 
 # imports below need the path to work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from analysis.scripts import pwa_tools, utils
+from analysis.scripts import pwa_tools, utils  # type: ignore[import]
 
 BREIT_WIGNERS = {
     "1p": {"mass": 1.235, "width": 0.142},
@@ -58,7 +58,7 @@ spec = [
 ]
 
 
-@numba.experimental.jitclass(spec)
+@numba.experimental.jitclass(spec) # type: ignore
 class Wave:
     def __init__(self, name, reflectivity, spin, parity, m, l, real, imaginary, scale):
         self.name = name
@@ -125,9 +125,12 @@ def main(args: dict) -> None:
         results = list(
             executor.map(process_file, input_files, [args] * len(input_files))
         )
+    if results == []:
+        raise ValueError("No results returned. Check input files.")
 
     # ===COLLECT each files results into dictionaries===
     moment_dict = {}
+    table_dict = {}
     all_keys = set()
 
     # first lets collect all the moment strings
@@ -146,10 +149,13 @@ def main(args: dict) -> None:
             else:
                 moment_dict[key].append(complex(0, 0))
         table_dict = file_table
+    
+    if table_dict == {}:
+        raise ValueError("No production coefficient pairs found. Check input files.")
 
     # save moments to csv file
     df = pd.DataFrame.from_dict(moment_dict)
-    df.index = input_files
+    df = df.set_index(pd.Index(input_files))
     df.to_csv(args["output"], index_label="file")
     print("Moments saved to", args["output"])
 
@@ -169,7 +175,7 @@ def main(args: dict) -> None:
 
 def process_file(
     file: str, args: dict
-) -> Tuple[str, Dict[str, float], Dict[str, Dict[Tuple[str, str], float]]]:
+) -> Tuple[Dict[str, float], Dict[str, Dict[Tuple[str, str], float]]]:
     """Process a single file to calculate the moments and production coefficient pairs
 
     Args:
@@ -186,7 +192,7 @@ def process_file(
     # initialize the dictionary to store the production coefficient pairs and their CGs
     # we have to init it here outside the function because jit doesn't support
     # type-expression in the function
-    coefficient_dict = numba.typed.Dict.empty(
+    coefficient_dict = numba.typed.Dict.empty( # type:ignore
         key_type=numba.types.UniTuple(numba.types.unicode_type, 2),
         value_type=numba.types.float64,
     )
@@ -411,7 +417,7 @@ def calculate_moment(
     M: int,
     waves: List[Wave],
     coefficient_dict: Dict[Tuple[str, str], float],
-) -> float:
+) -> complex:
     """Calculate the moment for a given set of quantum numbers
 
     Vector-pseudoscalar moments are indexed by 4 quantum numbers that arise from
@@ -576,7 +582,7 @@ def process_waves(
     mj: int,
     e: int,
     alpha: int,
-) -> Tuple[int, int, int, int, List[Tuple[str, str]]]:
+) -> Tuple[complex, complex, complex, complex, List[Tuple[str, str]]]:
     """Return the 4 complex values for the SDME calculation and the pairs of waves
 
     This function iterates over all waves to find the 4 complex values that are used in
