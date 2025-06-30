@@ -1,6 +1,6 @@
 {
     "folders": [
-        { "path": "."},
+        { "path": "neutralb1"},
         { "path": "./analysis"},
         { "path": "./submission"},
         { "path": "./selector"}
@@ -8,7 +8,10 @@
     "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "python.analysis.extraPaths":[
-          "${workspaceFolder}"
+          "${workspaceFolder}",
+          "${workspaceFolder}/analysis/",
+          "${workspaceFolder}/submission/",
+          "${workspaceFolder}/selector/"
         ],
         "black-formatter.args": ["--preview"],
         "[python]": {
