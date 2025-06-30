@@ -2,6 +2,8 @@
     "folders": [
         { "path": "."},
         { "path": "./analysis"},
+        { "path": "./submission"},
+        { "path": "./selector"}
     ],
     "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
@@ -122,10 +124,12 @@
           "underconstrained"
         ],
         "files.exclude": {
+          ".conda": true,
           "./analysis/cross_section": true,       
           "**/*.csv": true, 
         },
         "python.analysis.exclude": [
+          ".conda",
           "./analysis/cross_section",  
           "**/*.csv"        
         ]
