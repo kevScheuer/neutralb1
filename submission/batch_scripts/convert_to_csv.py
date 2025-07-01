@@ -7,8 +7,6 @@ This script is used for two fit result purposes:
 
 Behind the scenes, this runs compiled c++ scripts for either situation.
 
-TODO: Convert data reader to a binary, and have it as an optional command that can be
-    run in conjunction with other requested outputs.
 TODO: Eventually, the fit converter should simply include the needed data info in it
 """
 
