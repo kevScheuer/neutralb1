@@ -200,8 +200,8 @@ elif [[ $my_data_option == *"_mcthrown"* ]]; then
 else
     my_label="Recon MC"
 fi
-# TODO: compile this script
-root -l -n -b -q "$my_code_dir/angle_plotter.C(\"vecps_plot.root\", \"\", \"$my_label\")"
+
+$my_code_dir/angle_plotter vecps_plot.root $my_label $my_reaction ./ true
 
 # get total data csv file
 hadd all_data.root ${amp_string}_*.root
