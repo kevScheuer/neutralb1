@@ -443,9 +443,9 @@ def calculate_moment(
     moment = 0
     # for loops are done here to best match the mathematical notation
     for Ji in range(max_J + 1):
-        for li in range(Ji + 2):  # mesons can have spin up to J+1
+        for li in range(Ji + 2):
             for Jj in range(max_J + 1):
-                factor = 1 / ((2 * Jj + 1) * 3)
+                norm = 1 / ((2 * Jj + 1) * 3)
                 for lj in range(Jj + 2):
                     for mi in range(-Ji, Ji + 1):
                         for mj in range(-Jj, Jj + 1):
@@ -488,7 +488,7 @@ def calculate_moment(
                                             coefficient_dict[pair] = pair_value + cgs
 
                                     # finally, calculate the moment
-                                    moment += factor * cgs * sdme
+                                    moment += norm * cgs * sdme
     return moment
 
 
