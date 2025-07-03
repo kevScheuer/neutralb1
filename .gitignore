@@ -12,6 +12,7 @@ bin_template.cfg
 *.fit
 *.out
 *.log
+*.ni
 
 
 # caches
