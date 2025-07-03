@@ -119,7 +119,6 @@
     "files.exclude": {
         ".conda": true,
         "./analysis/cross_section": true,       
-        "**/*.csv": true, 
     },
     "python.analysis.exclude": [
         ".conda",
