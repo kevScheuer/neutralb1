@@ -169,7 +169,8 @@ def main(args: dict) -> None:
     print("Moment table saved to", args["output"].replace(".csv", "_table.csv"))
 
     end_time = timeit.default_timer()
-    print(f"Total time taken: {end_time - start_time:.4f} seconds")
+    if args["verbose"]:
+        print(f"Total time taken: {end_time - start_time:.4f} seconds")
     pass
 
 
