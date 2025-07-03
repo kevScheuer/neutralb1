@@ -58,7 +58,7 @@ spec = [
 ]
 
 
-@numba.experimental.jitclass(spec) # type: ignore
+@numba.experimental.jitclass(spec)  # type: ignore
 class Wave:
     def __init__(self, name, reflectivity, spin, parity, m, l, real, imaginary, scale):
         self.name = name
@@ -149,7 +149,7 @@ def main(args: dict) -> None:
             else:
                 moment_dict[key].append(complex(0, 0))
         table_dict = file_table
-    
+
     if table_dict == {}:
         raise ValueError("No production coefficient pairs found. Check input files.")
 
@@ -192,29 +192,22 @@ def process_file(
     # initialize the dictionary to store the production coefficient pairs and their CGs
     # we have to init it here outside the function because jit doesn't support
     # type-expression in the function
-    coefficient_dict = numba.typed.Dict.empty( # type:ignore
+    coefficient_dict = numba.typed.Dict.empty(  # type:ignore
         key_type=numba.types.UniTuple(numba.types.unicode_type, 2),
         value_type=numba.types.float64,
     )
 
-    if args["breit_wigner"]:
+    if args["breit_wigner"] and not args["mass"]:
         # obtain center of mass bin for BW calculation. Split off the file name to make
         # use of function cache for repeated mass values
         mass = get_mass(file.rsplit("/", 1)[0])
     else:
-        mass = 0.0
+        mass = args["mass"]
 
     # find all the partial waves in the file
     waves = get_waves(file, mass, args["breit_wigner"])
 
-    for wave in waves:
-        print(wave.name)
-        print("\tre: ", wave.real)
-        print("\tim: ", wave.imaginary)
-    exit(0)
-
-    if args["verbose"]:
-        start_time = timeit.default_timer()
+    start_time = timeit.default_timer()
     # ===PREPARE quantum numbers of moments===
     Jv_array = np.array([0, 2])  # CG coefficient always makes Jv=1 be 0
     # (-) Lambda values are directly proportional to (+) ones, no need to calculate
@@ -245,15 +238,16 @@ def process_file(
 
             coefficient_dict.clear()
             moment_val = calculate_moment(
-                alpha, Jv, Lambda, J, M, numba.typed.List(waves), coefficient_dict
+                alpha, Jv, Lambda, J, M, numba.typed.List(waves), coefficient_dict  # type: ignore
             )
             # save the results for this moment. The dictionary is copied to avoid
             # reference issues, and converted back to a python dict so it is pickleable
             # for the parallel processing
             table_dict[moment_str] = dict(coefficient_dict.copy())
             moment_dict[moment_str] = moment_val
+
+    elapsed = timeit.default_timer() - start_time
     if args["verbose"]:
-        elapsed = timeit.default_timer() - start_time
         print(f"Time taken to process {file}: {elapsed:.4f} seconds")
 
     return moment_dict, table_dict
@@ -704,6 +698,16 @@ def parse_args() -> dict:
         "--preview",
         action="store_true",
         help=("When passed, print out the files that will be processed and exit."),
+    )
+    parser.add_argument(
+        "-m",
+        "--mass",
+        type=float,
+        default=None,
+        help=(
+            "Center of mass bin to use for the Breit-Wigner calculations. Defaults to"
+            " None, meaning the mass will be obtained from the path"
+        ),
     )
     parser.add_argument(
         "-b",
