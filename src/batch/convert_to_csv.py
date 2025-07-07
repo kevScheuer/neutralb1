@@ -18,7 +18,7 @@ import tempfile
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from analysis.scripts import utils
+from src.utils import utils
 
 
 def main(args: dict) -> None:

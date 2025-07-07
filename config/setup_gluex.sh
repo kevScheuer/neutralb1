@@ -1,6 +1,7 @@
 source /etc/profile.d/modules.sh
 module purge
 
+# TODO: set path to workspace, and not be absolute
 source /group/halld/Software/build_scripts/gluex_env_jlab.sh /w/halld-scshelf2101/kscheuer/neutralb1/version.xml
 
 # add paths for c++ / ROOT to search for libraries and include files

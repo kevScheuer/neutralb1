@@ -1,5 +1,4 @@
-""" TODO: make this part of a generic cross section plotter class
-"""
+"""DEPRECATED: kept for constants / to update later"""
 
 import math
 

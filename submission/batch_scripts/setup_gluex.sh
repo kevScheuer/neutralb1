@@ -1,1 +1,0 @@
-../../setup_gluex.sh

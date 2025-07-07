@@ -1,8 +1,4 @@
-"""A collection of some utility functions used in the analysis scripts.
-
-These are scripts that are not uniquely useful for partial wave analysis, and so kept
-seperate from pwa_tools.
-"""
+"""A collection of some utility functions"""
 
 import os
 import pathlib

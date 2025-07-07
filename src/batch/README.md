@@ -1,3 +1,5 @@
+TODO: Update README for new structure and methods
+
 :bangbang: The selector is not yet setup. That directory will host the source files, but for now the files are stored [here](./batch_scripts/). :bangbang:
 
 We've now made the selections on our data and have ROOT trees ready for partial wave analysis. We will typically want to be submitting "mass-independent" fits (fits performed in individual bins of $\omega\pi^0$ mass), but writing and submitting all those fits is a pain. Instead we can use an automated [submitter](./batch_scripts/submit.py) that can handle all that for us. 

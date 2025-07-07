@@ -35,9 +35,11 @@ import numpy as np
 import pandas as pd
 import spherical
 
+from src.utils import utils
+
 # imports below need the path to work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from analysis.scripts import pwa_tools, utils  # type: ignore[import]
+from analysis.scripts import pwa_tools  # type: ignore[import]
 
 BREIT_WIGNERS = {
     "1p": {"mass": 1.235, "width": 0.142},
