@@ -14,6 +14,15 @@ bin_template.cfg
 *.log
 *.ni
 
+# build artifacts
+build/
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
 
 # caches
 __pycache__/

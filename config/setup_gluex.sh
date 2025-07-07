@@ -1,8 +1,13 @@
 source /etc/profile.d/modules.sh
 module purge
 
-# TODO: set path to workspace, and not be absolute
-source /group/halld/Software/build_scripts/gluex_env_jlab.sh /w/halld-scshelf2101/kscheuer/neutralb1/version.xml
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory (one level up from config/)
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Source GlueX environment using relative path to version.xml
+source /group/halld/Software/build_scripts/gluex_env_jlab.sh "$PROJECT_ROOT/config/version.xml"
 
 # add paths for c++ / ROOT to search for libraries and include files
 export LIBRARY_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${LIBRARY_PATH}
