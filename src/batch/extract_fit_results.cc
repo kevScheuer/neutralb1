@@ -39,6 +39,8 @@ NOTE: this script is "reaction" independent, meaning if multiple reactions are i
 #include <vector>
 
 #include "IUAmpTools/FitResults.h"
+#include "file_utils.h" // for read_file_list
+#include "amp_utils.h" // for parse_amplitude
 
 // forward declarations
 void fill_maps(
@@ -67,13 +69,12 @@ int main(int argc, char *argv[])
     }
 
     // file path is a text file with a list of AmpTools output files, each on a newline
-    // load this into a vector
-    std::vector<std::string> file_vector;
-    std::ifstream infile(file_path);
-    std::string line;
-    while (std::getline(infile, line))
-    {
-        file_vector.push_back(line);
+    // load this into a vector using the utility function
+    std::vector<std::string> file_vector = read_file_list(file_path);
+    
+    if (file_vector.empty()) {
+        std::cerr << "Error: Could not read file list from " << file_path << std::endl;
+        return 1;
     }
 
     // ==== MAP INITIALIZATION ====
@@ -290,26 +291,26 @@ void fill_maps(
 
             // split the "eJPmL" part of the amplitude into its components
             std::string e, JP, m, L;
-            std::tie(e, JP, m, L) = parse_amplitude(amplitude);
-            if (e.empty() || JP.empty() || m.empty() || L.empty())
+            std::tie(e, J, P, m, L) = parse_amplitude(amplitude);
+            if (e.empty() || J.empty() || P.empty() || m.empty() || L.empty())
             {
                 std::cout << "Amplitude format " << amplitude
                           << " not recognized, skipping\n";
                 continue;
             }
 
-            std::string eJPmL = e + JP + m + L;
+            std::string eJPmL = e + J + P + m + L;
 
             // store the production coefficients
             production_coefficients[eJPmL] = results.scaledProductionParameter(amplitude);
 
             // store the amplitudes in the coherent sum maps
             coherent_sums["eJPmL"][eJPmL].push_back(amplitude);
-            coherent_sums["JPmL"][JP + m + L].push_back(amplitude);
-            coherent_sums["eJPL"][e + JP + L].push_back(amplitude);
-            coherent_sums["JPL"][JP + L].push_back(amplitude);
-            coherent_sums["eJP"][e + JP].push_back(amplitude);
-            coherent_sums["JP"][JP].push_back(amplitude);
+            coherent_sums["JPmL"][J + P + m + L].push_back(amplitude);
+            coherent_sums["eJPL"][e + J + P + L].push_back(amplitude);
+            coherent_sums["JPL"][J + P + L].push_back(amplitude);
+            coherent_sums["eJP"][e + J + P].push_back(amplitude);
+            coherent_sums["JP"][J + P].push_back(amplitude);
             coherent_sums["e"][e].push_back(amplitude);
 
             // store the phase differences
@@ -322,9 +323,9 @@ void fill_maps(
                     continue;
                 }
 
-                std::string pd_e, pd_JP, pd_m, pd_L;
-                std::tie(pd_e, pd_JP, pd_m, pd_L) = parse_amplitude(pd_amplitude);
-                std::string pd_eJPmL = pd_e + pd_JP + pd_m + pd_L;
+                std::string pd_e, pd_J, pd_P, pd_m, pd_L;
+                std::tie(pd_e, pd_J, pd_P, pd_m, pd_L) = parse_amplitude(pd_amplitude);
+                std::string pd_eJPmL = pd_e + pd_J + pd_P + pd_m + pd_L;
 
                 if (pd_eJPmL == eJPmL)
                     continue; // don't compare to itself
@@ -345,25 +346,4 @@ void fill_maps(
             }
         }
     }
-}
-
-// grab the "eJPmL" part of the amplitude and split into its components
-std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude)
-{
-    // NOTE: this assumes the amplitude is named in the "eJPmL" format already, and will
-    // need to be adjusted if the naming convention is different
-    std::string eJPmL = amplitude.substr(amplitude.rfind("::") + 2);
-
-    // return blanks (handled later) if the format is not recognized
-    if (eJPmL.size() != 5)
-    {
-        return std::make_tuple("", "", "", "");
-    }
-
-    std::string e, JP, m, L;
-    e = eJPmL.substr(0, 1);
-    JP = eJPmL.substr(1, 2);
-    m = eJPmL.substr(3, 1);
-    L = eJPmL.substr(4);
-    return std::make_tuple(e, JP, m, L);
 }

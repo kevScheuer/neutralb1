@@ -17,6 +17,7 @@ Usage: project_moments
 #include <vector>
 #include <string>
 #include <fstream>
+#include "file_utils.h"
 
 
 int main(int argc, char* argv[]) 
@@ -25,12 +26,11 @@ int main(int argc, char* argv[])
     std::string csv_name = argv[2];
 
     // input file is a text file with a list of .fit results, each on a newline.
-    // load this into a vector
-    std::vector<std::string> file_vector;
-    std::ifstream infile(input_file);
-    std::string line;
-    while (std::getline(infile, line))
-    {
-        file_vector.push_back(line);
+    // load this into a vector using the utility function
+    std::vector<std::string> file_vector = read_file_list(input_file);
+    
+    if (file_vector.empty()) {
+        std::cerr << "Error: Could not read file list from " << input_file << std::endl;
+        return 1;
     }
 }
