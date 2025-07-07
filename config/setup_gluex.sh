@@ -9,6 +9,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source GlueX environment using relative path to version.xml
 source /group/halld/Software/build_scripts/gluex_env_jlab.sh "$PROJECT_ROOT/config/version.xml"
 
+export PATH="$PROJECT_ROOT/build/bin:$PATH"
+
 # add paths for c++ / ROOT to search for libraries and include files
 export LIBRARY_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${LIBRARY_PATH}
 export CPLUS_INCLUDE_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/src/libraries:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/include:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${CPLUS_INCLUDE_PATH}
