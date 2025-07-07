@@ -16,6 +16,35 @@
                 "-b"
             ],
             "python": "/w/halld-scshelf2101/kscheuer/miniforge3/envs/neutralb1/bin/python"
+        },
+        {
+            "name": "Debug C++ Binary",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/${input:binaryName}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Project",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "binaryName",
+            "description": "Binary to debug",
+            "default": "angle_plotter",
+            "type": "promptString"
         }
     ]
 }
