@@ -21,7 +21,7 @@ remove any lines that "continue" when the "Imag" substring is found.
 #include <vector>
 
 #include "IUAmpTools/FitResults.h"
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
@@ -47,8 +47,8 @@ int main(int argc, char* argv[])
 
     // ==== BEGIN FILE ITERATION ====
     // Iterate over each file, and label each covariance matrix block with the file name
-    bool is_header_written = false; // only write header once
-    int num_params = 0; // store number of parameters to ensure other files match
+    bool is_header_written = false;   // only write header once
+    long unsigned int num_params = 0; // store number of parameters to ensure other files match
     for (const std::string &file : file_vector)
     {
         std::cout << "Analyzing File: " << file << "\n";
@@ -91,12 +91,12 @@ int main(int argc, char* argv[])
         if (num_params != results.parNameList().size())
         {
             std::cout << "Error: Number of parameters in file " << file
-                      << " does not match those of " << file_vector[0] 
+                      << " does not match those of " << file_vector[0]
                       << " Exiting! \n";
             exit(1);
         }
 
-        for (int row = 0; row < cov_matrix.size(); row++)
+        for (long unsigned int row = 0; row < cov_matrix.size(); row++)
         {
             const std::string row_par = results.parNameList()[row];
             if (row_par.find("Imag") != std::string::npos)
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
             csv_data << file << ",";
             csv_data << row_par;
 
-            for (int col = 0; col < cov_matrix[row].size(); col++)
+            for (long unsigned int col = 0; col < cov_matrix[row].size(); col++)
             {
                 const std::string col_par = results.parNameList()[col];
                 if (col_par.find("Imag") != std::string::npos)
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
                 if (cov_matrix[row][col] != results.covariance(row_par, col_par))
                 {
                     std::cout << "Error: Mismatch in covariance values between parameters "
-                         << row_par << " and " << col_par << ". Exiting! \n";
+                              << row_par << " and " << col_par << ". Exiting! \n";
                     exit(1);
                 }
 
