@@ -1,3 +1,9 @@
+/**
+ * @file amp_utils.cc
+ * @brief Utility functions for handling amplitudes in PWA fits.
+ * 
+*/
+
 #ifndef AMP_UTILS_H
 #define AMP_UTILS_H
 

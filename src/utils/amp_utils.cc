@@ -1,3 +1,6 @@
+#include <string>
+#include <tuple>
+
 #include "file_utils.h"
 
 std::tuple<std::string, std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude)

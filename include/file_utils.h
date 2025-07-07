@@ -1,3 +1,9 @@
+/**
+ * @file file_utils.h
+ * @brief Utility functions for file handling of PWA fits.
+ * 
+*/
+
 #ifndef FILE_UTILS_H
 #define FILE_UTILS_H
 

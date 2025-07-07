@@ -50,8 +50,6 @@ void fill_maps(
     std::map<std::string, std::map<std::string, std::vector<std::string>>> &coherent_sums,
     std::map<std::string, std::pair<std::string, std::string>> &phase_diffs);
 
-std::tuple<std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude);
-
 int main(int argc, char *argv[])
 {
     if (argc < 3)
@@ -290,7 +288,7 @@ void fill_maps(
             }
 
             // split the "eJPmL" part of the amplitude into its components
-            std::string e, JP, m, L;
+            std::string e, J, P, m, L;
             std::tie(e, J, P, m, L) = parse_amplitude(amplitude);
             if (e.empty() || J.empty() || P.empty() || m.empty() || L.empty())
             {
