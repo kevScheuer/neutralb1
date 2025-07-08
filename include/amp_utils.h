@@ -1,8 +1,8 @@
 /**
  * @file amp_utils.cc
  * @brief Utility functions for handling amplitudes in PWA fits.
- * 
-*/
+ *
+ */
 
 #ifndef AMP_UTILS_H
 #define AMP_UTILS_H
@@ -21,7 +21,8 @@
  * @return A tuple containing the components:
  *         (reflectivity, total angular momentum, parity, m-projection,
  *         orbital angular momentum)
- *         If the format is invalid, returns empty strings for all components.
+ * @throw std::invalid_argument If the format is invalid, returns empty strings for all
+ *        components.
  */
 std::tuple<std::string, std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude);
 

@@ -1,5 +1,6 @@
 #include <string>
 #include <tuple>
+#include <stdexcept>
 
 #include "file_utils.h"
 
@@ -13,7 +14,8 @@ std::tuple<std::string, std::string, std::string, std::string, std::string> pars
     // Assuming the format is always correct and well-formed
     if (amplitude.length() < 5)
     {
-        return {"", "", "", "", ""}; // Invalid format
+        throw std::invalid_argument(
+            "Amplitude string is too short. Expected at least 5 characters.");
     }
 
     e = amplitude.substr(0, 1); // First character
