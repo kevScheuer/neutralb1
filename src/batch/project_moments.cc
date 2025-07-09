@@ -12,6 +12,9 @@ you'll have to account for it in parse_amplitude()
 TODO: Fill in
 TODO: Print a warning to the user if the fit results do not contain the same set of
     amplitudes. Have default behavior fill in the missing amplitudes with 0.
+TODO: The current way is to get the production coefficient first, store them, then later
+    fill them in when calculating the sdme. It might be easier to simply store the 
+    amplitude name then call the scaled production coefficient later?
 Usage: project_moments
 */
 
@@ -27,26 +30,10 @@ Usage: project_moments
 #include "file_utils.h"
 #include "amp_utils.h"
 
-/**
- * @struct Wave
- * @brief Represents a wave in the PWA fit results.
- */
-struct Wave
-{
-    std::string e;
-    std::string J;
-    std::string P;
-    std::string m;
-    std::string L;
 
-    std::string name;
-    std::complex<double> production_coefficient;
-    double scale;
-};
 
 // forward declarations
 std::map<std::string, double> calculate_moments(const FitResults &results);
-std::unordered_set<std::string> get_unique_waves(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
@@ -107,18 +94,20 @@ std::map<std::string, double> calculate_moments(const FitResults &results)
     return moments;
 }
 
-std::unordered_set<std::string> get_unique_waves(const FitResults &results)
+int find_max_m(const FitResults &results)
 {
-    std::unordered_set<std::string> unique_waves;
-
+    int max_m = 0;
     for (const auto &reaction : results.reactionList())
     {
-        for (const auto &amplitude : results.ampList(reaction))
+        for (const std::string &amplitude : results.ampList(reaction))
         {
-            // get the amplitude name and its quantum numbers
-            parse_amplitude(amplitude);
+            int m_value = std::stoi(parse_amplitude(amplitude).m);
+            if (m_value > max_m)
+            {
+                max_m = m_value;
+            }
         }
     }
 
-    return unique_waves;
+    return max_m;
 }

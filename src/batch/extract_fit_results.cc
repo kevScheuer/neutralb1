@@ -287,16 +287,8 @@ void fill_maps(
                 continue;
             }
 
-            // split the "eJPmL" part of the amplitude into its components
-            std::string e, J, P, m, L;
-            std::tie(e, J, P, m, L) = parse_amplitude(amplitude);
-            if (e.empty() || J.empty() || P.empty() || m.empty() || L.empty())
-            {
-                std::cout << "Amplitude format " << amplitude
-                          << " not recognized, skipping\n";
-                continue;
-            }
-
+            // split the "eJPmL" part of the amplitude into its components            
+            auto [e, J, P, m, L] = parse_amplitude(amplitude);            
             std::string eJPmL = e + J + P + m + L;
 
             // store the production coefficients
@@ -321,8 +313,7 @@ void fill_maps(
                     continue;
                 }
 
-                std::string pd_e, pd_J, pd_P, pd_m, pd_L;
-                std::tie(pd_e, pd_J, pd_P, pd_m, pd_L) = parse_amplitude(pd_amplitude);
+                auto [pd_e, pd_J, pd_P, pd_m, pd_L] = parse_amplitude(pd_amplitude);
                 std::string pd_eJPmL = pd_e + pd_J + pd_P + pd_m + pd_L;
 
                 if (pd_eJPmL == eJPmL)

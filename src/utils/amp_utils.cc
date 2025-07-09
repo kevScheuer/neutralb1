@@ -3,9 +3,9 @@
 #include <stdexcept>
 #include <regex>
 
-#include "file_utils.h"
+#include "amp_utils.h"
 
-std::tuple<std::string, std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude)
+QuantumNumbers parse_amplitude(std::string amplitude)
 {
     // Extract amp_name from a format of reaction::sum::amp_name
     size_t last_colon = amplitude.rfind("::");

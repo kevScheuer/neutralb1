@@ -11,6 +11,17 @@
 #include <tuple>
 
 /**
+ * Structure to hold the quantum numbers of an amplitude
+ */
+struct QuantumNumbers {
+    std::string e;
+    std::string J;
+    std::string P;
+    std::string m;
+    std::string L;
+};
+
+/**
  * Parses an amplitude string into its quantum number components.
  * 
  * Assumes the amplitude is the "full" amplitude, that is, 
@@ -22,11 +33,9 @@
  *    m = m-projection (l [-3], n [-2], m [-1], 0 [0], p [1], q [2], r [3])
  *    L = orbital angular momentum (standard letter convention: S, P, D, F, ...).
  * @param amplitude The full amplitude string to parse
- * @return A tuple containing the components:
- *         (reflectivity, total angular momentum, parity, m-projection,
- *         orbital angular momentum)
+ * @return A QuantumNumbers struct containing the quantum numbers
  * @throw std::invalid_argument If the amplitude string is unrecognized
  */
-std::tuple<std::string, std::string, std::string, std::string, std::string> parse_amplitude(std::string amplitude);
+QuantumNumbers parse_amplitude(std::string amplitude);
 
 #endif // AMP_UTILS_H
