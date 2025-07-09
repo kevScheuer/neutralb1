@@ -5,24 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current file with hard-coded Arguments",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "args": [
-                "-i", 
-                "/lustre24/expphy/volatile/halld/home/kscheuer/ampToolsFits/omegapi/allPeriods/PARA_0/ver03.1_mc/ver03/1m_1p_iso/recoil-pi-mass_1.4/t_0.30-0.50/mass_1.200-1.220/truth/bestFitPars.txt",
-                "-b"
-            ],
-            "python": "/w/halld-scshelf2101/kscheuer/miniforge3/envs/neutralb1/bin/python"
-        },
-        {
             "name": "Debug C++ Binary",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/${input:binaryName}",
-            "args": [],
+            "program": "/bin/bash",
+            "args": [
+                "-c",
+                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/debug/bin/${input:binaryName}"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -35,15 +25,69 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build Project",
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "Debug C++ Binary with Arguments",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/bin/bash",
+            "args": [
+                "-c",
+                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/debug/bin/${input:binaryName} ${input:programArgs}"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "Run C++ Binary (Release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/bin/bash",
+            "args": [
+                "-c",
+                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/release/bin/${input:binaryName} ${input:programArgs}"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Release",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ],
     "inputs": [
         {
             "id": "binaryName",
-            "description": "Binary to debug",
-            "default": "angle_plotter",
+            "description": "Binary to debug (e.g., project_moments, angle_plotter)",
+            "default": "project_moments",
+            "type": "promptString"
+        },
+        {
+            "id": "programArgs",
+            "description": "Program arguments (space-separated, e.g., 'input.txt output.csv')",
+            "default": "example.txt output.csv",
             "type": "promptString"
         }
     ]

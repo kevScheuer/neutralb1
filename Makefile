@@ -1,10 +1,13 @@
 # Makefile for neutralb1 project
 # This makefile compiles C++ source files into the build directory structure
 
+# Build configuration (debug or release)
+BUILD_TYPE ?= release
+
 # Project directories
 PROJECT_ROOT := $(shell pwd)
 SRC_DIR := src
-BUILD_DIR := build
+BUILD_DIR := build/$(BUILD_TYPE)
 BIN_DIR := $(BUILD_DIR)/bin
 LIB_DIR := $(BUILD_DIR)/lib
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -28,7 +31,16 @@ BATCH_EXECUTABLES := $(patsubst $(SRC_DIR)/batch/%.cc,$(BIN_DIR)/%,$(BATCH_SOURC
 
 # Compiler settings
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -fPIC
+BASE_CXXFLAGS := -std=c++17 -Wall -Wextra -fPIC
+
+# Build-specific flags
+ifeq ($(BUILD_TYPE),debug)
+    CXXFLAGS := $(BASE_CXXFLAGS) -g -O0 -DDEBUG
+else ifeq ($(BUILD_TYPE),release)
+    CXXFLAGS := $(BASE_CXXFLAGS) -O2 -DNDEBUG
+else
+    $(error Invalid BUILD_TYPE: $(BUILD_TYPE). Use 'debug' or 'release')
+endif
 
 # Include paths from your setup script
 INCLUDE_DIRS := -I$(PROJECT_ROOT)/include \
@@ -56,6 +68,14 @@ LDFLAGS := $(LIBRARY_DIRS) $(LIBS)
 # Default target
 .PHONY: all
 all: directories $(BATCH_EXECUTABLES) $(ALL_OBJECTS)
+
+# Debug and release targets
+.PHONY: debug release
+debug:
+	$(MAKE) BUILD_TYPE=debug all
+
+release:
+	$(MAKE) BUILD_TYPE=release all
 
 # Create build directories
 .PHONY: directories
@@ -98,8 +118,18 @@ library: $(LIB_DIR)/libneutralb1.so
 # Clean targets
 .PHONY: clean
 clean:
-	@echo "Cleaning build directory..."
-	rm -rf $(BUILD_DIR)/*
+	@echo "Cleaning all build directories..."
+	rm -rf build/*
+
+.PHONY: clean-debug
+clean-debug:
+	@echo "Cleaning debug build directory..."
+	rm -rf build/debug/*
+
+.PHONY: clean-release
+clean-release:
+	@echo "Cleaning release build directory..."
+	rm -rf build/release/*
 
 .PHONY: clean-objects
 clean-objects:
@@ -148,8 +178,12 @@ info:
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@echo "  all              - Build all executables and object files"
+	@echo "  all              - Build all executables and object files (current: $(BUILD_TYPE))"
+	@echo "  debug            - Build debug version with -g -O0"
+	@echo "  release          - Build release version with -O2"
 	@echo "  clean            - Remove all build files"
+	@echo "  clean-debug      - Remove only debug build files"
+	@echo "  clean-release    - Remove only release build files"
 	@echo "  clean-objects    - Remove only object files"
 	@echo "  clean-bins       - Remove only executables"
 	@echo "  library          - Build shared library from analysis/utils code"

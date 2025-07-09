@@ -17,6 +17,30 @@
 			"detail": "Build the project using build.sh script"
 		},
 		{
+			"label": "Build Debug",
+			"type": "shell",
+			"command": "bash",
+			"args": ["-c", "source config/setup_gluex.sh && make debug"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"detail": "Build debug version with -g -O0"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell", 
+			"command": "bash",
+			"args": ["-c", "source config/setup_gluex.sh && make release"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"detail": "Build release version with -O2"
+		},
+		{
 			"label": "Clean Project", 
 			"type": "shell",
 			"command": "make",
