@@ -26,7 +26,7 @@ QuantumNumbers parse_amplitude(std::string amplitude)
     // m = m-projection (l, n, m, 0, p, q, r for -3, -2, -1, 0, 1, 2, 3)
     // L = orbital angular momentum (S, P, D, F, G, H, I, etc.)
     
-    std::regex amp_regex("([pm])([0-9])([pm])([lnm0pqr])([SPDFG]+)");
+    std::regex amp_regex("([pm])([0-9])([pm])([lnm0pqr])([SPDFG])");
     std::smatch matches;
     
     if (!std::regex_match(amp_name, matches, amp_regex))
@@ -48,4 +48,54 @@ QuantumNumbers parse_amplitude(std::string amplitude)
     std::string L = matches[5].str(); // orbital angular momentum
 
     return {e, J, P, m, L};
+}
+
+// QuantumNumbers member function implementations
+int QuantumNumbers::get_e_int() const {
+    if (e == "p") return 1;
+    if (e == "m") return -1;
+    throw std::invalid_argument("Invalid reflectivity: " + e);
+}
+
+int QuantumNumbers::get_J_int() const {
+    return std::stoi(J);
+}
+
+int QuantumNumbers::get_P_int() const {
+    if (P == "p") return 1;
+    if (P == "m") return -1;
+    throw std::invalid_argument("Invalid parity: " + P);
+}
+
+int QuantumNumbers::get_m_int() const {
+    if (m == "l") return -3;
+    if (m == "n") return -2;
+    if (m == "m") return -1;
+    if (m == "0") return 0;
+    if (m == "p") return 1;
+    if (m == "q") return 2;
+    if (m == "r") return 3;
+    throw std::invalid_argument("Invalid m-projection: " + m);
+}
+
+int QuantumNumbers::get_L_int() const {
+    if (L == "S") return 0;
+    if (L == "P") return 1;
+    if (L == "D") return 2;
+    if (L == "F") return 3;
+    if (L == "G") return 4;
+    // Add more as needed...
+
+    throw std::invalid_argument("Invalid orbital angular momentum: " + L);
+}
+
+// Conversion function implementation
+QuantumNumbersInt to_integers(const QuantumNumbers& qn) {
+    return {
+        qn.get_e_int(),
+        qn.get_J_int(), 
+        qn.get_P_int(),
+        qn.get_m_int(),
+        qn.get_L_int()
+    };
 }
