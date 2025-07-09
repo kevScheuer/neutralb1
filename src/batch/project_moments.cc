@@ -37,23 +37,30 @@ struct Moment
     int Lambda;
     int J;
     int M;
+
+    std::string name() const
+    {
+        return "H" + std::to_string(alpha) + "_" + std::to_string(Jv) + std::to_string(Lambda) + std::to_string(J) + std::to_string(M);
+    }
 };
 
 // forward declarations
 std::vector<Moment> initialize_moments(const FitResults &results);
+complex<double> calculate_moment(const Moment &moment, const FitResults &results);
 int find_max_m(const FitResults &results);
 int find_max_J(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
     // Check if we have the required arguments
-    if (argc < 3) {
+    if (argc < 3)
+    {
         std::cerr << "Usage: " << argv[0] << " <input_file> <output_csv>" << std::endl;
         std::cerr << "  input_file: Text file containing list of .fit files" << std::endl;
         std::cerr << "  output_csv: Name of the output CSV file" << std::endl;
         return 1;
     }
-    
+
     std::string input_file = argv[1];
     std::string csv_name = argv[2];
 
@@ -71,7 +78,7 @@ int main(int argc, char *argv[])
     // and write them to the csv file.
 
     // initialize the map of moment names to their values
-    std::map<std::string, double> moment_results;
+    std::map<std::string, complex<double>> moment_results;
     std::vector<Moment> moments; // vector of all moments to be calculated
 
     // open csv file for writing (force overwrite if file exists)
@@ -79,10 +86,8 @@ int main(int argc, char *argv[])
 
     // Collect all rows in a stringstream to minimize I/O operations
     std::stringstream csv_data;
-    bool is_header_written = false;
 
     // ==== BEGIN FILE ITERATION ====
-    // Iterate over each file, and add their results as a row in the csv
     for (const std::string &file : file_vector)
     {
         std::cout << "Analyzing File: " << file << "\n";
@@ -100,9 +105,22 @@ int main(int argc, char *argv[])
         // initialize the set of moments we can have from this file's waveset
         moments = initialize_moments(results);
 
+        for (const Moment &moment : moments)
+        {
+            // calculate the value for this moment and save it to the map
+            moment_results[moment.name()] = calculate_moment(moment, results);
+        }
+
     } // end of file iteration
 }
 
+/**
+ * @brief Initialize the set of moments based on the fit results.
+ *
+ * @param results The fit results containing the necessary data.
+ * @return std::vector<Moment> A vector of all possible moments constructed from the
+ *  fit results.
+ */
 std::vector<Moment> initialize_moments(const FitResults &results)
 {
     std::vector<Moment> moments;
@@ -157,6 +175,46 @@ std::vector<Moment> initialize_moments(const FitResults &results)
         }
     }
     return moments;
+}
+
+/**
+ * @brief Calculate the value of a moment based on its quantum numbers and fit results.
+ *
+ * @param moment The moment for which to calculate the value.
+ * @param results The fit results containing the necessary data.
+ * @return complex<double> The calculated value of the moment.
+ */
+complex<double> calculate_moment(const Moment &moment, const FitResults &results)
+{
+    complex<double> moment_value = 0.0;
+
+    // for-loops below are done to best match the mathematical definition
+    //  since moment.J = max(waveset J) + 1, we just need to iterate from -moment.J+1 to moment.J - 1
+    for (int Ji = 0; Ji < moment.J; ++Ji)
+    {
+        for (int li = 0; li <= Ji; ++li)
+        {
+            for (int Jj = 0; Jj < moment.J; ++Jj)
+            {
+                for (int lj = 0; lj <= Jj; ++lj)
+                {
+                    for (int mi = -Ji; mi <= Ji; ++mi)
+                    {
+                        for (int mj = -Jj; mj <= Jj; ++mj)
+                        {
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// TODO: This should take in each group of Jlm pairs and calculate the SDME
+//  I dont' like how the previous process_waves hid the conjugation and signs within it,
+//  so I might do it all just within this function
+complex<double> calculate_SDME(int alpha)
+{
 }
 
 int find_max_m(const FitResults &results)
