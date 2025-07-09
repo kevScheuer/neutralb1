@@ -44,11 +44,10 @@ ROOT_LIBS := $(shell root-config --libs)
 # Library paths from your setup script
 LIBRARY_DIRS := -L$(ROOTSYS)/lib \
                 -L$(AMPTOOLS)/lib \
-                -L$(HALLD_SIM_HOME)/Linux_Alma9-x86_64-gcc11.5.0/lib \
-                -L$(CUDA_INSTALL_PATH)/lib64
+                -L$(HALLD_SIM_HOME)/Linux_Alma9-x86_64-gcc11.5.0/lib
 
 # Libraries to link against
-LIBS := $(ROOT_LIBS) -lAmpTools_GPU -lcudart
+LIBS := $(ROOT_LIBS) -lAmpTools
 
 # Combined flags
 CXXFLAGS += $(ROOT_CFLAGS) $(INCLUDE_DIRS)

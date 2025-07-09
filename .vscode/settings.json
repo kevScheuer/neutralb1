@@ -102,7 +102,6 @@
         "/work/halld/kscheuer/my_build/AmpTools/AmpTools",
         "/work/halld/kscheuer/my_build/halld_sim/src/libraries",
         "/work/halld/kscheuer/my_build/halld_sim/Linux_Alma9-x86_64-gcc11.5.0/include",
-        "/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/cuda/12.2.2/include",
         "${default}",
         "/usr/include",
         "/usr/local/include"
