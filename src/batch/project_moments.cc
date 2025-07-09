@@ -46,10 +46,16 @@ int find_max_J(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
+    // Check if we have the required arguments
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <input_file> <output_csv>" << std::endl;
+        std::cerr << "  input_file: Text file containing list of .fit files" << std::endl;
+        std::cerr << "  output_csv: Name of the output CSV file" << std::endl;
+        return 1;
+    }
+    
     std::string input_file = argv[1];
     std::string csv_name = argv[2];
-
-    // TODO: Add a help message and argc check
 
     // input file is a text file with a list of .fit results, each on a newline.
     // load this into a vector using the utility function
@@ -68,9 +74,8 @@ int main(int argc, char *argv[])
     std::map<std::string, double> moment_results;
     std::vector<Moment> moments; // vector of all moments to be calculated
 
-    // open csv file for writing
-    std::ofstream csv_file;
-    csv_file.open(csv_name);
+    // open csv file for writing (force overwrite if file exists)
+    std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
 
     // Collect all rows in a stringstream to minimize I/O operations
     std::stringstream csv_data;
@@ -105,17 +110,17 @@ std::vector<Moment> initialize_moments(const FitResults &results)
     int max_m = find_max_m(results);
 
     // prepare moment quantum numbers for the moments
-    std::vector<int> alpha_vector = {0, 1, 2}; 
+    std::vector<int> alpha_vector = {0, 1, 2};
     std::vector<int> Jv_vector = {0, 2}; // CGs coefficient ensure Jv=1 is always 0
     // moments with negative Lambda values are proportional to positive ones
     std::vector<int> Lambda_vector = {0, 1, 2};
     std::vector<int> J_vector;
-    for (int J = 0; J <= max_J; ++J) // J defined to be >= 0
+    for (int J = 0; J <= max_J + 1; ++J) // J defined to be >= 0
     {
         J_vector.push_back(J);
     }
     std::vector<int> M_vector; // similar to lambda, (-) M values ar proportional to (+)
-    for (int m = 0; m <= max_m; ++m)
+    for (int m = 0; m <= max_m + 1; ++m)
     {
         M_vector.push_back(m);
     }
@@ -131,7 +136,7 @@ std::vector<Moment> initialize_moments(const FitResults &results)
                     {
                         // FILTER non-physical moments
                         // Wigner D functions for these are always 0
-                        if (M>J || Lambda > J || Lambda > Jv)
+                        if (M > J || Lambda > J || Lambda > Jv)
                             continue;
                         // Wishart seciton 5.10.2 proves H2(Jv,0,J,0) = 0 for any Jv, J
                         if (alpha == 2 && Lambda == 0 && M == 0)
@@ -161,7 +166,11 @@ int find_max_m(const FitResults &results)
     {
         for (const std::string &amplitude : results.ampList(reaction))
         {
-            int m_value = std::stoi(parse_amplitude(amplitude).m);
+            if (amplitude.find("isotropic") != std::string::npos ||
+                amplitude.find("Background") != std::string::npos)
+                continue; // skip isotropic and background amplitudes
+
+            int m_value = parse_amplitude(amplitude).get_m_int();
             if (m_value > max_m)
             {
                 max_m = m_value;
@@ -179,7 +188,11 @@ int find_max_J(const FitResults &results)
     {
         for (const std::string &amplitude : results.ampList(reaction))
         {
-            int J_value = std::stoi(parse_amplitude(amplitude).J);
+            if (amplitude.find("isotropic") != std::string::npos ||
+                amplitude.find("Background") != std::string::npos)
+                continue; // skip isotropic and background amplitudes
+
+            int J_value = parse_amplitude(amplitude).get_J_int();
             if (J_value > max_J)
             {
                 max_J = J_value;
