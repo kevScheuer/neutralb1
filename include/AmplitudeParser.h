@@ -1,11 +1,12 @@
 /**
- * @file amp_utils.h
- * @brief Utility functions for handling amplitudes in PWA fits.
+ * @file AmplitudeParser.h
+ * @brief Parse amplitude into its quantum number strings and integers
  *
  */
 
-#ifndef AMP_UTILS_H
-#define AMP_UTILS_H
+# ifndef AMPLITUDE_PARSER_H
+# define AMPLITUDE_PARSER_H
+
 
 #include <string>
 
@@ -100,4 +101,4 @@ public:
     std::string get_amplitude_name() const;
 };
 
-#endif // AMP_UTILS_H
+#endif // AMPLITUDE_PARSER_H

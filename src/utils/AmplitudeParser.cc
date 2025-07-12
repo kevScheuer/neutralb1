@@ -1,6 +1,6 @@
 /**
- * @file amp_utils.cc
- * @brief Implementation of utility functions for handling amplitudes in PWA fits.
+ * @file AmplitudeParser.cc
+ * @brief Implementation of the AmplitudeParser class
  *
  */
 
@@ -8,9 +8,8 @@
 #include <stdexcept>
 #include <regex>
 
-#include "amp_utils.h"
+#include "AmplitudeParser.h"
 
-// AmplitudeParser implementation
 
 AmplitudeParser::AmplitudeParser(const std::string &amplitude)
 {
