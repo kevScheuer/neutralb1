@@ -288,13 +288,13 @@ void fill_maps(
             }
 
             // split the "eJPmL" part of the amplitude into its components
-            std::string e, J, P, m, L;            
-            auto parsed_amp = parse_amplitude(amplitude);      
-            e = parsed_amp.e; 
-            J = parsed_amp.J; 
-            P = parsed_amp.P; 
-            m = parsed_amp.m; 
-            L = parsed_amp.L; 
+            std::string e, J, P, m, L;
+            AmplitudeParser parser(amplitude);
+            e = parser.get_e_str();
+            J = parser.get_J_str();
+            P = parser.get_P_str();
+            m = parser.get_m_str();
+            L = parser.get_L_str();
             std::string eJPmL = e + J + P + m + L;
 
             // store the production coefficients
@@ -320,12 +320,12 @@ void fill_maps(
                 }
 
                 std::string pd_e, pd_J, pd_P, pd_m, pd_L;
-                auto pd_parsed_amp = parse_amplitude(pd_amplitude);
-                pd_e = pd_parsed_amp.e;
-                pd_J = pd_parsed_amp.J;
-                pd_P = pd_parsed_amp.P;
-                pd_m = pd_parsed_amp.m;
-                pd_L = pd_parsed_amp.L;
+                AmplitudeParser pd_parser(pd_amplitude);
+                pd_e = pd_parser.get_e_str();
+                pd_J = pd_parser.get_J_str();
+                pd_P = pd_parser.get_P_str();
+                pd_m = pd_parser.get_m_str();
+                pd_L = pd_parser.get_L_str();
                 std::string pd_eJPmL = pd_e + pd_J + pd_P + pd_m + pd_L;
 
                 if (pd_eJPmL == eJPmL)
