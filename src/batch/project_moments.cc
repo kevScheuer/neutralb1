@@ -12,9 +12,6 @@ you'll have to account for it in parse_amplitude()
 TODO: Fill in
 TODO: Print a warning to the user if the fit results do not contain the same set of
     amplitudes. Have default behavior fill in the missing amplitudes with 0.
-TODO: The current way is to get the production coefficient first, store them, then later
-    fill them in when calculating the sdme. It might be easier to simply store the
-    amplitude name then call the scaled production coefficient later?
 Usage: project_moments
 */
 
@@ -28,7 +25,8 @@ Usage: project_moments
 
 #include "IUAmpTools/FitResults.h"
 #include "file_utils.h"
-#include "amp_utils.h"
+#include "AmplitudeParser.h"
+#include "AMPTOOLS_AMPS/barrierFactor.h"
 
 struct Moment
 {
@@ -47,6 +45,14 @@ struct Moment
 // forward declarations
 std::vector<Moment> initialize_moments(const FitResults &results);
 complex<double> calculate_moment(const Moment &moment, const FitResults &results);
+complex<double> calculate_SDME(
+    int alpha, int Ji, int li, int mi,
+    int Jj, int lj, int mj,
+    const FitResults &results);
+complex<double> get_production_coefficient(
+    int e, int J, int m, int L, 
+    const FitResults &results);
+int sign(int i);
 int find_max_m(const FitResults &results);
 int find_max_J(const FitResults &results);
 
@@ -117,7 +123,7 @@ int main(int argc, char *argv[])
 /**
  * @brief Initialize the set of moments based on the fit results.
  *
- * @param results The fit results containing the necessary data.
+ * @param[in] results The fit results containing the necessary data.
  * @return std::vector<Moment> A vector of all possible moments constructed from the
  *  fit results.
  */
@@ -180,8 +186,8 @@ std::vector<Moment> initialize_moments(const FitResults &results)
 /**
  * @brief Calculate the value of a moment based on its quantum numbers and fit results.
  *
- * @param moment The moment for which to calculate the value.
- * @param results The fit results containing the necessary data.
+ * @param[in] moment The moment for which to calculate the value.
+ * @param[in] results The fit results containing the necessary data.
  * @return complex<double> The calculated value of the moment.
  */
 complex<double> calculate_moment(const Moment &moment, const FitResults &results)
@@ -202,19 +208,166 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                     {
                         for (int mj = -Jj; mj <= Jj; ++mj)
                         {
+                            complex<double> sdme = calculate_SDME(moment.alpha, Ji, li, mi, Jj, lj, mj, results);
+                            if (sdme == 0.0)
+                                continue; // skip lambda loops since result is 0
+                            
+                            double norm = ((2.0 * moment.J + 1) * (2 * moment.Jv + 1)) / (16.0 * M_PI * M_PI);
+
+                            for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
+                            {
+                                for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
+                                {
+                                    // TODO: calculate CGs with halld_sim library
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    return moment_value;
 }
 
-// TODO: This should take in each group of Jlm pairs and calculate the SDME
-//  I dont' like how the previous process_waves hid the conjugation and signs within it,
-//  so I might do it all just within this function
-complex<double> calculate_SDME(int alpha)
+/**
+ * @brief Calculate the Spin Density Matrix Element (SDME) for given quantum numbers.
+ * 
+ * @param[in] alpha indexes the intensity term
+ *  0: unpolarized, 1: polarized cos(2*Phi), 2: polarized sin(2*Phi)
+ * @param[in] Ji 1st wave spin
+ * @param[in] li 1st wave orbital angular momentum
+ * @param[in] mi 1st wave m-projection
+ * @param[in] Jj 2nd wave spin
+ * @param[in] lj 2nd wave orbital angular momentum
+ * @param[in] mj 2nd wave m-projection
+ * @param[in] results The fit results containing the necessary data.
+ * @return complex<double> The calculated SDME.
+ */
+complex<double> calculate_SDME(
+    int alpha, int Ji, int li, int mi,
+    int Jj, int lj, int mj,
+    const FitResults &results)
 {
+    complex<double> sdme = 0.0;
+    complex<double> c1, c2, c3, c4; // the four complex production coefficients
+    double s1, s2;                  // sign factors in the SDME formula
+    std::vector<double> reflectivities = {-1, 1};
+    for (double e : reflectivities)
+    {
+        switch (alpha)
+        {
+        case 0:
+            c1 = get_production_coefficient(e, Ji, mi, li, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
+            c3 = get_production_coefficient(e, Ji, -mi, li, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+
+            s1 = 1;
+            s2 = sign(mi + mj + li + lj + Ji + Jj);
+
+            sdme += c1 * c2 + s2 * c3 * c4;
+            break;
+        case 1:
+            c1 = get_production_coefficient(e, Ji, -mi, li, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
+            c3 = get_production_coefficient(e, Ji, mi, li, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+
+            s1 = sign(1 + mi + li + Ji);
+            s2 = sign(1 + mj + lj + Jj);
+
+            sdme += e * (s1 * c1 * c2 + s2 * c3 * c4);
+            break;
+        case 2:
+            c1 = get_production_coefficient(e, Ji, -mi, li, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
+            c3 = get_production_coefficient(e, Ji, mi, li, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+
+            s1 = sign(mi + li + Ji);
+            s2 = sign(mj + lj + Jj);
+
+            sdme += e * (s1 * c1 * c2 - s2 * c3 * c4);
+            break;
+        }
+    }
+
+    return sdme;
+}
+
+/**
+ * @brief Get the production coefficient for the wave's quantum numbers.
+ *
+ * @details
+ * Since we aren't explicitly looping over the parity values, we'll need to infer them
+ * from the J and L values. This function is thus hard-coded for omega-pi production
+ * processes for now.
+ * 
+ * @param[in] e reflectivity
+ * @param[in] J total angular momentum
+ * @param[in] m m-projection
+ * @param[in] L orbital angular momentum
+ * @return The production coefficient if found, or 0 if not found.
+ */
+complex<double> get_production_coefficient(
+    int e, int J, int m, int L, 
+    const FitResults &results)
+{
+    // determine the parity of the amplitude being requested
+    int P_omega = -1; // parity of the omega
+    int P_pi = -1; // parity of the pion
+    int P_L = (L % 2 == 0) ? 1 : -1; // parity due to relative orbital angular momentum of the 2-particle system
+    int P = P_omega * P_pi * P_L; // total parity of the system
+
+    // construct the amplitude name in the vec-ps format
+    AmplitudeParser parser(e, J, P, m, L);
+    std::string amp_name_to_get = parser.get_amplitude_name();
+
+
+    // if the amplitude is in the fit result, get the production coefficient
+    // NOTE: this is reaction and sum independent, meaning that we assume an amplitude
+    // that is shared across reactions or sums will be constrained across them (i.e. the
+    // production coefficient is the same)
+    std::vector<std::string> amp_list = results.ampList();
+    complex<double> production_coefficient = 0.0;
+    bool found = false;
+    for (const std::string &i_amp : amp_list)
+    {
+        AmplitudeParser i_amp_parser(i_amp);
+        std::string i_amp_name = i_amp_parser.get_amplitude_name();
+        if (i_amp_name == amp_name_to_get)
+        {
+            // get production coefficient by using "full" amplitude name
+            production_coefficient = results.scaledProductionParameter(i_amp);
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+    {
+        throw std::runtime_error(
+            "Production coefficient not found for amplitude: " + amp_name_to_get);
+    }
+
+    // TODO: Temporary, unsure if required, but doing fixed values to make sure we 
+    // replicate the python script
+    // multiply the production coefficient by the barrier factor 
+    double mass = 1.0;
+    double pion_mass = 0.1349768; // PDG value
+    double omega_mass = 0.78265; // PDG value
+    production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
+
+    // TODO: In the future, here is where we'll want to load in the normint factor for
+    //  this production coefficient and scale it
+
+    return production_coefficient;
+}
+
+int sign(int i)
+{
+    return (i % 2 == 0) ? 1 : -1;
 }
 
 int find_max_m(const FitResults &results)
@@ -228,7 +381,9 @@ int find_max_m(const FitResults &results)
                 amplitude.find("Background") != std::string::npos)
                 continue; // skip isotropic and background amplitudes
 
-            int m_value = parse_amplitude(amplitude).get_m_int();
+            AmplitudeParser parser(amplitude);
+            // Extract the m value from the amplitude
+            int m_value = parser.get_m_int();
             if (m_value > max_m)
             {
                 max_m = m_value;
@@ -250,7 +405,9 @@ int find_max_J(const FitResults &results)
                 amplitude.find("Background") != std::string::npos)
                 continue; // skip isotropic and background amplitudes
 
-            int J_value = parse_amplitude(amplitude).get_J_int();
+            AmplitudeParser parser(amplitude);
+            // Extract the J value from the amplitude
+            int J_value = parser.get_J_int();
             if (J_value > max_J)
             {
                 max_J = J_value;
