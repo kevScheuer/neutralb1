@@ -59,7 +59,7 @@ LIBRARY_DIRS := -L$(ROOTSYS)/lib \
                 -L$(HALLD_SIM_HOME)/Linux_Alma9-x86_64-gcc11.5.0/lib
 
 # Libraries to link against
-LIBS := $(ROOT_LIBS) -lAmpTools
+LIBS := $(ROOT_LIBS) -lAmpTools -lAMPTOOLS_AMPS
 
 # Combined flags
 CXXFLAGS += $(ROOT_CFLAGS) $(INCLUDE_DIRS)
