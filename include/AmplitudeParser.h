@@ -87,36 +87,35 @@ public:
     AmplitudeParser(int e, int J, int P, int m, int L);
 
     // String accessors
-    std::string get_e_str() const { return m_e_str; }
-    std::string get_J_str() const { return m_J_str; }
-    std::string get_P_str() const { return m_P_str; }
-    std::string get_m_str() const { return m_m_str; }
-    std::string get_L_str() const { return m_L_str; }
+    std::string get_e_str() const { return m_e_str; } ///< Reflectivity as string
+    std::string get_J_str() const { return m_J_str; } ///< Total angular momentum as string
+    std::string get_P_str() const { return m_P_str; } ///< Parity as string
+    std::string get_m_str() const { return m_m_str; } ///< m-projection as string
+    std::string get_L_str() const { return m_L_str; } ///< Orbital angular momentum as string
 
     // Integer accessors
-    int get_e_int() const { return m_e_int; }
-    int get_J_int() const { return m_J_int; }
-    int get_P_int() const { return m_P_int; }
-    int get_m_int() const { return m_m_int; }
-    int get_L_int() const { return m_L_int; }
+    int get_e_int() const { return m_e_int; } ///< Reflectivity as integer
+    int get_J_int() const { return m_J_int; } ///< Total angular momentum as integer
+    int get_P_int() const { return m_P_int; } ///< Parity as integer
+    int get_m_int() const { return m_m_int; } ///< m-projection as integer
+    int get_L_int() const { return m_L_int; } ///< Orbital angular momentum as integer
 
-    /**
-     * @brief Get the amplitude name (eJPmL format)
-     * @return String representation of the amplitude name
-     */
-    std::string get_amplitude_name() const;
+    // Amplitude accessors
+    std::string get_amplitude_reaction() const { return m_reaction; };
+    std::string get_amplitude_sum() const { return m_sum; };
+    std::string get_amplitude_name() const
+    {
+        return m_e_str + m_J_str + m_P_str + m_m_str + m_L_str;
+    };
+    std::string get_full_amplitude() const
+    {
+        return m_reaction + "::" + m_sum + "::" + get_amplitude_name();
+    };
 
-    /**
-     * @brief Get the reaction part of the amplitude name
-     * @return String representation of the reaction
-     */
-    std::string get_amplitude_reaction() const;
-
-    /**
-     * @brief Get the sum part of the amplitude name
-     * @return String representation of the sum
-     */
-    std::string get_amplitude_sum() const;
+    // Setters for amplitude components. Needed since we can construct amplitudes from just the quantum numbers.
+    void set_amplitude_reaction(std::string reaction) { m_reaction = reaction; };
+    void set_amplitude_sum(std::string sum) { m_sum = sum; };
+    // no setter for name, since constructors handle it
 };
 
 #endif // AMPLITUDE_PARSER_H

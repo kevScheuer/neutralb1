@@ -186,18 +186,3 @@ void AmplitudeParser::compute_strings()
     else
         throw std::invalid_argument("Invalid orbital angular momentum integer: " + std::to_string(m_L_int));
 }
-
-std::string AmplitudeParser::get_amplitude_reaction() const
-{
-    return m_reaction;
-}
-
-std::string AmplitudeParser::get_amplitude_sum() const
-{
-    return m_sum;
-}
-
-std::string AmplitudeParser::get_amplitude_name() const
-{
-    return m_e_str + m_J_str + m_P_str + m_m_str + m_L_str;
-}
