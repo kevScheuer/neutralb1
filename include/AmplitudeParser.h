@@ -4,11 +4,14 @@
  *
  */
 
-# ifndef AMPLITUDE_PARSER_H
-# define AMPLITUDE_PARSER_H
-
+#ifndef AMPLITUDE_PARSER_H
+#define AMPLITUDE_PARSER_H
 
 #include <string>
+
+// TODO: Later, have an amplitude style be inherited from somewhere, where the parsing
+//  becomes dependent on vec-ps, two-ps, or other defined styles with associated regex
+//  strings. Provide an option to override the style somewhere here too.
 
 /**
  * @class AmplitudeParser
@@ -21,17 +24,20 @@
 class AmplitudeParser
 {
 private:
-    std::string e_str; ///< Reflectivity as string: "p" or "m"
-    std::string J_str; ///< Total angular momentum as string: "0" to "9"
-    std::string P_str; ///< Parity as string: "p" or "m"
-    std::string m_str; ///< m-projection as string: "l", "n", "m", "0", "p", "q", "r"
-    std::string L_str; ///< Orbital angular momentum as string: "S", "P", "D", "F", "G", ...
+    std::string m_e_str; ///< Reflectivity as string: "p" or "m"
+    std::string m_J_str; ///< Total angular momentum as string: "0" to "9"
+    std::string m_P_str; ///< Parity as string: "p" or "m"
+    std::string m_m_str; ///< m-projection as string: "l", "n", "m", "0", "p", "q", "r"
+    std::string m_L_str; ///< Orbital angular momentum as string: "S", "P", "D", "F", "G", ...
 
-    int e_int; ///< Reflectivity as integer: +1 or -1
-    int J_int; ///< Total angular momentum as integer: 0, 1, 2, ...
-    int P_int; ///< Parity as integer: +1 or -1
-    int m_int; ///< m-projection as integer: -3 to +3
-    int L_int; ///< Orbital angular momentum as integer: 0=S, 1=P, 2=D, ...
+    std::string m_reaction; ///< Reaction part of the amplitude name
+    std::string m_sum;      ///< Sum part of the amplitude name
+
+    int m_e_int; ///< Reflectivity as integer: +1 or -1
+    int m_J_int; ///< Total angular momentum as integer: 0, 1, 2, ...
+    int m_P_int; ///< Parity as integer: +1 or -1
+    int m_m_int; ///< m-projection as integer: -3 to +3
+    int m_L_int; ///< Orbital angular momentum as integer: 0=S, 1=P, 2=D, ...
 
     /**
      * @brief Convert string representations to integer representations
@@ -44,7 +50,7 @@ private:
     void compute_strings();
 
     /**
-     * @brief Parse an amplitude string into quantum number components
+     * @brief Parse an amplitude string into its reaction, sum, and quantum number components
      * @param amplitude The full amplitude string to parse
      */
     void parse_from_amplitude(const std::string &amplitude);
@@ -81,24 +87,36 @@ public:
     AmplitudeParser(int e, int J, int P, int m, int L);
 
     // String accessors
-    std::string get_e_str() const { return e_str; }
-    std::string get_J_str() const { return J_str; }
-    std::string get_P_str() const { return P_str; }
-    std::string get_m_str() const { return m_str; }
-    std::string get_L_str() const { return L_str; }
+    std::string get_e_str() const { return m_e_str; }
+    std::string get_J_str() const { return m_J_str; }
+    std::string get_P_str() const { return m_P_str; }
+    std::string get_m_str() const { return m_m_str; }
+    std::string get_L_str() const { return m_L_str; }
 
     // Integer accessors
-    int get_e_int() const { return e_int; }
-    int get_J_int() const { return J_int; }
-    int get_P_int() const { return P_int; }
-    int get_m_int() const { return m_int; }
-    int get_L_int() const { return L_int; }
+    int get_e_int() const { return m_e_int; }
+    int get_J_int() const { return m_J_int; }
+    int get_P_int() const { return m_P_int; }
+    int get_m_int() const { return m_m_int; }
+    int get_L_int() const { return m_L_int; }
 
     /**
      * @brief Get the amplitude name (eJPmL format)
      * @return String representation of the amplitude name
      */
     std::string get_amplitude_name() const;
+
+    /**
+     * @brief Get the reaction part of the amplitude name
+     * @return String representation of the reaction
+     */
+    std::string get_amplitude_reaction() const;
+
+    /**
+     * @brief Get the sum part of the amplitude name
+     * @return String representation of the sum
+     */
+    std::string get_amplitude_sum() const;
 };
 
 #endif // AMPLITUDE_PARSER_H

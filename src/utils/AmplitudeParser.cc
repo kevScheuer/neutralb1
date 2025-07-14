@@ -10,7 +10,6 @@
 
 #include "AmplitudeParser.h"
 
-
 AmplitudeParser::AmplitudeParser(const std::string &amplitude)
 {
     parse_from_amplitude(amplitude);
@@ -19,28 +18,31 @@ AmplitudeParser::AmplitudeParser(const std::string &amplitude)
 
 AmplitudeParser::AmplitudeParser(const std::string &e, const std::string &J, const std::string &P,
                                  const std::string &m, const std::string &L)
-    : e_str(e), J_str(J), P_str(P), m_str(m), L_str(L)
+    : m_e_str(e), m_J_str(J), m_P_str(P), m_m_str(m), m_L_str(L)
 {
     compute_integers();
 }
 
 AmplitudeParser::AmplitudeParser(int e, int J, int P, int m, int L)
-    : e_int(e), J_int(J), P_int(P), m_int(m), L_int(L)
+    : m_e_int(e), m_J_int(J), m_P_int(P), m_m_int(m), m_L_int(L)
 {
     compute_strings();
 }
 
 void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
 {
-    // Extract amp_name from a format of reaction::sum::amp_name
-    size_t last_colon = amplitude.rfind("::");
-    if (last_colon == std::string::npos)
+    // Extract reaction, sum, and amp_name from a format of reaction::sum::amp_name
+    size_t first_colon = amplitude.find("::");
+    size_t second_colon = amplitude.find("::", first_colon + 2);
+    if (first_colon == std::string::npos || second_colon == std::string::npos)
     {
         throw std::invalid_argument(
-            "Amplitude string does not contain '::' separator. Ensure that the full"
+            "Amplitude string does not contain two '::' separators. Ensure that the full"
             " amplitude is provided in the format 'reaction::sum::amp_name'.");
     }
-    std::string amp_name = amplitude.substr(last_colon + 2);
+    m_reaction = amplitude.substr(0, first_colon);
+    m_sum = amplitude.substr(first_colon + 2, second_colon - (first_colon + 2));
+    std::string amp_name = amplitude.substr(second_colon + 2);
 
     // Use regex to parse the components according to expected format:
     // e = reflectivity (p or m)
@@ -64,128 +66,138 @@ void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
                                             "and remaining characters are orbital angular momentum (S/P/D/F/...).");
     }
 
-    e_str = matches[1].str(); // reflectivity
-    J_str = matches[2].str(); // total angular momentum
-    P_str = matches[3].str(); // parity
-    m_str = matches[4].str(); // m-projection
-    L_str = matches[5].str(); // orbital angular momentum
+    m_e_str = matches[1].str(); // reflectivity
+    m_J_str = matches[2].str(); // total angular momentum
+    m_P_str = matches[3].str(); // parity
+    m_m_str = matches[4].str(); // m-projection
+    m_L_str = matches[5].str(); // orbital angular momentum
 }
 
 void AmplitudeParser::compute_integers()
 {
     // Convert reflectivity
-    if (e_str == "p")
-        e_int = 1;
-    else if (e_str == "m")
-        e_int = -1;
+    if (m_e_str == "p")
+        m_e_int = 1;
+    else if (m_e_str == "m")
+        m_e_int = -1;
     else
-        throw std::invalid_argument("Invalid reflectivity: " + e_str);
+        throw std::invalid_argument("Invalid reflectivity: " + m_e_str);
 
     // Convert total angular momentum
-    J_int = std::stoi(J_str);
+    m_J_int = std::stoi(m_J_str);
 
     // Convert parity
-    if (P_str == "p")
-        P_int = 1;
-    else if (P_str == "m")
-        P_int = -1;
+    if (m_P_str == "p")
+        m_P_int = 1;
+    else if (m_P_str == "m")
+        m_P_int = -1;
     else
-        throw std::invalid_argument("Invalid parity: " + P_str);
+        throw std::invalid_argument("Invalid parity: " + m_P_str);
 
     // Convert m-projection
-    if (m_str == "l")
-        m_int = -3;
-    else if (m_str == "n")
-        m_int = -2;
-    else if (m_str == "m")
-        m_int = -1;
-    else if (m_str == "0")
-        m_int = 0;
-    else if (m_str == "p")
-        m_int = 1;
-    else if (m_str == "q")
-        m_int = 2;
-    else if (m_str == "r")
-        m_int = 3;
+    if (m_m_str == "l")
+        m_m_int = -3;
+    else if (m_m_str == "n")
+        m_m_int = -2;
+    else if (m_m_str == "m")
+        m_m_int = -1;
+    else if (m_m_str == "0")
+        m_m_int = 0;
+    else if (m_m_str == "p")
+        m_m_int = 1;
+    else if (m_m_str == "q")
+        m_m_int = 2;
+    else if (m_m_str == "r")
+        m_m_int = 3;
     else
-        throw std::invalid_argument("Invalid m-projection: " + m_str);
+        throw std::invalid_argument("Invalid m-projection: " + m_m_str);
 
     // Convert orbital angular momentum
-    if (L_str == "S")
-        L_int = 0;
-    else if (L_str == "P")
-        L_int = 1;
-    else if (L_str == "D")
-        L_int = 2;
-    else if (L_str == "F")
-        L_int = 3;
-    else if (L_str == "G")
-        L_int = 4;
+    if (m_L_str == "S")
+        m_L_int = 0;
+    else if (m_L_str == "P")
+        m_L_int = 1;
+    else if (m_L_str == "D")
+        m_L_int = 2;
+    else if (m_L_str == "F")
+        m_L_int = 3;
+    else if (m_L_str == "G")
+        m_L_int = 4;
     // Add more as needed...
     else
-        throw std::invalid_argument("Invalid orbital angular momentum: " + L_str);
+        throw std::invalid_argument("Invalid orbital angular momentum: " + m_L_str);
 }
 
 void AmplitudeParser::compute_strings()
 {
     // Convert reflectivity
-    if (e_int == 1)
-        e_str = "p";
-    else if (e_int == -1)
-        e_str = "m";
+    if (m_e_int == 1)
+        m_e_str = "p";
+    else if (m_e_int == -1)
+        m_e_str = "m";
     else
-        throw std::invalid_argument("Invalid reflectivity integer: " + std::to_string(e_int));
+        throw std::invalid_argument("Invalid reflectivity integer: " + std::to_string(m_e_int));
 
     // Convert total angular momentum
-    if (J_int < 0 || J_int > 9)
+    if (m_J_int < 0 || m_J_int > 9)
     {
-        throw std::invalid_argument("Invalid total angular momentum: " + std::to_string(J_int));
+        throw std::invalid_argument("Invalid total angular momentum: " + std::to_string(m_J_int));
     }
-    J_str = std::to_string(J_int);
+    m_J_str = std::to_string(m_J_int);
 
     // Convert parity
-    if (P_int == 1)
-        P_str = "p";
-    else if (P_int == -1)
-        P_str = "m";
+    if (m_P_int == 1)
+        m_P_str = "p";
+    else if (m_P_int == -1)
+        m_P_str = "m";
     else
-        throw std::invalid_argument("Invalid parity integer: " + std::to_string(P_int));
+        throw std::invalid_argument("Invalid parity integer: " + std::to_string(m_P_int));
 
     // Convert m-projection
-    if (m_int == -3)
-        m_str = "l";
-    else if (m_int == -2)
-        m_str = "n";
-    else if (m_int == -1)
-        m_str = "m";
-    else if (m_int == 0)
-        m_str = "0";
-    else if (m_int == 1)
-        m_str = "p";
-    else if (m_int == 2)
-        m_str = "q";
-    else if (m_int == 3)
-        m_str = "r";
+    if (m_m_int == -3)
+        m_m_str = "l";
+    else if (m_m_int == -2)
+        m_m_str = "n";
+    else if (m_m_int == -1)
+        m_m_str = "m";
+    else if (m_m_int == 0)
+        m_m_str = "0";
+    else if (m_m_int == 1)
+        m_m_str = "p";
+    else if (m_m_int == 2)
+        m_m_str = "q";
+    else if (m_m_int == 3)
+        m_m_str = "r";
     else
-        throw std::invalid_argument("Invalid m-projection integer: " + std::to_string(m_int));
+        throw std::invalid_argument("Invalid m-projection integer: " + std::to_string(m_m_int));
 
     // Convert orbital angular momentum
-    if (L_int == 0)
-        L_str = "S";
-    else if (L_int == 1)
-        L_str = "P";
-    else if (L_int == 2)
-        L_str = "D";
-    else if (L_int == 3)
-        L_str = "F";
-    else if (L_int == 4)
-        L_str = "G";
+    if (m_L_int == 0)
+        m_L_str = "S";
+    else if (m_L_int == 1)
+        m_L_str = "P";
+    else if (m_L_int == 2)
+        m_L_str = "D";
+    else if (m_L_int == 3)
+        m_L_str = "F";
+    else if (m_L_int == 4)
+        m_L_str = "G";
     // Add more as needed...
     else
-        throw std::invalid_argument("Invalid orbital angular momentum integer: " + std::to_string(L_int));
+        throw std::invalid_argument("Invalid orbital angular momentum integer: " + std::to_string(m_L_int));
+}
+
+std::string AmplitudeParser::get_amplitude_reaction() const
+{
+    return m_reaction;
+}
+
+std::string AmplitudeParser::get_amplitude_sum() const
+{
+    return m_sum;
 }
 
 std::string AmplitudeParser::get_amplitude_name() const
 {
-    return e_str + J_str + P_str + m_str + L_str;
+    return m_e_str + m_J_str + m_P_str + m_m_str + m_L_str;
 }
