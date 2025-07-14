@@ -4,7 +4,7 @@
 		{
 			"label": "Build Project",
 			"type": "shell",
-			"command": "./build.sh",
+			"command": "make",
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -14,13 +14,13 @@
 				"$gcc"
 			],
 			"args": [],
-			"detail": "Build the project using build.sh script"
+			"detail": "Build the project using make (auto-detects environment)"
 		},
 		{
 			"label": "Build Debug",
 			"type": "shell",
-			"command": "bash",
-			"args": ["-c", "source config/setup_gluex.sh && make debug"],
+			"command": "make",
+			"args": ["debug"],
 			"group": "build",
 			"isBackground": false,
 			"problemMatcher": [
@@ -31,8 +31,8 @@
 		{
 			"label": "Build Release",
 			"type": "shell", 
-			"command": "bash",
-			"args": ["-c", "source config/setup_gluex.sh && make release"],
+			"command": "make",
+			"args": ["release"],
 			"group": "build",
 			"isBackground": false,
 			"problemMatcher": [

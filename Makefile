@@ -4,6 +4,11 @@
 # Build configuration (debug or release)
 BUILD_TYPE ?= release
 
+# Project environment file
+ENV_FILE := config/.env
+SETUP_SCRIPT := config/setup_gluex.sh
+-include $(ENV_FILE)
+
 # Project directories
 PROJECT_ROOT := $(shell pwd)
 SRC_DIR := src
@@ -35,9 +40,9 @@ BASE_CXXFLAGS := -std=c++17 -Wall -Wextra -fPIC
 
 # Build-specific flags
 ifeq ($(BUILD_TYPE),debug)
-    CXXFLAGS := $(BASE_CXXFLAGS) -g -O0 -DDEBUG
+    BASE_BUILD_CXXFLAGS := $(BASE_CXXFLAGS) -g -O0 -DDEBUG
 else ifeq ($(BUILD_TYPE),release)
-    CXXFLAGS := $(BASE_CXXFLAGS) -O2 -DNDEBUG
+    BASE_BUILD_CXXFLAGS := $(BASE_CXXFLAGS) -O2 -DNDEBUG
 else
     $(error Invalid BUILD_TYPE: $(BUILD_TYPE). Use 'debug' or 'release')
 endif
@@ -50,8 +55,8 @@ INCLUDE_DIRS := -I$(PROJECT_ROOT)/include \
                 -I$(HALLD_SIM_HOME)/Linux_Alma9-x86_64-gcc11.5.0/include
 
 # ROOT specific flags
-ROOT_CFLAGS := $(shell root-config --cflags)
-ROOT_LIBS := $(shell root-config --libs)
+ROOT_CFLAGS = $(shell $(ROOTSYS)/bin/root-config --cflags)
+ROOT_LIBS = $(shell $(ROOTSYS)/bin/root-config --libs)
 
 # Library paths from your setup script
 LIBRARY_DIRS := -L$(ROOTSYS)/lib \
@@ -59,15 +64,15 @@ LIBRARY_DIRS := -L$(ROOTSYS)/lib \
                 -L$(HALLD_SIM_HOME)/Linux_Alma9-x86_64-gcc11.5.0/lib
 
 # Libraries to link against
-LIBS := $(ROOT_LIBS) -lAmpTools -lAMPTOOLS_AMPS
+LIBS = $(ROOT_LIBS) -lAmpTools -lAMPTOOLS_AMPS
 
 # Combined flags
-CXXFLAGS += $(ROOT_CFLAGS) $(INCLUDE_DIRS)
-LDFLAGS := $(LIBRARY_DIRS) $(LIBS)
+CXXFLAGS = $(BASE_BUILD_CXXFLAGS) $(ROOT_CFLAGS) $(INCLUDE_DIRS)
+LDFLAGS = $(LIBRARY_DIRS) $(LIBS)
 
 # Default target
 .PHONY: all
-all: directories $(BATCH_EXECUTABLES) $(ALL_OBJECTS)
+all: $(ENV_FILE) directories $(BATCH_EXECUTABLES) $(ALL_OBJECTS)
 
 # Debug and release targets
 .PHONY: debug release
@@ -98,6 +103,13 @@ $(BIN_DIR)/%: $(OBJ_DIR)/batch/%.o $(UTILS_OBJECTS) $(ANALYSIS_OBJECTS) $(SELECT
 	@echo "Linking $@..."
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
+# Rule to generate the environment file from the setup script
+$(ENV_FILE): $(SETUP_SCRIPT)
+	@echo "Generating environment file from setup script..."
+	@mkdir -p config
+	@bash -c 'source $(SETUP_SCRIPT) && env | grep -E "^(ROOTSYS|AMPTOOLS|HALLD_|FSROOT|ROOT_|PATH|LD_LIBRARY_PATH|LIBRARY_PATH|CPLUS_INCLUDE_PATH|DYLD_LIBRARY_PATH)" | sort | sed "s/^/export /" > $(ENV_FILE)'
+	@echo "Environment file generated at $(ENV_FILE)"
+
 # Individual executable targets for convenience
 .PHONY: extract_fit_results angle_plotter extract_cov_matrix extract_corr_matrix extract_bin_info project_moments
 extract_fit_results: $(BIN_DIR)/extract_fit_results
@@ -118,8 +130,9 @@ library: $(LIB_DIR)/libneutralb1.so
 # Clean targets
 .PHONY: clean
 clean:
-	@echo "Cleaning all build directories..."
+	@echo "Cleaning all build directories and the environment file..."
 	rm -rf build/*
+	rm -f $(ENV_FILE)
 
 .PHONY: clean-debug
 clean-debug:
@@ -141,21 +154,17 @@ clean-bins:
 	@echo "Cleaning executables..."
 	rm -rf $(BIN_DIR)/*
 
-# Setup environment (sources your setup script)
-.PHONY: setup
-setup:
-	@echo "To setup environment, source the setup script:"
-	@echo "source config/setup_gluex.sh"
+.PHONY: clean-env
+clean-env:
+	@echo "Cleaning environment file..."
+	rm -f $(ENV_FILE)
 
-# Install targets (copies binaries to a system location if needed)
-INSTALL_PREFIX ?= /usr/local
-.PHONY: install
-install: all
-	@echo "Installing to $(INSTALL_PREFIX)..."
-	mkdir -p $(INSTALL_PREFIX)/bin
-	cp $(BIN_DIR)/* $(INSTALL_PREFIX)/bin/
-	mkdir -p $(INSTALL_PREFIX)/lib
-	cp $(LIB_DIR)/* $(INSTALL_PREFIX)/lib/ 2>/dev/null || true
+.PHONY: update-env
+update-env:
+	@echo "Forcing regeneration of environment file..."
+	@rm -f $(ENV_FILE)
+	@$(MAKE) $(ENV_FILE)
+
 
 # Debug information
 .PHONY: info
@@ -181,11 +190,13 @@ help:
 	@echo "  all              - Build all executables and object files (current: $(BUILD_TYPE))"
 	@echo "  debug            - Build debug version with -g -O0"
 	@echo "  release          - Build release version with -O2"
-	@echo "  clean            - Remove all build files"
+	@echo "  clean            - Remove all build files and environment file"
 	@echo "  clean-debug      - Remove only debug build files"
 	@echo "  clean-release    - Remove only release build files"
 	@echo "  clean-objects    - Remove only object files"
 	@echo "  clean-bins       - Remove only executables"
+	@echo "  clean-env        - Remove environment file"	
+	@echo "  update-env       - Force regeneration of environment file"
 	@echo "  library          - Build shared library from analysis/utils code"
 	@echo "  setup            - Show setup instructions"
 	@echo "  install          - Install binaries to $(INSTALL_PREFIX)"
@@ -199,9 +210,24 @@ help:
 	@echo "  extract_corr_matrix"
 	@echo "  extract_bin_info"
 	@echo "  project_moments"
+	@echo ""
+	@echo "Environment:"
+	@echo "  The .env file is automatically generated from $(SETUP_SCRIPT)"
+	@echo "  Use 'make update-env' to force regeneration"
 
 # Dependency tracking (optional, for automatic rebuilds when headers change)
+# Only include dependencies if we're not cleaning and environment is loaded
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),clean-all)
+ifneq ($(MAKECMDGOALS),clean-env)
+ifneq ($(MAKECMDGOALS),update-env)
+ifdef ROOTSYS
 -include $(ALL_OBJECTS:.o=.d)
+endif
+endif
+endif
+endif
+endif
 
 $(OBJ_DIR)/%.d: $(SRC_DIR)/%.cc
 	@mkdir -p $(dir $@)

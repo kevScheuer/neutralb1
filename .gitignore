@@ -5,6 +5,7 @@
 gen_signal.cfg
 fit.cfg
 bin_template.cfg
+config/.env
 
 # data output
 *.pdf
