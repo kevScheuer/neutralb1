@@ -101,20 +101,26 @@ public:
     int get_L_int() const { return m_L_int; } ///< Orbital angular momentum as integer
 
     // Amplitude accessors
-    std::string get_amplitude_reaction() const { return m_reaction; };
-    std::string get_amplitude_sum() const { return m_sum; };
-    std::string get_amplitude_name() const
+    std::string get_amplitude_reaction() const { return m_reaction; }; ///< Reaction part of the amplitude name
+    std::string get_amplitude_sum() const { return m_sum; }; ///< Sum part of the amplitude name
+    /**
+     * @brief Get the amplitude name in the format eJPmL
+     */
+    std::string get_amplitude_name() const 
     {
         return m_e_str + m_J_str + m_P_str + m_m_str + m_L_str;
     };
+    /**
+     * @brief Get the full amplitude name in the format reaction::sum::eJPmL
+     */
     std::string get_full_amplitude() const
     {
         return m_reaction + "::" + m_sum + "::" + get_amplitude_name();
     };
 
     // Setters for amplitude components. Needed since we can construct amplitudes from just the quantum numbers.
-    void set_amplitude_reaction(std::string reaction) { m_reaction = reaction; };
-    void set_amplitude_sum(std::string sum) { m_sum = sum; };
+    void set_amplitude_reaction(std::string reaction) { m_reaction = reaction; }; ///< Set the reaction part of the amplitude name
+    void set_amplitude_sum(std::string sum) { m_sum = sum; }; ///< Set the sum part of the amplitude name
     // no setter for name, since constructors handle it
 };
 
