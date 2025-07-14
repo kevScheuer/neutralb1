@@ -15,6 +15,7 @@ TODO: Print a warning to the user if the fit results do not contain the same set
 Usage: project_moments
 */
 
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -331,8 +332,21 @@ complex<double> get_production_coefficient(
     // that is shared across reactions or sums will be constrained across them (i.e. the
     // production coefficient is the same)
     std::vector<std::string> amp_list = results.ampList();
+
+    // filter out isotropic and background amplitudes
+    amp_list.erase(
+        std::remove_if(
+            amp_list.begin(),
+            amp_list.end(),
+            [](const std::string &amp) {
+                return amp.find("isotropic") != std::string::npos ||
+                       amp.find("Background") != std::string::npos;
+            }
+        ),
+        amp_list.end()
+    );
+
     complex<double> production_coefficient = 0.0;
-    bool found = false;
     for (const std::string &i_amp : amp_list)
     {
         AmplitudeParser i_amp_parser(i_amp);
@@ -341,20 +355,15 @@ complex<double> get_production_coefficient(
         {
             // get production coefficient by using "full" amplitude name
             production_coefficient = results.scaledProductionParameter(i_amp);
-            found = true;
             break;
         }
     }
-    if (!found)
-    {
-        throw std::runtime_error(
-            "Production coefficient not found for amplitude: " + amp_name_to_get);
-    }
+
 
     // TODO: Temporary, unsure if required, but doing fixed values to make sure we 
     // replicate the python script
     // multiply the production coefficient by the barrier factor 
-    double mass = 1.0;
+    double mass = 1.21;
     double pion_mass = 0.1349768; // PDG value
     double omega_mass = 0.78265; // PDG value
     production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
