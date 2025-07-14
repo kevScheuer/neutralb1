@@ -2,20 +2,18 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    
     "version": "0.2.0",
     "configurations": [
         {
             "name": "Debug C++ Binary",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/bin/bash",
-            "args": [
-                "-c",
-                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/debug/bin/${input:binaryName}"
-            ],
+            "program": "${workspaceFolder}/build/debug/bin/${input:binaryName}",
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "envFile": "${workspaceFolder}/config/.env",
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
@@ -29,17 +27,17 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "Debug C++ Binary with Arguments",
+            "name": "Debug C++ Binary with 2 Arguments",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/bin/bash",
+            "program": "${workspaceFolder}/build/debug/bin/${input:binaryName}",
             "args": [
-                "-c",
-                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/debug/bin/${input:binaryName} ${input:programArgs}"
-            ],
+                "${input:arg1}",
+                "${input:arg2}"
+            ], // currently does not support variable # of arguments
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "envFile": "${workspaceFolder}/config/.env",
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
@@ -50,30 +48,6 @@
                 }
             ],
             "preLaunchTask": "Build Debug",
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "Run C++ Binary (Release)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "/bin/bash",
-            "args": [
-                "-c",
-                "source ${workspaceFolder}/config/setup_gluex.sh && ${workspaceFolder}/build/release/bin/${input:binaryName} ${input:programArgs}"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "Build Release",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ],
@@ -85,10 +59,14 @@
             "type": "promptString"
         },
         {
-            "id": "programArgs",
-            "description": "Program arguments (space-separated, e.g., 'input.txt output.csv')",
-            "default": "example.txt output.csv",
+            "id": "arg1",
+            "description": "Program argument 1 (e.g., 'input.txt')",            
             "type": "promptString"
-        }
+        },
+        {
+            "id": "arg2",
+            "description": "Program argument 2 (e.g., 'output.txt')",
+            "type": "promptString"
+        },
     ]
 }
