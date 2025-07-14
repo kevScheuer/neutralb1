@@ -28,6 +28,7 @@ Usage: project_moments
 #include "file_utils.h"
 #include "AmplitudeParser.h"
 #include "AMPTOOLS_AMPS/barrierFactor.h"
+#include "AMPTOOLS_AMPS/clebschGordan.h"
 
 struct Moment
 {
@@ -51,7 +52,7 @@ complex<double> calculate_SDME(
     int Jj, int lj, int mj,
     const FitResults &results);
 complex<double> get_production_coefficient(
-    int e, int J, int m, int L, 
+    int e, int J, int m, int L,
     const FitResults &results);
 int sign(int i);
 int find_max_m(const FitResults &results);
@@ -194,16 +195,16 @@ std::vector<Moment> initialize_moments(const FitResults &results)
 complex<double> calculate_moment(const Moment &moment, const FitResults &results)
 {
     complex<double> moment_value = 0.0;
+    int max_J = find_max_J(results);
 
     // for-loops below are done to best match the mathematical definition
-    //  since moment.J = max(waveset J) + 1, we just need to iterate from -moment.J+1 to moment.J - 1
-    for (int Ji = 0; Ji < moment.J; ++Ji)
+    for (int Ji = 0; Ji <= max_J; ++Ji)
     {
-        for (int li = 0; li <= Ji; ++li)
+        for (int li = 0; li <= Ji + 1; ++li)
         {
-            for (int Jj = 0; Jj < moment.J; ++Jj)
+            for (int Jj = 0; Jj <= max_J; ++Jj)
             {
-                for (int lj = 0; lj <= Jj; ++lj)
+                for (int lj = 0; lj <= Jj + 1; ++lj)
                 {
                     for (int mi = -Ji; mi <= Ji; ++mi)
                     {
@@ -212,14 +213,25 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                             complex<double> sdme = calculate_SDME(moment.alpha, Ji, li, mi, Jj, lj, mj, results);
                             if (sdme == 0.0)
                                 continue; // skip lambda loops since result is 0
-                            
+
                             double norm = ((2.0 * moment.J + 1) * (2 * moment.Jv + 1)) / (16.0 * M_PI * M_PI);
 
                             for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
                             {
                                 for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
                                 {
-                                    // TODO: calculate CGs with halld_sim library
+                                    double clebsch = 1.0;
+                                    clebsch *= clebschGordan(li, 1, 0, lambda_i, Ji, lambda_i);
+                                    clebsch *= clebschGordan(lj, 1, 0, lambda_j, Jj, lambda_j);
+                                    clebsch *= clebschGordan(1, moment.Jv, lambda_i, moment.Lambda, 1, lambda_j);
+                                    clebsch *= clebschGordan(1, moment.Jv, 0, 0, 1, 0);
+                                    clebsch *= clebschGordan(Ji, moment.J, mi, moment.M, Jj, mj);
+                                    clebsch *= clebschGordan(Ji, moment.J, lambda_i, moment.Lambda, Jj, lambda_j);
+                                    if (clebsch == 0.0)
+                                        continue; // result for this loop is 0
+
+                                    // add the contribution to the moment value
+                                    moment_value += norm * clebsch * sdme;
                                 }
                             }
                         }
@@ -234,7 +246,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
 
 /**
  * @brief Calculate the Spin Density Matrix Element (SDME) for given quantum numbers.
- * 
+ *
  * @param[in] alpha indexes the intensity term
  *  0: unpolarized, 1: polarized cos(2*Phi), 2: polarized sin(2*Phi)
  * @param[in] Ji 1st wave spin
@@ -305,7 +317,7 @@ complex<double> calculate_SDME(
  * Since we aren't explicitly looping over the parity values, we'll need to infer them
  * from the J and L values. This function is thus hard-coded for omega-pi production
  * processes for now.
- * 
+ *
  * @param[in] e reflectivity
  * @param[in] J total angular momentum
  * @param[in] m m-projection
@@ -313,19 +325,18 @@ complex<double> calculate_SDME(
  * @return The production coefficient if found, or 0 if not found.
  */
 complex<double> get_production_coefficient(
-    int e, int J, int m, int L, 
+    int e, int J, int m, int L,
     const FitResults &results)
 {
     // determine the parity of the amplitude being requested
-    int P_omega = -1; // parity of the omega
-    int P_pi = -1; // parity of the pion
+    int P_omega = -1;                // parity of the omega
+    int P_pi = -1;                   // parity of the pion
     int P_L = (L % 2 == 0) ? 1 : -1; // parity due to relative orbital angular momentum of the 2-particle system
-    int P = P_omega * P_pi * P_L; // total parity of the system
+    int P = P_omega * P_pi * P_L;    // total parity of the system
 
     // construct the amplitude name in the vec-ps format
     AmplitudeParser parser(e, J, P, m, L);
     std::string amp_name_to_get = parser.get_amplitude_name();
-
 
     // if the amplitude is in the fit result, get the production coefficient
     // NOTE: this is reaction and sum independent, meaning that we assume an amplitude
@@ -338,13 +349,12 @@ complex<double> get_production_coefficient(
         std::remove_if(
             amp_list.begin(),
             amp_list.end(),
-            [](const std::string &amp) {
+            [](const std::string &amp)
+            {
                 return amp.find("isotropic") != std::string::npos ||
                        amp.find("Background") != std::string::npos;
-            }
-        ),
-        amp_list.end()
-    );
+            }),
+        amp_list.end());
 
     complex<double> production_coefficient = 0.0;
     for (const std::string &i_amp : amp_list)
@@ -359,13 +369,12 @@ complex<double> get_production_coefficient(
         }
     }
 
-
-    // TODO: Temporary, unsure if required, but doing fixed values to make sure we 
+    // TODO: Temporary, unsure if required, but doing fixed values to make sure we
     // replicate the python script
-    // multiply the production coefficient by the barrier factor 
+    // multiply the production coefficient by the barrier factor
     double mass = 1.21;
     double pion_mass = 0.1349768; // PDG value
-    double omega_mass = 0.78265; // PDG value
+    double omega_mass = 0.78265;  // PDG value
     production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
 
     // TODO: In the future, here is where we'll want to load in the normint factor for
