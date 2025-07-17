@@ -9,10 +9,10 @@ For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be wr
 in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
 you'll have to account for it in parse_amplitude()
 
-TODO: Fill in
 TODO: Print a warning to the user if the fit results do not contain the same set of
     amplitudes. Have default behavior fill in the missing amplitudes with 0.
-Usage: project_moments
+TODO: Slow right now. Could be improved by reading in production coefficients at once,
+    and then calculating the moments in parallel.
 */
 
 #include <algorithm>
@@ -25,10 +25,11 @@ Usage: project_moments
 #include <unordered_set>
 
 #include "IUAmpTools/FitResults.h"
-#include "file_utils.h"
-#include "AmplitudeParser.h"
+#include "IUAmpTools/NormIntInterface.h"
 #include "AMPTOOLS_AMPS/barrierFactor.h"
 #include "AMPTOOLS_AMPS/clebschGordan.h"
+#include "file_utils.h"
+#include "AmplitudeParser.h"
 
 struct Moment
 {
@@ -214,7 +215,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                             if (sdme == 0.0)
                                 continue; // skip lambda loops since result is 0
 
-                            double norm = ((2.0 * moment.J + 1) * (2 * moment.Jv + 1)) / (16.0 * M_PI * M_PI);
+                            double norm = (std::sqrt(2*li+1) * std::sqrt(2*lj+1)) / (2.0 * Jj + 1);                            
 
                             for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
                             {
@@ -241,6 +242,8 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
         }
     }
 
+    // double moment_norm = ((2.0 * moment.J + 1) * (2 * moment.Jv + 1)) / (16.0 * M_PI * M_PI);
+    moment_value *= 0.5; // multiply by 1/2 due to double counting in SDME. This should be a more formal normalization factor
     return moment_value;
 }
 
@@ -277,7 +280,7 @@ complex<double> calculate_SDME(
             c3 = get_production_coefficient(e, Ji, -mi, li, results);
             c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
 
-            s1 = 1;
+            s1 = 1.0;
             s2 = sign(mi + mj + li + lj + Ji + Jj);
 
             sdme += c1 * c2 + s2 * c3 * c4;
@@ -307,6 +310,9 @@ complex<double> calculate_SDME(
         }
     }
 
+    if (alpha == 2)
+        sdme *= complex<double>(0, 1); // needs a factor of i outside the loop
+
     return sdme;
 }
 
@@ -316,7 +322,8 @@ complex<double> calculate_SDME(
  * @details
  * Since we aren't explicitly looping over the parity values, we'll need to infer them
  * from the J and L values. This function is thus hard-coded for omega-pi production
- * processes for now.
+ * processes for now, and is reaction and sum independent. Any fit with multiple
+ * reactions and non-constrained sums could be subject to undefined behavior.
  *
  * @param[in] e reflectivity
  * @param[in] J total angular momentum
@@ -338,13 +345,10 @@ complex<double> get_production_coefficient(
     AmplitudeParser parser(e, J, P, m, L);
     std::string amp_name_to_get = parser.get_amplitude_name();
 
-    // if the amplitude is in the fit result, get the production coefficient
-    // NOTE: this is reaction and sum independent, meaning that we assume an amplitude
-    // that is shared across reactions or sums will be constrained across them (i.e. the
-    // production coefficient is the same)
+    // we'll need to find the amplitude's value by looping through the available amplitude list
     std::vector<std::string> amp_list = results.ampList();
 
-    // filter out isotropic and background amplitudes
+    // filter out isotropic background amplitudes
     amp_list.erase(
         std::remove_if(
             amp_list.begin(),
@@ -356,18 +360,53 @@ complex<double> get_production_coefficient(
             }),
         amp_list.end());
 
-    complex<double> production_coefficient = 0.0;
+    // the production coefficient from constrained sums is equal, but their
+    // normalization aren't, and so we need to capture both sums
+    std::vector<std::string> matching_amplitudes;
     for (const std::string &i_amp : amp_list)
     {
         AmplitudeParser i_amp_parser(i_amp);
         std::string i_amp_name = i_amp_parser.get_amplitude_name();
         if (i_amp_name == amp_name_to_get)
         {
-            // get production coefficient by using "full" amplitude name
-            production_coefficient = results.scaledProductionParameter(i_amp);
-            break;
+            matching_amplitudes.push_back(i_amp);
         }
     }
+
+    // run some error checks
+    if (matching_amplitudes.empty())
+    {
+        return 0.0; // amplitude not found, return 0
+    }
+    else if (matching_amplitudes.size() > 2)
+    {
+    throw std::runtime_error(
+        "Amplitude '" + amp_name_to_get +
+        "' was found in more than two coherent sums");
+    }
+    if (results.scaledProductionParameter(matching_amplitudes[0]) !=
+        results.scaledProductionParameter(matching_amplitudes[1]))
+    {
+        throw std::runtime_error(
+            "Amplitude '" + amp_name_to_get +
+            "' has different production parameters in coherent sums,"
+            " check that it is constrained in the fit");
+    }
+
+    // get the production coefficient, and the normalization integrals from the 2 sums
+    complex<double> production_coefficient = results.scaledProductionParameter(matching_amplitudes[0]);
+    complex<double> sum_normalization_integrals = 0.0;
+
+    for (const std::string &amp : matching_amplitudes)
+    {
+        // NOTE: currently only uses normInt, so no acceptance correction done
+        AmplitudeParser amp_parser(amp);
+        const NormIntInterface *norm_interface = results.normInt(amp_parser.get_amplitude_reaction());
+        complex<double> N = norm_interface->normInt(amp, amp);
+        sum_normalization_integrals += std::real(N);
+    }
+    
+    production_coefficient *= std::sqrt(sum_normalization_integrals);
 
     // TODO: Temporary, unsure if required, but doing fixed values to make sure we
     // replicate the python script
@@ -375,10 +414,7 @@ complex<double> get_production_coefficient(
     double mass = 1.21;
     double pion_mass = 0.1349768; // PDG value
     double omega_mass = 0.78265;  // PDG value
-    production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
-
-    // TODO: In the future, here is where we'll want to load in the normint factor for
-    //  this production coefficient and scale it
+    // production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
 
     return production_coefficient;
 }
