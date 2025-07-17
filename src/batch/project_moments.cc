@@ -11,8 +11,6 @@ you'll have to account for it in parse_amplitude()
 
 TODO: Print a warning to the user if the fit results do not contain the same set of
     amplitudes. Have default behavior fill in the missing amplitudes with 0.
-TODO: Slow right now. Could be improved by reading in production coefficients at once,
-    and then calculating the moments in parallel.
 */
 
 #include <algorithm>
@@ -23,6 +21,8 @@ TODO: Slow right now. Could be improved by reading in production coefficients at
 #include <complex>
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
+#include <tuple>
 
 #include "IUAmpTools/FitResults.h"
 #include "IUAmpTools/NormIntInterface.h"
@@ -45,6 +45,27 @@ struct Moment
     }
 };
 
+// Structure to represent SDME calculation parameters as a cache key
+struct SDMEKey
+{
+    int alpha;
+    int Ji;
+    int li;
+    int mi;
+    int Jj;
+    int lj;
+    int mj;
+
+    bool operator<(const SDMEKey &other) const
+    {
+        return std::tie(alpha, Ji, li, mi, Jj, lj, mj) <
+               std::tie(other.alpha, other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj);
+    }
+};
+
+// Global cache for SDME values
+static std::map<SDMEKey, std::complex<double>> sdme_cache;
+
 // forward declarations
 std::vector<Moment> initialize_moments(const FitResults &results);
 complex<double> calculate_moment(const Moment &moment, const FitResults &results);
@@ -58,6 +79,8 @@ complex<double> get_production_coefficient(
 int sign(int i);
 int find_max_m(const FitResults &results);
 int find_max_J(const FitResults &results);
+void clear_sdme_cache();
+void precompute_sdme_cache(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
@@ -110,9 +133,13 @@ int main(int argc, char *argv[])
         // before getting this file's info, clear the results from the last file
         moment_results.clear();
         moments.clear();
+        clear_sdme_cache(); // Clear SDME cache for new file
 
         // initialize the set of moments we can have from this file's waveset
         moments = initialize_moments(results);
+
+        // Optionally precompute all SDME values for this file
+        precompute_sdme_cache(results);
 
         for (const Moment &moment : moments)
         {
@@ -215,7 +242,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                             if (sdme == 0.0)
                                 continue; // skip lambda loops since result is 0
 
-                            double norm = (std::sqrt(2*li+1) * std::sqrt(2*lj+1)) / (2.0 * Jj + 1);                            
+                            double norm = (std::sqrt(2 * li + 1) * std::sqrt(2 * lj + 1)) / (2.0 * Jj + 1);
 
                             for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
                             {
@@ -266,6 +293,17 @@ complex<double> calculate_SDME(
     int Jj, int lj, int mj,
     const FitResults &results)
 {
+    // Create cache key
+    SDMEKey key = {alpha, Ji, li, mi, Jj, lj, mj};
+
+    // Check if value is already cached
+    auto cache_it = sdme_cache.find(key);
+    if (cache_it != sdme_cache.end())
+    {
+        return cache_it->second;
+    }
+
+    // Calculate SDME value if not cached
     complex<double> sdme = 0.0;
     complex<double> c1, c2, c3, c4; // the four complex production coefficients
     double s1, s2;                  // sign factors in the SDME formula
@@ -312,6 +350,9 @@ complex<double> calculate_SDME(
 
     if (alpha == 2)
         sdme *= complex<double>(0, 1); // needs a factor of i outside the loop
+
+    // Cache the calculated value
+    sdme_cache[key] = sdme;
 
     return sdme;
 }
@@ -380,9 +421,9 @@ complex<double> get_production_coefficient(
     }
     else if (matching_amplitudes.size() > 2)
     {
-    throw std::runtime_error(
-        "Amplitude '" + amp_name_to_get +
-        "' was found in more than two coherent sums");
+        throw std::runtime_error(
+            "Amplitude '" + amp_name_to_get +
+            "' was found in more than two coherent sums");
     }
     if (results.scaledProductionParameter(matching_amplitudes[0]) !=
         results.scaledProductionParameter(matching_amplitudes[1]))
@@ -405,7 +446,7 @@ complex<double> get_production_coefficient(
         complex<double> N = norm_interface->normInt(amp, amp);
         sum_normalization_integrals += std::real(N);
     }
-    
+
     production_coefficient *= std::sqrt(sum_normalization_integrals);
 
     // TODO: Temporary, unsure if required, but doing fixed values to make sure we
@@ -470,4 +511,56 @@ int find_max_J(const FitResults &results)
     }
 
     return max_J;
+}
+
+/**
+ * @brief Clear the SDME cache.
+ *
+ * This should be called when switching to a new fit file to ensure
+ * cached values from the previous file don't interfere.
+ */
+void clear_sdme_cache()
+{
+    sdme_cache.clear();
+}
+
+/**
+ * @brief Precompute all possible SDME values for the given fit results.
+ *
+ * This function calculates and caches all SDME values that could be needed
+ * for moment calculations, providing maximum performance at the cost of
+ * upfront computation time and memory usage.
+ *
+ * @param[in] results The fit results to precompute SDME values for.
+ */
+void precompute_sdme_cache(const FitResults &results)
+{
+    int max_J = find_max_J(results);
+
+    // Precompute all possible SDME values
+    for (int alpha = 0; alpha <= 2; ++alpha)
+    {
+        for (int Ji = 0; Ji <= max_J; ++Ji)
+        {
+            for (int li = 0; li <= Ji + 1; ++li)
+            {
+                for (int Jj = 0; Jj <= max_J; ++Jj)
+                {
+                    for (int lj = 0; lj <= Jj + 1; ++lj)
+                    {
+                        for (int mi = -Ji; mi <= Ji; ++mi)
+                        {
+                            for (int mj = -Jj; mj <= Jj; ++mj)
+                            {
+                                // This will calculate and cache the SDME value
+                                calculate_SDME(alpha, Ji, li, mi, Jj, lj, mj, results);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    std::cout << "Precomputed " << sdme_cache.size() << " SDME values\n";
 }
