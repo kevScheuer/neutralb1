@@ -2,20 +2,71 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current file with hard-coded Arguments",
-            "type": "debugpy",
+            "name": "Debug C++ Binary",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "args": [
-                "-i", 
-                "/lustre24/expphy/volatile/halld/home/kscheuer/ampToolsFits/omegapi/allPeriods/PARA_0/ver03.1_mc/ver03/1m_1p_iso/recoil-pi-mass_1.4/t_0.30-0.50/mass_1.200-1.220/truth/bestFitPars.txt",
-                "-b"
+            "program": "${workspaceFolder}/build/debug/bin/${input:binaryName}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/config/.env",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
             ],
-            "python": "/w/halld-scshelf2101/kscheuer/miniforge3/envs/neutralb1/bin/python"
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "Debug C++ Binary with 2 Arguments",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/bin/${input:binaryName}",
+            "args": [
+                "${input:arg1}",
+                "${input:arg2}"
+            ], // currently does not support variable # of arguments
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/config/.env",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb"
         }
+    ],
+    "inputs": [
+        {
+            "id": "binaryName",
+            "description": "Binary to debug (e.g., project_moments, angle_plotter)",
+            "default": "project_moments",
+            "type": "promptString"
+        },
+        {
+            "id": "arg1",
+            "description": "Program argument 1 (e.g., 'input.txt')",            
+            "type": "promptString"
+        },
+        {
+            "id": "arg2",
+            "description": "Program argument 2 (e.g., 'output.txt')",
+            "type": "promptString"
+        },
     ]
 }

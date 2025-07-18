@@ -97,18 +97,22 @@
         "span": "cpp"
     },
     "C_Cpp.default.includePath": [
-        "/group/halld/Software/builds/Linux_CentOS7.7-x86_64-gcc4.8.5/root/root-6.24.04/include",      
-        "/work/halld/kscheuer/my_build/AmpTools/AmpTools/",
-        "/work/halld/kscheuer/my_build/FSRoot",
+        "${workspaceFolder}/include",
+        "/group/halld/Software/builds/Linux_Alma9-x86_64-gcc11.5.0/root/root-6.24.04/include",
+        "/work/halld/kscheuer/my_build/AmpTools/AmpTools",
+        "/work/halld/kscheuer/my_build/halld_sim/src/libraries",
+        "/work/halld/kscheuer/my_build/halld_sim/Linux_Alma9-x86_64-gcc11.5.0/include",
         "${default}",
-        "/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5",
-        "/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5/x86_64-redhat-linux",
-        "/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5/backward",
-        "/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include",
-        "/usr/local/include",
-        "/usr/include"
+        "/usr/include",
+        "/usr/local/include"
     ],
+    "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
     "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.enhancedColorization": "enabled",
+    "C_Cpp.codeFolding": "enabled",
+    "C_Cpp.vcFormat.indent.braces": false,
+    "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
     "cSpell.words": [
         "dphase",
         "dsratio",
@@ -116,6 +120,35 @@
         "phaselock",
         "underconstrained"
     ],
+    // Doxygen Documentation Generator Settings
+    "doxdocgen.file.fileOrder": [
+        "file",
+        "author", 
+        "brief",
+        "version",
+        "date",
+        "copyright",
+        "empty"
+    ],
+    "doxdocgen.file.fileTemplate": "@file {name}",
+    "doxdocgen.file.copyrightTag": [
+        "@copyright Copyright (c) {year}"
+    ],
+    "doxdocgen.file.versionTag": "@version 0.1",
+    "doxdocgen.generic.briefTemplate": "@brief {text}",
+    "doxdocgen.generic.paramTemplate": "@param {param} {text}",
+    "doxdocgen.generic.returnTemplate": "@return {type} {text}",
+    "doxdocgen.generic.authorTag": "@author {author}",
+    "doxdocgen.generic.dateTemplate": "@date {date}",
+    "doxdocgen.generic.generateSmartText": true,
+    "doxdocgen.generic.includeTypeAtReturn": true,
+    "doxdocgen.generic.boolReturnsTrueFalse": true,
+    "doxdocgen.cpp.tparamTemplate": "@tparam {param} {text}",
+    // Makefile Tools Settings
+    "makefile.configureOnOpen": true,
+    "makefile.extensionOutputFolder": "./.vscode",    
+    "makefile.buildLog": "${workspaceFolder}/build.log",
+    "makefile.preConfigureScript": "${workspaceFolder}/config/setup_gluex.sh",
     "files.exclude": {
         ".conda": true,
         "./analysis/cross_section": true,       

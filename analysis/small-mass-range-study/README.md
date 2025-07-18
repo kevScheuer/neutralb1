@@ -1,1 +1,0 @@
-This study primarily focuses on procuring plots for QNP, and focuses on the limited $\omega\pi^0$ mass region of 1.0 - 1.4 GeV. The intent of this is that the $b_1(1235)$ meson is very clearly present within the data and so is a nice signal for comparison with other waves, such as any $1^-$ contribution

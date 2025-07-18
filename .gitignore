@@ -1,10 +1,12 @@
 # data and changing config files
 **/*.root
 **/*.csv
+data
 *.txt
 gen_signal.cfg
 fit.cfg
 bin_template.cfg
+config/.env
 
 # data output
 *.pdf
@@ -14,11 +16,26 @@ bin_template.cfg
 *.log
 *.ni
 
+# build artifacts
+build/
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
 
 # caches
 __pycache__/
 .ipynb_checkpoints
 .conda
+
+# documentation
+docs/doxygen/
+
+# old notebooks
+notebooks/deprecated/
 
 # other
 *.so

@@ -1,0 +1,64 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Project",
+			"type": "shell",
+			"command": "make",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"args": [],
+			"detail": "Build the project using make (auto-detects environment)"
+		},
+		{
+			"label": "Build Debug",
+			"type": "shell",
+			"command": "make",
+			"args": ["debug"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"detail": "Build debug version with -g -O0"
+		},
+		{
+			"label": "Build Release",
+			"type": "shell", 
+			"command": "make",
+			"args": ["release"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"detail": "Build release version with -O2"
+		},
+		{
+			"label": "Clean Project", 
+			"type": "shell",
+			"command": "make",
+			"args": ["clean"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [],
+			"detail": "Clean build artifacts"
+		},
+		{
+			"label": "Generate Documentation",
+			"type": "shell",
+			"command": "doxygen",
+			"args": ["Doxyfile"],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [],
+			"detail": "Generate Doxygen documentation"
+		}
+	]
+}

@@ -3,11 +3,20 @@
         {
             "name": "Linux",
             "includePath": [
-                "${default}"
+                "${workspaceFolder}/include",
+                "/group/halld/Software/builds/Linux_Alma9-x86_64-gcc11.5.0/root/root-6.24.04/include",
+                "/work/halld/kscheuer/my_build/AmpTools/AmpTools",
+                "/work/halld/kscheuer/my_build/halld_sim/src/libraries",
+                "/work/halld/kscheuer/my_build/halld_sim/Linux_Alma9-x86_64-gcc11.5.0/include",
+                "/usr/include",
+                "/usr/local/include"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c11"                   
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
     "version": 4
