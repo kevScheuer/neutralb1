@@ -108,6 +108,7 @@ $(ENV_FILE): $(SETUP_SCRIPT)
 	@echo "Generating environment file from setup script..."
 	@mkdir -p config
 	@bash -c 'source $(SETUP_SCRIPT) && env | grep -E "^(ROOTSYS|AMPTOOLS|HALLD_|FSROOT|ROOT_|PATH|LD_LIBRARY_PATH|LIBRARY_PATH|CPLUS_INCLUDE_PATH|DYLD_LIBRARY_PATH)" | sort > $(ENV_FILE)'
+	@echo "PROJECT_ROOT=$(PROJECT_ROOT)" >> $(ENV_FILE)
 	@echo "Environment file generated at $(ENV_FILE)"
 
 # Individual executable targets for convenience
