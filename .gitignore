@@ -1,6 +1,7 @@
 # data and changing config files
 **/*.root
 **/*.csv
+data
 *.txt
 gen_signal.cfg
 fit.cfg
@@ -32,6 +33,9 @@ __pycache__/
 
 # documentation
 docs/doxygen/
+
+# old notebooks
+notebooks/deprecated/
 
 # other
 *.so
