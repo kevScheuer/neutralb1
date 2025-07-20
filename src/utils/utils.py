@@ -4,6 +4,7 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 
 
 def sort_input_files(input_files: list, position: int = -1) -> list:
@@ -27,35 +28,59 @@ def sort_input_files(input_files: list, position: int = -1) -> list:
     return sorted(input_files, key=extract_last_number)
 
 
-def load_shell_environment() -> None:
+def load_environment() -> None:
     """Load the shell environment variables from the setup script.
 
     This function executes the `setup_gluex.sh` script in a bash shell and captures the
     environment variables it sets. It then updates the current Python environment with
-    these variables. Particularly useful for jupyter notebook sessions.
+    these variables. Particularly useful for jupyter notebook sessions. The workspace
+    directory is also inserted into the Python path to allow imports from the project
+    structure.
     """
 
-    # Load the environment variables from the shell setup script
-    root_dir = pathlib.Path(__file__).parent.parent.parent
-    command = f"bash -l -c 'source {root_dir}/setup_gluex.sh && env'"
-    proc = subprocess.Popen(
-        command, stdout=subprocess.PIPE, shell=True, executable="/bin/bash"
-    )
-    output, _ = proc.communicate()
-    # Parse the environment variables
+    workspace_dir = get_workspace_dir()
+
+    if not os.path.exists(f"{workspace_dir}/config/.env"):
+        raise FileNotFoundError(
+            f"Environment file not found at {workspace_dir}/config/.env. "
+            "Please execute `make update-env` to generate it."
+        )
+
     env_vars = {}
-    for line in output.decode().splitlines():
-        # the output contains a bunch of BASH_FUNCS that will ruin the environment
-        # variables. this avoids those issues
-        if (
-            len(line.split("=", 1)) != 2
-            or line.startswith("BASH_FUNC")
-            or line.startswith(" ")
-            or line.startswith("\t")
-        ):
-            continue
-        key, value = line.split("=", 1)
-        env_vars[key] = value
+    with open(f"{workspace_dir}/config/.env", "r") as env_file:
+        for line in env_file:
+            # Skip comments and empty lines
+            if line.strip() and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                env_vars[key] = value
+
     os.environ.update(env_vars)
+    sys.path.insert(0, workspace_dir)
 
     return
+
+
+def get_workspace_dir() -> str:
+    """Get the root directory of the workspace.
+
+    Assumes the workspace directory is named "neutralb1" and the file calling this
+    function is located somewhere within the workspace directory structure.
+
+    Returns:
+        str: The path of the workspace directory.
+        Raises FileNotFoundError if the "neutralb1" directory is not found in the
+    Raises:
+        FileNotFoundError: If the "neutralb1" directory is not found in the path.
+    """
+
+    current_dir = pathlib.Path.cwd()
+    workspace_dir = None
+    while current_dir != current_dir.parent:
+        if (current_dir / "neutralb1").is_dir():
+            workspace_dir = str(current_dir / "neutralb1")
+
+        current_dir = current_dir.parent
+    if workspace_dir is None:
+        raise FileNotFoundError("Could not find 'neutralb1' directory in the path.")
+
+    return workspace_dir
