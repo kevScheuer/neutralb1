@@ -25,11 +25,16 @@ build/
 *.dll
 *.exe
 
+# python generated files
+dist/
+wheels/
+*.egg-info
 
-# caches
+# caches and virtual environments
 __pycache__/
 .ipynb_checkpoints
 .conda
+.venv
 
 # documentation
 docs/doxygen/

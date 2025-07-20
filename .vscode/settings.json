@@ -154,8 +154,7 @@
         "./analysis/cross_section": true,       
     },
     "python.analysis.exclude": [
-        ".conda",
-        "./analysis/cross_section",  
+        ".conda",        
         "**/*.csv"        
     ]
 }
