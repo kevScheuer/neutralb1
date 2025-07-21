@@ -5,12 +5,7 @@
 Within this repository lies all scripts needed to perform a full partial wave analysis of the neutral $\omega\pi^0$ channel from start to finish, which is dominated by a neutral $b_1$ resonance for which this repo is named after. 
 
 # Setup
-To run the scripts, you must have a working version of `conda` in order to source and start the python environment here. [Miniforge](https://github.com/conda-forge/miniforge#mambaforge) and [Miniconda](https://docs.anaconda.com/free/miniconda/index.html) are recommended. 
+TODO: describe the setup here. Currently uv and makefile are used separately to build the python and cpp bindings, but I may want to combine these into one command for ease of construction
 
-To create the environment and activate it, run:
-```
-conda env create --file environment.yml
-conda activate neutralb1
-```
-
-:warning: If perl is installed with the base conda environment, you may get an error when attempting to source the setup scripts in the [batch_scripts folder](./submission/batch_scripts) due to the setup script trying to use the ifarm's default perl binary. Simply remove perl from conda and the error should be resolved.
+# Documentation
+TODO: Describe where to find documentation, and maybe a short description of how to make it. Might want to use sphinx + doxygen [as described here](https://devblogs.microsoft.com/cppblog/clear-functional-c-documentation-with-sphinx-breathe-doxygen-cmake/), but need to look into other suggestions for easiest solution to making dual c++/python docs

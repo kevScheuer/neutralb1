@@ -1,4 +1,4 @@
-"""Project vector-pseudoscalar PWA fit results to moments
+"""DEPRECATED Project vector-pseudoscalar PWA fit results to moments
 
 This script uses the conversion from partial wave complex values to "project" PWA fit
 results into unique moments. The input is .fit file(s), which are the output of an
@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import spherical
 
-from src.utils import utils
+from src.neutralb1 import utils
 
 # imports below need the path to work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))

@@ -1,0 +1,42 @@
+[project]
+name = "neutralb1"
+version = "0.1.0"
+description = "A Partial Wave Analysis of the neutral omega pi0 channel"
+readme = "README.md"
+requires-python = ">=3.13.5"
+dependencies = [
+    "black>=25.1.0",
+    "ipykernel>=6.29.5",
+    "ipython>=9.4.0",
+    "joypy>=0.2.6",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.3",
+    "numpy>=2.3.1",
+    "pandas>=2.3.1",
+    "scipy>=1.16.0",
+    "seaborn>=0.13.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "isort>=5.12.0",
+    "nbqa>=1.7.0",
+]
+
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+# Specify the source directory for Python packages
+wheel.packages = ["src/neutralb1"]
+# Configure build directory
+build-dir = "build/python"
+# Minimal CMake configuration
+cmake.source-dir = "."
+cmake.build-type = "Release"
+cmake.args = []
+cmake.define = {}
+# This tells scikit-build-core to work with pure Python for now
+wheel.py-api = "py3"

@@ -29,13 +29,14 @@ def sort_input_files(input_files: list, position: int = -1) -> list:
 
 
 def load_environment() -> None:
-    """Load the shell environment variables from the setup script.
+    """Load the shell environment variables from the .env file
 
-    This function executes the `setup_gluex.sh` script in a bash shell and captures the
-    environment variables it sets. It then updates the current Python environment with
-    these variables. Particularly useful for jupyter notebook sessions. The workspace
-    directory is also inserted into the Python path to allow imports from the project
-    structure.
+    This function reads the `.env` file located in the `config` directory of the
+    workspace directory, which is expected to be named `neutralb1`. It sets the
+    environment variables defined in that file into the current Python environment.
+
+    Raises:
+        FileNotFoundError: If the `.env` file does not exist in the expected location.
     """
 
     workspace_dir = get_workspace_dir()

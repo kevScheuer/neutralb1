@@ -11,7 +11,7 @@ SETUP_SCRIPT := config/setup_gluex.sh
 
 # Project directories
 PROJECT_ROOT := $(shell pwd)
-SRC_DIR := src
+SRC_DIR := src/neutralb1_cpp
 BUILD_DIR := build/$(BUILD_TYPE)
 BIN_DIR := $(BUILD_DIR)/bin
 LIB_DIR := $(BUILD_DIR)/lib
