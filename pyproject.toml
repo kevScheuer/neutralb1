@@ -17,11 +17,26 @@ dependencies = [
     "seaborn>=0.13.2",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "isort>=5.12.0",
+    "nbqa>=1.7.0",
+]
+
 [build-system]
 requires = ["scikit-build-core"]
 build-backend = "scikit_build_core.build"
 
-[tool.scikit-build.packages.find]
-where = ["src"]
-include = ["neutralb1*"]
-exclude = ["neutralb1_cpp*"]
+[tool.scikit-build]
+# Specify the source directory for Python packages
+wheel.packages = ["src/neutralb1"]
+# Configure build directory
+build-dir = "build/python"
+# Minimal CMake configuration
+cmake.source-dir = "."
+cmake.build-type = "Release"
+cmake.args = []
+cmake.define = {}
+# This tells scikit-build-core to work with pure Python for now
+wheel.py-api = "py3"

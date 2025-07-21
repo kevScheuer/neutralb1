@@ -2,7 +2,9 @@
 **/*.root
 **/*.csv
 data
+# Ignore all .txt files except CMakeLists.txt
 *.txt
+!CMakeLists.txt
 gen_signal.cfg
 fit.cfg
 bin_template.cfg
