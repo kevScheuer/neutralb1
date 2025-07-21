@@ -52,14 +52,14 @@ class Plotter:
         """
         # --ERROR HANDLING--
         # verify that all inputs are dataframes
-        if not isinstance(df, pd.DataFrame):
-            raise TypeError("df must be a pandas DataFrame")
-        if not isinstance(data_df, pd.DataFrame):
-            raise TypeError("data_df must be a pandas DataFrame")
-        if bootstrap_df is not None and not isinstance(bootstrap_df, pd.DataFrame):
-            raise TypeError("bootstrap_df must be a pandas DataFrame or None (empty)")
-        if truth_df is not None and not isinstance(truth_df, pd.DataFrame):
-            raise TypeError("truth_df must be a pandas DataFrame or None (empty)")
+        # if not isinstance(df, pd.DataFrame):
+        #     raise TypeError("df must be a pandas DataFrame")
+        # if not isinstance(data_df, pd.DataFrame):
+        #     raise TypeError("data_df must be a pandas DataFrame")
+        # if bootstrap_df is not None and not isinstance(bootstrap_df, pd.DataFrame):
+        #     raise TypeError("bootstrap_df must be a pandas DataFrame or None (empty)")
+        # if truth_df is not None and not isinstance(truth_df, pd.DataFrame):
+        #     raise TypeError("truth_df must be a pandas DataFrame or None (empty)")
 
         # assign dataframes to public variables, copying to avoid modifying originals
         self.fit_df = df.copy(deep=True)
@@ -69,57 +69,57 @@ class Plotter:
         )
         self.truth_df = truth_df.copy(deep=True) if truth_df is not None else None
 
-        # Validate data
-        if self.fit_df.empty:
-            raise ValueError("df is empty, cannot plot without fit results.")
-        if self.data_df.empty:
-            raise ValueError("data_df is empty, cannot plot without data points.")
-        if self.bootstrap_df is not None and self.bootstrap_df.empty:
-            raise ValueError("bootstrap_df was passed but is empty")
-        if self.truth_df is not None and self.truth_df.empty:
-            raise ValueError("truth_df was passed but is empty")
+        # # Validate data
+        # if self.fit_df.empty:
+        #     raise ValueError("df is empty, cannot plot without fit results.")
+        # if self.data_df.empty:
+        #     raise ValueError("data_df is empty, cannot plot without data points.")
+        # if self.bootstrap_df is not None and self.bootstrap_df.empty:
+        #     raise ValueError("bootstrap_df was passed but is empty")
+        # if self.truth_df is not None and self.truth_df.empty:
+        #     raise ValueError("truth_df was passed but is empty")
 
-        if self.fit_df.shape[0] != self.data_df.shape[0]:
-            raise ValueError(
-                "df and data_df must have same number of rows!\n"
-                f"df: {self.fit_df.shape[0]},\n"
-                f" data_df: {self.data_df.shape[0]}"
-            )
-        if self.bootstrap_df is not None and (
-            len(self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique())
-            != self.fit_df.shape[0]
-        ):
-            unique_directories = len(
-                self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique()
-            )
-            raise ValueError(
-                "There must be a set of bootstrap fits for each fit result entry\n"
-                f"bootstrap_df: {unique_directories},\n"
-                f" df: {self.fit_df.shape[0]}"
-            )
-        if self.truth_df is not None and (
-            self.fit_df.shape[0] != self.truth_df.shape[0]
-        ):
-            raise ValueError(
-                "Fit and truth dataframes must have same number of rows!\n"
-                f"df: {self.fit_df.shape[0]},"
-                f" truth_df: {self.truth_df.shape[0]}"
-            )
+        # if self.fit_df.shape[0] != self.data_df.shape[0]:
+        #     raise ValueError(
+        #         "df and data_df must have same number of rows!\n"
+        #         f"df: {self.fit_df.shape[0]},\n"
+        #         f" data_df: {self.data_df.shape[0]}"
+        #     )
+        # if self.bootstrap_df is not None and (
+        #     len(self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique())
+        #     != self.fit_df.shape[0]
+        # ):
+        #     unique_directories = len(
+        #         self.bootstrap_df["file"].str.rsplit("/", n=1).str[0].unique()
+        #     )
+        #     raise ValueError(
+        #         "There must be a set of bootstrap fits for each fit result entry\n"
+        #         f"bootstrap_df: {unique_directories},\n"
+        #         f" df: {self.fit_df.shape[0]}"
+        #     )
+        # if self.truth_df is not None and (
+        #     self.fit_df.shape[0] != self.truth_df.shape[0]
+        # ):
+        #     raise ValueError(
+        #         "Fit and truth dataframes must have same number of rows!\n"
+        #         f"df: {self.fit_df.shape[0]},"
+        #         f" truth_df: {self.truth_df.shape[0]}"
+        #     )
 
-        # load in matplotlib style for this class
-        plt.style.use(
-            "/w/halld-scshelf2101/kscheuer/neutralb1/analysis/scripts/"
-            "pwa_plotter.mplstyle"
-        )
+        # # load in matplotlib style for this class
+        # plt.style.use(
+        #     "/w/halld-scshelf2101/kscheuer/neutralb1/analysis/scripts/"
+        #     "pwa_plotter.mplstyle"
+        # )
 
-        # warn user of incomplete fits
-        if any(status != 3 for status in self.fit_df["eMatrixStatus"]):
-            bad_files = self.fit_df[self.fit_df["eMatrixStatus"] != 3]["file"].to_list()
-            warnings.warn(
-                f"The following files contain fit results whose covariance matrix is"
-                f" not full and accurate:\n{"\n".join(bad_files)}",
-                UserWarning,
-            )
+        # # warn user of incomplete fits
+        # if any(status != 3 for status in self.fit_df["eMatrixStatus"]):
+        #     bad_files = self.fit_df[self.fit_df["eMatrixStatus"] != 3]["file"].to_list()
+        #     warnings.warn(
+        #         f"The following files contain fit results whose covariance matrix is"
+        #         f" not full and accurate:\n{"\n".join(bad_files)}",
+        #         UserWarning,
+        #     )
 
         # public attributes
         self.coherent_sums = get_coherent_sums(self.fit_df)
@@ -1930,6 +1930,7 @@ class Plotter:
         pass
 
 
+# TODO: Move to utils
 def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
     """Wrap phase differences to be from (-pi, pi] & convert from radians to degrees
 
@@ -1963,125 +1964,7 @@ def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
     return
 
 
-def parse_amplitude(amp: str) -> Dict[str, str]:
-    """parse 'eJPmL' style amplitude string into its individual quantum numbers
-
-    Args:
-        amp (str): string like eJPmL, JPmL, JPL, eJPL, eJP, JP
-
-    Returns:
-        dict: keys = quantum numbers (e, J, P, m, l). values = found values from string,
-        or "" if not found
-    """
-    re_dict = {
-        "e": r"(?<![0-9]{1}[pm]{1})(?<!\d)[pm]",
-        "jp": r"[0-9]{1}[pm]{1}",  # j and p always appear together
-        "m": r"([0-9]{1}[pm]{1})+[qp0mn]",  # assumes always form of 'JPm'
-        "l": r"[SPDF]",
-    }
-
-    result_dict = {"e": "", "j": "", "p": "", "m": "", "l": ""}
-
-    for quantum_number, expression in re_dict.items():
-        search = re.search(expression, amp)
-        if search:
-            # the search actually returns "JPm", so grab the last char if found
-            if quantum_number == "m":
-                result_dict["m"] = search.group()[-1]
-            elif quantum_number == "jp":
-                result_dict["j"] = search.group()[0]
-                result_dict["p"] = search.group()[1]
-            else:
-                result_dict[quantum_number] = search.group()
-
-    return result_dict
-
-
-def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
-    """Returns a dict of coherent sums from a fit results dataframe
-
-    Args:
-        df (pd.DataFrame): dataframe of fit results loaded from csv
-    Returns:
-        dict: Is of the form {Coherent sum string: set(amplitudes)}
-        e.g. {"eJPmL": ["p1p0S", "m1mpP", ...]}
-    """
-    # create an empty list for every type of coherent sum
-    sum_types = ["eJPmL", "JPmL", "eJPL", "JPL", "eJP", "JP", "e"]
-    coherent_sums = {d: set() for d in sum_types}
-
-    # grab all eJPml columns
-    for column in df.columns:
-        # skip the phase difference columns and any status columns
-        if "_" in column or len(column) > 5:
-            continue
-
-        result_dict = parse_amplitude(column)
-        # only add to key if all elements of key are in the column
-        for key in coherent_sums.keys():
-            split_key = list(key.lower())
-            if any(result_dict[char] == "" for char in split_key):
-                continue
-            coh_sum = "".join([result_dict[char] for char in split_key])
-            coherent_sums[key].add(coh_sum)
-
-    return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
-
-
-def convert_amp_name(input_string: str) -> str:
-    """Converts amplitude string to J^P L_m^(e) LaTeX style string
-
-    Function can handle both amplitudes and phase differences. If input_string is not
-    of eJPmL format, or subset of it i.e. eJPL, then the output will be undefined.
-
-    Args:
-        input_string (str): string in eJPmL format
-    Returns:
-        str: Prettier LaTeX style string in J^P L_m^(e) format. If it's a phase
-            difference it's then J^P L_m^(e) - J^P L_m^(e)
-    """
-
-    pm_dict = {"m": "-", "p": "+", "": ""}
-    m_proj_dict = {"n": -2, "m": -1, "0": 0, "p": +1, "q": +2, "": ""}
-
-    # CASE 1: phase difference, always of form 'eJPmL_eJPmL'
-    if "_" in input_string:
-        amps = input_string.split("_")
-        if len(amps) != 2:
-            raise ValueError("Phase difference must be in 'eJPmL_eJPmL' format!")
-        e1, j1, p1, m1, l1 = (
-            pm_dict[amps[0][0]],
-            amps[0][1],
-            pm_dict[amps[0][2]],
-            m_proj_dict[amps[0][3]],
-            amps[0][-1],
-        )
-        e2, j2, p2, m2, l2 = (
-            pm_dict[amps[1][0]],
-            amps[1][1],
-            pm_dict[amps[1][2]],
-            m_proj_dict[amps[1][3]],
-            amps[1][-1],
-        )
-
-        return (
-            rf"${j1}^{{{p1}}}{l1}_{{{m1}}}^{{({e1})}}"
-            rf" - {j2}^{{{p2}}}{l2}_{{{m2}}}^{{({e2})}}$"
-        )
-
-    # CASE 2: typical amplitude coherent sum
-    amp_dict = parse_amplitude(input_string)
-
-    # set each quantum number to its found value. If not found, denote it with a sum
-    e = r"\Sigma\varepsilon" if amp_dict["e"] == "" else pm_dict[amp_dict["e"]]
-    j = r"\Sigma J" if amp_dict["j"] == "" else amp_dict["j"]
-    p = "" if amp_dict["p"] == "" else pm_dict[amp_dict["p"]]
-    m = r"\Sigma m" if amp_dict["m"] == "" else m_proj_dict[amp_dict["m"]]
-    l = r"\Sigma \ell" if amp_dict["l"] == "" else amp_dict["l"]
-
-    return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
-
-
+# TODO: move to utils
 def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
     """Returns dict of all the phase difference columns in the dataframe
 
@@ -2116,6 +1999,7 @@ def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
     return phase_differences
 
 
+# TODO: move to utils
 def human_format(num: float) -> str:
     """Converts orders of magnitude to letters i.e. 12369 -> 12.4K
 
@@ -2134,6 +2018,7 @@ def human_format(num: float) -> str:
     return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
 
 
+# TODO: move to physics
 def breakup_momentum(
     parent_mass: float, daughter1_mass: float, daughter2_mass: float
 ) -> float:
@@ -2164,6 +2049,7 @@ def breakup_momentum(
     ) / (2.0 * parent_mass)
 
 
+# TODO: move to physics
 def barrier_factor(
     parent_mass: float, daughter1_mass: float, daughter2_mass: float, l: int
 ) -> float:
@@ -2209,6 +2095,7 @@ def barrier_factor(
     return np.sqrt(barrier)
 
 
+# TODO: move to physics
 def breit_wigner(
     mass: float,
     bw_mass: float,
@@ -2257,6 +2144,7 @@ def breit_wigner(
     return F * numerator / denominator
 
 
+# TODO: Move to utils
 def char_to_int(char: str) -> int:
     """Convert m-projection or L angular momenta character to integer value
 
