@@ -20,3 +20,8 @@ dependencies = [
 [build-system]
 requires = ["scikit-build-core"]
 build-backend = "scikit_build_core.build"
+
+[tool.scikit-build.packages.find]
+where = ["src"]
+include = ["neutralb1*"]
+exclude = ["neutralb1_cpp*"]
