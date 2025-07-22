@@ -1,11 +1,20 @@
 """A collection of some utility functions"""
 
+# TODO: Many of these functions can be combined into a pythonized version of the
+#   AmplitudeParser class
+
+# TODO: watch this video https://www.youtube.com/watch?v=zgbUk90aQ6A to reconsider
+#   how to handle pandas dataframes like wrap_phases effectively. My main concern is
+#   duplicating a bunch of temporary dataframes leading to memory issues.
+
+import itertools
 import os
 import pathlib
 import re
 import sys
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 
@@ -128,6 +137,41 @@ def parse_amplitude(amp: str) -> Dict[str, str]:
     return result_dict
 
 
+# TODO: this function modifies the dataframe in place, consider performance-efficient
+#   alternative for returning a new dataframe
+def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
+    """Wrap phase differences to be from (-pi, pi] & convert from radians to degrees
+
+    Accepts either a pandas DataFrame or Series. For DataFrames, only phase difference
+    columns and their errors are wrapped. For Series, all values are wrapped.
+
+    Args:
+        obj (pd.DataFrame | pd.Series): DataFrame of fit results or Series of phase
+            difference values.
+    Raises:
+        ValueError: If obj is not a DataFrame or Series.
+
+    Returns:
+        None: Edits the df or series in place
+    """
+
+    # wraps phase (in radians) to -pi < x <= pi and convert to degrees
+    def wrap(phase):
+        return np.rad2deg(np.angle(np.exp(1j * phase)))
+
+    if isinstance(obj, pd.Series):
+        obj.update(obj.apply(wrap))
+    elif isinstance(obj, pd.DataFrame):
+        phase_diffs = get_phase_differences(obj)
+        for col in set(phase_diffs.values()):
+            obj[col] = obj[col].apply(wrap)
+            obj[f"{col}_err"] = obj[f"{col}_err"].apply(wrap)
+    else:
+        raise ValueError("Input must be a pandas DataFrame or Series.")
+
+    return
+
+
 def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
     """Returns a dict of coherent sums from a fit results dataframe
 
@@ -157,6 +201,40 @@ def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
             coherent_sums[key].add(coh_sum)
 
     return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
+
+
+def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
+    """Returns dict of all the phase difference columns in the dataframe
+
+    The keys are specifically like (eJPmL_1, eJPmL_2), and there is no way to
+    know how those will be ordered in the dataframe a priori. We avoid this by
+    creating keys for either ordering and setting both of their values to the order
+    found in the dataframe.
+
+    Args:
+        df (pd.DataFrame): dataframe of fit results loaded from csv
+    Returns:
+        dict: key = tuple of both possible combinations of every amplitude, val = the
+            phase difference combination found in the dataframe
+    """
+    phase_differences = {}
+
+    # get all possible combinations of eJPmL columns, and add their phase difference
+    # column name if it exists (handles reverse ordering i.e. p1ppS_p1pmS & p1pmS_p1ppS)
+    all_combos = list(itertools.combinations(get_coherent_sums(df)["eJPmL"], 2))
+    columns = df.columns.values.tolist()
+    for combo in all_combos:
+        name = "_".join(combo)
+        reverse_name = "_".join(reversed(combo))
+
+        if name in columns:
+            phase_differences[combo] = name
+            phase_differences[tuple(reversed(combo))] = name
+        if reverse_name in columns:
+            phase_differences[combo] = reverse_name
+            phase_differences[tuple(reversed(combo))] = reverse_name
+
+    return phase_differences
 
 
 def convert_amp_name(input_string: str) -> str:
@@ -211,3 +289,51 @@ def convert_amp_name(input_string: str) -> str:
     l = r"\Sigma \ell" if amp_dict["l"] == "" else amp_dict["l"]
 
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
+
+
+def human_format(num: float) -> str:
+    """Converts orders of magnitude to letters i.e. 12369 -> 12.4K
+
+    Args:
+        num (float): positive floating point number
+
+    Returns:
+        str: first 3 significant digits with a character denoting its magnitude
+
+    Raises:
+        ValueError: If the number is negative
+    """
+
+    if num < 0:
+        raise ValueError("Number must be positive")
+
+    num = float(f"{num:.3g}")
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    orders = ["", "K", "M", "B", "T"]
+    return f"{str(num).rstrip('0').rstrip('.')}{orders[magnitude]}"
+
+
+def char_to_int(char: str) -> int:
+    """Convert m-projection or L angular momenta character to integer value
+
+    Args:
+        char (str): single character. lowercase assumes m-projection and uppercase
+            assumes it's an L value
+    Returns:
+        int: integer that char is representing
+    """
+    d = {
+        "n": -2,
+        "m": -1,
+        "0": 0,
+        "p": +1,
+        "q": +2,
+        "S": 0,
+        "P": 1,
+        "D": 2,
+        "F": 3,
+    }
+    return d[char]
