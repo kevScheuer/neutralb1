@@ -3,9 +3,6 @@
 # TODO: Many of these functions can be combined into a pythonized version of the
 #   AmplitudeParser class
 
-# TODO: watch this video https://www.youtube.com/watch?v=zgbUk90aQ6A to reconsider
-#   how to handle pandas dataframes like wrap_phases effectively. My main concern is
-#   duplicating a bunch of temporary dataframes leading to memory issues.
 
 import itertools
 import os
@@ -137,41 +134,6 @@ def parse_amplitude(amp: str) -> Dict[str, str]:
     return result_dict
 
 
-# TODO: this function modifies the dataframe in place, consider performance-efficient
-#   alternative for returning a new dataframe
-def wrap_phases(obj: pd.DataFrame | pd.Series) -> None:
-    """Wrap phase differences to be from (-pi, pi] & convert from radians to degrees
-
-    Accepts either a pandas DataFrame or Series. For DataFrames, only phase difference
-    columns and their errors are wrapped. For Series, all values are wrapped.
-
-    Args:
-        obj (pd.DataFrame | pd.Series): DataFrame of fit results or Series of phase
-            difference values.
-    Raises:
-        ValueError: If obj is not a DataFrame or Series.
-
-    Returns:
-        None: Edits the df or series in place
-    """
-
-    # wraps phase (in radians) to -pi < x <= pi and convert to degrees
-    def wrap(phase):
-        return np.rad2deg(np.angle(np.exp(1j * phase)))
-
-    if isinstance(obj, pd.Series):
-        obj.update(obj.apply(wrap))
-    elif isinstance(obj, pd.DataFrame):
-        phase_diffs = get_phase_differences(obj)
-        for col in set(phase_diffs.values()):
-            obj[col] = obj[col].apply(wrap)
-            obj[f"{col}_err"] = obj[f"{col}_err"].apply(wrap)
-    else:
-        raise ValueError("Input must be a pandas DataFrame or Series.")
-
-    return
-
-
 def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
     """Returns a dict of coherent sums from a fit results dataframe
 
@@ -194,7 +156,7 @@ def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
         result_dict = parse_amplitude(column)
         # only add to key if all elements of key are in the column
         for key in coherent_sums.keys():
-            split_key = list(key.lower())
+            split_key = list(key)
             if any(result_dict[char] == "" for char in split_key):
                 continue
             coh_sum = "".join([result_dict[char] for char in split_key])
@@ -230,7 +192,7 @@ def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
         if name in columns:
             phase_differences[combo] = name
             phase_differences[tuple(reversed(combo))] = name
-        if reverse_name in columns:
+        elif reverse_name in columns:
             phase_differences[combo] = reverse_name
             phase_differences[tuple(reversed(combo))] = reverse_name
 

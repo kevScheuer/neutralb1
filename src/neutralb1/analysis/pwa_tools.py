@@ -49,23 +49,14 @@ class Plotter:
                 solid line for the truth information
         """
         # --ERROR HANDLING--
-        # verify that all inputs are dataframes
-        # if not isinstance(df, pd.DataFrame):
-        #     raise TypeError("df must be a pandas DataFrame")
-        # if not isinstance(data_df, pd.DataFrame):
-        #     raise TypeError("data_df must be a pandas DataFrame")
-        # if bootstrap_df is not None and not isinstance(bootstrap_df, pd.DataFrame):
-        #     raise TypeError("bootstrap_df must be a pandas DataFrame or None (empty)")
-        # if truth_df is not None and not isinstance(truth_df, pd.DataFrame):
-        #     raise TypeError("truth_df must be a pandas DataFrame or None (empty)")
 
-        # assign dataframes to public variables, copying to avoid modifying originals
-        self.fit_df = df.copy(deep=True)
-        self.data_df = data_df.copy(deep=True)
-        self.bootstrap_df = (
-            bootstrap_df.copy(deep=True) if bootstrap_df is not None else None
-        )
-        self.truth_df = truth_df.copy(deep=True) if truth_df is not None else None
+        # # assign dataframes to public variables, copying to avoid modifying originals
+        # self.fit_df = df.copy(deep=True)
+        # self.data_df = data_df.copy(deep=True)
+        # self.bootstrap_df = (
+        #     bootstrap_df.copy(deep=True) if bootstrap_df is not None else None
+        # )
+        # self.truth_df = truth_df.copy(deep=True) if truth_df is not None else None
 
         # # Validate data
         # if self.fit_df.empty:
@@ -120,92 +111,92 @@ class Plotter:
         #     )
 
         # public attributes
-        self.coherent_sums = get_coherent_sums(self.fit_df)
-        self.phase_differences = get_phase_differences(self.fit_df)
+        # self.coherent_sums = get_coherent_sums(self.fit_df)
+        # self.phase_differences = get_phase_differences(self.fit_df)
 
-        # private attributes
-        self._mass_bins = self.data_df["m_center"]
-        self._bin_width = (self.data_df["m_high"] - self.data_df["m_low"])[0]
+        # # private attributes
+        # self._mass_bins = self.data_df["m_center"]
+        # self._bin_width = (self.data_df["m_high"] - self.data_df["m_low"])[0]
 
         # --DATA PREPARATION--
 
-        # wrap phases from -pi to pi range
-        wrap_phases(self.fit_df)
-        if self.bootstrap_df is not None:
-            wrap_phases(self.bootstrap_df)
+        # # wrap phases from -pi to pi range
+        # wrap_phases(self.fit_df)
+        # if self.bootstrap_df is not None:
+        #     wrap_phases(self.bootstrap_df)
 
-        if self.bootstrap_df is not None:
-            # add a column for common directories between files for the bootstrap df, to
-            # allow for easier chunking of bootstrap samples later
-            # Create the directory column separately to avoid fragmentation, then concat
-            directory_col = self.bootstrap_df["file"].str.rsplit("/", n=1).str[0]
-            self.bootstrap_df = pd.concat(
-                [self.bootstrap_df, directory_col.rename("directory")], axis=1
-            )
+        # if self.bootstrap_df is not None:
+        #     # add a column for common directories between files for the bootstrap df, to
+        #     # allow for easier chunking of bootstrap samples later
+        #     # Create the directory column separately to avoid fragmentation, then concat
+        #     directory_col = self.bootstrap_df["file"].str.rsplit("/", n=1).str[0]
+        #     self.bootstrap_df = pd.concat(
+        #         [self.bootstrap_df, directory_col.rename("directory")], axis=1
+        #    )
 
         # Truth df needs special handling to allow for 1-1 comparison with fit results
-        if self.truth_df is not None:
-            # phases in truth fits are wrong, so must be "manually" set to the correct
-            # values. Then we can wrap them
-            self._reset_truth_phases(self.truth_df, self._mass_bins)
-            wrap_phases(self.truth_df)
+        # if self.truth_df is not None:
+        #     # phases in truth fits are wrong, so must be "manually" set to the correct
+        #     # values. Then we can wrap them
+        #     self._reset_truth_phases(self.truth_df, self._mass_bins)
+        #     wrap_phases(self.truth_df)
 
-            # set non-existent columns to zero. Needed since the fit dataframe may use
-            # a different waveset from the truth fit
-            # TODO: Move this to a preprocessing method
-            cols_to_add = []
-            for sum_type in self.coherent_sums:
-                for sum in self.coherent_sums[sum_type]:
-                    if sum not in self.truth_df.columns:
-                        cols_to_add.append(
-                            pd.DataFrame(
-                                np.zeros_like(self.fit_df[sum]),
-                                index=self.truth_df.index,
-                                columns=[sum],
-                            )
-                        )
-                        cols_to_add.append(
-                            pd.DataFrame(
-                                np.zeros_like(self.fit_df[sum]),
-                                index=self.truth_df.index,
-                                columns=[f"{sum}_err"],
-                            )
-                        )
-            for phase_dif in set(self.phase_differences.values()):
-                # check if the reverse ordering of the phase difference is used, and
-                # rename it to match the fit dataframe's ordering if so
-                reverse_phase_dif = "".join(phase_dif.partition("_")[::-1])
-                if reverse_phase_dif in self.truth_df.columns:
-                    self.truth_df.rename(
-                        columns={
-                            reverse_phase_dif: phase_dif,
-                            f"{reverse_phase_dif}_err": f"{phase_dif}_err",
-                        },
-                        inplace=True,
-                    )
-                # if phase difference not found, add it as columns of 0's
-                if phase_dif not in self.truth_df.columns:
-                    cols_to_add.append(
-                        pd.DataFrame(
-                            np.zeros_like(self.fit_df[phase_dif]),
-                            index=self.truth_df.index,
-                            columns=[phase_dif],
-                        )
-                    )
-                    cols_to_add.append(
-                        pd.DataFrame(
-                            np.zeros_like(self.fit_df[phase_dif]),
-                            index=self.truth_df.index,
-                            columns=[f"{phase_dif}_err"],
-                        )
-                    )
+        # set non-existent columns to zero. Needed since the fit dataframe may use
+        # a different waveset from the truth fit
+        # TODO: Move this to a preprocessing method
+        # cols_to_add = []
+        # for sum_type in self.coherent_sums:
+        #     for sum in self.coherent_sums[sum_type]:
+        #         if sum not in self.truth_df.columns:
+        #             cols_to_add.append(
+        #                 pd.DataFrame(
+        #                     np.zeros_like(self.fit_df[sum]),
+        #                     index=self.truth_df.index,
+        #                     columns=[sum],
+        #                 )
+        #             )
+        #             cols_to_add.append(
+        #                 pd.DataFrame(
+        #                     np.zeros_like(self.fit_df[sum]),
+        #                     index=self.truth_df.index,
+        #                     columns=[f"{sum}_err"],
+        #                 )
+        #             )
+        # for phase_dif in set(self.phase_differences.values()):
+        #     # check if the reverse ordering of the phase difference is used, and
+        #     # rename it to match the fit dataframe's ordering if so
+        #     reverse_phase_dif = "".join(phase_dif.partition("_")[::-1])
+        #     if reverse_phase_dif in self.truth_df.columns:
+        #         self.truth_df.rename(
+        #             columns={
+        #                 reverse_phase_dif: phase_dif,
+        #                 f"{reverse_phase_dif}_err": f"{phase_dif}_err",
+        #             },
+        #             inplace=True,
+        #         )
+        #     # if phase difference not found, add it as columns of 0's
+        #     if phase_dif not in self.truth_df.columns:
+        #         cols_to_add.append(
+        #             pd.DataFrame(
+        #                 np.zeros_like(self.fit_df[phase_dif]),
+        #                 index=self.truth_df.index,
+        #                 columns=[phase_dif],
+        #             )
+        #         )
+        #         cols_to_add.append(
+        #             pd.DataFrame(
+        #                 np.zeros_like(self.fit_df[phase_dif]),
+        #                 index=self.truth_df.index,
+        #                 columns=[f"{phase_dif}_err"],
+        #             )
+        #         )
 
-            concat_list = [self.truth_df]
-            concat_list.extend(cols_to_add)
-            self.truth_df = pd.concat(concat_list, axis=1)
+        # concat_list = [self.truth_df]
+        # concat_list.extend(cols_to_add)
+        # self.truth_df = pd.concat(concat_list, axis=1)
 
         # use file names in dataframes to link fit indices to them for easier indexing
-        self._link_fits_to_dataframes()
+        # self._link_fits_to_dataframes()
 
         pass
 
@@ -1800,134 +1791,5 @@ class Plotter:
                         ]
 
         # PLAN: here we'll loop over the failed ones and plot probdists
-
-        pass
-
-    # TODO: move to preprocessing
-    def _reset_truth_phases(self, df: pd.DataFrame, mass_bins: pd.Series) -> None:
-        """Reset the phase differences of mass dependent truth csv
-
-        The phase differences in the truth csv are not natively comparable. Because the
-        truth info is from a mass dependent fit, we need to obtain the true phase
-        differences by modifying each phase by its associated breit wigner in each mass
-        bin. This function modifies the dataframe in place.
-
-        Args:
-            df (pd.DataFrame): truth dataframe
-            mass_bins (List[int]): the mass bins the index column is associated with
-        """
-
-        def new_phase_dif(
-            mass: float,
-            amp1_re: float,
-            amp1_im: float,
-            bw_mass1: float,
-            bw_width1: float,
-            bw_l1: int,
-            amp2_re: float,
-            amp2_im: float,
-            bw_mass2: float,
-            bw_width2: float,
-            bw_l2: int,
-        ):
-            complex_val1 = complex(amp1_re, amp1_im)
-            complex_val2 = complex(amp2_re, amp2_im)
-            bw1 = breit_wigner(mass, bw_mass1, bw_width1, bw_l1)
-            bw2 = breit_wigner(mass, bw_mass2, bw_width2, bw_l2)
-            phase1 = cmath.phase(bw1 * complex_val1)
-            phase2 = cmath.phase(bw2 * complex_val2)
-
-            return phase1 - phase2
-
-        for pd in set(get_phase_differences(df).values()):
-            l_to_int = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
-            amp1, amp2 = pd.split("_")
-
-            jp1 = amp1[1:3]
-            l1 = l_to_int[amp1[-1]]
-            jp2 = amp2[1:3]
-            l2 = l_to_int[amp2[-1]]
-
-            df[pd] = np.vectorize(new_phase_dif)(
-                mass_bins,
-                df[f"{amp1}_re"],
-                df[f"{amp1}_im"],
-                df[f"{jp1}_mass"],
-                df[f"{jp1}_width"],
-                l1,
-                df[f"{amp2}_re"],
-                df[f"{amp2}_im"],
-                df[f"{jp2}_mass"],
-                df[f"{jp2}_width"],
-                l2,
-            )
-        pass
-
-    # TODO: move to preprocessing
-    def _link_fits_to_dataframes(self) -> None:
-
-        # Extract parent directory for each fit file
-        fit_df = self.fit_df.copy()
-        fit_df["parent_dir"] = fit_df["file"].str.rsplit("/", n=1).str[0]
-
-        # Map parent_dir to fit_df index
-        parent_dir_to_index = dict(zip(fit_df["parent_dir"], fit_df.index))
-
-        # -- DATA --
-        data_df = self.data_df.copy()
-        # data file should be sibling of the fit file
-        data_df["parent_dir"] = data_df["file"].str.rsplit("/", n=1).str[0]
-        data_df["fit_index"] = data_df["parent_dir"].map(parent_dir_to_index)
-        data_unmatched = data_df["fit_index"].isna()
-        if data_unmatched.any():
-            warnings.warn(
-                f"{data_unmatched.sum()} data samples could not be linked to a fit"
-                " result.\nUnmatched data files:\n"
-                + "\n".join(data_df.loc[data_unmatched, "file"].astype(str)),
-                RuntimeWarning,
-            )
-        self.data_df = pd.concat([self.data_df, data_df[["fit_index"]]], axis=1)
-
-        # -- BOOTSTRAP --
-        if self.bootstrap_df is not None:
-            # Bootstrap files exist in a "bootstrap" subdir of the fit dir, so we need to
-            # remove the "/bootstrap" part off of directory
-            bootstrap_df = self.bootstrap_df.copy()
-            bootstrap_df["parent_dir"] = (
-                bootstrap_df["directory"].str.rsplit("/", n=1).str[0]
-            )
-            bootstrap_df["fit_index"] = bootstrap_df["parent_dir"].map(
-                parent_dir_to_index
-            )
-            bootstrap_unmatched = bootstrap_df["fit_index"].isna()
-            if bootstrap_unmatched.any():
-                warnings.warn(
-                    f"{bootstrap_unmatched.sum()} bootstrap samples could not be linked"
-                    f" to a fit result.\nUnmatched bootstrap files:\n"
-                    + "\n".join(
-                        bootstrap_df.loc[bootstrap_unmatched, "file"].astype(str)
-                    ),
-                    RuntimeWarning,
-                )
-            self.bootstrap_df = pd.concat(
-                [self.bootstrap_df, bootstrap_df[["fit_index"]]], axis=1
-            )
-
-        # -- TRUTH --
-        if self.truth_df is not None:
-            # Truth files exist in a "truth" subdir of the fit dir, so we need to
-            # remove the "/truth" part off of directory
-            truth_df = self.truth_df.copy()
-            truth_df["parent_dir"] = truth_df["file"].str.rsplit("/", n=2).str[0]
-            truth_df["fit_index"] = truth_df["parent_dir"].map(parent_dir_to_index)
-            truth_unmatched = truth_df["fit_index"].isna()
-            if truth_unmatched.any():
-                warnings.warn(
-                    f"{truth_unmatched.sum()} truth samples could not be matched to a"
-                    " fit result.\nUnmatched truth files:\n"
-                    + "\n".join(truth_df.loc[truth_unmatched, "file"].astype(str)),
-                    RuntimeWarning,
-                )
-            self.truth_df = pd.concat([self.truth_df, truth_df["fit_index"]], axis=1)
 
         pass
