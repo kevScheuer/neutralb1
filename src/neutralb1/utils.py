@@ -9,7 +9,7 @@ import os
 import pathlib
 import re
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -299,3 +299,41 @@ def char_to_int(char: str) -> int:
         "F": 3,
     }
     return d[char]
+
+
+def propagate_product_error(
+    var1: pd.Series,
+    var1_err: pd.Series,
+    var2: pd.Series,
+    var2_err: pd.Series,
+    covariance: Optional[pd.Series] = None,
+) -> pd.Series:
+    """Calculate error for division or multiplication of two series with errors
+
+    Uses error propagation formula:
+    σ(A/B) = (A/B) * sqrt((σA/A)² + (σB/B)²)
+
+    Args:
+        numerator (pd.Series): Numerator values.
+        numerator_err (pd.Series): Uncertainties in numerator.
+        denominator (pd.Series): Denominator values.
+        denominator_err (pd.Series): Uncertainties in denominator.
+        covariance (pd.Series, optional): Covariance between numerator and
+            denominator. Defaults to None, meaning no covariance is considered.
+
+    Returns:
+        pd.Series: Propagated relative errors.
+    """
+    # Avoid division by zero
+    safe_var1 = np.where(var1 == 0, np.finfo(float).eps, var1)
+    safe_var2 = np.where(var2 == 0, np.finfo(float).eps, var2)
+
+    rel_cov = (
+        2 * (covariance / (safe_var1 * safe_var2)) if covariance is not None else 0
+    )
+
+    relative_error = (var1 / var2) * np.sqrt(
+        np.square(var1_err / safe_var1) + np.square(var2_err / safe_var2) - rel_cov
+    )
+
+    return relative_error

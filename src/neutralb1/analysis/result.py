@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
-from neutralb1.analysis import physics, plotting, preprocessing, statistics
+from neutralb1.analysis import plotting, preprocessing
 
 
 class ResultManager:
@@ -14,8 +14,8 @@ class ResultManager:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
-        bootstrap_df: "Optional[pd.DataFrame]" = None,
-        truth_df: "Optional[pd.DataFrame]" = None,
+        bootstrap_df: Optional[pd.DataFrame] = None,
+        truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the ResultManager and run preprocessing steps.
 
@@ -129,4 +129,17 @@ class ResultManager:
                 self.fit_df, self.truth_df
             )
 
-        return
+        # --END PREPROCESSING--
+
+        # Create plotter factory instance
+        self.plotter_factory = plotting.FactoryPlotter(
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            bootstrap_df=self.bootstrap_df,
+            truth_df=self.truth_df,
+        )
+
+    @property
+    def plot(self) -> plotting.FactoryPlotter:
+        """Return a FactoryPlotter instance for plotting fit results."""
+        return self.plotter_factory

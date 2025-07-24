@@ -1,9 +1,4 @@
-"""move here:
-- phase_wrapping
-- truth phase handling
-- dataframe linking
-- data validation
-"""
+"""A collection of methods for preprocessing PWA fit result DataFrames."""
 
 import cmath
 import pathlib
