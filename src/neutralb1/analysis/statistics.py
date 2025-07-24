@@ -1,9 +1,4 @@
-"""move here
-- bootstrap testing
-- statistical analysis
-
-make sure bootstrap methods are grouped by the file directory
-"""
+"""Collection of statistical analysis methods for PWA fits"""
 
 # TODO: complete this function. Uses old variables from old Plotter class
 # def normality_test(
