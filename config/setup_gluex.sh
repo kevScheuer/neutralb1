@@ -13,7 +13,7 @@ source /group/halld/Software/build_scripts/gluex_env_jlab.sh "$PROJECT_ROOT/conf
 module use /cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/modulefiles
 module load mpi/openmpi-x86_64
 
-export PATH="$PROJECT_ROOT/build/bin:$PATH"
+export PATH="$PROJECT_ROOT/build/release/bin:$PATH"
 
 # add paths for c++ / ROOT to search for libraries and include files
 # useful for compiling and linking outside of the project / makefile method
