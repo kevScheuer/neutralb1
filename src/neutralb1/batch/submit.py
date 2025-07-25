@@ -2,6 +2,8 @@
 
 See README for process architecture, or run with "--help" to understand variable usage
 
+TODO: use log file path as suggested by Alex's tutorial
+
 Optional improvements to make script more generalized:
     - Ability or some handling of matching the GPU architecture
         not surefire, but can check GPU arch set in $AMPTOOLS_HOME makefile
