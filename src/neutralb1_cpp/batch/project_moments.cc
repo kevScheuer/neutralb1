@@ -6,11 +6,7 @@ the results of a PWA fit. The moments are computed and saved to an output csv fi
 
 NOTE: This script assumes that the amplitudes are written in the vec-ps eJPmL format.
 For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be written
-in the cfg file as [reaction]::RealNegSign::p1p0S. If you have a different format, then
-you'll have to account for it in parse_amplitude()
-
-TODO: Print a warning to the user if the fit results do not contain the same set of
-    amplitudes. Have default behavior fill in the missing amplitudes with 0.
+in the cfg file as [reaction]::RealNegSign::p1p0S.
 */
 
 #include <algorithm>
@@ -106,18 +102,16 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // TODO: The following code should read a .fit from the vector, extract the moments,
-    // and write them to the csv file.
-
     // initialize the map of moment names to their values
     std::map<std::string, complex<double>> moment_results;
-    std::vector<Moment> moments; // vector of all moments to be calculated
-
-    // open csv file for writing (force overwrite if file exists)
-    std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
+    std::vector<Moment> moments; // vector of all moments to be calculated    
 
     // Collect all rows in a stringstream to minimize I/O operations
     std::stringstream csv_data;
+
+    // track whether the header has been written, and the order of the columns
+    bool is_header_written = false;
+    std::vector<std::string> column_order;
 
     // ==== BEGIN FILE ITERATION ====
     for (const std::string &file : file_vector)
@@ -138,7 +132,40 @@ int main(int argc, char *argv[])
         // initialize the set of moments we can have from this file's waveset
         moments = initialize_moments(results);
 
-        // Optionally precompute all SDME values for this file
+        if (!is_header_written)
+        {
+            // write the header row if this is the first file
+            csv_data << "file,";
+            for (auto it = moments.begin(); it != moments.end(); ++it)
+            {
+                csv_data << (it->name()) << "_real," << (it->name()) << "_imag";
+                if (std::next(it) != moments.end())
+                { // ensure no extra comma at the end
+                    csv_data << ",";
+                }
+                column_order.push_back(it->name()); // keep track of the order of columns
+            }
+            csv_data << "\n"; // end header row
+            is_header_written = true;
+        }
+
+        // Ensure column_order matches the moments vector for every file
+        if (column_order.size() != moments.size() ||
+            !std::equal(
+                column_order.begin(), column_order.end(), moments.begin(),
+                [](const std::string &col, const Moment &mom)
+                {
+                    return col == mom.name();
+                }))
+        {
+            std::cerr
+                << "Error: The set/order of moments has changed between files. "
+                   "All files must have the same moments in the same order."
+                << "\n";
+            return 1;
+        }
+
+        // Precompute all SDME values for this file
         precompute_sdme_cache(results);
 
         for (const Moment &moment : moments)
@@ -147,7 +174,37 @@ int main(int argc, char *argv[])
             moment_results[moment.name()] = calculate_moment(moment, results);
         }
 
+        // ==== WRITE TO CSV ====
+        // write the file name as the first column
+        csv_data << file << ",";
+
+        for (auto it = moments.begin(); it != moments.end(); ++it)
+        {
+            const Moment &moment = *it;
+            const complex<double> &val = moment_results[moment.name()];
+            csv_data << std::real(val) << "," << std::imag(val);
+            if (std::next(it) != moments.end())
+            {
+                csv_data << ",";
+            }
+        }
+        csv_data << "\n";
+
     } // end of file iteration
+
+    // Write all collected data to the CSV file at once    
+    std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
+    if (!csv_file.is_open())
+    {
+        std::cerr << "Error: Could not open output file " << csv_name << " for writing." << std::endl;
+        return 1;
+    }
+    csv_file << csv_data.str();
+    csv_file.close();
+
+    std::cout << "Projected moments written to " << csv_name << "\n";
+
+    return 0;
 }
 
 /**
@@ -269,8 +326,8 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
         }
     }
 
-    // double moment_norm = ((2.0 * moment.J + 1) * (2 * moment.Jv + 1)) / (16.0 * M_PI * M_PI);
     moment_value *= 0.5; // multiply by 1/2 due to double counting in SDME. This should be a more formal normalization factor
+    moment_value *= ((2.0 * moment.J + 1) * (2 * moment.Jv + 1));
     return moment_value;
 }
 
