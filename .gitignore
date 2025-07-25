@@ -2,6 +2,10 @@
 **/*.root
 **/*.csv
 data
+
+# ignore studies folder, contains data and various config files
+studies/
+
 # Ignore all .txt files except CMakeLists.txt
 *.txt
 !CMakeLists.txt
