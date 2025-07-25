@@ -13,12 +13,9 @@ TODO: Eventually, the fit converter should simply include the needed data info i
 import argparse
 import os
 import subprocess
-import sys
 import tempfile
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-from src.neutralb1 import utils
+import neutralb1.utils as utils
 
 
 def main(args: dict) -> None:
@@ -70,9 +67,6 @@ def main(args: dict) -> None:
             print(f"\t{file}")
         return
 
-    # get the script directory to properly call the script with the right path
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
     # create a tempfile that contains the list of input files
     # this seems to improve the speed of subprocess.Popen
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_file:
@@ -87,7 +81,7 @@ def main(args: dict) -> None:
     if file_type == "fit":
         output_file_name = "fits.csv" if not args["output"] else args["output"]
         command = [
-            f"{script_dir}/extract_fit_results",
+            f"extract_fit_results",
             f"{temp_file_path}",
             f"{output_file_name}",
             f"{is_acceptance_corrected}",
@@ -97,7 +91,7 @@ def main(args: dict) -> None:
         if args["correlation"]:
             corr_output_name = output_file_name.replace(".csv", "_corr.csv")
             corr_command = [
-                f"{script_dir}/extract_corr_matrix",
+                f"extract_corr_matrix",
                 f"{temp_file_path}",
                 f"{corr_output_name}",
             ]
@@ -105,7 +99,7 @@ def main(args: dict) -> None:
         if args["covariance"]:
             cov_output_name = output_file_name.replace(".csv", "_cov.csv")
             cov_command = [
-                f"{script_dir}/extract_cov_matrix",
+                f"extract_cov_matrix",
                 f"{temp_file_path}",
                 f"{cov_output_name}",
             ]
@@ -113,7 +107,7 @@ def main(args: dict) -> None:
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
         bin_command = [
-            f"{script_dir}/extract_bin_info",
+            f"extract_bin_info",
             f"{temp_file_path}",
             f"{output_file_name}",
             f"{args['mass_branch']}",
