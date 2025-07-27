@@ -6,7 +6,6 @@ M = invariant mass
 */
 
 #include <iostream>
-#include <filesystem>
 
 #include "TFile.h"
 #include "TROOT.h"
@@ -14,7 +13,8 @@ M = invariant mass
 
 int main(int argc, char *argv[])
 {
-    auto print_help = []() {
+    auto print_help = []()
+    {
         std::cout << "Usage copy_tree_with_cuts [file] [output_path]"
                   << " [min_recoil_pi_mass]"
                   << " [t_low] [t_high] [E_low] [E_high] [m_low] [m_high]" << "\n"
@@ -28,9 +28,11 @@ int main(int argc, char *argv[])
                   << "m_low: Lower cut on the invariant omega-pi0 mass\n"
                   << "m_high: Upper cut on the invariant omega-pi0 mass\n";
     };
-    for (int i =1; i< argc; i++) {
+    for (int i = 1; i < argc; i++)
+    {
         std::string arg = argv[i];
-        if (arg == "-h" || arg == "--help") {
+        if (arg == "-h" || arg == "--help")
+        {
             print_help();
             return 0;
         }
@@ -59,7 +61,7 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Error: Could not open file " << file << "\n";
         return 1;
-    }    
+    }
 
     TTree *input_tree = (TTree *)f_input->Get("kin");
     if (!input_tree)
@@ -69,14 +71,14 @@ int main(int argc, char *argv[])
     }
 
     // we'll use the original file basename to copy to the new file path
-    std::filesystem::path p = file;
-    std::filesystem::path basename = p.filename();
+    size_t pos = file.find_last_of("/\\");
+    std::string basename = (pos == std::string::npos) ? file : file.substr(pos + 1);
 
     // Ensure output_path ends with "/"
     if (!output_path.empty() && output_path.back() != '/')
         output_path += '/';
 
-    std::string output_file = output_path + basename.string();
+    std::string output_file = output_path + basename;
 
     std::cout << "Copying Tree for: " << file << " to " << output_file << "\n";
 
