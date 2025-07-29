@@ -33,10 +33,10 @@ build-backend = "scikit_build_core.build"
 wheel.packages = ["src/neutralb1"]
 # Configure build directory
 build-dir = "build/python"
-# Minimal CMake configuration
+# Configure CMake
 cmake.source-dir = "."
 cmake.build-type = "Release"
-cmake.args = []
+cmake.args = ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
 cmake.define = {}
-# This tells scikit-build-core to work with pure Python for now
+# Enable C++ compilation
 wheel.py-api = "py3"
