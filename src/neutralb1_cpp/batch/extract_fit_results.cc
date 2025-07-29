@@ -289,12 +289,17 @@ void fill_maps(
 
             // split the "eJPmL" part of the amplitude into its components
             std::string e, J, P, m, L;
-            AmplitudeParser parser(amplitude);
-            e = parser.get_e_str();
-            J = parser.get_J_str();
-            P = parser.get_P_str();
-            m = parser.get_m_str();
-            L = parser.get_L_str();
+            try {
+                AmplitudeParser parser(amplitude);
+                e = parser.get_e_str();
+                J = parser.get_J_str();
+                P = parser.get_P_str();
+                m = parser.get_m_str();
+                L = parser.get_L_str();
+            } catch (const std::exception &e) {
+                std::cerr << "Error parsing amplitude '" << amplitude << "': " << e.what() << std::endl;
+                continue;
+            }            
             std::string eJPmL = e + J + P + m + L;
 
             // store the production coefficients
