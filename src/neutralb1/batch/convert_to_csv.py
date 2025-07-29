@@ -79,13 +79,23 @@ def main(args: dict) -> None:
 
     # setup c++ command with appropriate arguments
     if file_type == "fit":
-        output_file_name = "fits.csv" if not args["output"] else args["output"]
-        command = [
-            f"extract_fit_results",
-            f"{temp_file_path}",
-            f"{output_file_name}",
-            f"{is_acceptance_corrected}",
-        ]
+        if args["moments"]:
+            output_file_name = (
+                "projected_moments.csv" if not args["output"] else args["output"]
+            )
+            command = [
+                f"project_moments",
+                f"{temp_file_path}",
+                f"{output_file_name}",
+            ]
+        else:
+            output_file_name = "fits.csv" if not args["output"] else args["output"]
+            command = [
+                f"extract_fit_results",
+                f"{temp_file_path}",
+                f"{output_file_name}",
+                f"{is_acceptance_corrected}",
+            ]
         run_process(command, args["verbose"])
 
         if args["correlation"]:
@@ -227,6 +237,14 @@ def parse_args() -> dict:
         help=(
             "When passed, the covariance matrix of each fit is included in a separate"
             " csv file. Pass --no-covariance to disable this. Defaults to None."
+        ),
+    )
+    parser.add_argument(
+        "--moments",
+        action="store_true",
+        help=(
+            "When passed, the script will project the moments from the partial wave fit"
+            " results into a csv file. The fit file must be a partial wave fit."
         ),
     )
     return vars(parser.parse_args())
