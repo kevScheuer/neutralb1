@@ -144,13 +144,11 @@ def run_process(command: list, is_verbose: bool) -> None:
             for line in iter(proc.stdout.readline, ""):
                 print(line, end="")
     proc.wait()  # wait for the process to finish and update the return code
-    if proc.returncode != 0:
+    if proc.stderr is not None:
         print("Error while running command:")
-        if proc.stderr is not None:
-            for line in iter(proc.stderr.readline, ""):
-                print(line, end="")
-    else:
-        print("Process completed successfully")
+        for line in iter(proc.stderr.readline, ""):
+            print(line, end="")
+    print("Process completed successfully")
 
     return
 
