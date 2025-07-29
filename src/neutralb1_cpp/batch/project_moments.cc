@@ -327,7 +327,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
     }
 
     moment_value *= 0.5; // multiply by 1/2 due to double counting in SDME. This should be a more formal normalization factor
-    moment_value *= ((2.0 * moment.J + 1) * (2 * moment.Jv + 1));
+    // moment_value *= ((2.0 * moment.J + 1) * (2 * moment.Jv + 1));
     return moment_value;
 }
 
