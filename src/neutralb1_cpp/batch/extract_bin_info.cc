@@ -24,8 +24,11 @@ is used, then it will need to be implemented here.
 #include "TFile.h"
 #include "TTree.h"
 
+#include "file_utils.h"
+
 // forward declarations
 std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals);
+void fill_map_with_variable(std::map<std::string, double> &map, const std::string &key, TH1D *hist);
 
 int main(int argc, char *argv[])
 {
@@ -40,15 +43,14 @@ int main(int argc, char *argv[])
     std::string mass_branch = argv[3];
 
     // file path is a text file with a list of ROOT files, each on a newline
-    std::vector<std::string> file_vector;
-    std::ifstream infile(file_path);
-    std::string line;
-    while (std::getline(infile, line))
+    std::vector<std::string> file_vector = read_file_list(file_path);
+    if (file_vector.empty())
     {
-        file_vector.push_back(line);
+        std::cerr << "Error: No files found in " << file_path << "\n";
+        return 1;
     }
 
-    // Define header row and corresponding values
+    // Define header row
     std::vector<std::string> headers = {
         "file",
         "t_low",
@@ -69,29 +71,61 @@ int main(int argc, char *argv[])
         "events",
         "events_err",
     };
+    // setup map to store values
     std::vector<std::map<std::string, double>> values;
 
-    for (const auto &file : file_vector)
+    for (const std::string &file : file_vector)
     {
-        std::map<std::string, double> value_map;
-        // grab the file and tree
+        // determine if this is a data file or a gen_vec_ps file
+        // this will determine how the trees are processed
+        bool is_gen = false;
+        if (file.find("gen_vec_ps") != std::string::npos)
+            is_gen = true;
+        
+        std::map<std::string, double> value_map; // initialize map for this file
+
+        // Open the ROOT file
         std::unique_ptr<TFile> f(TFile::Open(file.c_str()));
-        TTree *tree = f->Get<TTree>("kin");
-        if (!tree)
+        if (!f || f->IsZombie())
         {
-            std::cout << "'kin' tree could not be opened in file: " << file << "\n";
-            exit(1);
+            std::cerr << "Error opening file: " << file << "\n";
+            continue; // skip to the next file
         }
 
         TCanvas *c1 = new TCanvas("c1", "c1", 1800, 1800);
+        // assign the histograms based on whether it is a gen file or not
+        TH1D *h_t = nullptr;
+        TH1D *h_e = nullptr;
+        TH1D *h_m = nullptr;
+        if (is_gen)
+        {
+            // NOTE: for now gen_vec_ps_diagnostic does not contain the E_beam hist.
+            //      Since E_beam is not crucial to the analysis and reading the gen
+            //      file is a simple operation rarely used, we can skip it
+            h_t = (TH1D *)f->Get("t");
+            h_m = (TH1D *)f->Get("M");            
+        }
+        else
+        {
+            TTree *tree = f->Get<TTree>("kin");
+            if (!tree)
+            {
+                std::cout << "'kin' tree could not be opened in file: " << file << "\n";
+                exit(1);
+            }
+            tree->Draw("t>>h_t", "Weight");
+            h_t = (TH1D *)gPad->GetPrimitive("h_t");
+            tree->Draw("E_Beam>>h_e", "Weight");
+            h_e = (TH1D *)gPad->GetPrimitive("h_e");
+            tree->Draw((mass_branch + ">>h_m").c_str(), "Weight");
+            h_m = (TH1D *)gPad->GetPrimitive("h_m");
+        }
 
-        // Assign histograms. These are required to get the mean and rms values
-        tree->Draw("t>>h_t", "Weight");
-        TH1D *h_t = (TH1D *)gPad->GetPrimitive("h_t");
-        tree->Draw("E_Beam>>h_e", "Weight");
-        TH1D *h_e = (TH1D *)gPad->GetPrimitive("h_e");
-        tree->Draw((mass_branch + ">>h_m").c_str(), "Weight");
-        TH1D *h_m = (TH1D *)gPad->GetPrimitive("h_m");
+        if (!h_t || !h_m)
+        {
+            std::cerr << "Error: Could not retrieve histograms from file: " << file << "\n";
+            continue; // skip to the next file
+        }
 
         // Fill the map. Round -t and E_beam to 2nd decimal, and the mass values to
         // the third decimal (1 MeV)
@@ -99,30 +133,14 @@ int main(int argc, char *argv[])
         value_map["events"] = h_m->IntegralAndError(0, h_m->GetNbinsX() + 1, bin_contents_error);
         value_map["events_err"] = bin_contents_error;
 
-        double t_low, t_high;
-        std::tie(t_low, t_high) = get_hist_edges(h_t, 2);
-        value_map["t_low"] = t_low;
-        value_map["t_high"] = t_high;
-        value_map["t_center"] = (t_high + t_low) / 2.0;
-        value_map["t_avg"] = h_t->GetMean();
-        value_map["t_rms"] = h_t->GetRMS();
-
-        double e_low, e_high;
-        std::tie(e_low, e_high) = get_hist_edges(h_e, 2);
-        value_map["e_low"] = e_low;
-        value_map["e_high"] = e_high;
-        value_map["e_center"] = (e_high + e_low) / 2.0;
-        value_map["e_avg"] = h_e->GetMean();
-        value_map["e_rms"] = h_e->GetRMS();
-
-        double m_low, m_high;
-        std::tie(m_low, m_high) = get_hist_edges(h_m, 3);
-        value_map["m_low"] = m_low;
-        value_map["m_high"] = m_high;
-        value_map["m_center"] = (m_high + m_low) / 2.0;
-        value_map["m_avg"] = h_m->GetMean();
-        value_map["m_rms"] = h_m->GetRMS();
-
+        fill_map_with_variable(value_map, "t", h_t);
+        if (is_gen)
+            // gen files do not have E_beam histograms
+            value_map["e_low"] = value_map["e_high"] = value_map["e_center"] = value_map["e_avg"] = value_map["e_rms"] = 0.0;
+        else
+            fill_map_with_variable(value_map, "e", h_e);
+        fill_map_with_variable(value_map, "m", h_m);
+        
         values.push_back(value_map);
 
         // Clean up
@@ -188,4 +206,24 @@ std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals)
     min = std::round((min * std::pow(10, round_to_decimals))) / std::pow(10, round_to_decimals);
     max = std::round((max * std::pow(10, round_to_decimals))) / std::pow(10, round_to_decimals);
     return std::make_pair(min, max);
+}
+
+void fill_map_with_variable(std::map<std::string, double> &map, const std::string &key, TH1D *hist)
+{
+    if (!hist)
+    {
+        std::cerr << "Error: Histogram is null for key: " << key << "\n";
+        return;
+    }
+    double low, high;
+    // round mass to 3 decimals for single MeV precision
+    if (key == "m")
+        std::tie(low, high) = get_hist_edges(hist, 3);
+    else
+        std::tie(low, high) = get_hist_edges(hist, 2);
+    map[key + "_low"] = low;
+    map[key + "_high"] = high;
+    map[key + "_center"] = (low + high) / 2.0;
+    map[key + "_avg"] = hist->GetMean();
+    map[key + "_rms"] = hist->GetRMS();
 }
