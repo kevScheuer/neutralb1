@@ -12,7 +12,7 @@ import neutralb1.analysis.physics as physics
 import neutralb1.utils
 
 
-def standardize_types(df: pd.DataFrame) -> pd.DataFrame:
+def standardize_fit_types(df: pd.DataFrame) -> pd.DataFrame:
     """Standardize the types of the columns in a fit result DataFrame.
 
     All fit result dataframes have common columns that need not be large float values.
@@ -33,9 +33,9 @@ def standardize_types(df: pd.DataFrame) -> pd.DataFrame:
     phase_columns = neutralb1.utils.get_phase_differences(df).values()
 
     # warn the user if phase columns are not yet wrapped
-    if any(df[col].max() > np.pi or df[col].min() < -np.pi for col in phase_columns):
+    if any(df[col].max() > 180.0 or df[col].min() < -180.0 for col in phase_columns):
         warnings.warn(
-            "The following columns contain phases that are not wrapped to (-pi, pi]: "
+            "The following columns contain phases that are not wrapped to (-180, 180]: "
             f"{', '.join(phase_columns)}. Consider wrapping them before proceeding.",
             UserWarning,
         )
@@ -45,6 +45,32 @@ def standardize_types(df: pd.DataFrame) -> pd.DataFrame:
         .astype({c: "int8" for c in zero_columns} if zero_columns else {})
         .astype({c: "float16" for c in phase_columns} if phase_columns else {})
     )
+
+
+def standardize_data_types(df: pd.DataFrame) -> pd.DataFrame:
+    """Standardize the types of the columns in a data file DataFrame.
+
+    A 'data' DataFrame contains the values of the ROOT file that is being fit to.
+    This function converts the columns to smaller types to save memory.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to standardize.
+    Returns:
+        pd.DataFrame: The DataFrame with standardized types.
+    """
+    # the low/high/center columns are for TEM bins, which do not require precision or
+    # bounds larger than float16
+    f16_columns = [c for c in df.columns if "low" in c or "high" in c or "center" in c]
+    # float32 should be the maximum for the average, RMS, and event count columns
+    f32_columns = [c for c in df.columns if "avg" in c or "rms" in c or "events" in c]
+
+    columns_to_types = {
+        "file": "category",
+        **{c: "float16" for c in f16_columns if f16_columns},
+        **{c: "float32" for c in f32_columns if f32_columns},
+    }
+
+    return df.astype(columns_to_types)
 
 
 def find_null_columns(df: pd.DataFrame) -> list:

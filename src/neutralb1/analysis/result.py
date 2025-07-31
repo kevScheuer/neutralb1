@@ -129,12 +129,12 @@ class ResultManager:
             self.truth_df = preprocessing.wrap_phases(self.truth_df)
 
         # standardize types across DataFrames to save memory
-        self.fit_df = preprocessing.standardize_types(self.fit_df)
-        self.data_df = preprocessing.standardize_types(self.data_df)
+        self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
+        self.data_df = preprocessing.standardize_data_types(self.data_df)
         if not self.bootstrap_df.empty:
-            self.bootstrap_df = preprocessing.standardize_types(self.bootstrap_df)
+            self.bootstrap_df = preprocessing.standardize_fit_types(self.bootstrap_df)
         if not self.truth_df.empty:
-            self.truth_df = preprocessing.standardize_types(self.truth_df)
+            self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
 
         # align phase difference names across DataFrames
         if self.bootstrap_df is not None:
