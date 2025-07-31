@@ -17,7 +17,7 @@ class ResultManager:
         bootstrap_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
-        """Initialize the ResultManager and run preprocessing steps.
+        """Initialize the ResultManager.
 
         See [link to converter script] for more details on how the DataFrames are
         constructed.
@@ -50,8 +50,28 @@ class ResultManager:
                 UserWarning,
             )
 
-        # --PREPROCESSING--
+        self.plotter_factory = None  # initialize to None until plotter is called
 
+        return
+
+    def preprocess(self, linker_max_depth: int = 1) -> None:
+        """Preprocess the DataFrames, and modify their class copies in place.
+
+        This includes:
+            - Checking for null values in the DataFrames and warning the user
+            - Linking the DataFrames together by adding a 'fit_index' column
+            - Converting unbound phase columns in radians to degrees from -180 to 180
+            - Standardizing types across DataFrames to save memory
+            - Aligning phase difference names across DataFrames
+            - Adding missing columns to the truth DataFrame
+
+        Args:
+            linker_max_depth (int, optional): Maximum depth for linking DataFrames.
+                Defaults to 1, assuming that all DataFrames are a sibling or child of
+                the fit DataFrame.
+                See :func:`neutralb1.analysis.utils.link_dataframes` for details.
+
+        """
         # warn of missing values in the DataFrames
         if preprocessing.find_null_columns(self.fit_df):
             warnings.warn(
@@ -88,13 +108,17 @@ class ResultManager:
             )
 
         # link the DataFrames together by adding a 'fit_index' column
-        self.data_df = preprocessing.link_dataframes(self.fit_df, self.data_df)
+        self.data_df = preprocessing.link_dataframes(
+            self.fit_df, self.data_df, linker_max_depth
+        )
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.link_dataframes(
-                self.fit_df, self.bootstrap_df
+                self.fit_df, self.bootstrap_df, linker_max_depth
             )
         if not self.truth_df.empty:
-            self.truth_df = preprocessing.link_dataframes(self.fit_df, self.truth_df)
+            self.truth_df = preprocessing.link_dataframes(
+                self.fit_df, self.truth_df, linker_max_depth
+            )
 
         # convert unbound phase columns in radians to degrees from -180 to 180
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
@@ -129,17 +153,15 @@ class ResultManager:
                 self.fit_df, self.truth_df
             )
 
-        # --END PREPROCESSING--
-
-        # Create plotter factory instance
-        self.plotter_factory = plotting.FactoryPlotter(
-            fit_df=self.fit_df,
-            data_df=self.data_df,
-            bootstrap_df=self.bootstrap_df,
-            truth_df=self.truth_df,
-        )
-
     @property
     def plot(self) -> plotting.FactoryPlotter:
         """Return a FactoryPlotter instance for plotting fit results."""
+
+        if self.plotter_factory is None:
+            self.plotter_factory = plotting.FactoryPlotter(
+                fit_df=self.fit_df,
+                data_df=self.data_df,
+                bootstrap_df=self.bootstrap_df,
+                truth_df=self.truth_df,
+            )
         return self.plotter_factory

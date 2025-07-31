@@ -58,17 +58,26 @@ def find_null_columns(df: pd.DataFrame) -> list:
     return df.columns[df.isnull().any()].tolist()
 
 
-def link_dataframes(fit_df: pd.DataFrame, target_df: pd.DataFrame) -> pd.DataFrame:
+def link_dataframes(
+    fit_df: pd.DataFrame, target_df: pd.DataFrame, max_depth: int = 2
+) -> pd.DataFrame:
     """Add a 'fit_index' to a target DataFrame to track which fit it belongs to.
 
-    Randomized, bootstrap, truth, and data DataFrames have "file" columns that are
-    subdirectories of the fit DataFrame. This function links the target DataFrame to
-    the fit DataFrame it's associated with by adding a 'fit_index' column.
+    Randomized, bootstrap, truth, and data DataFrames have "file" columns that denote
+    the path to the file each result row was derived from. The files are first
+    expected to be subdirectories of the fit DataFrame's "file" column, but if not, then
+    the function will search for the closest parent directory that matches, up to a
+    maximum depth of `max_depth`. If found, the function will add a 'fit_index' column
+    to the target DataFrame, which indicates the index of the fit DataFrame that
+    corresponds to each file in the target DataFrame.
 
     Args:
         fit_df (pd.DataFrame): The fit DataFrame containing file paths.
         target_df (pd.DataFrame): The target DataFrame to link to. It's file columns
             must be subdirectories of the fit DataFrame's file column.
+        max_depth (int, optional): The maximum depth to search for a matching fit file.
+            Defaults to 2, meaning it will look for a fit file that is, or has a parent
+            directory that is, at most 2 levels up from the target file's directory.
     Returns:
         pd.DataFrame: The target_df with an added 'fit_index' column that indicates
             the index of the fit DataFrame that corresponds to each file in the target
@@ -83,18 +92,28 @@ def link_dataframes(fit_df: pd.DataFrame, target_df: pd.DataFrame) -> pd.DataFra
     if "file" not in target_df.columns:
         raise KeyError("The target DataFrame must contain a 'file' column.")
 
-    # Get the files as path objects
-    fit_files = fit_df["file"].astype(str).map(pathlib.Path)
-    target_files = target_df["file"].astype(str).map(pathlib.Path)
+    # Get the files as strings
+    fit_files = fit_df["file"].astype(str)
+    target_files = target_df["file"].astype(str)
 
-    fit_index_to_path = dict(enumerate(fit_files))
+    index_to_fit_file = dict(enumerate(fit_files))
 
-    def find_fit_index(target_path: pathlib.Path) -> int:
-        """Find fit DataFrame file index that is a parent of the target_path."""
-        for index, fit_path in fit_index_to_path.items():
-            if fit_path in target_path.parents:
+    def find_fit_index(target_file: str) -> int:
+        """If target_path shares a common ancestor with a fit file, return its index."""
+        for index, fit_file in index_to_fit_file.items():
+
+            ancestor, fit_depth, target_depth = neutralb1.utils.shared_ancestor_info(
+                fit_file, target_file
+            )
+
+            if not ancestor or not fit_depth or not target_depth:
+                continue  # Skip if no common ancestor
+
+            if fit_depth <= max_depth and target_depth <= max_depth:
                 return index
-        raise ValueError(f"No matching fit found for {target_path}")
+
+        # If not found, check if the target_path is a parent of any fit file
+        raise ValueError(f"No matching fit found for {target_file}")
 
     return target_df.assign(fit_index=target_files.map(find_fit_index).astype("uint16"))
 

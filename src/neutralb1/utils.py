@@ -9,7 +9,7 @@ import os
 import pathlib
 import re
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -93,6 +93,32 @@ def get_workspace_dir() -> str:
         raise FileNotFoundError("Could not find 'neutralb1' directory in the path.")
 
     return workspace_dir
+
+
+def shared_ancestor_info(
+    path1: str, path2: str
+) -> Tuple[Optional[pathlib.Path], Optional[int], Optional[int]]:
+    """Find the deepest shared ancestor of two paths and their respective depths.
+
+    Args:
+        path1 (str): First file or directory path.
+        path2 (str): Second file or directory path.
+
+    Returns:
+        Tuple[Optional[pathlib.Path], Optional[int], Optional[int]]:
+        - shared_dir: the deepest shared ancestor Path (or None if none)
+        - depth1: how many parent steps from path1 to shared_dir
+        - depth2: how many parent steps from path2 to shared_dir
+    """
+    p1 = pathlib.Path(path1).resolve()
+    p2 = pathlib.Path(path2).resolve()
+    p1_parents = [p1.parent] + list(p1.parents)
+    p2_parents = [p2.parent] + list(p2.parents)
+    for i1, ancestor1 in enumerate(p1_parents):
+        if ancestor1 in p2_parents:
+            i2 = p2_parents.index(ancestor1)
+            return ancestor1, i1, i2
+    return None, None, None
 
 
 def parse_amplitude(amp: str) -> Dict[str, str]:
