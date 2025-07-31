@@ -15,6 +15,7 @@ dependencies = [
     "pandas>=2.3.1",
     "scipy>=1.16.0",
     "seaborn>=0.13.2",
+    "Wand>=0.6.13",
 ]
 
 [project.optional-dependencies]
