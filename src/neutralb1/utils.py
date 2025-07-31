@@ -292,10 +292,10 @@ def convert_amp_name(input_string: str) -> str:
 
     # set each quantum number to its found value. If not found, denote it with a sum
     e = r"\Sigma\varepsilon" if amp_dict["e"] == "" else pm_dict[amp_dict["e"]]
-    j = r"\Sigma J" if amp_dict["j"] == "" else amp_dict["j"]
-    p = "" if amp_dict["p"] == "" else pm_dict[amp_dict["p"]]
+    j = r"\Sigma J" if amp_dict["J"] == "" else amp_dict["J"]
+    p = "" if amp_dict["P"] == "" else pm_dict[amp_dict["P"]]
     m = r"\Sigma m" if amp_dict["m"] == "" else m_proj_dict[amp_dict["m"]]
-    l = r"\Sigma \ell" if amp_dict["l"] == "" else amp_dict["l"]
+    l = r"\Sigma \ell" if amp_dict["L"] == "" else amp_dict["L"]
 
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
 

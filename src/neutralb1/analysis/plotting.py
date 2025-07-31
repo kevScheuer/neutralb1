@@ -163,7 +163,11 @@ class IntensityPlotter(BasePWAPlotter):
         # plot each jp contribution
         for jp, props in jp_map.items():
             if jp in self.fit_df.columns:
-                l = utils.convert_amp_name(jp) if jp != "Bkgd" else "Iso. Background"
+                l = (
+                    utils.convert_amp_name(jp)
+                    if "Bkgd" not in jp
+                    else "Iso. Background"
+                )
                 ax.errorbar(
                     x=self._masses,
                     xerr=self._bin_width / 2,
