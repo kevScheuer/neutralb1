@@ -13,6 +13,9 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from IPython.display import Image as IPyImage
+from IPython.display import display
+from wand.image import Image as WandImage
 
 
 def sort_input_files(input_files: list, position: int = -1) -> list:
@@ -65,6 +68,24 @@ def load_environment() -> None:
 
     os.environ.update(env_vars)
     sys.path.insert(0, workspace_dir)
+
+    return
+
+
+def display_pdf(file: str, resolution: int = 100) -> None:
+    """Display a PDF file in a Jupyter notebook using WandImage
+
+    Converts a pdf to png for cropping of whitespace and proper display.
+
+    Args:
+        file (str): Path to the PDF file to be displayed.
+        resolution (int, optional): Resolution for rendering the PDF. Defaults to 100.
+    """
+    with WandImage(filename=file, resolution=resolution) as img:
+        img.format = "png"
+        img.trim()  # Crop whitespace
+        png_bytes = img.make_blob()
+        display(IPyImage(data=png_bytes))
 
     return
 
