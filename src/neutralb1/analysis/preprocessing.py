@@ -1,7 +1,6 @@
 """A collection of methods for preprocessing PWA fit result DataFrames."""
 
 import cmath
-import pathlib
 import warnings
 from typing import Optional
 
