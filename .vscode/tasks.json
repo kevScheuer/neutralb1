@@ -4,7 +4,7 @@
 		{
 			"label": "Build Project",
 			"type": "shell",
-			"command": "make",
+			"command": "./build_with_env.sh",
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -13,13 +13,13 @@
 			"problemMatcher": [
 				"$gcc"
 			],
-			"args": [],
-			"detail": "Build the project using make (auto-detects environment)"
+			"args": ["release"],
+			"detail": "Build the project using build_with_env.sh (release version)"
 		},
 		{
 			"label": "Build Debug",
 			"type": "shell",
-			"command": "make",
+			"command": "./build_with_env.sh",
 			"args": ["debug"],
 			"group": "build",
 			"isBackground": false,
@@ -31,7 +31,7 @@
 		{
 			"label": "Build Release",
 			"type": "shell", 
-			"command": "make",
+			"command": "./build_with_env.sh",
 			"args": ["release"],
 			"group": "build",
 			"isBackground": false,
@@ -43,7 +43,7 @@
 		{
 			"label": "Clean Project", 
 			"type": "shell",
-			"command": "make",
+			"command": "./build_with_env.sh",
 			"args": ["clean"],
 			"group": "build",
 			"isBackground": false,
