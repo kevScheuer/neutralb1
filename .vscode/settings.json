@@ -144,17 +144,7 @@
     "doxdocgen.generic.includeTypeAtReturn": true,
     "doxdocgen.generic.boolReturnsTrueFalse": true,
     "doxdocgen.cpp.tparamTemplate": "@tparam {param} {text}",
-    // Makefile Tools Settings
-    "makefile.configureOnOpen": true,
-    "makefile.extensionOutputFolder": "./.vscode",    
-    "makefile.buildLog": "${workspaceFolder}/build.log",
-    "makefile.preConfigureScript": "${workspaceFolder}/config/setup_gluex.sh",
-    "files.exclude": {
-        ".conda": true,
-        "./analysis/cross_section": true,       
-    },
-    "python.analysis.exclude": [
-        ".conda",        
-        "**/*.csv"        
-    ]
+
+    // cmake settings
+    "cmake.configureOnOpen": false
 }
