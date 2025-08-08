@@ -22,7 +22,6 @@ in the cfg file as [reaction]::RealNegSign::p1p0S.
 
 #include "IUAmpTools/FitResults.h"
 #include "IUAmpTools/NormIntInterface.h"
-#include "AMPTOOLS_AMPS/barrierFactor.h"
 #include "AMPTOOLS_AMPS/clebschGordan.h"
 #include "file_utils.h"
 #include "AmplitudeParser.h"
@@ -104,7 +103,7 @@ int main(int argc, char *argv[])
 
     // initialize the map of moment names to their values
     std::map<std::string, complex<double>> moment_results;
-    std::vector<Moment> moments; // vector of all moments to be calculated    
+    std::vector<Moment> moments; // vector of all moments to be calculated
 
     // Collect all rows in a stringstream to minimize I/O operations
     std::stringstream csv_data;
@@ -192,7 +191,7 @@ int main(int argc, char *argv[])
 
     } // end of file iteration
 
-    // Write all collected data to the CSV file at once    
+    // Write all collected data to the CSV file at once
     std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
     if (!csv_file.is_open())
     {
@@ -326,8 +325,13 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
         }
     }
 
-    moment_value *= 0.5; // multiply by 1/2 due to double counting in SDME. This should be a more formal normalization factor
-    // moment_value *= ((2.0 * moment.J + 1) * (2 * moment.Jv + 1));
+    if (moment.Lambda == 0 && moment.M == 0)
+    {
+        // cannot determine where this 1/2 factor is from...
+        // Is definitely needed to get H0_0000 == # of events, and the values to align
+        // with the fitted moments
+        moment_value *= 0.5;
+    }
     return moment_value;
 }
 
@@ -378,7 +382,7 @@ complex<double> calculate_SDME(
             s1 = 1.0;
             s2 = sign(mi + mj + li + lj + Ji + Jj);
 
-            sdme += c1 * c2 + s2 * c3 * c4;
+            sdme += s1 * c1 * c2 + s2 * c3 * c4;
             break;
         case 1:
             c1 = get_production_coefficient(e, Ji, -mi, li, results);
@@ -406,7 +410,10 @@ complex<double> calculate_SDME(
     }
 
     if (alpha == 2)
+    {
         sdme *= complex<double>(0, 1); // needs a factor of i outside the loop
+        sdme *= -1.0;
+    }
 
     // Cache the calculated value
     sdme_cache[key] = sdme;
@@ -505,14 +512,6 @@ complex<double> get_production_coefficient(
     }
 
     production_coefficient *= std::sqrt(sum_normalization_integrals);
-
-    // TODO: Temporary, unsure if required, but doing fixed values to make sure we
-    // replicate the python script
-    // multiply the production coefficient by the barrier factor
-    double mass = 1.21;
-    double pion_mass = 0.1349768; // PDG value
-    double omega_mass = 0.78265;  // PDG value
-    // production_coefficient *= barrierFactor(mass, L, pion_mass, omega_mass);
 
     return production_coefficient;
 }
