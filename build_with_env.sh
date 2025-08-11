@@ -33,7 +33,7 @@ elif [ "$1" = "dev" ]; then
     
     # Set build type for scikit-build-core
     export CMAKE_BUILD_TYPE="$BUILD_TYPE"
-    uv pip install -e .
+    uv pip install -e ".[dev]"
     
 elif [ "$1" = "debug" ]; then
     echo "Building debug version directly with CMake..."
