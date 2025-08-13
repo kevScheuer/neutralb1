@@ -13,10 +13,15 @@ dependencies = [
     "matplotlib>=3.10.3",
     "numpy>=2.3.1",
     "pandas>=2.3.1",
+    "pyyaml>=6.0.0",
     "scipy>=1.16.0",
     "seaborn>=0.13.2",
     "Wand>=0.6.13",
 ]
+
+[project.scripts]
+submit = "neutralb1.batch.submit_cli:main"
+convert_to_csv = "neutralb1.batch.convert_to_csv:main"
 
 [project.optional-dependencies]
 dev = [

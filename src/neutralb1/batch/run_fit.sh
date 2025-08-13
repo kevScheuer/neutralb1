@@ -21,18 +21,10 @@ rm ./bootstrap/*.csv
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
-    echo "Usage $0 [-o] [-r] [-n] [-d] [-D] [-p] [-P] [-S] [-C] [-R] [-b] [-s] [-t] [-h]"
-    echo "Options:"
-    echo " -o       polarization orientations with '-' delimeter" 
-    echo " -r       GlueX run period"
-    echo " -n       number of randomized fits to perform"
-    echo " -d       version # of data trees"
-    echo " -D       MC selector option for data trees"
-    echo " -p       version # of phasespace trees"
-    echo " -P       MC selector option for phasespace trees"    
-    echo " -S       directory where data Source files are stored"
-    echo " -C       Code directory where scripts are stored"
-    echo " -R       Reaction name of fit"        
+    echo "Usage $0 [-n] [-r] [-b] [-s] [-t] [-h]"
+    echo "Options:"        
+    echo " -n       number of randomized fits to perform"   
+    echo " -r       Reaction name of fit"        
     echo " -b       Number of bootstrap fits to perform for uncertainty estimation"
     echo " -s       Optional seed to use for randomized fits"
     echo " -t       Optional cfg file that mimics generated signal MC, to fit and obtain truth info. Using this will override some other options."    
@@ -40,46 +32,13 @@ usage() {
 }
 
 # variables labelled with "my" to avoid conflicts and not have to unset globals
-while getopts ":o:r:n:d:D:p:P:S:C:R:b:s:t:h:" opt; do
+while getopts ":o:n:r:b:s:t:h:" opt; do
     case "${opt}" in
-    o)
-        echo -e "orientations: \t\t$OPTARG\n"        
-        # replace "-" with " " in orientations so it can be looped over
-        my_orientations=${OPTARG//[-]/ }
-    ;;
-    r)
-        echo -e "run period: \t\t$OPTARG\n"
-        my_run_period=$OPTARG
-    ;;
     n)
         echo -e "num rand fits: \t\t$OPTARG\n"
         my_num_rand_fits=$OPTARG
     ;;
-    d)
-        echo -e "data version: \t\t$OPTARG\n"
-        my_data_version=$OPTARG
-    ;;
-    D)
-        echo -e "data MC option: \t$OPTARG\n"
-        my_data_option=$OPTARG
-    ;;
-    p)
-        echo -e "phasespace version: $OPTARG\n"
-        my_phasespace_version=$OPTARG
-    ;;
-    P)
-        echo -e "phasespace MC option: $OPTARG\n"
-        my_phasespace_option=$OPTARG
-    ;;
-    S)
-        echo -e "source file dir: \t$OPTARG\n"
-        my_source_file_dir=$OPTARG
-    ;;
-    C)
-        echo -e "code dir: \t\t\t$OPTARG\n"
-        my_code_dir=$OPTARG
-    ;;
-    R)
+    r)
         echo -e "reaction: \t\t\t$OPTARG\n"
         my_reaction=$OPTARG
     ;;
@@ -92,8 +51,8 @@ while getopts ":o:r:n:d:D:p:P:S:C:R:b:s:t:h:" opt; do
         my_seed="-rs $OPTARG"
     ;;
     t)
-        echo -e "truth file: \t\t$OPTARG\n"
-        my_truth_file=$OPTARG
+        echo -e "is truth fit?: \t\t$OPTARG\n"
+        my_truth_bool=$OPTARG
     ;;
     h) # help message
         usage
@@ -108,43 +67,16 @@ while getopts ":o:r:n:d:D:p:P:S:C:R:b:s:t:h:" opt; do
 done
 # ==== END GETTING ARGUMENTS ====
 
-source $my_code_dir/setup_gluex.sh
-source /home/kscheuer/.bashrc # loading conda env allows for running python scripts below
-conda activate neutralb1
+source setup_gluex.sh version.xml
+# following neutralb1 paths are hard-coded for now
+source /w/halld-scshelf2101/kscheuer/neutralb1/.venv/bin/activate
+export PATH="/w/halld-scshelf2101/kscheuer/neutralb1/build/release/bin:$PATH"
 
 # print some details to log
+pwd
+ls -al
 echo -e "check if GPU Card is active for GPU fits:\n"
 nvidia-smi
-pwd
-
-### LINK ROOT FILES ###
-tree="AmpToolsInputTree_sum"
-amp_string="anglesOmegaPiAmplitude"
-ph_string="anglesOmegaPiPhaseSpace"
-
-# link data files
-for ont in ${my_orientations}; do
-    ont_num="$(cut -d'_' -f2 <<<"$ont")" # get the angle integer e.g. PARA_90 -> 90
-
-    ln -sf ${my_source_file_dir}/${tree}_${ont}_${my_run_period}_${my_data_version}${my_data_option}.root\
-     ./${amp_string}_${ont_num}.root
-done
-
-# link generated phasespace
-ln -sf ${my_source_file_dir}/${ph_string}Gen_${my_run_period}_${my_phasespace_version}.root\
- ./${ph_string}.root
-
-# link accepted phasespace
-if [[ $my_data_option == *"_mcthrown"* ]]; then
-    acc_string="Gen" # when using thrown MC, this means no detector effects are applied
-    my_phasespace_option="" # remove option since it won't apply in this case
-else
-    acc_string="Acc"
-fi
-ln -sf ${my_source_file_dir}/${ph_string}${acc_string}_${my_run_period}_${my_phasespace_version}${my_phasespace_option}.root\
- ./${ph_string}Acc.root
-
-ls -al 
 
 ### RUN FIT ###
 echo -e "\n\n==================================================\n
@@ -158,8 +90,8 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
 fi
 
 run_start_time=$(date +%s)
-if ! [ -z "$my_truth_file" ]; then
-    fit -c $my_truth_file -m 1000000 -s "bestFitPars"
+if ! [ $my_truth_bool -eq 1 ]; then
+    fit -c fit.cfg -m 1000000 -s "bestFitPars"
 elif [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
     which fitMPI
@@ -187,42 +119,30 @@ vecps_plotter best.fit
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
-if [ -z "$my_truth_file" ]; then
-    cwd=$(pwd)
-    root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" # TODO: replace with python script
-fi
+# TODO: this file should be replaced by a python script using a csv of the rand fits
+# if [ -z "$my_truth_file" ]; then
+#     cwd=$(pwd)
+#     root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" 
+# fi
 
-# produce diagnostic plots of angles and mass distributions
-if [[ $my_data_version == *"data"* ]]; then
-    my_label="Data"
-elif [[ $my_data_option == *"_mcthrown"* ]]; then
-    my_label="Thrown MC"
-else
-    my_label="Recon MC"
-fi
-
-$my_code_dir/angle_plotter vecps_plot.root $my_label $my_reaction ./ true
+angle_plotter ./vecps_plot.root "GlueX Data" $my_reaction ./ true
 
 # get total data csv file
-hadd all_data.root ${amp_string}_*.root
-python $my_code_dir/convert_to_csv.py -i $(pwd)/all_data.root -o $(pwd)/data.csv
+hadd all_data.root *Amplitude*.root
+uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
 
-# convert best fit results to a csv file and moments
-python $my_code_dir/convert_to_csv.py -i $(pwd)/best.fit -o $(pwd)/best.csv
-breit_wigner_arg=""
-if ! [ -z "$my_truth_file" ]; then
-    breit_wigner_arg=" -b" # truth files use breit wigner parameters
-fi
-python $my_code_dir/project_moments.py -i $(pwd)/best.fit -o $(pwd)/best_moments.csv $breit_wigner_arg
+# convert best fit results to a csv file and its projected moments
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_moments.csv --moments
 
 # process random fits
-if [ $my_num_rand_fits -ne 0 ] && [ -z "$my_truth_file" ]; then
+if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f bestFitPars_*.txt rand/
     mv -f "$my_reaction".ni rand/
     mv -f rand_fit_diagnostic.pdf rand/
-    python $my_code_dir/convert_to_csv.py -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv    
-    python $my_code_dir/project_moments.py -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv -w 10
+    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv
+    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv --moments
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
 fi
@@ -235,8 +155,8 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
 
     # truth files are already set up to start at the "best" values
-    if ! [ -z "$my_truth_file" ]; then
-        cp -f $my_truth_file bootstrap_fit.cfg
+    if [ $my_truth_bool -eq 1 ]; then
+        cp -f fit.cfg bootstrap_fit.cfg
     else
         # otherwise create special bootstrap cfg and set it to start at the best fit values
         cp -f fit.cfg bootstrap_fit.cfg
@@ -267,8 +187,8 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     # convert bootstrap fits to csv and move them to a subdirectory
     mv -f "$my_reaction"_*.fit bootstrap/
     mv -f "$my_reaction".ni bootstrap/
-    python $my_code_dir/convert_to_csv.py -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
-    python $my_code_dir/project_moments.py -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv -w 10 $breit_wigner_arg
+    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
+    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv --moments
     all_bootstrap_end_time=$(date +%s)
     echo "All bootstrap fits took: $((all_bootstrap_end_time - all_bootstrap_start_time)) seconds"
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
@@ -276,7 +196,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
 fi
 
 # rename truth file outputs
-if [ ! -z "$my_truth_file" ]; then
+if [ $my_truth_bool -eq 1 ]; then
     mv -f best.fit best_truth.fit
     mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
 fi
