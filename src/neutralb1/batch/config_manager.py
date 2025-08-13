@@ -201,14 +201,14 @@ class ConfigManager:
             data_files = os.listdir(config.data.data_dir)
 
             for ont in config.data.orientations:
-                if any(ont not in fname for fname in data_files):
+                if all(ont not in fname for fname in data_files):
                     errors.append(
                         f"Orientation {ont} not found in directory:"
                         f" {config.data.data_dir}"
                     )
 
             data_pattern = f"{config.data.data_version}{config.data.data_option}"
-            if any(data_pattern in fname for fname in data_files):
+            if all(data_pattern not in fname for fname in data_files):
                 errors.append(
                     f"Data {data_pattern} does not exist in directory:"
                     f" {config.data.data_dir}"
@@ -224,7 +224,7 @@ class ConfigManager:
             phasespace_pattern = (
                 f"{config.data.phasespace_version}{config.data.phasespace_option}"
             )
-            if any(phasespace_pattern in fname for fname in phasespace_files):
+            if all(phasespace_pattern not in fname for fname in phasespace_files):
                 errors.append(
                     f"Phasespace {phasespace_pattern} does not exist in directory:"
                     f" {config.data.phasespace_dir}"
