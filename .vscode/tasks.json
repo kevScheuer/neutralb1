@@ -10,11 +10,8 @@
 				"isDefault": true
 			},
 			"isBackground": false,
-			"problemMatcher": [
-				"$gcc"
-			],
-			"args": ["release"],
-			"detail": "Build the project using build_with_env.sh (release version)"
+			"args": ["dev"],
+			"detail": "Build the project using build_with_env.sh (development version)"
 		},
 		{
 			"label": "Build Debug",

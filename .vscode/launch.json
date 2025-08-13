@@ -2,9 +2,22 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    
     "version": "0.2.0",
     "configurations": [
+        {
+            "name": "Debug Submit CLI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "neutralb1.batch.submit_cli",
+            "args": [
+                "example.YAML",
+                "--test"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build Project",
+            "python": "${workspaceFolder}/.venv/bin/python"
+        },
         {
             "name": "Debug C++ Binary",
             "type": "cppdbg",
@@ -60,7 +73,7 @@
         },
         {
             "id": "arg1",
-            "description": "Program argument 1 (e.g., 'input.txt')",            
+            "description": "Program argument 1 (e.g., 'input.txt')",
             "type": "promptString"
         },
         {
