@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import yaml
 
-from . import write_config
+from .amptools_config_writer import AmpToolsConfigWriter
 from .config_models import (
     ComputeConfig,
     DataConfig,
@@ -78,52 +78,9 @@ class ConfigManager:
         Returns:
             str: Path to the created .cfg file.
         """
-        # Convert PWAConfig to format expected by write_config
-        # TODO: update write_config to PWAConfig instead of dict, and use tempfile path
-        # also never liked template file, might just include that in writer?
-        config_dict = {
-            # Physics parameters
-            "waveset": config.physics.waveset,
-            "phase_reference": config.physics.phase_reference,
-            "phaselock": config.physics.phaselock,
-            "ds_ratio": config.physics.ds_ratio,
-            "frame": config.physics.frame,
-            "single_refl": config.physics.single_refl,
-            "init_refl": config.physics.init_refl,
-            "init_real": config.physics.init_real,
-            "init_imag": config.physics.init_imag,
-            "remove_waves": config.physics.remove_waves,
-            # Data parameters
-            "orientations": config.data.orientations,
-            "run_periods": config.data.run_periods,
-            "masses": config.data.masses,
-            "t_momenta": config.data.t_momenta,
-            "energy": config.data.energy,
-            "data_dir": config.data.data_dir,
-            "data_version": config.data.data_version,
-            "data_option": config.data.data_option,
-            "phasespace_dir": config.data.phasespace_dir,
-            "phasespace_version": config.data.phasespace_version,
-            "phasespace_option": config.data.phasespace_option,
-            "cut_recoil_pi_mass": config.data.cut_recoil_pi_mass,
-            "truth_file": config.data.truth_file,
-            # Compute parameters
-            "nrand": config.compute.nrand,
-            "random_seed": config.compute.random_seed,
-            "bootstrap": config.compute.bootstrap,
-            "gpu": config.compute.gpu,
-            "email": config.compute.email,
-            "email_type": config.compute.email_type,
-            "time_limit": config.compute.time_limit,
-            "test": config.compute.test,
-            # General parameters
-            "reaction": config.general.reaction,
-            "template_name": config.general.template_name,
-        }
-
-        # Use existing write_config module
+        cfg_writer = AmpToolsConfigWriter(config)
         amptools_cfg = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        write_config.main(config_dict, amptools_cfg.name)
+        cfg_writer.write_config_to_file(amptools_cfg.name)
         amptools_cfg.close()
 
         return amptools_cfg.name

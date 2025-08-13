@@ -9,7 +9,7 @@ import os
 import pathlib
 import pwd
 import shutil
-from typing import List, Tuple
+from typing import List
 
 import neutralb1.utils as utils
 
