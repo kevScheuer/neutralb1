@@ -120,61 +120,6 @@ class ConfigManager:
 
         self.save_yaml_config(template_config, output_path)
 
-    def _yaml_dict_to_config(self, config_dict: Dict[str, Any]) -> PWAConfig:
-        """Convert dictionary from YAML to PWAConfig object.
-
-        Args:
-            config_dict (Dict[str, Any]): Dictionary from YAML file.
-
-        Returns:
-            PWAConfig: Converted configuration object.
-        """
-        # Extract sections with defaults
-        physics_dict = config_dict.get("physics", {})
-        data_dict = config_dict.get("data", {})
-        compute_dict = config_dict.get("compute", {})
-        general_dict = config_dict.get("general", {})
-
-        # Create config objects
-        physics = PhysicsConfig(**physics_dict)
-        data = DataConfig(**data_dict)
-        compute = ComputeConfig(**compute_dict)
-        general = GeneralConfig(**general_dict)
-
-        # if "ALL" is used, expand to 4 orientation names
-        data.orientations = self._expand_orientations(data.orientations)
-
-        return PWAConfig(
-            name=config_dict.get("name", ""),
-            description=config_dict.get("description", ""),
-            physics=physics,
-            data=data,
-            compute=compute,
-            general=general,
-        )
-
-    def _config_to_yaml_dict(self, config: PWAConfig) -> Dict[str, Any]:
-        """Convert PWAConfig object to dictionary for YAML serialization.
-
-        Args:
-            config (PWAConfig): Configuration object.
-
-        Returns:
-            Dict[str, Any]: Dictionary suitable for YAML serialization.
-        """
-        from dataclasses import asdict
-
-        config_dict = {
-            "name": config.name,
-            "description": config.description,
-            "physics": asdict(config.physics),
-            "data": asdict(config.data),
-            "compute": asdict(config.compute),
-            "general": asdict(config.general),
-        }
-
-        return config_dict
-
     def validate_config(self, config: PWAConfig) -> List[str]:
         """Validate configuration and return list of errors.
 
@@ -322,3 +267,58 @@ class ConfigManager:
         if "ALL" in orientations:
             return ["PARA_0", "PERP_45", "PERP_90", "PARA_135"]
         return orientations
+
+    def _yaml_dict_to_config(self, config_dict: Dict[str, Any]) -> PWAConfig:
+        """Convert dictionary from YAML to PWAConfig object.
+
+        Args:
+            config_dict (Dict[str, Any]): Dictionary from YAML file.
+
+        Returns:
+            PWAConfig: Converted configuration object.
+        """
+        # Extract sections with defaults
+        physics_dict = config_dict.get("physics", {})
+        data_dict = config_dict.get("data", {})
+        compute_dict = config_dict.get("compute", {})
+        general_dict = config_dict.get("general", {})
+
+        # Create config objects
+        physics = PhysicsConfig(**physics_dict)
+        data = DataConfig(**data_dict)
+        compute = ComputeConfig(**compute_dict)
+        general = GeneralConfig(**general_dict)
+
+        # if "ALL" is used, expand to 4 orientation names
+        data.orientations = self._expand_orientations(data.orientations)
+
+        return PWAConfig(
+            name=config_dict.get("name", ""),
+            description=config_dict.get("description", ""),
+            physics=physics,
+            data=data,
+            compute=compute,
+            general=general,
+        )
+
+    def _config_to_yaml_dict(self, config: PWAConfig) -> Dict[str, Any]:
+        """Convert PWAConfig object to dictionary for YAML serialization.
+
+        Args:
+            config (PWAConfig): Configuration object.
+
+        Returns:
+            Dict[str, Any]: Dictionary suitable for YAML serialization.
+        """
+        from dataclasses import asdict
+
+        config_dict = {
+            "name": config.name,
+            "description": config.description,
+            "physics": asdict(config.physics),
+            "data": asdict(config.data),
+            "compute": asdict(config.compute),
+            "general": asdict(config.general),
+        }
+
+        return config_dict

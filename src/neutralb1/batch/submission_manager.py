@@ -205,7 +205,8 @@ class SubmissionManager:
             run_period (str): Run period string.
         """
 
-        # self._prepare_init_directory(dir)  # TODO: implement this
+        if "init" in config.data.truth_file:
+            self._prepare_init_directory(dir)
 
         # Create directories
         pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
@@ -266,24 +267,24 @@ class SubmissionManager:
     def _prepare_init_directory(
         self, running_dir: str, scale_par_name: str = "intensity_scale"
     ) -> None:
-        """
-        Create the necessary scale.txt file for truth initialized fits to run.
+        """Create the necessary scale.txt file for truth initialized fits
 
-        A truth initialized fit requires a scale.txt file that simply has an intensity_scale
-        parameter that multiplies all amplitudes by a constant factor, in order to properly
-        initialize the amplitudes to the right value. This function creates that file by
-        assuming that a truth fit has already been run and the scale factor is stored in the
-        best_truth.fit file. If the best_truth.fit file is not found, the submission stops.
+        A truth initialized fit requires a scale.txt file that simply has an
+        intensity_scale parameter that multiplies all amplitudes by a constant factor,
+        in order to properly initialize the amplitudes to the right value. This function
+        creates that file by assuming that a truth fit has already been run and the
+        scale factor is stored in the best_truth.fit file. If the best_truth.fit file is
+        not found, the submission stops.
 
         Args:
             running_dir (str): Directory where the scale.txt file will be created.
-            scale_par_name (str): Name of the scale parameter.
+            scale_par_name (str): Name of the scale parameter written in the truth-init
+                cfg file that needs to be sourced from a previous fixed truth fit
 
         Raises:
             FileNotFoundError: If the best_truth.fit file is not found.
             ValueError: If the scale factor is not found in the best_truth.fit file.
         """
-        import os
 
         # running_dir (truth-init) is a sibling of the truth directory
         truth_dir = f"{running_dir.rsplit('/', 2)[0]}/truth/"
@@ -291,7 +292,10 @@ class SubmissionManager:
         # Find the scale factor from the best_truth.fit file
         truth_fit = f"{truth_dir}best_truth.fit"
         if not os.path.isfile(truth_fit):
-            raise FileNotFoundError(f"File {truth_fit} not found!")
+            raise FileNotFoundError(
+                f"File {truth_fit} not found! Truth initialized fits require this file."
+                " Please run a truth fit first."
+            )
 
         scale_factor = 0.0
         is_searching = False
