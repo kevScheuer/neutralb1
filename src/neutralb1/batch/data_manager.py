@@ -130,6 +130,12 @@ class DataManager:
 
                 # Submit jobs to create the files
                 for src_file, dirs in src_files_to_copy_to_dir.items():
+                    if config.compute.test:
+                        print(
+                            f"Test mode: file {src_file} would be copied to directories"
+                            f"\n\t{'\n\t'.join(dirs)}"
+                        )
+
                     for dir in dirs:
                         if not config.compute.test:
                             self._prepare_job_directory(dir)

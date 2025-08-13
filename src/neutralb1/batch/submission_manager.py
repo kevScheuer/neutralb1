@@ -100,7 +100,7 @@ class SubmissionManager:
                     )
 
                     if config.compute.test:  # provide cfg file to user if running test
-                        shutil.copy(amptools_cfg, os.getcwd())
+                        shutil.copy(amptools_cfg, f"{os.getcwd()}/fit.cfg")
                     else:  # otherwise prepare the job directory by linking needed files
                         self._prepare_job_directory(
                             config, job_dir, amptools_cfg, data_path, run_period
