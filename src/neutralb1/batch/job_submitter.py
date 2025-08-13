@@ -103,7 +103,7 @@ class JobSubmitter:
         # build shell commands directly into files since its simpler
         script_command = (
             "source setup_gluex.sh &&"
-            "export PATH="  # path export hard-coded for now
+            " export PATH="  # path export hard-coded for now
             '"/w/halld-scshelf2101/kscheuer/neutralb1/build/release/bin:$PATH"'
             " && copy_tree_with_cuts"
             f" {src_file}"
@@ -187,7 +187,10 @@ class JobSubmitter:
         temp_file.close()
 
         if is_test:  # provide slurm script to user if running test
-            shutil.copy(temp_file.name, f"{os.getcwd()}/slurm.txt")
+            slurm_name = (
+                "slurm_data.txt" if "data_files" in running_dir else "slurm_fit.txt"
+            )
+            shutil.copy(temp_file.name, f"{os.getcwd()}/{slurm_name}")
             return ""
 
         # Submit the job
@@ -243,8 +246,8 @@ class JobSubmitter:
             "#SBATCH -A halld",
             f"#SBATCH --time={time_limit}",
             f"#SBATCH --chdir={running_dir}",
-            f"#SBATCH --error={log_dir}/log.err",
-            f"#SBATCH --output={log_dir}/log.out",
+            f"#SBATCH --error={log_dir}log.err",
+            f"#SBATCH --output={log_dir}log.out",
             f"#SBATCH --job-name={job_name}",
             f"#SBATCH --mem-per-cpu={mem_per_cpu}",
             "#SBATCH --cpus-per-task=1",
