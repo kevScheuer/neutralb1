@@ -239,7 +239,7 @@ class SubmissionManager:
             # data file should be labelled with just the orientation angle to match
             # the AmpTools cfg file
             ont_number = ont.replace("PARA_", "").replace("PERP_", "")
-            os.symlink(
+            self._symlink_force(
                 (
                     f"{selected_data_path}/AmpToolsInputTree_sum_{ont}_{run_period}"
                     f"_{config.data.data_version}{config.data.data_option}.root"
@@ -247,7 +247,7 @@ class SubmissionManager:
                 (f"{dir}/anglesOmegaPiAmplitude_{ont_number}.root"),
             )
         # gen phasespace
-        os.symlink(
+        self._symlink_force(
             (
                 f"{selected_data_path}/anglesOmegaPiPhaseSpaceGen_{run_period}"
                 f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
@@ -257,7 +257,7 @@ class SubmissionManager:
 
         # acc phasespace (won't apply for thrown MC studies)
         label = "Gen" if "mcthrown" in config.data.data_option else "Acc"
-        os.symlink(
+        self._symlink_force(
             (
                 f"{selected_data_path}/anglesOmegaPiPhaseSpace{label}_{run_period}"
                 f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
@@ -323,3 +323,18 @@ class SubmissionManager:
         # Write the scale factor to the scale.txt file
         with open(f"{running_dir}/scale.txt", "w") as f:
             f.write(f"parameter intensity_scale {scale_factor} fixed")
+
+    def _symlink_force(self, target: str, link_name: str) -> None:
+        """Forcefully create a symlink, overwriting any existing link or file.
+
+        Args:
+            target (str): The target file to link to.
+            link_name (str): The name of the symlink to create.
+        """
+        try:
+            os.symlink(target, link_name)
+        except FileExistsError:
+            os.remove(link_name)
+            os.symlink(target, link_name)
+        except Exception as e:
+            print(f"Failed to create symlink {link_name} -> {target}: {e}")
