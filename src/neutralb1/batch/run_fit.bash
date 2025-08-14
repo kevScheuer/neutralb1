@@ -85,7 +85,7 @@ fi
 
 run_start_time=$(date +%s)
 if ! [ $my_truth_bool -eq 1 ]; then
-    fit -c fit.cfg -m 1000000 -s "bestFitPars"
+    fit -c fit.cfg -m 1000000 -s "bestFitPars.txt"
 elif [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
     which fitMPI
@@ -93,9 +93,9 @@ elif [ "$use_mpi" = true ]; then
     which mpirun
     which mpicxx
 
-    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars" $my_seed
+    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars.txt" $my_seed
 else
-    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars" $my_seed
+    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars.txt" $my_seed
 fi
 
 run_end_time=$(date +%s)
@@ -191,8 +191,7 @@ fi
 
 # rename truth file outputs
 if [ $my_truth_bool -eq 1 ]; then
-    mv -f best.fit best_truth.fit
-    mv -f bestFitPars bestFitPars.txt # don't know why this only happens here
+    mv -f best.fit best_truth.fit    
 fi
 
 end_time=$(date +%s)
