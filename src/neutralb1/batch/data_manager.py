@@ -8,6 +8,7 @@ import os
 import pathlib
 import pwd
 import shutil
+from typing import List
 
 import neutralb1.utils as utils
 
@@ -29,7 +30,7 @@ class DataManager:
         self.volatile_dir = f"/volatile/halld/home/{self.user}"
         self.job_submitter = JobSubmitter()
 
-    def prepare_data_files(self, config: PWAConfig) -> bool:
+    def prepare_data_files(self, config: PWAConfig) -> List[str]:
         """Create data files with cuts and store them in volatile directory.
 
         The typical ROOTDataReader method in .cfg files reads in data much too slowly,
@@ -41,7 +42,8 @@ class DataManager:
             config (PWAConfig): Complete configuration object.
 
         Returns:
-            bool: True if files are ready, False if jobs were submitted to create them.
+            List[str]: List of job IDs for submitted jobs, or an empty list if files
+                are ready.
 
         Raises:
             FileExistsError: If required source files don't exist.
@@ -160,9 +162,7 @@ class DataManager:
                 " https://scicomp.jlab.org/scicomp/slurmJob/activeJob, or by running"
                 " 'squeue --me' in a terminal"
             )
-            return False
-
-        return True
+        return job_ids
 
     def get_volatile_path(
         self,

@@ -94,7 +94,7 @@ def main() -> int:
             elif config.compute.test:
                 print("\nTest mode: No jobs were actually submitted.")
             else:
-                print("\nNo jobs were submitted (possibly waiting for data files).")
+                raise RuntimeError("\nNo jobs were submitted!")
 
             return 0
 

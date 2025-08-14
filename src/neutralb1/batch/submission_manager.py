@@ -66,9 +66,10 @@ class SubmissionManager:
             config.data.t_bins = bins
 
         # Create ROOT data files with cuts if not yet done
-        if not self.data_manager.prepare_data_files(config):
+        data_job_ids = self.data_manager.prepare_data_files(config)
+        if data_job_ids:
             # Data files are being created, exit early
-            return []
+            return data_job_ids
 
         # Create AmpTools config file template if not using a truth file
         amptools_cfg = (
