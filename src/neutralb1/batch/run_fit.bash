@@ -3,23 +3,17 @@ start_time=$(date +%s)
 echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup directory
-rm ./*.fit 
-rm ./bestFitPars.txt
-rm ./vecps_fitPars.txt
-rm ./*.pdf
-rm ./*.csv
-rm ./*.root
-rm ./*.ni
-rm ./setup_gluex.sh
-rm ./version.xml
-rm ./rand/*.fit
-rm ./rand/bestFitPars*.txt
-rm ./rand/*.ni
-rm ./rand/*.pdf
-rm ./rand/*.csv
-rm ./bootstrap/*.fit
-rm ./bootstrap/*.ni
-rm ./bootstrap/*.csv
+rm -f ./*.fit 
+rm -f ./bestFitPars.txt
+rm -f ./vecps_fitPars.txt
+rm -f ./*.pdf
+rm -f ./*.csv
+rm -f ./*.root
+rm -f ./*.ni
+rm -f ./setup_gluex.sh
+rm -f ./version.xml
+rm -f ./rand/*
+rm -f ./bootstrap/*
 
 # ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
 usage() {
@@ -45,7 +39,7 @@ while getopts ":o:n:r:b:s:t:h:" opt; do
         my_reaction=$OPTARG
     ;;
     b)
-        echo -e "num bootstrap fits: \t$OPTARG\n"
+        echo -e "num bootstrap fits: $OPTARG\n"
         my_num_bootstrap_fits=$OPTARG
     ;;
     s)

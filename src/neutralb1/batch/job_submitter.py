@@ -44,7 +44,7 @@ class JobSubmitter:
         truth_arg = 1 if config.data.truth_file else 0
 
         script_command = (
-            f"{script_dir}/run_fit.sh "
+            f"{script_dir}/run_fit.bash "
             f"-n {config.compute.nrand} "
             f"-r {config.general.reaction} "
             f"-b {config.compute.bootstrap} "
