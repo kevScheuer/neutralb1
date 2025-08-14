@@ -102,7 +102,7 @@ class JobSubmitter:
 
         # build shell commands directly into files since its simpler
         script_command = (
-            "source setup_gluex.sh &&"
+            "source setup_gluex.sh version.xml &&"
             " export PATH="  # path export hard-coded for now
             '"/w/halld-scshelf2101/kscheuer/neutralb1/build/release/bin:$PATH"'
             " && copy_tree_with_cuts"
@@ -242,7 +242,7 @@ class JobSubmitter:
             str: Complete SLURM script content.
         """
         script_lines = [
-            "#!/bin/sh",
+            "#!/bin/bash",
             "#SBATCH -A halld",
             f"#SBATCH --time={time_limit}",
             f"#SBATCH --chdir={running_dir}",

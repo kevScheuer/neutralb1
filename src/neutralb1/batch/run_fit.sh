@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 start_time=$(date +%s)
 echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
@@ -10,6 +10,8 @@ rm ./*.pdf
 rm ./*.csv
 rm ./*.root
 rm ./*.ni
+rm ./setup_gluex.sh
+rm ./version.xml
 rm ./rand/*.fit
 rm ./rand/bestFitPars*.txt
 rm ./rand/*.ni
