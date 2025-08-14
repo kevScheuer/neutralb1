@@ -10,8 +10,6 @@ rm -f ./*.pdf
 rm -f ./*.csv
 rm -f ./*.root
 rm -f ./*.ni
-rm -f ./setup_gluex.sh
-rm -f ./version.xml
 rm -f ./rand/*
 rm -f ./bootstrap/*
 
