@@ -8,7 +8,7 @@ rm -f ./bestFitPars.txt
 rm -f ./vecps_fitPars.txt
 rm -f ./*.pdf
 rm -f ./*.csv
-rm -f ./*.root
+rm -f ./vecps_plot.root
 rm -f ./*.ni
 rm -f ./rand/*
 rm -f ./bootstrap/*
@@ -119,7 +119,7 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 #     root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" 
 # fi
 
-angle_plotter ./vecps_plot.root "GlueX Data" $my_reaction ./ true
+angle_plotter ./vecps_plot.root "GlueX Data" "" ./ true
 
 # get total data csv file
 hadd all_data.root *Amplitude*.root
