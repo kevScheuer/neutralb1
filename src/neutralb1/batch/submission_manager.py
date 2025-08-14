@@ -244,7 +244,7 @@ class SubmissionManager:
                     f"{selected_data_path}/AmpToolsInputTree_sum_{ont}_{run_period}"
                     f"_{config.data.data_version}{config.data.data_option}.root"
                 ),
-                (f"anglesOmegaPiAmplitude_{ont_number}.root"),
+                (f"{dir}/anglesOmegaPiAmplitude_{ont_number}.root"),
             )
         # gen phasespace
         os.symlink(
@@ -252,7 +252,7 @@ class SubmissionManager:
                 f"{selected_data_path}/anglesOmegaPiPhaseSpaceGen_{run_period}"
                 f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
             ),
-            ("anglesOmegaPiPhaseSpace.root"),
+            (f"{dir}/anglesOmegaPiPhaseSpace.root"),
         )
 
         # acc phasespace (won't apply for thrown MC studies)
@@ -262,7 +262,7 @@ class SubmissionManager:
                 f"{selected_data_path}/anglesOmegaPiPhaseSpace{label}_{run_period}"
                 f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
             ),
-            ("anglesOmegaPiPhaseSpaceAcc.root"),
+            (f"{dir}/anglesOmegaPiPhaseSpaceAcc.root"),
         )
 
     def _prepare_init_directory(
