@@ -122,7 +122,7 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 angle_plotter ./vecps_plot.root "GlueX Data" "" ./ true
 
 # get total data csv file
-hadd all_data.root *Amplitude*.root
+hadd -f all_data.root *Amplitude*.root
 uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
 
 # convert best fit results to a csv file and its projected moments
