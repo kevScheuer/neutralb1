@@ -84,7 +84,7 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
 fi
 
 run_start_time=$(date +%s)
-if ! [ $my_truth_bool -eq 1 ]; then
+if [ $my_truth_bool -eq 1 ]; then
     fit -c fit.cfg -m 1000000 -s "bestFitPars.txt"
 elif [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
