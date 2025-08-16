@@ -10,8 +10,7 @@ Python files should be formatted using black and isort.
 Docstrings should follow the following format:
 ```python
 def function_name(param1: type, param2: type) -> type:
-    """
-    Brief description of the function.
+    """Brief description of the function.
 
     Longer description of the function, if necessary.
 

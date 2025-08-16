@@ -1,0 +1,63 @@
+name: example_fit
+description: >
+  Example PWA fit configuration, performing a fit in a single bin of mass and t, with 
+  10 randomized and 10 bootstrap fits. 
+physics:
+  waveset:
+  - 1p
+  - 1m
+  - iso
+  phase_reference: ['p1ppS', 'm1ppS']
+  phaselock: false
+  ds_ratio: 'free'
+  frame: ''
+  single_refl: 0
+  init_refl: 0
+  init_real: 100.0
+  init_imag: 100.0
+  remove_waves: []
+data:
+  orientations:
+  - ALL  
+  run_periods:
+  - allPeriods
+  mass_bins:
+  - 1.20
+  - 1.22
+  mass_min: 0
+  mass_max: 0
+  mass_width: 0
+  t_bins:
+  - 0.1
+  - 0.2
+  t_min: 0
+  t_max: 0
+  t_width: 0
+  energy:
+  - 8.2
+  - 8.8
+  data_dir: /w/halld-scshelf2101/kscheuer/neutralb1/data/GlueX
+  data_version: data
+  data_option: ''
+  phasespace_dir: /w/halld-scshelf2101/kscheuer/neutralb1/data/phasespace
+  phasespace_version: ver03
+  phasespace_option: ''
+  cut_recoil_pi_mass: 1.4
+  truth_file: ''
+compute:
+  nrand: 10
+  random_seed: 0
+  bootstrap: 10
+  mem_per_cpu: 5000M
+  n_cpus: 32
+  gpu:
+  - '1'
+  - A100
+  email: 'kscheuer@jlab.org'
+  email_type:
+  - FAIL
+  time_limit: "2:00:00"
+  test: false
+general:
+  reaction: omegapi
+  template_name: /home/kscheuer/work/neutralb1/src/neutralb1/batch/template.cfg

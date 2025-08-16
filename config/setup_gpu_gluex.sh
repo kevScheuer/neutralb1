@@ -7,14 +7,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Optional argument for version.xml file
-VERSION_XML="${1:-$PROJECT_ROOT/config/version.xml}"
+VERSION_XML="${1:-$PROJECT_ROOT/config/version_gpu.xml}"
 
-# Source GlueX environment using specified or default version.xml
+# Source GlueX environment using relative path to version.xml
 source /group/halld/Software/build_scripts/gluex_env_jlab.sh "$VERSION_XML"
 
 # load necessary modules
 module use /cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/modulefiles
 module load mpi/openmpi-x86_64
+module load cuda
+export CUDA_INSTALL_PATH=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/cuda/12.2.2/
+export FSROOT=/w/halld-scshelf2101/kscheuer/my_build/FSRoot
 
 export PATH="$PROJECT_ROOT/build/release/bin:$PATH"
 

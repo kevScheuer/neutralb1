@@ -7,11 +7,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
+# Add local bin to PATH to find uv
+export PATH="$HOME/.local/bin:$PATH"
+source $PROJECT_ROOT/.venv/bin/activate
+
 # Source the GlueX environment and create an env file of the necessary variables
 if [ -f "$PROJECT_ROOT/config/setup_gluex.sh" ]; then
     ENV_FILE="$PROJECT_ROOT/config/.env"
     echo "Sourcing GlueX environment..."
-    source "$PROJECT_ROOT/config/setup_gluex.sh" && env | grep -E "^(ROOTSYS|AMPTOOLS|HALLD_|FSROOT|ROOT_|PATH|LD_LIBRARY_PATH|LIBRARY_PATH|CPLUS_INCLUDE_PATH|DYLD_LIBRARY_PATH)" | sort > "$ENV_FILE"
+    source "$PROJECT_ROOT/config/setup_gluex.sh" "$PROJECT_ROOT/config/version.xml"
+    env | grep -E "^(ROOTSYS|AMPTOOLS|HALLD_|FSROOT|ROOT_|PATH|LD_LIBRARY_PATH|LIBRARY_PATH|CPLUS_INCLUDE_PATH|DYLD_LIBRARY_PATH)" | sort > "$ENV_FILE"
 else
     echo "Warning: GlueX setup script not found. Build may fail if dependencies are not available."
 fi

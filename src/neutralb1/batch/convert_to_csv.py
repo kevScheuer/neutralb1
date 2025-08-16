@@ -13,12 +13,16 @@ TODO: Eventually, the fit converter should simply include the needed data info i
 import argparse
 import os
 import subprocess
+import sys
 import tempfile
 
 import neutralb1.utils as utils
 
 
-def main(args: dict) -> None:
+def main() -> None:
+
+    parser = create_parser()
+    args = vars(parser.parse_args())
 
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] = args["output"] + ".csv"
@@ -154,7 +158,7 @@ def run_process(command: list, is_verbose: bool) -> None:
     return
 
 
-def parse_args() -> dict:
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "-i",
@@ -246,9 +250,8 @@ def parse_args() -> dict:
             " results into a csv file. The fit file must be a partial wave fit."
         ),
     )
-    return vars(parser.parse_args())
+    return parser
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    sys.exit(main())

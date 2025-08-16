@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 
     std::string file = argv[1];
     std::string output_path = argv[2];
-    TString min_recoil_pi_mass = std::stof(argv[3]);
+    TString min_recoil_pi_mass = argv[3];
     TString t_low = argv[4];
     TString t_high = argv[5];
     TString E_low = argv[6];
