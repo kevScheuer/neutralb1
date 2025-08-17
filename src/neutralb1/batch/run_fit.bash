@@ -9,6 +9,7 @@ rm -f ./vecps_fitPars.txt
 rm -f ./*.pdf
 rm -f ./*.csv
 rm -f ./vecps_plot.root
+rm -f ./vecps_plot_*.root
 rm -f ./*.ni
 rm -f ./rand/*
 rm -f ./bootstrap/*
@@ -110,6 +111,7 @@ fi
 mv "$my_reaction".fit best.fit
 vecps_start_time=$(date +%s)
 vecps_plotter best.fit
+hadd vecps_plot.root vecps_plot_*.root
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
