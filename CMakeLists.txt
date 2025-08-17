@@ -99,8 +99,14 @@ else()
     endif()
 endif()
 
-# Include directories
-include_directories(${INCLUDE_DIR})
+# Include the main include directory and all subdirectories
+include_directories("${INCLUDE_DIR}")
+file(GLOB_RECURSE INCLUDE_SUBDIRS "${INCLUDE_DIR}/*")
+foreach(subdir ${INCLUDE_SUBDIRS})
+    if(IS_DIRECTORY "${subdir}")
+        include_directories("${subdir}")
+    endif()
+endforeach()
 include_directories(${ROOT_INCLUDE_DIRS})
 
 # Add environment-based include directories if available

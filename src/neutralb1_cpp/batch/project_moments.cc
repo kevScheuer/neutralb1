@@ -28,8 +28,8 @@ fit, then a moment is the sum of moments calculated independently for each orien
 #include "IUAmpTools/FitResults.h"
 #include "IUAmpTools/NormIntInterface.h"
 #include "AMPTOOLS_AMPS/clebschGordan.h"
-#include "file_utils.h"
-#include "AmplitudeParser.h"
+#include "utils/file_utils.h"
+#include "utils/AmplitudeParser.h"
 
 struct Moment
 {

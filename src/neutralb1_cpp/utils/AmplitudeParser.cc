@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <regex>
 
-#include "AmplitudeParser.h"
+#include "utils/AmplitudeParser.h"
 
 AmplitudeParser::AmplitudeParser(const std::string &amplitude)
 {

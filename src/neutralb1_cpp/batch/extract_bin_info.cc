@@ -24,7 +24,7 @@ is used, then it will need to be implemented here.
 #include "TFile.h"
 #include "TTree.h"
 
-#include "file_utils.h"
+#include "utils/file_utils.h"
 
 // forward declarations
 std::pair<double, double> get_hist_edges(TH1D *h, int round_to_decimals);
