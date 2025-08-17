@@ -21,9 +21,6 @@ fit, then a moment is the sum of moments calculated independently for each orien
 #include <fstream>
 #include <complex>
 #include <map>
-#include <unordered_set>
-#include <unordered_map>
-#include <tuple>
 
 #include "IUAmpTools/FitResults.h"
 #include "IUAmpTools/NormIntInterface.h"
