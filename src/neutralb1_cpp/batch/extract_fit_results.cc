@@ -39,8 +39,8 @@ NOTE: this script is "reaction" independent, meaning if multiple reactions are i
 #include <vector>
 
 #include "IUAmpTools/FitResults.h"
-#include "utils/file_utils.h" // for read_file_list
-#include "utils/AmplitudeParser.h" // for parse_amplitude
+#include "neutralb1/file_utils.h" // for read_file_list
+#include "neutralb1/AmplitudeParser.h" // for parse_amplitude
 
 // forward declarations
 void fill_maps(
