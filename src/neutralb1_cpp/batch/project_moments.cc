@@ -6,8 +6,13 @@ the results of a PWA fit. The moments are computed and saved to an output csv fi
 
 NOTE: This script assumes that the amplitudes are written in the vec-ps eJPmL format.
 For example, the positive reflectivity, JP=1+, m=0, S-wave amplitude would be written
-in the cfg file as [reaction]::RealNegSign::p1p0S.
+in the cfg file as [reaction]::RealNegSign::p1p0S. It also assumes that each amplitude's
+reaction is associated with a polarization orientation. If multiple orientations are
+fit, then a moment is the sum of moments calculated independently for each orientation.
 */
+
+// TODO: add the ability to optionally printout csv of each orientation
+// TODO: Drastically needs performance improvements
 
 #include <algorithm>
 #include <iostream>
@@ -51,31 +56,66 @@ struct SDMEKey
     int lj;
     int mj;
 
+    std::string reaction;
+
     bool operator<(const SDMEKey &other) const
     {
-        return std::tie(alpha, Ji, li, mi, Jj, lj, mj) <
-               std::tie(other.alpha, other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj);
+        return std::tie(alpha, Ji, li, mi, Jj, lj, mj, reaction) <
+               std::tie(other.alpha, other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj, other.reaction);
     }
 };
 
-// Global cache for SDME values
+struct CGKey
+{
+    int Ji;
+    int li;
+    int mi;
+    int Jj;
+    int lj;
+    int mj;
+    int lambda_i;
+    int lambda_j;
+    int Jv;
+    int Lambda;
+    int M;
+    int J;
+
+    bool operator<(const CGKey &other) const
+    {
+        return std::tie(Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, Jv, Lambda, M, J) <
+               std::tie(
+                other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj, 
+                other.lambda_i, other.lambda_j, 
+                other.Jv, other.Lambda, other.M, other.J);
+    }
+};
+
+// Global caches
 static std::map<SDMEKey, std::complex<double>> sdme_cache;
+static std::map<CGKey, double> cg_cache;
 
 // forward declarations
 std::vector<Moment> initialize_moments(const FitResults &results);
-complex<double> calculate_moment(const Moment &moment, const FitResults &results);
+complex<double> calculate_moment(
+    const Moment &moment, const std::string &reaction, const FitResults &results);
 complex<double> calculate_SDME(
     int alpha, int Ji, int li, int mi,
     int Jj, int lj, int mj,
-    const FitResults &results);
+    const std::string &reaction, const FitResults &results);
+double calculate_CGs(
+    int Ji, int li, int mi, int Jj, int lj, int mj,
+    int lambda_i, int lambda_j, const Moment &moment);
 complex<double> get_production_coefficient(
     int e, int J, int m, int L,
-    const FitResults &results);
+    const std::string &reaction, const FitResults &results);
 int sign(int i);
 int find_max_m(const FitResults &results);
 int find_max_J(const FitResults &results);
 void clear_sdme_cache();
-void precompute_sdme_cache(const FitResults &results);
+void precompute_caches(
+    const std::vector<std::string> &reactions, 
+    const std::vector<Moment> &moments,
+    const FitResults &results);
 
 int main(int argc, char *argv[])
 {
@@ -101,8 +141,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // initialize the map of moment names to their values
-    std::map<std::string, complex<double>> moment_results;
+    // initialize maps
+    std::map<std::string, complex<double>> total_moment_results; // sum of all moments across reactions
+    std::map<std::string, std::map<std::string, complex<double>>> reaction_moment_results; // per-reaction moment results
+    std::vector<std::string> reactions; // tracks reactions in a fit result
     std::vector<Moment> moments; // vector of all moments to be calculated
 
     // Collect all rows in a stringstream to minimize I/O operations
@@ -124,9 +166,14 @@ int main(int argc, char *argv[])
         }
 
         // before getting this file's info, clear the results from the last file
-        moment_results.clear();
+        total_moment_results.clear();
+        reaction_moment_results.clear();
+        reactions.clear();
         moments.clear();
-        clear_sdme_cache(); // Clear SDME cache for new file
+        // Clear SDME cache for new file. The Clebsch Gordan cache does not need
+        // clearing as it does not depend on the fit result values, only different
+        // combinations of the quantum numbers, which will be common across files
+        clear_sdme_cache();
 
         // initialize the set of moments we can have from this file's waveset
         moments = initialize_moments(results);
@@ -164,13 +211,28 @@ int main(int argc, char *argv[])
             return 1;
         }
 
+        reactions = results.reactionList();
+
         // Precompute all SDME values for this file
-        precompute_sdme_cache(results);
+        precompute_caches(reactions, moments, results);
+
+        // initialize the total moment results to 0 so we can add to it in the next loop
+        for (const Moment &moment : moments)
+        {
+            total_moment_results[moment.name()] = complex<double>(0.0, 0.0);
+        }
 
         for (const Moment &moment : moments)
         {
-            // calculate the value for this moment and save it to the map
-            moment_results[moment.name()] = calculate_moment(moment, results);
+            for (const std::string &reaction : reactions) {
+                // calculate the moment for this reaction
+                // right now we don't strictly need these in memory, but later
+                // we'll want the ability to write out the reaction moments individually
+                reaction_moment_results[moment.name()][reaction] = calculate_moment(moment, reaction, results);
+
+                // add this reaction's moment to the total value of the moments
+                total_moment_results[moment.name()] += reaction_moment_results[moment.name()][reaction];
+            }
         }
 
         // ==== WRITE TO CSV ====
@@ -180,7 +242,7 @@ int main(int argc, char *argv[])
         for (auto it = moments.begin(); it != moments.end(); ++it)
         {
             const Moment &moment = *it;
-            const complex<double> &val = moment_results[moment.name()];
+            const complex<double> &val = total_moment_results[moment.name()];
             csv_data << std::real(val) << "," << std::imag(val);
             if (std::next(it) != moments.end())
             {
@@ -273,10 +335,12 @@ std::vector<Moment> initialize_moments(const FitResults &results)
  * @brief Calculate the value of a moment based on its quantum numbers and fit results.
  *
  * @param[in] moment The moment for which to calculate the value.
+ * @param[in] reaction The reaction string (for polarization orientation)
  * @param[in] results The fit results containing the necessary data.
  * @return complex<double> The calculated value of the moment.
  */
-complex<double> calculate_moment(const Moment &moment, const FitResults &results)
+complex<double> calculate_moment(
+    const Moment &moment, const std::string &reaction, const FitResults &results)
 {
     complex<double> moment_value = 0.0;
     int max_J = find_max_J(results);
@@ -294,7 +358,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                     {
                         for (int mj = -Jj; mj <= Jj; ++mj)
                         {
-                            complex<double> sdme = calculate_SDME(moment.alpha, Ji, li, mi, Jj, lj, mj, results);
+                            complex<double> sdme = calculate_SDME(moment.alpha, Ji, li, mi, Jj, lj, mj, reaction, results);
                             if (sdme == 0.0)
                                 continue; // skip lambda loops since result is 0
 
@@ -304,13 +368,7 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
                             {
                                 for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
                                 {
-                                    double clebsch = 1.0;
-                                    clebsch *= clebschGordan(li, 1, 0, lambda_i, Ji, lambda_i);
-                                    clebsch *= clebschGordan(lj, 1, 0, lambda_j, Jj, lambda_j);
-                                    clebsch *= clebschGordan(1, moment.Jv, lambda_i, moment.Lambda, 1, lambda_j);
-                                    clebsch *= clebschGordan(1, moment.Jv, 0, 0, 1, 0);
-                                    clebsch *= clebschGordan(Ji, moment.J, mi, moment.M, Jj, mj);
-                                    clebsch *= clebschGordan(Ji, moment.J, lambda_i, moment.Lambda, Jj, lambda_j);
+                                    double clebsch = calculate_CGs(Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, moment);
                                     if (clebsch == 0.0)
                                         continue; // result for this loop is 0
 
@@ -346,16 +404,17 @@ complex<double> calculate_moment(const Moment &moment, const FitResults &results
  * @param[in] Jj 2nd wave spin
  * @param[in] lj 2nd wave orbital angular momentum
  * @param[in] mj 2nd wave m-projection
+ * @param[in] reaction The reaction string (for polarization orientation)
  * @param[in] results The fit results containing the necessary data.
  * @return complex<double> The calculated SDME.
  */
 complex<double> calculate_SDME(
     int alpha, int Ji, int li, int mi,
     int Jj, int lj, int mj,
-    const FitResults &results)
+    const std::string &reaction, const FitResults &results)
 {
     // Create cache key
-    SDMEKey key = {alpha, Ji, li, mi, Jj, lj, mj};
+    SDMEKey key = {alpha, Ji, li, mi, Jj, lj, mj, reaction};
 
     // Check if value is already cached
     auto cache_it = sdme_cache.find(key);
@@ -374,10 +433,10 @@ complex<double> calculate_SDME(
         switch (alpha)
         {
         case 0:
-            c1 = get_production_coefficient(e, Ji, mi, li, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
-            c3 = get_production_coefficient(e, Ji, -mi, li, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+            c1 = get_production_coefficient(e, Ji, mi, li, reaction, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
+            c3 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
 
             s1 = 1.0;
             s2 = sign(mi + mj + li + lj + Ji + Jj);
@@ -385,10 +444,10 @@ complex<double> calculate_SDME(
             sdme += s1 * c1 * c2 + s2 * c3 * c4;
             break;
         case 1:
-            c1 = get_production_coefficient(e, Ji, -mi, li, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
-            c3 = get_production_coefficient(e, Ji, mi, li, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+            c1 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
+            c3 = get_production_coefficient(e, Ji, mi, li, reaction, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
 
             s1 = sign(1 + mi + li + Ji);
             s2 = sign(1 + mj + lj + Jj);
@@ -396,10 +455,10 @@ complex<double> calculate_SDME(
             sdme += e * (s1 * c1 * c2 + s2 * c3 * c4);
             break;
         case 2:
-            c1 = get_production_coefficient(e, Ji, -mi, li, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, results));
-            c3 = get_production_coefficient(e, Ji, mi, li, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, results));
+            c1 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
+            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
+            c3 = get_production_coefficient(e, Ji, mi, li, reaction, results);
+            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
 
             s1 = sign(mi + li + Ji);
             s2 = sign(mj + lj + Jj);
@@ -434,11 +493,12 @@ complex<double> calculate_SDME(
  * @param[in] J total angular momentum
  * @param[in] m m-projection
  * @param[in] L orbital angular momentum
+ * @param[in] reaction The reaction string (for polarization orientation)
  * @return The production coefficient if found, or 0 if not found.
  */
 complex<double> get_production_coefficient(
     int e, int J, int m, int L,
-    const FitResults &results)
+    const std::string &reaction, const FitResults &results)
 {
     // determine the parity of the amplitude being requested
     int P_omega = -1;                // parity of the omega
@@ -471,6 +531,12 @@ complex<double> get_production_coefficient(
     for (const std::string &i_amp : amp_list)
     {
         AmplitudeParser i_amp_parser(i_amp);
+        
+        if (i_amp_parser.get_amplitude_reaction() != reaction)
+        {
+            continue; // skip amplitudes not in the requested reaction
+        }
+
         std::string i_amp_name = i_amp_parser.get_amplitude_name();
         if (i_amp_name == amp_name_to_get)
         {
@@ -514,6 +580,50 @@ complex<double> get_production_coefficient(
     production_coefficient *= std::sqrt(sum_normalization_integrals);
 
     return production_coefficient;
+}
+
+/**
+ * @brief Calculate the set of clebsch gordan coefficients for a set of quantum numbers
+ * 
+ * @param Ji spin 1
+ * @param li angular momenta 1
+ * @param mi spin projection 1
+ * @param Jj spin 2
+ * @param lj angular momenta 2
+ * @param mj spin projection 2
+ * @param lambda_i helicity 1
+ * @param lambda_j helicity 2
+ * @param moment the moment object containing additional quantum numbers
+ * @return double the calculated Clebsch-Gordan coefficient
+ */
+double calculate_CGs(
+    int Ji, int li, int mi, int Jj, int lj, int mj, int lambda_i, int lambda_j, 
+    const Moment &moment)
+{
+
+    // create cache key
+    CGKey key = {Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, moment.Jv, moment.Lambda, moment.M, moment.J};
+
+    // check if value already cached
+    auto cache_it = cg_cache.find(key);
+    if (cache_it != cg_cache.end())
+    {
+        return cache_it->second;
+    }
+
+    // Calculate the set of Clebsch-Gordan coefficients for the given quantum numbers
+    double clebsch = 1.0;
+
+    clebsch *= clebschGordan(li, 1, 0, lambda_i, Ji, lambda_i);
+    clebsch *= clebschGordan(lj, 1, 0, lambda_j, Jj, lambda_j);
+    clebsch *= clebschGordan(1, moment.Jv, lambda_i, moment.Lambda, 1, lambda_j);
+    clebsch *= clebschGordan(1, moment.Jv, 0, 0, 1, 0);
+    clebsch *= clebschGordan(Ji, moment.J, mi, moment.M, Jj, mj);
+    clebsch *= clebschGordan(Ji, moment.J, lambda_i, moment.Lambda, Jj, lambda_j);
+
+    cg_cache[key] = clebsch; // cache the calculated value
+
+    return clebsch;
 }
 
 int sign(int i)
@@ -581,15 +691,20 @@ void clear_sdme_cache()
 }
 
 /**
- * @brief Precompute all possible SDME values for the given fit results.
+ * @brief Precompute all possible SDME and Clebsch Gordan values
  *
- * This function calculates and caches all SDME values that could be needed
- * for moment calculations, providing maximum performance at the cost of
- * upfront computation time and memory usage.
+ * This function calculates and caches all SDME values for the fit result, and all
+ * Clebsch-Gordan coefficients possible for the set of moments. This has a high cost
+ * upfront but drastically reduces computation time, especially for larger moment sets.
  *
- * @param[in] results The fit results to precompute SDME values for.
+ * @param[in] reactions The list of reactions to precompute SDME values for.
+ * @param[in] moments The list of moments to precompute CG values for.
+ * @param[in] results The total fit result to precompute SDME values for.
  */
-void precompute_sdme_cache(const FitResults &results)
+void precompute_caches(
+    const std::vector<std::string> &reactions, 
+    const std::vector<Moment> &moments,
+    const FitResults &results)
 {
     int max_J = find_max_J(results);
 
@@ -608,8 +723,23 @@ void precompute_sdme_cache(const FitResults &results)
                         {
                             for (int mj = -Jj; mj <= Jj; ++mj)
                             {
-                                // This will calculate and cache the SDME value
-                                calculate_SDME(alpha, Ji, li, mi, Jj, lj, mj, results);
+                                for (const std::string &reaction : reactions)
+                                {
+                                    // This will calculate and cache the SDME value
+                                    calculate_SDME(alpha, Ji, li, mi, Jj, lj, mj, reaction, results);
+                                }
+
+                                for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
+                                {
+                                    for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
+                                    {
+                                        for (const Moment mom : moments)
+                                        {
+                                            // This will calculate and cache the CG value
+                                            calculate_CGs(Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, mom);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
