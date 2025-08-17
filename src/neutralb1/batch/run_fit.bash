@@ -135,8 +135,7 @@ uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_moments.csv --moments
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f bestFitPars_*.txt rand/
-    mv -f "$my_reaction".ni rand/
-    mv -f rand_fit_diagnostic.pdf rand/
+    mv -f "$my_reaction".ni rand/    
     uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv
     uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv --moments
     echo -e "\n\n==================================================\n
