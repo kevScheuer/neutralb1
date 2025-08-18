@@ -32,7 +32,6 @@ Output PDFs will be saved in the current directory or specified output directory
 #include "TString.h"
 #include "TStyle.h"
 
-
 // struct to hold the properties of each JP contribution
 struct JP_props
 {
@@ -42,11 +41,15 @@ struct JP_props
 };
 
 // forward declarations
-void plot1D(TFile *f, TString dir, TString data_title, TString reaction);
+TCanvas *summary_plot(TFile *f, TString data_title);
+std::map<TString, TCanvas *> amplitude_plots(TFile *f);
 void plot2D(TFile *f, TString dir, TString reaction);
 std::vector<TColor *> create_custom_colors();
 const std::map<TString, JP_props> create_jp_map();
+const std::set<TString> get_unique_amp_keys(TFile *f);
+const std::set<TString> get_unique_jp_keys(TFile *f);
 
+// TODO: remove reaction input, no need for it
 int main(int argc, char *argv[])
 {
     std::string file_path = "./vecps_plot.root";
@@ -56,7 +59,8 @@ int main(int argc, char *argv[])
     bool use_gluex_style = false;
 
     // Help message
-    auto print_help = []() {
+    auto print_help = []()
+    {
         std::cout << "Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir] [--gluex-style]\n"
                   << "  file_path:     Full path to the ROOT file (default: ./vecps_plot.root)\n"
                   << "  data_title:    Title for data in legend (default: GlueX Data)\n"
@@ -66,15 +70,18 @@ int main(int argc, char *argv[])
     };
 
     // Check for help flag
-    for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++)
+    {
         std::string arg = argv[i];
-        if (arg == "-h" || arg == "--help") {
+        if (arg == "-h" || arg == "--help")
+        {
             print_help();
             return 0;
         }
     }
 
-    if (argc > 6 || argc < 2) {
+    if (argc > 6 || argc < 2)
+    {
         std::cerr << "Error: Invalid number of arguments.\n";
         print_help();
         return 1;
@@ -87,11 +94,13 @@ int main(int argc, char *argv[])
     if (argc > 3)
         reaction = argv[3];
     if (argc > 4)
-        output_dir = argv[4];    
-    
+        output_dir = argv[4];
+
     // Check for --gluex-style flag in any position
-    for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "--gluex-style") {
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::string(argv[i]) == "--gluex-style")
+        {
             use_gluex_style = true;
             break;
         }
@@ -104,11 +113,12 @@ int main(int argc, char *argv[])
     }
 
     // Conditionally load and apply GlueX style
-    if (use_gluex_style) {
+    if (use_gluex_style)
+    {
         gROOT->ProcessLine(".L glueXstyle.C");
         gROOT->ProcessLine("gluex_style();");
     }
-    gStyle->SetOptStat(0);
+    gStyle->SetOptStat(0); // force stats box off
 
     TFile *f = TFile::Open(file_path.c_str());
     if (!f || f->IsZombie())
@@ -117,17 +127,42 @@ int main(int argc, char *argv[])
             Form("File %s doesn't exist or is corrupted!", file_path.c_str()));
     }
 
-    plot1D(f, output_dir, data_title, reaction);
+    TCanvas *summary_canvas = summary_plot(f, data_title);
+    std::map<TString, TCanvas *> amp_canvases = amplitude_plots(f);
+    TCanvas *test_canvas = summary_plot(f, data_title);    
+
+    TString pdf_path = output_dir + "angles.pdf";
+
+    summary_canvas->Print(pdf_path + "(", "Title:Summary");
+    test_canvas->Print(pdf_path + ")", "Title:Last Plot");
+
     plot2D(f, output_dir, reaction);
 
     return 0;
 }
 
-// Make the 1D histograms of interest from vecps_plotter
-void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
+/**
+ * @brief Create a set of summary plots from the vecps_plotter output
+ *
+ * This function plots the fit result, data, and JP contributions for the 5 angular
+ * distributions we fit to, the resonance mass, proton + recoil pi0 mass, and lambda
+ * distribution.
+ *
+ * @param f ROOT file ouptut by vecps_plotter
+ * @param data_title title for data markers to use in the legend
+ * @return TCanvas* ROOT canvas with subdivisions for each plot
+ */
+TCanvas *summary_plot(TFile *f, TString data_title)
 {
-    std::vector<TString> distributions = {"CosTheta", "Phi", "CosTheta_H", "Phi_H",
-                                          "Prod_Ang", "MVecPs", "MProtonPs"};
+    std::vector<TString> distributions = {
+        "CosTheta",
+        "Phi",
+        "CosTheta_H",
+        "Phi_H",
+        "Prod_Ang",
+        "MVecPs",
+        "MProtonPs",
+        "Lambda"};
     std::map<TString, TString> x_axis_titles = {
         {"CosTheta", "cos#theta"},
         {"Phi", "#phi [rad.]"},
@@ -135,30 +170,16 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
         {"Phi_H", "#phi_{H} [rad.]"},
         {"Prod_Ang", "#Phi [rad.]"},
         {"MVecPs", "Vec+Ps Inv. Mass [GeV]"},
-        {"MProtonPs", "p+bachelor Ps Inv. Mass [GeV]"}
-    };
+        {"MProtonPs", "p+bachelor Ps Inv. Mass [GeV]"},
+        {"Lambda", "#lambda_{#omega}"}};
     const std::map<TString, JP_props> jp_properties = create_jp_map();
 
     // iterate through the histograms in the file and find the JP contributions
-    std::set<TString> jp_keys_found;
-    TList *keys = f->GetListOfKeys();
-    for (int i = 0; i < keys->GetSize(); i++)
-    {
-        TString key_name = keys->At(i)->GetName();
+    std::set<TString> jp_keys = get_unique_jp_keys(f);
 
-        // regex pattern for capturing a JP key (number + letter after an "_")
-        std::regex regex_pattern(".*_(\\d[a-zA-Z]).*");
-        std::smatch match;
-        std::string key_name_str = key_name.Data();
-        if (std::regex_match(key_name_str, match, regex_pattern))
-        {
-            TString jp_key = match[1].str();
-            jp_keys_found.insert(jp_key);
-        }
-    }
-
-    // create canvas and setup some plot parameters
-    TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
+    // create a unique canvas and setup some plot parameters
+    static int canvas_count = 0;
+    TCanvas *cc = new TCanvas(Form("cc_%d", canvas_count++), "summary plots", 1800, 1000);
     cc->Divide(3, 3);
 
     double textSize = 0.10;
@@ -177,7 +198,7 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
     {
         // avoid plotting on the first subplot, since it will be used for the legend
         cc->cd(plot_count + 2);
-        
+
         // Set proper margins to prevent axis title cutoff
         gPad->SetLeftMargin(0.15);
         gPad->SetBottomMargin(0.17);
@@ -185,11 +206,11 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
         gPad->SetTopMargin(0.05);
 
         // first plot the data for this distribution
-        TH1F *hdat = (TH1F *)f->Get(reaction + distribution + "dat");
+        TH1F *hdat = (TH1F *)f->Get(distribution + "dat");
         if (!hdat)
         {
             throw std::runtime_error(
-                Form("hdat Plot %s doesn't exist!", (reaction + distribution + "dat").Data()));
+                Form("hdat Plot %s doesn't exist!", (distribution + "dat").Data()));
         }
 
         // since its the first in the subplot, setup all the aesthetics
@@ -208,11 +229,11 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
             leg1->AddEntry(hdat, data_title, "ep");
 
         // now plot the fit result, which is a special case
-        TH1F *hfit = (TH1F *)f->Get(reaction + distribution + "acc");
+        TH1F *hfit = (TH1F *)f->Get(distribution + "acc");
         if (!hfit)
         {
             throw std::runtime_error(
-                Form("hfit Plot %s doesn't exist!", (reaction + distribution + "acc").Data()));
+                Form("hfit Plot %s doesn't exist!", (distribution + "acc").Data()));
         }
         hfit->SetFillStyle(1001);
         hfit->SetFillColorAlpha(16, 0.2);
@@ -222,9 +243,9 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
             leg1->AddEntry(hfit, "Fit Result", "f");
 
         // now we can loop through the JP contributions and plot them
-        for (const TString &jp : jp_keys_found)
+        for (const TString &jp : jp_keys)
         {
-            TString hist_name = reaction + distribution + "acc" + "_" + jp;
+            TString hist_name = distribution + "acc" + "_" + jp;
             TH1F *hjp = (TH1F *)f->Get(hist_name);
 
             if (!hjp)
@@ -251,12 +272,24 @@ void plot1D(TFile *f, TString dir, TString data_title, TString reaction)
     cc->cd(1);
     leg1->Draw();
 
-    // save file
-    cc->Print(dir + "fit.pdf");
-
-    return;
+    return cc;
 }
 
+std::map<TString, TCanvas *> amplitude_plots(TFile *f)
+{
+    std::map<TString, TCanvas *> amplitude_canvases;
+
+    std::set<TString> amp_keys = get_unique_amp_keys(f);
+
+    // create a canvas of 2D plots for each amplitude
+
+    TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
+    cc->Divide(3, 3);
+
+    return amplitude_canvases;
+}
+
+// TODO: change this to plot either total data, acc, or the subtraction of the two
 /* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
 so no legend is required here
 */
@@ -285,7 +318,7 @@ void plot2D(TFile *f, TString dir, TString reaction)
     };
 
     // make 2d hists for just data first
-    TCanvas *cdat = new TCanvas("cdat", "cdat", 1800, 1000);
+    TCanvas *cdat = new TCanvas("cdat", "cdat", 2400, 1000);
 
     cdat->Divide(4, 2);
 
@@ -293,11 +326,11 @@ void plot2D(TFile *f, TString dir, TString reaction)
     for (auto pair : plot_pairs)
     {
         cdat->cd(pair_count + 1);
-        
+
         // Set proper margins to prevent axis title cutoff
-        gPad->SetLeftMargin(0.15);
-        gPad->SetBottomMargin(0.15);
-        gPad->SetRightMargin(0.15);  // Extra space for colorbar
+        gPad->SetLeftMargin(0.2);
+        gPad->SetBottomMargin(0.2);
+        gPad->SetRightMargin(0.2); // Extra space for colorbar
         gPad->SetTopMargin(0.05);
 
         TString plot_name = pair.first + "Vs" + pair.second;
@@ -322,7 +355,7 @@ void plot2D(TFile *f, TString dir, TString reaction)
 
     // now do the same for the accepted fit result. Note that these have to be done in
     // a separate for-loop to avoid the canvases interfering with each other
-    TCanvas *cacc = new TCanvas("cacc", "cacc", 1800, 1000);
+    TCanvas *cacc = new TCanvas("cacc", "cacc", 2400, 1000);
     cacc->Divide(4, 2);
 
     pair_count = 0;
@@ -330,11 +363,11 @@ void plot2D(TFile *f, TString dir, TString reaction)
     {
         TString plot_name = pair.first + "Vs" + pair.second;
         cacc->cd(pair_count + 1);
-        
+
         // Set proper margins to prevent axis title cutoff
-        gPad->SetLeftMargin(0.15);
-        gPad->SetBottomMargin(0.15);
-        gPad->SetRightMargin(0.15);  // Extra space for colorbar
+        gPad->SetLeftMargin(0.2);
+        gPad->SetBottomMargin(0.2);
+        gPad->SetRightMargin(0.2); // Extra space for colorbar
         gPad->SetTopMargin(0.05);
 
         TH2F *hacc = (TH2F *)f->Get(reaction + plot_name + "acc");
@@ -403,4 +436,65 @@ const std::map<TString, JP_props> create_jp_map()
     };
 
     return jp_map;
+}
+
+/**
+ * @brief Extract the set of unique jp keys from all histograms
+ *
+ * @param f ROOT file output by vecps_plotter
+ * @return const std::set<TString> unique set of jp strings
+ * @note Assumes "JP" values can be found as a number+letter following an "_" character
+ */
+const std::set<TString> get_unique_jp_keys(TFile *f)
+{
+    std::set<TString> jp_keys_found;
+
+    TList *keys = f->GetListOfKeys();
+    for (int i = 0; i < keys->GetSize(); i++)
+    {
+        TString key_name = keys->At(i)->GetName();
+
+        // regex pattern for capturing a JP key (number + letter after an "_")
+        std::regex regex_pattern(".*_(\\d[a-zA-Z]).*");
+        std::smatch match;
+        std::string key_name_str = key_name.Data();
+        if (std::regex_match(key_name_str, match, regex_pattern))
+        {
+            TString jp_key = match[1].str();
+            jp_keys_found.insert(jp_key);
+        }
+    }
+
+    return jp_keys_found;
+}
+
+/**
+ * @brief Extract the set of unique amplitude strings from all histograms
+ *
+ * @param f ROOT file output by vecps_plotter
+ * @return const std::set<TString> unique set of amplitude strings
+ * @note Assumes "Amp" values can be found as "word with 'refl' in it, followed by an
+ * underscore and a word that begins with a number and is at least 3 characters long "
+ */
+const std::set<TString> get_unique_amp_keys(TFile *f)
+{
+    std::set<TString> amp_keys_found;
+
+    TList *keys = f->GetListOfKeys();
+    for (int i = 0; i < keys->GetSize(); i++)
+    {
+        TString key_name = keys->At(i)->GetName();
+
+        // regex pattern for capturing a JP key (number + letter after an "_")
+        std::regex regex_pattern("([A-Za-z]+Refl)_([0-9]\\w{2,})");
+        std::smatch match;
+        std::string key_name_str = key_name.Data();
+        if (std::regex_search(key_name_str, match, regex_pattern))
+        {
+            TString amp_key = match[1].str() + "_" + match[2].str();
+            amp_keys_found.insert(amp_key);
+        }
+    }
+
+    return amp_keys_found;
 }
