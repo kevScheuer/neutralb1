@@ -221,6 +221,8 @@ class SubmissionManager:
             pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
 
         shutil.copy(amptools_config, f"{dir}/fit.cfg")
+        # save the submission config to the dir so its clear what parameters were used
+        self.config_manager.save_yaml_config(config, f"{dir}/config.yaml")
 
         # copy gluex environment scripts
         if int(config.compute.gpu[0]) > 0:
