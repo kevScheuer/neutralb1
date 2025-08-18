@@ -24,11 +24,12 @@ Output PDFs will be saved in the current directory or specified output directory
 #include "TCanvas.h"
 #include "TColor.h"
 #include "TFile.h"
-#include "TROOT.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TLatex.h"
 #include "TLegend.h"
 #include "TList.h"
+#include "TROOT.h"
 #include "TString.h"
 #include "TStyle.h"
 
@@ -42,12 +43,12 @@ struct JP_props
 
 // forward declarations
 TCanvas *summary_plot(TFile *f, TString data_title);
-std::map<TString, TCanvas *> amplitude_plots(TFile *f);
+std::map<std::string, TCanvas *> amplitude_plots(TFile *f);
 void plot2D(TFile *f, TString dir, TString reaction);
 std::vector<TColor *> create_custom_colors();
 const std::map<TString, JP_props> create_jp_map();
-const std::set<TString> get_unique_amp_keys(TFile *f);
 const std::set<TString> get_unique_jp_keys(TFile *f);
+const std::set<std::string> get_unique_amp_keys(TFile *f);
 
 // TODO: remove reaction input, no need for it
 int main(int argc, char *argv[])
@@ -128,12 +129,18 @@ int main(int argc, char *argv[])
     }
 
     TCanvas *summary_canvas = summary_plot(f, data_title);
-    std::map<TString, TCanvas *> amp_canvases = amplitude_plots(f);
-    TCanvas *test_canvas = summary_plot(f, data_title);    
+    std::map<std::string, TCanvas *> amp_canvases = amplitude_plots(f);
+    TCanvas *test_canvas = summary_plot(f, data_title);
 
     TString pdf_path = output_dir + "angles.pdf";
 
     summary_canvas->Print(pdf_path + "(", "Title:Summary");
+    for (std::map<std::string, TCanvas *>::iterator it = amp_canvases.begin(); it != amp_canvases.end(); ++it)
+    {
+        const std::string &amp = it->first;
+        TCanvas *canvas = it->second;
+        canvas->Print(pdf_path, Form("Title:%s", amp.c_str()));
+    }
     test_canvas->Print(pdf_path + ")", "Title:Last Plot");
 
     plot2D(f, output_dir, reaction);
@@ -275,21 +282,108 @@ TCanvas *summary_plot(TFile *f, TString data_title)
     return cc;
 }
 
-std::map<TString, TCanvas *> amplitude_plots(TFile *f)
+std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
 {
-    std::map<TString, TCanvas *> amplitude_canvases;
+    std::map<std::string, TCanvas *> amplitude_canvases;
 
-    std::set<TString> amp_keys = get_unique_amp_keys(f);
+    std::set<std::string> amp_keys = get_unique_amp_keys(f);
 
-    // create a canvas of 2D plots for each amplitude
+    // determine the set of 2D plots we want to see
+    // Note Psi = phi - Prod_Ang (Phi)
+    std::vector<std::pair<TString, TString>> plot_pairs = {
+        {"Psi", "CosTheta"},
+        {"Phi", "CosTheta"},        
+        {"Psi", "Phi_H"},
+        {"Prod_Ang", "Phi"},
+        {"Psi", "CosTheta_H"},
+        {"Phi_H", "CosTheta_H"},
+        {"MProtonPs", "CosTheta"},
+    }; // TODO: Make this last plot the Dalitz plot of omegapi0 vs p recoil pi0
 
-    TCanvas *cc = new TCanvas("cc", "cc", 1800, 1000);
-    cc->Divide(3, 3);
+    std::vector<TString> plot_titles = {
+        ";#Psi [rad.];cos#theta",
+        ";#phi [rad.];cos#theta",        
+        ";#Psi [rad.];#phi_{H} [rad.]",
+        ";Prod_Ang [rad.];#phi [rad.]",
+        ";#Psi [rad.];cos#theta_{H}",
+        ";#phi_{H} [rad.];cos#theta_{H}",
+        ";p+bachelor Ps [GeV];cos#theta",
+    };
+
+    static int plot_count = 0;
+    for (const std::string &amp : amp_keys)
+    {
+        // create a unique canvas for each amplitude
+        TCanvas *cc = new TCanvas(Form("AmpPlots_%d", plot_count++), "AmpPlots", 2400, 1000);
+
+        cc->Divide(4, 2);
+
+        int pair_count = 0;
+        for (auto pair : plot_pairs)
+        {
+            cc->cd(pair_count + 1);
+
+            // Set proper margins to prevent axis title cutoff
+            gPad->SetLeftMargin(0.2);
+            gPad->SetBottomMargin(0.22);
+            gPad->SetRightMargin(0.2); // Extra space for colorbar
+            gPad->SetTopMargin(0.15);            
+
+            TString plot_name = pair.first + "Vs" + pair.second;
+            TH2F *hamp = (TH2F *)f->Get(plot_name + "acc_" + amp);
+            if (!hamp)
+            {
+                throw std::runtime_error(
+                    Form("hamp Plot %s doesn't exist!", (plot_name + "acc_" + amp).Data()));
+            }
+            hamp->SetLabelSize(0.06, "xy");
+            hamp->SetTitleSize(0.08, "xy");
+            hamp->SetTitleOffset(1.2, "x");
+            hamp->SetTitleOffset(1.3, "y");
+            hamp->SetMinimum(0);
+            hamp->SetTitle(plot_titles[pair_count]);
+            hamp->Draw("colz");
+            pair_count += 1;
+        }
+
+        // save amplitude name in eJPmL format. Currently in "<sign>Refl_JPmD" format
+        char refl;
+        if (amp.find("PosRefl") != std::string::npos)
+            refl = 'p';
+        else if (amp.find("NegRefl") != std::string::npos)
+            refl = 'm';
+        else
+        {
+            throw std::runtime_error(
+                Form("Amplitude %s does not contain PosRefl or NegRefl!", amp.c_str()));
+        }
+
+        // we want to use the eJPmL string since that's what will be saved as the title
+        // in the pdf ToC, which allows easy access later and follows other analysis
+        // conventions
+        std::string eJPmL = refl + amp.substr(amp.find('_') + 1);
+
+        
+        cc->cd();
+        // draw the eJPmL name on the canvas itself as a title
+        // TODO: Make it "pretty" latex, implement it in AmplitudeParser
+        TPad *title_pad = new TPad("title_pad", "title_pad", 0, 0, 1, 1);
+        title_pad->SetFillStyle(4000);
+        title_pad->Draw();
+        title_pad->cd();
+        TLatex *lat = new TLatex();
+        lat->DrawLatexNDC(.45, .95, eJPmL.c_str());
+
+        amplitude_canvases[eJPmL] = cc;        
+    }
 
     return amplitude_canvases;
 }
 
 // TODO: change this to plot either total data, acc, or the subtraction of the two
+// Also have it return canvas or set of canvases
+// Also reorder according to amplitude_plots
+
 /* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
 so no legend is required here
 */
@@ -476,22 +570,21 @@ const std::set<TString> get_unique_jp_keys(TFile *f)
  * @note Assumes "Amp" values can be found as "word with 'refl' in it, followed by an
  * underscore and a word that begins with a number and is at least 3 characters long "
  */
-const std::set<TString> get_unique_amp_keys(TFile *f)
+const std::set<std::string> get_unique_amp_keys(TFile *f)
 {
-    std::set<TString> amp_keys_found;
+    std::set<std::string> amp_keys_found;
 
     TList *keys = f->GetListOfKeys();
     for (int i = 0; i < keys->GetSize(); i++)
     {
-        TString key_name = keys->At(i)->GetName();
+        std::string key_name = keys->At(i)->GetName();
 
         // regex pattern for capturing a JP key (number + letter after an "_")
         std::regex regex_pattern("([A-Za-z]+Refl)_([0-9]\\w{2,})");
         std::smatch match;
-        std::string key_name_str = key_name.Data();
-        if (std::regex_search(key_name_str, match, regex_pattern))
+        if (std::regex_search(key_name, match, regex_pattern))
         {
-            TString amp_key = match[1].str() + "_" + match[2].str();
+            std::string amp_key = match[1].str() + "_" + match[2].str();
             amp_keys_found.insert(amp_key);
         }
     }
