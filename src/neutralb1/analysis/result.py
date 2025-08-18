@@ -14,6 +14,7 @@ class ResultManager:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
+        random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
@@ -25,8 +26,10 @@ class ResultManager:
         Args:
             fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically
                 the "best" fits of many randomized ones.
-            data_df (pd.DataFrame): Contains the data used for the fit. bootstrap_df
-            (pd.DataFrame, optional): bootstrap results for each nominal
+            data_df (pd.DataFrame): Contains the data used for the fit.
+            random_df (pd.DataFrame, optional): Contains all randomized fits associated
+                with each nominal fit result. Defaults to None.
+            bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
                 fit. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for the
                 fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to
@@ -36,6 +39,7 @@ class ResultManager:
         # create local copies of the DataFrames to avoid modifying the originals
         self.fit_df = fit_df.copy()
         self.data_df = data_df.copy()
+        self.random_df = random_df.copy() if random_df is not None else pd.DataFrame()
         self.bootstrap_df = (
             bootstrap_df.copy() if bootstrap_df is not None else pd.DataFrame()
         )
@@ -89,6 +93,14 @@ class ResultManager:
                 UserWarning,
             )
 
+        if not self.random_df.empty and preprocessing.find_null_columns(self.random_df):
+            warnings.warn(
+                "The random DataFrame contains null values. Consider checking the "
+                "following columns: "
+                f"{', '.join(preprocessing.find_null_columns(self.random_df))}",
+                UserWarning,
+            )
+
         if not self.bootstrap_df.empty and preprocessing.find_null_columns(
             self.bootstrap_df
         ):
@@ -111,6 +123,10 @@ class ResultManager:
         self.data_df = preprocessing.link_dataframes(
             self.fit_df, self.data_df, linker_max_depth
         )
+        if not self.random_df.empty:
+            self.random_df = preprocessing.link_dataframes(
+                self.fit_df, self.random_df, linker_max_depth
+            )
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.link_dataframes(
                 self.fit_df, self.bootstrap_df, linker_max_depth
@@ -123,6 +139,8 @@ class ResultManager:
         # convert unbound phase columns in radians to degrees from -180 to 180
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
         self.data_df = preprocessing.wrap_phases(self.data_df)
+        if not self.random_df.empty:
+            self.random_df = preprocessing.wrap_phases(self.random_df)
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.wrap_phases(self.bootstrap_df)
         if not self.truth_df.empty:
@@ -131,12 +149,18 @@ class ResultManager:
         # standardize types across DataFrames to save memory
         self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
         self.data_df = preprocessing.standardize_data_types(self.data_df)
+        if not self.random_df.empty:
+            self.random_df = preprocessing.standardize_fit_types(self.random_df)
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.standardize_fit_types(self.bootstrap_df)
         if not self.truth_df.empty:
             self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
 
         # align phase difference names across DataFrames
+        if not self.random_df.empty:
+            self.random_df = preprocessing.align_phase_difference_names(
+                self.fit_df, self.random_df
+            )
         if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.align_phase_difference_names(
                 self.fit_df, self.bootstrap_df
@@ -161,6 +185,7 @@ class ResultManager:
             self.plotter_factory = plotting.FactoryPlotter(
                 fit_df=self.fit_df,
                 data_df=self.data_df,
+                random_df=self.random_df,
                 bootstrap_df=self.bootstrap_df,
                 truth_df=self.truth_df,
             )

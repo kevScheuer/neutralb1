@@ -29,12 +29,14 @@ class FactoryPlotter:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
+        random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the factory with common data and utilities."""
         self.fit_df = fit_df
         self.data_df = data_df
+        self.random_df = random_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
@@ -55,6 +57,9 @@ class FactoryPlotter:
             self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
         )
 
+    def random(self):
+        return RandomPlotter(self.fit_df, self.data_df, self.random_df)
+
     def bootstrap(self):
         return BootstrapPlotter(
             self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
@@ -68,6 +73,7 @@ class BasePWAPlotter:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
+        random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         channel: Optional[str] = r"$\omega\pi^0$",
@@ -88,6 +94,7 @@ class BasePWAPlotter:
         # no need to copy DataFrames here, as they will not be modified
         self.fit_df = fit_df
         self.data_df = data_df
+        self.random_df = random_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
         self.channel = channel
@@ -1330,6 +1337,33 @@ class DiagnosticPlotter(BasePWAPlotter):
                 color="blue",
                 alpha=0.8,
             )
+
+
+class RandomPlotter(BasePWAPlotter):
+    """Handles plots that rely on randomized parameter fitting"""
+
+    def __init__(
+        self,
+        fit_df: pd.DataFrame,
+        data_df: pd.DataFrame,
+        random_df: Optional[pd.DataFrame] = None,
+    ) -> None:
+        """Ensure random DataFrame is not None and initialize the plotter."""
+        super().__init__(fit_df, data_df, random_df)
+        if self.random_df is None:
+            raise ValueError("RandomPlotter requires a non-None random_df.")
+
+    def chi2_likelihood(self) -> matplotlib.axes.Axes:
+        fig, ax = plt.subplots()
+
+        # calculate chi2 / ndf based off intensities and phase differences between
+        #   best fit and random samples
+        # plot against Delta(-2ln(L)). Idea is that best fit is in bottom left corner,
+        #   and other rand fits with different chi2 should also have different
+        #   likelihoods
+        # color code points corresponding to eMatrixStatus
+
+        return ax
 
 
 class BootstrapPlotter(BasePWAPlotter):
