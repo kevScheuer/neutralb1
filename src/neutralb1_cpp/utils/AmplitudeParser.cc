@@ -196,8 +196,7 @@ std::string AmplitudeParser::get_latex_amplitude() const
 {
     // convert reflectivity and parity to +/- characters
     char e_sign = (m_e_int == 1) ? '+' : '-';
-    char P_sign = (m_P_int == 1) ? '+' : '-';
-    char m_sign = (m_m_int > 0) ? '+' : '-';
+    char P_sign = (m_P_int == 1) ? '+' : '-';    
     
     // Format: J^{P}L_m^e
     std::ostringstream oss;
