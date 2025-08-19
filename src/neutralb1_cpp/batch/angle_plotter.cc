@@ -6,10 +6,9 @@ diagnostic purposes, to check that the grey "Fit Result" reasonably matches the 
 data points. Each total J^P contribution is also plotted, to observe any interference
 effects those waves create.
 
-Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir] [--gluex-style]
+Usage: angle_plotter [file_path] [data_title] [output_dir] [--gluex-style]
   file_path:  Full path to the ROOT file (default: "./vecps_plot.root")
   data_title: Title for data in legend (default: "GlueX Data")
-  reaction:   Reaction prefix for histogram names (default: "")
   output_dir: Directory to save PDF files (default: current directory)
   --gluex-style: Apply GlueX collaboration style (optional)
 
@@ -46,7 +45,7 @@ struct JP_props
 // forward declarations
 TCanvas *summary_plot(TFile *f, TString data_title);
 std::map<std::string, TCanvas *> amplitude_plots(TFile *f);
-void plot2D(TFile *f, TString dir, TString reaction);
+void plot2D(TFile *f, TString dir);
 std::vector<TColor *> create_custom_colors();
 const std::map<TString, JP_props> create_jp_map();
 const std::set<TString> get_unique_jp_keys(TFile *f);
@@ -56,23 +55,22 @@ int main(int argc, char *argv[])
 {
     std::string file_path = "./vecps_plot.root";
     std::string data_title = "GlueX Data";
-    std::string reaction = "";
     std::string output_dir = "./";
     bool use_gluex_style = false;
 
     // Help message
     auto print_help = []()
     {
-        std::cout << "Usage: angle_plotter [file_path] [data_title] [reaction] [output_dir] [--gluex-style]\n"
-                  << "  file_path:     Full path to the ROOT file (default: ./vecps_plot.root)\n"
-                  << "  data_title:    Title for data in legend (default: GlueX Data)\n"
-                  << "  reaction:      Reaction prefix for histogram names (default: \"\")\n"
-                  << "  output_dir:    Directory to save PDF files (default: current directory)\n"
-                  << "  --gluex-style: Apply GlueX collaboration style (optional)\n";
+        std::cout << "Usage: angle_plotter [-f file_path] [-l legend_title] [-o output_dir] [--gluex-style]\n"
+                  << "  -f file_path:     Full path to the ROOT file (default: ./vecps_plot.root)\n"
+                  << "  -l legend_title:  Title for data in legend (default: GlueX Data)\n"
+                  << "  -o output_dir:    Directory to save PDF files (default: current directory)\n"
+                  << "  --gluex-style:    Apply GlueX collaboration style (optional)\n"
+                  << "  -h, --help:       Show this help message\n";
     };
 
-    // Check for help flag
-    for (int i = 1; i < argc; i++)
+    // Parse command-line arguments using flag style
+    for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
         if (arg == "-h" || arg == "--help")
@@ -80,31 +78,19 @@ int main(int argc, char *argv[])
             print_help();
             return 0;
         }
-    }
-
-    if (argc > 6 || argc < 2)
-    {
-        std::cerr << "Error: Invalid number of arguments.\n";
-        print_help();
-        return 1;
-    }
-
-    if (argc > 1)
-        file_path = argv[1];
-    if (argc > 2)
-        data_title = argv[2];
-    if (argc > 3)
-        reaction = argv[3];
-    if (argc > 4)
-        output_dir = argv[4];
-
-    // Check for --gluex-style flag in any position
-    for (int i = 1; i < argc; i++)
-    {
-        if (std::string(argv[i]) == "--gluex-style")
-        {
+        else if (arg == "--gluex-style")
             use_gluex_style = true;
-            break;
+        else if ((arg == "-f" || arg == "--file-path") && i + 1 < argc)
+            file_path = argv[++i];
+        else if ((arg == "-l" || arg == "--legend-title") && i + 1 < argc)
+            data_title = argv[++i];
+        else if ((arg == "-o" || arg == "--output-dir") && i + 1 < argc)
+            output_dir = argv[++i];
+        else
+        {
+            std::cerr << "Unknown or incomplete argument: " << arg << "\n";
+            print_help();
+            return 1;
         }
     }
 
@@ -144,7 +130,7 @@ int main(int argc, char *argv[])
     }
     test_canvas->Print(pdf_path + ")", "Title:Last Plot");
 
-    plot2D(f, output_dir, reaction);
+    plot2D(f, output_dir);
 
     return 0;
 }
@@ -285,7 +271,7 @@ TCanvas *summary_plot(TFile *f, TString data_title)
 
 /**
  * @brief Create plots of 2D angular distributions for each amplitude
- * 
+ *
  * @param f ROOT file output by vecps_plotter
  * @return std::map<std::string, TCanvas *> eJPmL amplitude names, corresponding canvas pointers
  */
@@ -299,7 +285,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
     // Note Psi = phi - Prod_Ang (Phi)
     std::vector<std::pair<TString, TString>> plot_pairs = {
         {"Psi", "CosTheta"},
-        {"Phi", "CosTheta"},        
+        {"Phi", "CosTheta"},
         {"Psi", "Phi_H"},
         {"Prod_Ang", "Phi"},
         {"Psi", "CosTheta_H"},
@@ -309,7 +295,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
 
     std::vector<TString> plot_titles = {
         ";#Psi [rad.];cos#theta",
-        ";#phi [rad.];cos#theta",        
+        ";#phi [rad.];cos#theta",
         ";#Psi [rad.];#phi_{H} [rad.]",
         ";#Phi [rad.];#phi [rad.]",
         ";#Psi [rad.];cos#theta_{H}",
@@ -334,7 +320,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
             gPad->SetLeftMargin(0.2);
             gPad->SetBottomMargin(0.22);
             gPad->SetRightMargin(0.2); // Extra space for colorbar
-            gPad->SetTopMargin(0.15);            
+            gPad->SetTopMargin(0.15);
 
             TString plot_name = pair.first + "Vs" + pair.second;
             TH2F *hamp = (TH2F *)f->Get(plot_name + "acc_" + amp);
@@ -370,9 +356,8 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
         // conventions
         std::string eJPmL = refl + amp.substr(amp.find('_') + 1);
 
-        
         cc->cd();
-        // draw the eJPmL name on the canvas itself as a title        
+        // draw the eJPmL name on the canvas itself as a title
         TPad *title_pad = new TPad("title_pad", "title_pad", 0, 0, 1, 1);
         title_pad->SetFillStyle(4000);
         title_pad->Draw();
@@ -381,7 +366,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
         AmplitudeParser parser(eJPmL[0], eJPmL[1], eJPmL[2], eJPmL[3], eJPmL[4]);
         lat->DrawLatexNDC(.45, .95, parser.get_latex_amplitude().c_str());
 
-        amplitude_canvases[eJPmL] = cc;        
+        amplitude_canvases[eJPmL] = cc;
     }
 
     return amplitude_canvases;
@@ -394,7 +379,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
 /* Similar to plot1D, but the individual amplitude contributions cannot be seen, and
 so no legend is required here
 */
-void plot2D(TFile *f, TString dir, TString reaction)
+void plot2D(TFile *f, TString dir)
 {
     // Note Psi = phi - Prod_Ang (Phi)
     std::vector<std::pair<TString, TString>> plot_pairs = {
@@ -436,11 +421,11 @@ void plot2D(TFile *f, TString dir, TString reaction)
 
         TString plot_name = pair.first + "Vs" + pair.second;
 
-        TH2F *hdat = (TH2F *)f->Get(reaction + plot_name + "dat");
+        TH2F *hdat = (TH2F *)f->Get(plot_name + "dat");
         if (!hdat)
         {
             throw std::runtime_error(
-                Form("hdat Plot %s doesn't exist!", (reaction + plot_name + "dat").Data()));
+                Form("hdat Plot %s doesn't exist!", (plot_name + "dat").Data()));
         }
         hdat->SetLabelSize(0.06, "xy");
         hdat->SetTitleSize(0.08, "xy");
@@ -471,7 +456,7 @@ void plot2D(TFile *f, TString dir, TString reaction)
         gPad->SetRightMargin(0.2); // Extra space for colorbar
         gPad->SetTopMargin(0.05);
 
-        TH2F *hacc = (TH2F *)f->Get(reaction + plot_name + "acc");
+        TH2F *hacc = (TH2F *)f->Get(plot_name + "acc");
 
         if (!hacc)
         {
