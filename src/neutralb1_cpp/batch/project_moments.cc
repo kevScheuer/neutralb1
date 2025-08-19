@@ -106,7 +106,6 @@ complex<double> get_production_coefficient(
     int e, int J, int m, int L,
     const std::string &reaction, const FitResults &results);
 int sign(int i);
-int find_max_m(const FitResults &results);
 int find_max_J(const FitResults &results);
 void clear_sdme_cache();
 void precompute_caches(
@@ -275,8 +274,7 @@ int main(int argc, char *argv[])
 std::vector<Moment> initialize_moments(const FitResults &results)
 {
     std::vector<Moment> moments;
-    int max_J = find_max_J(results);
-    int max_m = find_max_m(results);
+    int max_J = find_max_J(results);    
 
     // prepare moment quantum numbers for the moments
     std::vector<int> alpha_vector = {0, 1, 2};
@@ -288,8 +286,8 @@ std::vector<Moment> initialize_moments(const FitResults &results)
     {
         J_vector.push_back(J);
     }
-    std::vector<int> M_vector; // similar to lambda, (-) M values ar proportional to (+)
-    for (int m = 0; m <= max_m + 1; ++m)
+    std::vector<int> M_vector; // similar to lambda, (-) M values are proportional to (+)
+    for (int m = 0; m <= max_J; ++m)
     {
         M_vector.push_back(m);
     }
@@ -628,29 +626,6 @@ int sign(int i)
     return (i % 2 == 0) ? 1 : -1;
 }
 
-int find_max_m(const FitResults &results)
-{
-    int max_m = 0;
-    for (const auto &reaction : results.reactionList())
-    {
-        for (const std::string &amplitude : results.ampList(reaction))
-        {
-            if (amplitude.find("isotropic") != std::string::npos ||
-                amplitude.find("Background") != std::string::npos)
-                continue; // skip isotropic and background amplitudes
-
-            AmplitudeParser parser(amplitude);
-            // Extract the m value from the amplitude
-            int m_value = parser.get_m_int();
-            if (m_value > max_m)
-            {
-                max_m = m_value;
-            }
-        }
-    }
-
-    return max_m;
-}
 
 int find_max_J(const FitResults &results)
 {
