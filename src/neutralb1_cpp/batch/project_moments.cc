@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
 std::vector<Moment> initialize_moments(const FitResults &results)
 {
     std::vector<Moment> moments;
-    int max_J = find_max_J(results);    
+    int max_wave_J = find_max_J(results);    
 
     // prepare moment quantum numbers for the moments
     std::vector<int> alpha_vector = {0, 1, 2};
@@ -282,12 +282,12 @@ std::vector<Moment> initialize_moments(const FitResults &results)
     // moments with negative Lambda values are proportional to positive ones
     std::vector<int> Lambda_vector = {0, 1, 2};
     std::vector<int> J_vector;
-    for (int J = 0; J <= max_J + 1; ++J) // J defined to be >= 0
+    for (int J = 0; J <= 2 * max_wave_J; ++J) // J defined to be >= 0
     {
         J_vector.push_back(J);
     }
     std::vector<int> M_vector; // similar to lambda, (-) M values are proportional to (+)
-    for (int m = 0; m <= max_J; ++m)
+    for (int m = 0; m <= max_wave_J; ++m)
     {
         M_vector.push_back(m);
     }
