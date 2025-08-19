@@ -291,11 +291,11 @@ void fill_maps(
             std::string e, J, P, m, L;
             try {
                 AmplitudeParser parser(amplitude);
-                e = parser.get_e_str();
-                J = parser.get_J_str();
-                P = parser.get_P_str();
-                m = parser.get_m_str();
-                L = parser.get_L_str();
+                e = parser.get_e_char();
+                J = parser.get_J_char();
+                P = parser.get_P_char();
+                m = parser.get_m_char();
+                L = parser.get_L_char();
             } catch (const std::exception &e) {
                 std::cerr << "Error parsing amplitude '" << amplitude << "': " << e.what() << std::endl;
                 continue;
@@ -326,11 +326,11 @@ void fill_maps(
 
                 std::string pd_e, pd_J, pd_P, pd_m, pd_L;
                 AmplitudeParser pd_parser(pd_amplitude);
-                pd_e = pd_parser.get_e_str();
-                pd_J = pd_parser.get_J_str();
-                pd_P = pd_parser.get_P_str();
-                pd_m = pd_parser.get_m_str();
-                pd_L = pd_parser.get_L_str();
+                pd_e = pd_parser.get_e_char();
+                pd_J = pd_parser.get_J_char();
+                pd_P = pd_parser.get_P_char();
+                pd_m = pd_parser.get_m_char();
+                pd_L = pd_parser.get_L_char();
                 std::string pd_eJPmL = pd_e + pd_J + pd_P + pd_m + pd_L;
 
                 if (pd_eJPmL == eJPmL)

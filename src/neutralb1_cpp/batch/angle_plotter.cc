@@ -33,6 +33,8 @@ Output PDFs will be saved in the current directory or specified output directory
 #include "TString.h"
 #include "TStyle.h"
 
+#include "neutralb1/AmplitudeParser.h"
+
 // struct to hold the properties of each JP contribution
 struct JP_props
 {
@@ -50,7 +52,6 @@ const std::map<TString, JP_props> create_jp_map();
 const std::set<TString> get_unique_jp_keys(TFile *f);
 const std::set<std::string> get_unique_amp_keys(TFile *f);
 
-// TODO: remove reaction input, no need for it
 int main(int argc, char *argv[])
 {
     std::string file_path = "./vecps_plot.root";
@@ -365,14 +366,14 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
 
         
         cc->cd();
-        // draw the eJPmL name on the canvas itself as a title
-        // TODO: Make it "pretty" latex, implement it in AmplitudeParser
+        // draw the eJPmL name on the canvas itself as a title        
         TPad *title_pad = new TPad("title_pad", "title_pad", 0, 0, 1, 1);
         title_pad->SetFillStyle(4000);
         title_pad->Draw();
         title_pad->cd();
         TLatex *lat = new TLatex();
-        lat->DrawLatexNDC(.45, .95, eJPmL.c_str());
+        AmplitudeParser parser(eJPmL[0], eJPmL[1], eJPmL[2], eJPmL[3], eJPmL[4]);
+        lat->DrawLatexNDC(.45, .95, parser.get_latex_amplitude().c_str());
 
         amplitude_canvases[eJPmL] = cc;        
     }

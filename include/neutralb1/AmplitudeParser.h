@@ -7,6 +7,7 @@
 #ifndef AMPLITUDE_PARSER_H
 #define AMPLITUDE_PARSER_H
 
+#include <map>
 #include <string>
 
 // TODO: Later, have an amplitude style be inherited from somewhere, where the parsing
@@ -24,11 +25,11 @@
 class AmplitudeParser
 {
 private:
-    std::string m_e_str; ///< Reflectivity as string: "p" or "m"
-    std::string m_J_str; ///< Total angular momentum as string: "0" to "9"
-    std::string m_P_str; ///< Parity as string: "p" or "m"
-    std::string m_m_str; ///< m-projection as string: "l", "n", "m", "0", "p", "q", "r"
-    std::string m_L_str; ///< Orbital angular momentum as string: "S", "P", "D", "F", "G", ...
+    char m_e_char; ///< Reflectivity as char: 'p' or 'm'
+    char m_J_char; ///< Total angular momentum as char: '0' to '9'
+    char m_P_char; ///< Parity as char: 'p' or 'm'
+    char m_m_char; ///< m-projection as char: 'l', 'n', 'm', '0', 'p', 'q', 'r'
+    char m_L_char; ///< Orbital angular momentum as char: 'S', 'P', 'D', 'F', 'G', ...
 
     std::string m_reaction; ///< Reaction part of the amplitude name
     std::string m_sum;      ///< Sum part of the amplitude name
@@ -40,17 +41,18 @@ private:
     int m_L_int; ///< Orbital angular momentum as integer: 0=S, 1=P, 2=D, ...
 
     /**
-     * @brief Convert string representations to integer representations
+     * @brief Convert char representations to integer representations
      */
     void compute_integers();
 
     /**
-     * @brief Convert integer representations to string representations
+     * @brief Convert integer representations to char representations
      */
-    void compute_strings();
+    void compute_chars();
 
     /**
      * @brief Parse an amplitude string into its reaction, sum, and quantum number components
+     *
      * @param amplitude The full amplitude string to parse
      */
     void parse_from_amplitude(const std::string &amplitude);
@@ -64,19 +66,21 @@ public:
     AmplitudeParser(const std::string &amplitude);
 
     /**
-     * @brief Construct from individual quantum numbers as strings
-     * @param e Reflectivity (p or m)
-     * @param J Total angular momentum (0-9)
-     * @param P Parity (p or m)
-     * @param m m-projection (l, n, m, 0, p, q, r)
-     * @param L Orbital angular momentum (S, P, D, F, G, ...)
+     * @brief Construct from individual quantum numbers as chars
+     * @param e Reflectivity ('p' or 'm')
+     * @param J Total angular momentum ('0'-'9')
+     * @param P Parity ('p' or 'm')
+     * @param m m-projection ('l', 'n', 'm', '0', 'p', 'q', 'r')
+     * @param L Orbital angular momentum ('S', 'P', 'D', 'F', 'G', ...)
      * @throw std::invalid_argument If any quantum number is invalid
      */
-    AmplitudeParser(const std::string &e, const std::string &J, const std::string &P,
-                    const std::string &m, const std::string &L);
+    AmplitudeParser(const char e, const char J, const char P, const char m, const char L);
 
     /**
      * @brief Construct from individual quantum numbers as integers
+     *
+     * Integers must be in allowed ranges, denoted in the params
+     *
      * @param e Reflectivity (+1 or -1)
      * @param J Total angular momentum (0, 1, 2, ...)
      * @param P Parity (+1 or -1)
@@ -84,14 +88,14 @@ public:
      * @param L Orbital angular momentum (0=S, 1=P, 2=D, ...)
      * @throw std::invalid_argument If any quantum number is invalid
      */
-    AmplitudeParser(int e, int J, int P, int m, int L);
+    AmplitudeParser(const int &e, const int &J, const int &P, const int &m, const int &L);
 
-    // String accessors
-    std::string get_e_str() const { return m_e_str; } ///< Reflectivity as string
-    std::string get_J_str() const { return m_J_str; } ///< Total angular momentum as string
-    std::string get_P_str() const { return m_P_str; } ///< Parity as string
-    std::string get_m_str() const { return m_m_str; } ///< m-projection as string
-    std::string get_L_str() const { return m_L_str; } ///< Orbital angular momentum as string
+    // Char accessors
+    char get_e_char() const { return m_e_char; } ///< Reflectivity as char
+    char get_J_char() const { return m_J_char; } ///< Total angular momentum as char
+    char get_P_char() const { return m_P_char; } ///< Parity as char
+    char get_m_char() const { return m_m_char; } ///< m-projection as char
+    char get_L_char() const { return m_L_char; } ///< Orbital angular momentum as char
 
     // Integer accessors
     int get_e_int() const { return m_e_int; } ///< Reflectivity as integer
@@ -102,14 +106,22 @@ public:
 
     // Amplitude accessors
     std::string get_amplitude_reaction() const { return m_reaction; }; ///< Reaction part of the amplitude name
-    std::string get_amplitude_sum() const { return m_sum; }; ///< Sum part of the amplitude name
+    std::string get_amplitude_sum() const { return m_sum; };           ///< Sum part of the amplitude name
     /**
      * @brief Get the amplitude name in the format eJPmL
      */
-    std::string get_amplitude_name() const 
+    std::string get_amplitude_name() const
     {
-        return m_e_str + m_J_str + m_P_str + m_m_str + m_L_str;
+        return std::string(1, m_e_char) + std::string(1, m_J_char) + std::string(1, m_P_char) + std::string(1, m_m_char) + std::string(1, m_L_char);
     };
+
+    /**
+     * @brief Convert the amplitude to a LaTeX string representation
+     *
+     * @return std::string string in J^{P}L_m^e format
+     */
+    std::string get_latex_amplitude() const;
+
     /**
      * @brief Get the full amplitude name in the format reaction::sum::eJPmL
      */
@@ -120,7 +132,7 @@ public:
 
     // Setters for amplitude components. Needed since we can construct amplitudes from just the quantum numbers.
     void set_amplitude_reaction(std::string reaction) { m_reaction = reaction; }; ///< Set the reaction part of the amplitude name
-    void set_amplitude_sum(std::string sum) { m_sum = sum; }; ///< Set the sum part of the amplitude name
+    void set_amplitude_sum(std::string sum) { m_sum = sum; };                     ///< Set the sum part of the amplitude name
     // no setter for name, since constructors handle it
 };
 

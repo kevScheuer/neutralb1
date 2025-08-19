@@ -4,6 +4,7 @@
  *
  */
 
+#include <map>
 #include <string>
 #include <stdexcept>
 #include <regex>
@@ -16,17 +17,17 @@ AmplitudeParser::AmplitudeParser(const std::string &amplitude)
     compute_integers();
 }
 
-AmplitudeParser::AmplitudeParser(const std::string &e, const std::string &J, const std::string &P,
-                                 const std::string &m, const std::string &L)
-    : m_e_str(e), m_J_str(J), m_P_str(P), m_m_str(m), m_L_str(L)
+AmplitudeParser::AmplitudeParser(const char e, const char J, const char P,
+                                 const char m, const char L)
+    : m_e_char(e), m_J_char(J), m_P_char(P), m_m_char(m), m_L_char(L)
 {
     compute_integers();
 }
 
-AmplitudeParser::AmplitudeParser(int e, int J, int P, int m, int L)
+AmplitudeParser::AmplitudeParser(const int &e, const int &J, const int &P, const int &m, const int &L)
     : m_e_int(e), m_J_int(J), m_P_int(P), m_m_int(m), m_L_int(L)
 {
-    compute_strings();
+    compute_chars();
 }
 
 void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
@@ -66,75 +67,79 @@ void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
                                             "and remaining characters are orbital angular momentum (S/P/D/F/...).");
     }
 
-    m_e_str = matches[1].str(); // reflectivity
-    m_J_str = matches[2].str(); // total angular momentum
-    m_P_str = matches[3].str(); // parity
-    m_m_str = matches[4].str(); // m-projection
-    m_L_str = matches[5].str(); // orbital angular momentum
+    m_e_char = matches[1].str()[0]; // reflectivity
+    m_J_char = matches[2].str()[0]; // total angular momentum
+    m_P_char = matches[3].str()[0]; // parity
+    m_m_char = matches[4].str()[0]; // m-projection
+    m_L_char = matches[5].str()[0]; // orbital angular momentum
 }
 
 void AmplitudeParser::compute_integers()
 {
     // Convert reflectivity
-    if (m_e_str == "p")
+    if (m_e_char == 'p')
         m_e_int = 1;
-    else if (m_e_str == "m")
+    else if (m_e_char == 'm')
         m_e_int = -1;
     else
-        throw std::invalid_argument("Invalid reflectivity: " + m_e_str);
+        throw std::invalid_argument("Invalid reflectivity: " + std::string(1, m_e_char));
 
-    // Convert total angular momentum
-    m_J_int = std::stoi(m_J_str);
+    // Convert total angular momentum    
+    m_J_int = m_J_char - '0';
+    if (m_J_int < 0 || m_J_int > 9)
+    {
+        throw std::invalid_argument("Invalid total angular momentum: " + std::to_string(m_J_int));
+    }
 
     // Convert parity
-    if (m_P_str == "p")
+    if (m_P_char == 'p')
         m_P_int = 1;
-    else if (m_P_str == "m")
+    else if (m_P_char == 'm')
         m_P_int = -1;
     else
-        throw std::invalid_argument("Invalid parity: " + m_P_str);
+        throw std::invalid_argument("Invalid parity: " + std::string(1, m_P_char));
 
     // Convert m-projection
-    if (m_m_str == "l")
+    if (m_m_char == 'l')
         m_m_int = -3;
-    else if (m_m_str == "n")
+    else if (m_m_char == 'n')
         m_m_int = -2;
-    else if (m_m_str == "m")
+    else if (m_m_char == 'm')
         m_m_int = -1;
-    else if (m_m_str == "0")
+    else if (m_m_char == '0')
         m_m_int = 0;
-    else if (m_m_str == "p")
+    else if (m_m_char == 'p')
         m_m_int = 1;
-    else if (m_m_str == "q")
+    else if (m_m_char == 'q')
         m_m_int = 2;
-    else if (m_m_str == "r")
+    else if (m_m_char == 'r')
         m_m_int = 3;
     else
-        throw std::invalid_argument("Invalid m-projection: " + m_m_str);
+        throw std::invalid_argument("Invalid m-projection: " + std::string(1, m_m_char));
 
     // Convert orbital angular momentum
-    if (m_L_str == "S")
+    if (m_L_char == 'S')
         m_L_int = 0;
-    else if (m_L_str == "P")
+    else if (m_L_char == 'P')
         m_L_int = 1;
-    else if (m_L_str == "D")
+    else if (m_L_char == 'D')
         m_L_int = 2;
-    else if (m_L_str == "F")
+    else if (m_L_char == 'F')
         m_L_int = 3;
-    else if (m_L_str == "G")
+    else if (m_L_char == 'G')
         m_L_int = 4;
     // Add more as needed...
     else
-        throw std::invalid_argument("Invalid orbital angular momentum: " + m_L_str);
+        throw std::invalid_argument("Invalid orbital angular momentum: " + std::string(1, m_L_char));
 }
 
-void AmplitudeParser::compute_strings()
+void AmplitudeParser::compute_chars()
 {
     // Convert reflectivity
     if (m_e_int == 1)
-        m_e_str = "p";
+        m_e_char = 'p';
     else if (m_e_int == -1)
-        m_e_str = "m";
+        m_e_char = 'm';
     else
         throw std::invalid_argument("Invalid reflectivity integer: " + std::to_string(m_e_int));
 
@@ -143,46 +148,59 @@ void AmplitudeParser::compute_strings()
     {
         throw std::invalid_argument("Invalid total angular momentum: " + std::to_string(m_J_int));
     }
-    m_J_str = std::to_string(m_J_int);
+    m_J_char = '0' + m_J_int;
 
     // Convert parity
     if (m_P_int == 1)
-        m_P_str = "p";
+        m_P_char = 'p';
     else if (m_P_int == -1)
-        m_P_str = "m";
+        m_P_char = 'm';
     else
         throw std::invalid_argument("Invalid parity integer: " + std::to_string(m_P_int));
 
     // Convert m-projection
     if (m_m_int == -3)
-        m_m_str = "l";
+        m_m_char = 'l';
     else if (m_m_int == -2)
-        m_m_str = "n";
+        m_m_char = 'n';
     else if (m_m_int == -1)
-        m_m_str = "m";
+        m_m_char = 'm';
     else if (m_m_int == 0)
-        m_m_str = "0";
+        m_m_char = '0';
     else if (m_m_int == 1)
-        m_m_str = "p";
+        m_m_char = 'p';
     else if (m_m_int == 2)
-        m_m_str = "q";
+        m_m_char = 'q';
     else if (m_m_int == 3)
-        m_m_str = "r";
+        m_m_char = 'r';
     else
         throw std::invalid_argument("Invalid m-projection integer: " + std::to_string(m_m_int));
 
     // Convert orbital angular momentum
     if (m_L_int == 0)
-        m_L_str = "S";
+        m_L_char = 'S';
     else if (m_L_int == 1)
-        m_L_str = "P";
+        m_L_char = 'P';
     else if (m_L_int == 2)
-        m_L_str = "D";
+        m_L_char = 'D';
     else if (m_L_int == 3)
-        m_L_str = "F";
+        m_L_char = 'F';
     else if (m_L_int == 4)
-        m_L_str = "G";
+        m_L_char = 'G';
     // Add more as needed...
     else
         throw std::invalid_argument("Invalid orbital angular momentum integer: " + std::to_string(m_L_int));
+}
+
+std::string AmplitudeParser::get_latex_amplitude() const
+{
+    // convert reflectivity and parity to +/- characters
+    char e_sign = (m_e_int == 1) ? '+' : '-';
+    char P_sign = (m_P_int == 1) ? '+' : '-';
+    char m_sign = (m_m_int > 0) ? '+' : '-';
+    
+    // Format: J^{P}L_m^e
+    std::ostringstream oss;
+    oss << m_J_char << "^{" << P_sign << "}" << m_L_char << "_{" << m_m_int << "}^{" << e_sign << "}";
+    return oss.str();
 }
