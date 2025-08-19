@@ -283,6 +283,12 @@ TCanvas *summary_plot(TFile *f, TString data_title)
     return cc;
 }
 
+/**
+ * @brief Create plots of 2D angular distributions for each amplitude
+ * 
+ * @param f ROOT file output by vecps_plotter
+ * @return std::map<std::string, TCanvas *> eJPmL amplitude names, corresponding canvas pointers
+ */
 std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
 {
     std::map<std::string, TCanvas *> amplitude_canvases;
@@ -305,7 +311,7 @@ std::map<std::string, TCanvas *> amplitude_plots(TFile *f)
         ";#Psi [rad.];cos#theta",
         ";#phi [rad.];cos#theta",        
         ";#Psi [rad.];#phi_{H} [rad.]",
-        ";Prod_Ang [rad.];#phi [rad.]",
+        ";#Phi [rad.];#phi [rad.]",
         ";#Psi [rad.];cos#theta_{H}",
         ";#phi_{H} [rad.];cos#theta_{H}",
         ";p+bachelor Ps [GeV];cos#theta",
@@ -405,7 +411,7 @@ void plot2D(TFile *f, TString dir, TString reaction)
         ";#Psi [rad.];cos#theta",
         ";#Psi [rad.];cos#theta_{H}",
         ";#Psi [rad.];#phi_{H} [rad.]",
-        ";Prod_Ang [rad.];#phi [rad.]",
+        ";#Phi [rad.];#phi [rad.]",
         ";#phi [rad.];cos#theta",
         ";#phi_{H} [rad.];cos#theta_{H}",
         ";p+bachelor Ps [GeV];cos#theta",
