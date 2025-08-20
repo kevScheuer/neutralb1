@@ -111,7 +111,7 @@ fi
 mv "$my_reaction".fit best.fit
 vecps_start_time=$(date +%s)
 vecps_plotter best.fit
-hadd vecps_plot.root vecps_plot_*.root
+hadd -f vecps_plot.root vecps_plot_*.root
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
@@ -121,7 +121,19 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 #     root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" 
 # fi
 
-angle_plotter ./vecps_plot.root "GlueX Data" "" ./ true
+# get angular distributions for each orientation, skip if only one file
+vecps_files=(./vecps_plot_*.root)
+if [ ${#vecps_files[@]} -gt 1 ]; then
+    for file in "${vecps_files[@]}"; do
+        [ -e "$file" ] || continue    
+        angle_plotter -f "$file" --gluex-style
+        pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
+        mv angles.pdf "angles_$pol_angle.pdf"
+    done
+fi
+
+# get angular distributions for all orientations together
+angle_plotter -f ./vecps_plot.root --gluex-style
 
 # get total data csv file
 hadd -f all_data.root *Amplitude*.root
