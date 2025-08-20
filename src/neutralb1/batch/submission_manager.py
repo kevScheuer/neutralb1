@@ -104,7 +104,7 @@ class SubmissionManager:
 
                     if config.compute.test:  # provide cfg file to user if running test
                         shutil.copy(amptools_cfg, f"{os.getcwd()}/fit.cfg")
-                        shutil.copy(moment_cfg, f"{os.getcwd()}/moments.cfg")
+                        shutil.copy(moment_cfg, f"{os.getcwd()}/fit_moment.cfg")
                     else:  # otherwise prepare the job directory by linking needed files
                         self._prepare_job_directory(
                             config,
@@ -231,7 +231,7 @@ class SubmissionManager:
             pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
 
         shutil.copy(amptools_config, f"{dir}/fit.cfg")
-        shutil.copy(moment_config, f"{dir}/moments.cfg")
+        shutil.copy(moment_config, f"{dir}/fit_moment.cfg")
         # save the submission config to the dir so its clear what parameters were used
         self.config_manager.save_yaml_config(config, f"{dir}/config.yaml")
 

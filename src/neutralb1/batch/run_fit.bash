@@ -4,12 +4,11 @@ echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 
 # cleanup directory
 rm -f ./*.fit 
-rm -f ./bestFitPars.txt
-rm -f ./vecps_fitPars.txt
+rm -f ./bestFitPars*.txt
+rm -f ./vecps_fitPars*.txt
 rm -f ./*.pdf
 rm -f ./*.csv
-rm -f ./vecps_plot.root
-rm -f ./vecps_plot_*.root
+rm -f ./vecps_plot*.root
 rm -f ./*.ni
 rm -f ./rand/*
 rm -f ./bootstrap/*
@@ -62,6 +61,7 @@ while getopts ":o:n:r:b:s:t:h:" opt; do
 done
 # ==== END GETTING ARGUMENTS ====
 
+### SETUP ENVIRONMENT ###
 source setup_gluex.sh version.xml
 # following neutralb1 paths are hard-coded for now
 source /w/halld-scshelf2101/kscheuer/neutralb1/.venv/bin/activate
@@ -73,10 +73,6 @@ ls -al
 echo -e "check if GPU Card is active for GPU fits:\n"
 nvidia-smi
 
-### RUN FIT ###
-echo -e "\n\n==================================================\n
-Beginning fits \n\n\n\n"
-
 # if AmpTools has been built for MPI, these libraries show up, meaning fitMPI should run
 use_mpi=false
 if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
@@ -84,7 +80,12 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
     use_mpi=true
 fi
 
-run_start_time=$(date +%s)
+### PERFORM PRIMARY FITS ###
+echo -e "\n\n==================================================\n
+Beginning fits \n\n\n\n"
+
+# pwa fits
+amplitude_start_time=$(date +%s)
 if [ $my_truth_bool -eq 1 ]; then
     fit -c fit.cfg -m 1000000 -s "bestFitPars.txt"
 elif [ "$use_mpi" = true ]; then
@@ -99,21 +100,76 @@ else
     fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars.txt" $my_seed
 fi
 
-run_end_time=$(date +%s)
-echo "Fitting took: $((run_end_time - run_start_time)) seconds"
+amplitude_end_time=$(date +%s)
+echo "Amplitude fitting took: $((amplitude_end_time - amplitude_start_time)) seconds"
 
+# moment fits
+# these can be run in the same directory because output is <reaction>_moment.fit
+moment_start_time=$(date +%s)
+if [ "$use_mpi" = true ]; then
+    mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars_moment.txt" $my_seed
+else
+    fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars_moment.txt" $my_seed
+fi
+moment_end_time=$(date +%s)
+echo "Moment fitting took: $((moment_end_time - moment_start_time)) seconds"
+
+# Quit job if fit failed
 if ! [ -f "$my_reaction.fit" ]; then
     echo -e "\n\nError: $my_reaction.fit not found, assuming fit failed. Exiting."
+    exit 1
+fi
+if ! [ -f "${my_reaction}_moment.fit" ]; then
+    echo -e "\n\nError: ${my_reaction}_moment.fit not found, assuming fit failed. Exiting."
     exit 1
 fi
 
 ### FIT DIAGNOSTICS AND RESULTS ###
 mv "$my_reaction".fit best.fit
+mv "${my_reaction}_moment.fit" best_moment.fit
+
+# This section will create vecps_plot.root files with tons of angular distribution
+# histograms, and combine the ones of primary interest into pdfs
 vecps_start_time=$(date +%s)
+# do moments first so we can rename the files
+vecps_plotter best_moment.fit
+hadd -f vecps_plot_moment.root vecps_plot_*.root
+vecps_moment_files=(./vecps_plot_*.root)
+for file in ${vecps_moment_files[@]}; do
+    [ -e "$file" ] || continue
+    angle_plotter -f "$file" --gluex-style
+    # name the pdf files according to the pol angle
+    pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
+    mv angles.pdf "angles_moment_$pol_angle.pdf"
+    # now rename the root files to not interfere with the amplitude ones
+    mv "$file" "$(basename "$file" .root)_moment.root"
+done
+angle_plotter -f ./vecps_plot.root --gluex-style
+
+# now do the angular distributions for the amplitude fits
 vecps_plotter best.fit
 hadd -f vecps_plot.root vecps_plot_*.root
+vecps_files=(./vecps_plot_*.root)
+for file in "${vecps_files[@]}"; do
+    [ -e "$file" ] || continue    
+    angle_plotter -f "$file" --gluex-style
+    pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
+    mv angles.pdf "angles_$pol_angle.pdf"
+done
+angle_plotter -f ./vecps_plot.root --gluex-style
+
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
+
+
+# get total data csv file
+hadd -f all_data.root *Amplitude*.root
+uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
+
+# convert best fit results to csvs
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv
+uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments
 
 # TODO: this file should be replaced by a python script using a csv of the rand fits
 # if [ -z "$my_truth_file" ]; then
@@ -121,44 +177,22 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 #     root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" 
 # fi
 
-# get angular distributions for each orientation, skip if only one file
-vecps_files=(./vecps_plot_*.root)
-if [ ${#vecps_files[@]} -gt 1 ]; then
-    for file in "${vecps_files[@]}"; do
-        [ -e "$file" ] || continue    
-        angle_plotter -f "$file" --gluex-style
-        pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
-        mv angles.pdf "angles_$pol_angle.pdf"
-    done
-fi
-
-# get angular distributions for all orientations together
-angle_plotter -f ./vecps_plot.root --gluex-style
-
-# get total data csv file
-hadd -f all_data.root *Amplitude*.root
-uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
-
-# convert best fit results to a csv file and its projected moments
-uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv
-uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_moments.csv --moments
-
-# process random fits
+# process random fits into subdirectory
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f bestFitPars_*.txt rand/
-    mv -f "$my_reaction".ni rand/    
-    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand.csv
-    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_*.fit -o $(pwd)/rand/rand_moments.csv --moments
+    mv -f "$my_reaction"_.ni rand/    
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments
+    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
 fi
 
 ls -al
 
-## BOOTSTRAP FITS ##
-if [ $my_num_bootstrap_fits -ne 0 ]; then
-    all_bootstrap_start_time=$(date +%s)
+### BOOTSTRAP FITS ###
+if [ $my_num_bootstrap_fits -ne 0 ]; then    
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
 
     # truth files are already set up to start at the "best" values
@@ -170,12 +204,18 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         echo "include bestFitPars.txt" >> bootstrap_fit.cfg
     fi
 
+    # do the same for the moments, but since truth not setup for it, always run
+    cp -f fit_moment.cfg bootstrap_fit_moment.cfg
+    echo "include bestFitPars_moment.txt" >> bootstrap_fit_moment.cfg
+
     # replace data reader with bootstrap version for just the "data" file    
     sed -i -e '/data/s/ROOTDataReader \([^ ]\+\)/ROOTDataReaderBootstrap \1 0/' bootstrap_fit.cfg
+    sed -i -e '/data/s/ROOTDataReader \([^ ]\+\)/ROOTDataReaderBootstrap \1 0/' bootstrap_fit_moment.cfg
 
+    all_amplitude_bootstrap_start_time=$(date +%s)
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
     for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
-        echo -e "\nBOOTSTRAP FIT: $i\n"      
+        echo -e "\nAMPLITUDE BOOTSTRAP FIT: $i\n"      
         # replace the bootstrap seed in the cfg  
         sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit.cfg        
         # run fit
@@ -187,17 +227,37 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         fi
         mv "$my_reaction".fit "$my_reaction"_"$i".fit
         bootstrap_end_time=$(date +%s)
-        echo "Bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
+        echo "Amplitude bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
     done    
+    all_amplitude_bootstrap_end_time=$(date +%s)
+    echo "All amplitude bootstrap fits took: $((all_amplitude_bootstrap_end_time - all_amplitude_bootstrap_start_time)) seconds"
+
+    # run bootstrap fits for moments
+    all_moment_bootstrap_start_time=$(date +%s)
+    for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
+        echo -e "\nMOMENT BOOTSTRAP FIT: $i\n"              
+        sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit_moment.cfg        
+        bootstrap_start_time=$(date +%s)
+        if [ "$use_mpi" = true ]; then 
+            mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
+        else
+            fit -c bootstrap_fit.cfg -m 1000000
+        fi
+        mv "${my_reaction}"_moment.fit "${my_reaction}"_moment_"$i".fit
+        bootstrap_end_time=$(date +%s)
+        echo "Moment bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
+    done    
+    all_moment_bootstrap_end_time=$(date +%s)
+    echo "All moment bootstrap fits took: $((all_moment_bootstrap_end_time - all_moment_bootstrap_start_time)) seconds"
 
     ls -al 
-    # convert bootstrap fits to csv and move them to a subdirectory
+    # process bootstrap fits into subdirectory
     mv -f "$my_reaction"_*.fit bootstrap/
-    mv -f "$my_reaction".ni bootstrap/
-    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap.csv
-    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_*.fit -o $(pwd)/bootstrap/bootstrap_moments.csv --moments
-    all_bootstrap_end_time=$(date +%s)
-    echo "All bootstrap fits took: $((all_bootstrap_end_time - all_bootstrap_start_time)) seconds"
+    mv -f "$my_reaction"_.ni bootstrap/
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments
+    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_moment*.fit -o $(pwd)/bootstrap/bootstrap_moment.csv
+    
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
     ls -al
 fi

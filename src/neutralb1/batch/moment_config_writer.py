@@ -83,7 +83,7 @@ class MomentConfigWriter:
         cfg_file.write(f"\n\n{'#'*8} SETUP {'#'*8}\n")
 
         cfg_file.write(
-            f"fit {reaction}\n"
+            f"fit {reaction}_moment\n"  # avoid conflict with pwa fit names
             "keyword parRange 3 3\n"  # allows for random sampling of parameters
         )
 
