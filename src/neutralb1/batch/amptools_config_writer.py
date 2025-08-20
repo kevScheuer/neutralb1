@@ -1,9 +1,8 @@
-"""Writes an AmpTools fit cfg file for binned fits to be performed
+"""Class for writing an AmpTools fit cfg file for binned fits to be performed
 
-This script is part of the batch submission process, called with submit.py. Its
-role is to write a fit cfg file that will be run in each bin of the fit. It uses the
+Its role is to write a fit cfg file that will be run in each bin of the fit. It uses the
 user requested waveset and all its modifications to write the necessary AmpTools
-recognized lines to the cfg file
+recognized lines to the cfg file.
 
 NOTE: This file (and other batch files) are tuned specifically to omegapi0
 """
@@ -77,7 +76,7 @@ class AmpToolsConfigWriter:
             cfg_file.write(template_data)
 
             # Write lines to load in data files for each orientation
-            self._write_data_lines(
+            self.write_data_lines(
                 cfg_file,
                 self.config.data.orientations,
                 self.config.general.reaction,
@@ -355,7 +354,7 @@ class AmpToolsConfigWriter:
 
         return waveset, breit_wigners
 
-    def _write_data_lines(
+    def write_data_lines(
         self, cfg_file: TextIO, orientations: List[str], reaction: str, is_iso: bool
     ) -> None:
         """Writes the AmpTools 'loop' statements to read in data files for each orientation

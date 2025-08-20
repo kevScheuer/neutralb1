@@ -21,6 +21,9 @@ class PhysicsConfig:
 
     Args:
         waveset (List[str]): Waveset to fit with (e.g., ["1p", "1m", "2p"]).
+        max_moment_J (int): Maximum moment J value for fitting with moments. When not
+            set to zero, all moments up to this value will be included, not just those
+            automatically determined from the waveset
         phase_reference (List[str]): Phase reference waves in eJPmL format.
         phaselock (bool): Enable phaselock model for common phases across m-projections.
         ds_ratio (str): D/S wave ratio constraint ("", "free", "fixed", "split").
@@ -33,6 +36,7 @@ class PhysicsConfig:
     """
 
     waveset: List[str] = field(default_factory=list)
+    max_moment_J: int = 0
     phase_reference: List[str] = field(default_factory=list)
     phaselock: bool = False
     ds_ratio: str = ""
@@ -127,10 +131,12 @@ class GeneralConfig:
     Args:
         reaction (str): Base reaction name.
         template_name (str): Template configuration file name.
+        n_events (int): Number of events to initialize / sample moments with
     """
 
     reaction: str = "omegapi"
     template_name: str = "template.cfg"
+    n_events: int = 1000
 
 
 @dataclass
