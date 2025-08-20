@@ -78,6 +78,8 @@ class SubmissionManager:
             else self.config_manager.create_amptools_config(config)
         )
 
+        moment_cfg = self.config_manager.create_moment_config(config)
+
         # Submit jobs for each combination of run period and kinematic bins
         job_ids = []
         for run_period in config.data.run_periods:
@@ -102,9 +104,15 @@ class SubmissionManager:
 
                     if config.compute.test:  # provide cfg file to user if running test
                         shutil.copy(amptools_cfg, f"{os.getcwd()}/fit.cfg")
+                        shutil.copy(moment_cfg, f"{os.getcwd()}/moments.cfg")
                     else:  # otherwise prepare the job directory by linking needed files
                         self._prepare_job_directory(
-                            config, job_dir, amptools_cfg, data_path, run_period
+                            config,
+                            job_dir,
+                            amptools_cfg,
+                            moment_cfg,
+                            data_path,
+                            run_period,
                         )
 
                     # submit and capture the slurm job id
@@ -192,6 +200,7 @@ class SubmissionManager:
         config: PWAConfig,
         dir: str,
         amptools_config: str,
+        moment_config: str,
         selected_data_path: str,
         run_period: str,
     ) -> None:
@@ -201,6 +210,7 @@ class SubmissionManager:
             config (PWAConfig): Configuration object.
             dir (str): Directory for the job.
             amptools_config (str): Path to the amptools configuration file.
+            moment_config (str): Path to the moment configuration file.
             selected_data_path (str): Path to the data directory holding the
                 pre-selected data files. See DataManager.
             run_period (str): Run period string.
@@ -221,6 +231,7 @@ class SubmissionManager:
             pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
 
         shutil.copy(amptools_config, f"{dir}/fit.cfg")
+        shutil.copy(moment_config, f"{dir}/moments.cfg")
         # save the submission config to the dir so its clear what parameters were used
         self.config_manager.save_yaml_config(config, f"{dir}/config.yaml")
 

@@ -76,7 +76,7 @@ class AmpToolsConfigWriter:
             cfg_file.write(template_data)
 
             # Write lines to load in data files for each orientation
-            self.write_data_lines(
+            self._write_data_lines(
                 cfg_file,
                 self.config.data.orientations,
                 self.config.general.reaction,
@@ -354,7 +354,7 @@ class AmpToolsConfigWriter:
 
         return waveset, breit_wigners
 
-    def write_data_lines(
+    def _write_data_lines(
         self, cfg_file: TextIO, orientations: List[str], reaction: str, is_iso: bool
     ) -> None:
         """Writes the AmpTools 'loop' statements to read in data files for each orientation
@@ -386,11 +386,9 @@ class AmpToolsConfigWriter:
 
         # create reaction, scale, and data loops for each orientation
         reaction_and_angles = ""
-        parScale_and_angles = ""
         loop_data_str = ""
         for ont in orientations:
             reaction_and_angles += f" {reaction}_{POL_DICT[ont]['angle']}"
-            parScale_and_angles += f" [parScale_{POL_DICT[ont]['angle']}]"
             loop_data_str += f" anglesOmegaPiAmplitude_{POL_DICT[ont]['angle']}.root"
 
         cfg_file.write(f"\nloop LOOPREAC{reaction_and_angles}\n")

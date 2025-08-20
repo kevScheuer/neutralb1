@@ -19,6 +19,7 @@ from .config_models import (
     PhysicsConfig,
     PWAConfig,
 )
+from .moment_config_writer import MomentConfigWriter
 
 
 class ConfigManager:
@@ -71,10 +72,10 @@ class ConfigManager:
             yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
 
     def create_amptools_config(self, config: PWAConfig) -> str:
-        """Create AmpTools configuration file using the existing write_config module.
+        """Create AmpTools configuration file.
 
         Args:
-            config (PWAConfig): Configuration object.
+            config (PWAConfig): Configuration object with user parameters
         Returns:
             str: Path to the created .cfg file.
         """
@@ -84,6 +85,22 @@ class ConfigManager:
         amptools_cfg.close()
 
         return amptools_cfg.name
+
+    def create_moment_config(self, config: PWAConfig) -> str:
+        """Create moment configuration file.
+
+        Args:
+            config (PWAConfig): Configuration object with user parameters
+
+        Returns:
+            str: Path to the created moment configuration file.
+        """
+        cfg_writer = MomentConfigWriter(config)
+        moment_cfg = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        cfg_writer.write_config_to_file(moment_cfg.name)
+        moment_cfg.close()
+
+        return moment_cfg.name
 
     def create_template_config(self, output_path: str) -> None:
         """Create a template YAML configuration file.

@@ -9,7 +9,6 @@ import itertools
 from dataclasses import dataclass
 from typing import List, TextIO
 
-from .amptools_config_writer import AmpToolsConfigWriter
 from .config_models import PWAConfig
 
 
@@ -51,12 +50,8 @@ class MomentConfigWriter:
                 cfg_file, self.config.general.reaction, self.config.data.orientations
             )
 
-            # data lines are actually same as in the PWA config, so we'll borrow it
-            AmpToolsConfigWriter(self.config).write_data_lines(
-                cfg_file,
-                self.config.data.orientations,
-                self.config.general.reaction,
-                False,
+            self._write_data_lines(
+                cfg_file, self.config.data.orientations, self.config.general.reaction
             )
 
             moment_list = self._get_moment_list(
@@ -85,13 +80,10 @@ class MomentConfigWriter:
             reaction (str): user-defined reaction name
             orientations (List[str]): The list of polarization orientations.
         """
-
-        reaction_set = [f"reaction_{POL_DICT[ont]['angle']}" for ont in orientations]
+        cfg_file.write(f"\n\n{'#'*8} SETUP {'#'*8}\n")
 
         cfg_file.write(
-            "####SETUP#####\n"
             f"fit {reaction}\n"
-            f"sum {reaction_set} vecPSMoment\n"
             "keyword parRange 3 3\n"  # allows for random sampling of parameters
         )
 
@@ -101,6 +93,54 @@ class MomentConfigWriter:
                 f"normintfile {reaction}_{POL_DICT[ont]['angle']}"
                 f" {reaction}_{POL_DICT[ont]['angle']}_moment.ni\n"
             )
+
+    def _write_data_lines(
+        self, cfg_file: TextIO, orientations: List[str], reaction: str
+    ) -> None:
+
+        cfg_file.write(f"\n\n{'#'*8} LOOP OVER POLARIZATION STATES {'#'*8}\n")
+
+        # create the parScale parameters for each orientation
+        for i, ont in enumerate(orientations):
+            pol_scales = {
+                "PARA_0": "1.0",  # TODO: potential for an arg that changes these values
+                "PERP_45": "1.0",
+                "PERP_90": "1.0",
+                "PARA_135": "1.0",
+            }
+            fix_string = "fixed" if i == 0 else ""
+            cfg_file.write(
+                f"parameter parScale_{POL_DICT[ont]['angle']}"
+                f" {pol_scales[ont]} {fix_string}\n"
+            )
+
+        # create reaction, scale, and data loops for each orientation
+        reaction_and_angles = ""
+        loop_data_str = ""
+        for ont in orientations:
+            reaction_and_angles += f" {reaction}_{POL_DICT[ont]['angle']}"
+            loop_data_str += f" anglesOmegaPiAmplitude_{POL_DICT[ont]['angle']}.root"
+
+        cfg_file.write(f"\nloop LOOPREAC{reaction_and_angles}\n")
+
+        # the phasespace files are the same for each orientation
+        cfg_file.write(
+            f"loop LOOPGENMC {'anglesOmegaPiPhaseSpace.root ' * len(orientations)} \n"
+            f"loop LOOPACCMC {'anglesOmegaPiPhaseSpaceAcc.root ' * len(orientations)} \n"
+            f"loop LOOPDATA{loop_data_str}\n"
+        )
+
+        # write reaction, data reader, and sum lines that utilize the loops
+        cfg_file.write(
+            f"\n{'#'*8} DATA, REACTIONS, AND SUMS {'#'*8}\n"
+            "reaction LOOPREAC Beam Proton Pi01 Pi02 Pi+ Pi-\n"
+            "genmc LOOPREAC ROOTDataReader LOOPGENMC\n"
+            "accmc LOOPREAC ROOTDataReader LOOPACCMC\n"
+            "data LOOPREAC ROOTDataReader LOOPDATA\n\n"
+            f"sum LOOPREAC vecPSMoment\n\n"
+        )
+
+        return
 
     def _get_moment_list(self, max_J: int, waveset: List[str]) -> List[Moment]:
         """Generate a set of moments based on the waveset configuration
@@ -143,7 +183,7 @@ class MomentConfigWriter:
 
             moment_list.append(
                 Moment(
-                    name=f"moment_{alpha}_{Jv}{Lambda}{J}{M}",
+                    name=f"H{alpha}_{Jv}{Lambda}{J}{M}",
                     alpha=alpha,
                     Jv=Jv,
                     Lambda=Lambda,
@@ -172,7 +212,8 @@ class MomentConfigWriter:
         # write parameter and parRange lines
         for mom in moment_list:
             if mom.name == "H0_0000":
-                cfg_file.write(f"parameter {mom.name} {n_events}\n")
+                cfg_file.write(f"parameter {mom.name} {n_events}\n\n")
+                continue  # avoid random sampling due to specific initialization
 
             # initialize to 0 if not random
             cfg_file.write(f"parameter {mom.name} 0.0\n")
@@ -203,6 +244,8 @@ class MomentConfigWriter:
             " moment parameters\n"
             "# Fix the 'amplitude' to be real and 1, so there is no extra free"
             " parameter\n"
+            "# Constrain lines are likely unnecessary, but included for extra assurance"
+            " that amplitudes are constrained across orientations\n"
         )
 
         # structure of vector-pseudoscalar moment is:
@@ -221,7 +264,18 @@ class MomentConfigWriter:
             # is not useful so is fixed to 1
             cfg_file.write(
                 f"initialize {reaction}_{POL_DICT[ont]['angle']}::"
-                "vecPSMoment::VecPSMoment cartesian 1 0 fixed\n\n"
+                "vecPSMoment::VecPSMoment cartesian 1 0 fixed\n"
+            )
+            cfg_file.write(
+                f"scale {reaction}_{POL_DICT[ont]['angle']}::"
+                f"vecPSMoment::VecPSMoment [parScale_{POL_DICT[ont]['angle']}]\n"
+            )
+            cfg_file.write(
+                f"constrain"
+                f" {reaction}_{POL_DICT[orientations[0]]['angle']}::"
+                f"vecPSMoment::vecPSMoment"
+                f" {reaction}_{POL_DICT[ont]['angle']}::"
+                f"vecPSMoment::vecPSMoment\n\n"
             )
 
         return
