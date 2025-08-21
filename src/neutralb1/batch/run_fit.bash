@@ -81,10 +81,9 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
 fi
 
 ### PERFORM PRIMARY FITS ###
-echo -e "\n\n==================================================\n
-Beginning fits \n\n\n\n"
-
 # pwa fits
+echo -e "\n\n==================================================\n
+Beginning Amplitude fits \n\n\n\n"
 amplitude_start_time=$(date +%s)
 if [ $my_truth_bool -eq 1 ]; then
     fit -c fit.cfg -m 1000000 -s "bestFitPars.txt"
@@ -105,6 +104,8 @@ echo "Amplitude fitting took: $((amplitude_end_time - amplitude_start_time)) sec
 
 # moment fits
 # these can be run in the same directory because output is <reaction>_moment.fit
+echo -e "\n\n==================================================\n
+Beginning Moment fits \n\n\n\n"
 moment_start_time=$(date +%s)
 if [ "$use_mpi" = true ]; then
     mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars_moment.txt" $my_seed
