@@ -209,6 +209,8 @@ class MomentConfigWriter:
                 random sample ranges
         """
 
+        cfg_file.write(f"\n\n{'#'*8} MOMENTS {'#'*8}\n")
+
         # write parameter and parRange lines
         for mom in moment_list:
             if mom.name == "H0_0000":
@@ -253,7 +255,7 @@ class MomentConfigWriter:
         for ont in orientations:
             cfg_file.write(
                 f"amplitude {reaction}_{POL_DICT[ont]['angle']}::"
-                "vecPSMoment::VecPSMoment Vec_ps_moment"
+                "vecPSMoment::vecPSMoment Vec_ps_moment"
                 f" {POL_DICT[ont]['angle']} {POL_DICT[ont]['fraction']}"
             )
             for mom in moment_list:
@@ -264,11 +266,11 @@ class MomentConfigWriter:
             # is not useful so is fixed to 1
             cfg_file.write(
                 f"initialize {reaction}_{POL_DICT[ont]['angle']}::"
-                "vecPSMoment::VecPSMoment cartesian 1 0 fixed\n"
+                "vecPSMoment::vecPSMoment cartesian 1 0 fixed\n"
             )
             cfg_file.write(
                 f"scale {reaction}_{POL_DICT[ont]['angle']}::"
-                f"vecPSMoment::VecPSMoment [parScale_{POL_DICT[ont]['angle']}]\n"
+                f"vecPSMoment::vecPSMoment [parScale_{POL_DICT[ont]['angle']}]\n"
             )
             cfg_file.write(
                 f"constrain"
