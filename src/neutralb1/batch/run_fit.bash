@@ -12,8 +12,9 @@ rm -f ./vecps_plot*.root
 rm -f ./*.ni
 rm -f ./rand/*
 rm -f ./bootstrap/*
+rm -f ./distributions/*
 
-# ==== GET ALL THE FIT PARAMETERS USING OPTARG ====
+# =============== GET ALL THE FIT PARAMETERS USING OPTARG ===============
 usage() {
     echo "Usage $0 [-n] [-r] [-b] [-s] [-t] [-h]"
     echo "Options:"        
@@ -59,9 +60,9 @@ while getopts ":o:n:r:b:s:t:h:" opt; do
     ;;
     esac
 done
-# ==== END GETTING ARGUMENTS ====
+# =============== END GETTING ARGUMENTS ===============
 
-### SETUP ENVIRONMENT ###
+# =============== SETUP ENVIRONMENT ===============
 source setup_gluex.sh version.xml
 # following neutralb1 paths are hard-coded for now
 source /w/halld-scshelf2101/kscheuer/neutralb1/.venv/bin/activate
@@ -80,13 +81,13 @@ if [ -f $AMPTOOLS_HOME/AmpTools/lib/libAmpTools_GPU_MPI.a ] \
     use_mpi=true
 fi
 
-### PERFORM PRIMARY FITS ###
+#=============== PERFORM PRIMARY FITS ===============
 # pwa fits
 echo -e "\n\n==================================================\n
 Beginning Amplitude fits \n\n\n\n"
 amplitude_start_time=$(date +%s)
 if [ $my_truth_bool -eq 1 ]; then
-    fit -c fit.cfg -m 1000000 -s "bestFitPars.txt"
+    fit -c fit.cfg -m 1000000 -s "fitPars.txt"
 elif [ "$use_mpi" = true ]; then
     echo -e "\nCheck that needed commands resolve:\n"
     which fitMPI
@@ -94,9 +95,9 @@ elif [ "$use_mpi" = true ]; then
     which mpirun
     which mpicxx
 
-    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars.txt" $my_seed
+    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars.txt" $my_seed
 else
-    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars.txt" $my_seed
+    fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars.txt" $my_seed
 fi
 
 amplitude_end_time=$(date +%s)
@@ -108,9 +109,9 @@ echo -e "\n\n==================================================\n
 Beginning Moment fits \n\n\n\n"
 moment_start_time=$(date +%s)
 if [ "$use_mpi" = true ]; then
-    mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars_moment.txt" $my_seed
+    mpirun fitMPI -c fit_moment.cfg -m 1000000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 else
-    fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "bestFitPars_moment.txt" $my_seed
+    fit -c fit_moment.cfg -m 1000000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 fi
 moment_end_time=$(date +%s)
 echo "Moment fitting took: $((moment_end_time - moment_start_time)) seconds"
@@ -125,39 +126,47 @@ if ! [ -f "${my_reaction}_moment.fit" ]; then
     exit 1
 fi
 
-### FIT DIAGNOSTICS AND RESULTS ###
+# =============== FIT DIAGNOSTICS AND RESULTS ===============
 mv "$my_reaction".fit best.fit
+mv fitPars.txt bestFitPars.txt
 mv "${my_reaction}_moment.fit" best_moment.fit
+mv fitPars_moment.txt bestFitPars_moment.txt
 
 # This section will create vecps_plot.root files with tons of angular distribution
 # histograms, and combine the ones of primary interest into pdfs
 vecps_start_time=$(date +%s)
-# do moments first so we can rename the files
-vecps_plotter best_moment.fit
-hadd -f vecps_plot_moment.root vecps_plot_*.root
-vecps_moment_files=(./vecps_plot_*.root)
-for file in ${vecps_moment_files[@]}; do
-    [ -e "$file" ] || continue
-    angle_plotter -f "$file" --gluex-style
-    # name the pdf files according to the pol angle
-    pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
-    mv angles.pdf "angles_moment_$pol_angle.pdf"
-    # now rename the root files to not interfere with the amplitude ones
-    mv "$file" "$(basename "$file" .root)_moment.root"
-done
-angle_plotter -f ./vecps_plot.root --gluex-style
 
-# now do the angular distributions for the amplitude fits
+# amplitudes
 vecps_plotter best.fit
 hadd -f vecps_plot.root vecps_plot_*.root
 vecps_files=(./vecps_plot_*.root)
 for file in "${vecps_files[@]}"; do
     [ -e "$file" ] || continue    
     angle_plotter -f "$file" --gluex-style
+    # name the pdf files according to the reaction
     pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
     mv angles.pdf "angles_$pol_angle.pdf"
 done
 angle_plotter -f ./vecps_plot.root --gluex-style
+mv vecps_plot*.root ./distributions/
+mv *.pdf ./distributions/
+
+# moments
+vecps_plotter best_moment.fit
+hadd -f vecps_plot_moment.root vecps_plot_*.root
+vecps_moment_files=(./vecps_plot_*.root)
+for file in ${vecps_moment_files[@]}; do
+    [ -e "$file" ] || continue
+    angle_plotter -f "$file" --gluex-style
+    pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
+    mv angles.pdf "angles_moment_$pol_angle.pdf"
+    # now rename the root files to not interfere with the amplitude ones
+    mv "$file" "$(basename "$file" .root)_moment.root"
+done
+angle_plotter -f ./vecps_plot_moment.root --gluex-style
+mv angles.pdf angles_moment.pdf
+mv vecps_plot*.root ./distributions/
+mv *.pdf ./distributions/
 
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
@@ -181,8 +190,7 @@ uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --
 # process random fits into subdirectory
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
-    mv -f bestFitPars_*.txt rand/
-    mv -f "$my_reaction"_.ni rand/    
+    mv -f fitPars_*.txt rand/    
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments
     uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
@@ -192,7 +200,7 @@ fi
 
 ls -al
 
-### BOOTSTRAP FITS ###
+# =============== BOOTSTRAP FITS ===============
 if [ $my_num_bootstrap_fits -ne 0 ]; then    
     echo -e "\n\n==================================================\nBeginning bootstrap fits\n\n\n\n"
 

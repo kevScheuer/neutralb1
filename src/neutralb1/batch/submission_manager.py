@@ -219,8 +219,11 @@ class SubmissionManager:
         if "init" in config.data.truth_file:
             self._prepare_init_directory(dir)
 
+        distributions_dir = f"{dir}/distributions/"  # will store vecps_plotter outputs
+
         # Create directories
         pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(distributions_dir).mkdir(parents=True, exist_ok=True)
 
         if config.compute.bootstrap != 0:
             bootstrap_dir = f"{dir}/bootstrap/"
