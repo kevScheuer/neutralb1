@@ -109,9 +109,9 @@ echo -e "\n\n==================================================\n
 Beginning Moment fits \n\n\n\n"
 moment_start_time=$(date +%s)
 if [ "$use_mpi" = true ]; then
-    mpirun fitMPI -c fit_moment.cfg -m 1000000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
+    mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 else
-    fit -c fit_moment.cfg -m 1000000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
+    fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 fi
 moment_end_time=$(date +%s)
 echo "Moment fitting took: $((moment_end_time - moment_start_time)) seconds"
