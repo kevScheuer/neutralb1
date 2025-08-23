@@ -67,6 +67,9 @@ class MomentConfigWriter:
                 self.config.general.reaction,
                 self.config.data.orientations,
             )
+            self._write_dalitz(
+                cfg_file, self.config.general.reaction, self.config.data.orientations
+            )
 
         return
 
@@ -280,4 +283,26 @@ class MomentConfigWriter:
                 f"vecPSMoment::vecPSMoment\n\n"
             )
 
+        return
+
+    def _write_dalitz(
+        self, cfg_file: TextIO, reaction: str, orientations: List[str]
+    ) -> None:
+
+        # write in fixed dalitz parameters based off JPAC fit
+        # https://doi.org/10.1103/PhysRevD.91.094029
+        cfg_file.write(
+            "parameter dalitz_alpha 0.1212 fixed\n"
+            "parameter dalitz_beta 0.0257 fixed\n"
+            "parameter dalitz_gamma 0.0 fixed\n"
+            "parameter dalitz_delta 0.0 fixed\n"
+            "define dalitz [dalitz_alpha] [dalitz_beta] [dalitz_gamma] [dalitz_delta]\n"
+            "\n"
+        )
+
+        for ont in orientations:
+            cfg_file.write(
+                f"amplitude {reaction}_{POL_DICT[ont]['angle']}::"
+                f"vecPSMoment::vecPSMoment OmegaDalitz dalitz\n"
+            )
         return
