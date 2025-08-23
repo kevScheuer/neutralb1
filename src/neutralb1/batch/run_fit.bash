@@ -5,6 +5,7 @@ echo -e "\nhost: \t\t\t\t$HOSTNAME\n"
 # cleanup directory
 rm -f ./*.fit 
 rm -f ./bestFitPars*.txt
+rm -f ./fitPars*.txt
 rm -f ./vecps_fitPars*.txt
 rm -f ./*.pdf
 rm -f ./*.csv
