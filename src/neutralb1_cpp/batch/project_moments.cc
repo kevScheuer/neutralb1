@@ -112,7 +112,7 @@ void precompute_caches(
     const std::vector<std::string> &reactions,
     const std::vector<Moment> &moments,
     const FitResults &results);
-complex<double> calculate_intensity(const FitResults &results);
+double calculate_intensity(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
@@ -735,7 +735,7 @@ void precompute_caches(
  * @param results The fit results to calculate the intensity for.
  * @return complex<double> The calculated intensity.
  */
-complex<double> calculate_intensity(const FitResults &results)
+double calculate_intensity(const FitResults &results)
 {
     complex<double> intensity = 0.0;
 
@@ -743,14 +743,21 @@ complex<double> calculate_intensity(const FitResults &results)
     {
         for (const std::string &amplitude : results.ampList(reaction))
         {
+            // skip background wave
+            if (amplitude.find("iso") != std::string::npos ||
+                amplitude.find("Bkgd") != std::string::npos)
+            {
+                continue;
+            }
+
             AmplitudeParser parser(amplitude);
             complex<double> c = get_production_coefficient(
                 parser.get_e_int(),
                 parser.get_J_int(),
                 parser.get_m_int(),
-                parser.get_L_int(),
-                reaction,
-                results);
+            parser.get_L_int(),
+            reaction,
+            results);
             intensity += c * std::conj(c);
         }
     }
@@ -760,5 +767,5 @@ complex<double> calculate_intensity(const FitResults &results)
         std::cerr << "Warning: Non-zero imaginary part in intensity calculation\n";
     }
 
-    return intensity;
+    return intensity.real();
 }
