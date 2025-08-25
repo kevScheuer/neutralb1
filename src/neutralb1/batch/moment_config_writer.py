@@ -164,7 +164,7 @@ class MomentConfigWriter:
 
         # if max_J not set by user, then auto determine from waveset
         if max_J == 0:
-            max_wave_J = max([int(JP[0]) for JP in waveset if JP != "iso"])
+            max_wave_J = max([int(JP[0]) for JP in waveset if JP[0].isdigit()])
             max_J = 2 * max_wave_J  # moments go from 0 -> J_i + J_j (indexed by wave)
 
         alpha_array = [0, 1, 2]
