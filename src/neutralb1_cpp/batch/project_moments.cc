@@ -112,6 +112,7 @@ void precompute_caches(
     const std::vector<std::string> &reactions,
     const std::vector<Moment> &moments,
     const FitResults &results);
+complex<double> calculate_intensity(const FitResults &results);
 
 int main(int argc, char *argv[])
 {
