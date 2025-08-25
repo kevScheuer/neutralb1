@@ -81,9 +81,9 @@ struct CGKey
     {
         return std::tie(Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, Jv, Lambda, M, J) <
                std::tie(
-                other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj, 
-                other.lambda_i, other.lambda_j, 
-                other.Jv, other.Lambda, other.M, other.J);
+                   other.Ji, other.li, other.mi, other.Jj, other.lj, other.mj,
+                   other.lambda_i, other.lambda_j,
+                   other.Jv, other.Lambda, other.M, other.J);
     }
 };
 
@@ -109,7 +109,7 @@ int sign(int i);
 int find_max_J(const FitResults &results);
 void clear_sdme_cache();
 void precompute_caches(
-    const std::vector<std::string> &reactions, 
+    const std::vector<std::string> &reactions,
     const std::vector<Moment> &moments,
     const FitResults &results);
 
@@ -138,10 +138,11 @@ int main(int argc, char *argv[])
     }
 
     // initialize maps
-    std::map<std::string, complex<double>> total_moment_results; // sum of all moments across reactions
+    std::map<std::string, complex<double>> total_moment_results;                           // sum of all moments across reactions
     std::map<std::string, std::map<std::string, complex<double>>> reaction_moment_results; // per-reaction moment results
-    std::vector<std::string> reactions; // tracks reactions in a fit result
-    std::vector<Moment> moments; // vector of all moments to be calculated
+    std::map<std::string, complex<double>> production_coefficients;                        // production coefficients for each reaction
+    std::vector<std::string> reactions;                                                    // tracks reactions in a fit result
+    std::vector<Moment> moments;                                                           // vector of all moments to be calculated
 
     // Collect all rows in a stringstream to minimize I/O operations
     std::stringstream csv_data;
@@ -220,7 +221,8 @@ int main(int argc, char *argv[])
 
         for (const Moment &moment : moments)
         {
-            for (const std::string &reaction : reactions) {
+            for (const std::string &reaction : reactions)
+            {
                 // calculate the moment for this reaction
                 // right now we don't strictly need these in memory, but later
                 // we'll want the ability to write out the reaction moments individually
@@ -274,7 +276,7 @@ int main(int argc, char *argv[])
 std::vector<Moment> initialize_moments(const FitResults &results)
 {
     std::vector<Moment> moments;
-    int max_wave_J = find_max_J(results);    
+    int max_wave_J = find_max_J(results);
 
     // prepare moment quantum numbers for the moments
     std::vector<int> alpha_vector = {0, 1, 2};
@@ -526,7 +528,7 @@ complex<double> get_production_coefficient(
     for (const std::string &i_amp : amp_list)
     {
         AmplitudeParser i_amp_parser(i_amp);
-        
+
         if (i_amp_parser.get_amplitude_reaction() != reaction)
         {
             continue; // skip amplitudes not in the requested reaction
@@ -579,7 +581,7 @@ complex<double> get_production_coefficient(
 
 /**
  * @brief Calculate the set of clebsch gordan coefficients for a set of quantum numbers
- * 
+ *
  * @param Ji spin 1
  * @param li angular momenta 1
  * @param mi spin projection 1
@@ -592,7 +594,7 @@ complex<double> get_production_coefficient(
  * @return double the calculated Clebsch-Gordan coefficient
  */
 double calculate_CGs(
-    int Ji, int li, int mi, int Jj, int lj, int mj, int lambda_i, int lambda_j, 
+    int Ji, int li, int mi, int Jj, int lj, int mj, int lambda_i, int lambda_j,
     const Moment &moment)
 {
 
@@ -625,7 +627,6 @@ int sign(int i)
 {
     return (i % 2 == 0) ? 1 : -1;
 }
-
 
 int find_max_J(const FitResults &results)
 {
@@ -674,7 +675,7 @@ void clear_sdme_cache()
  * @param[in] results The total fit result to precompute SDME values for.
  */
 void precompute_caches(
-    const std::vector<std::string> &reactions, 
+    const std::vector<std::string> &reactions,
     const std::vector<Moment> &moments,
     const FitResults &results)
 {
@@ -721,4 +722,42 @@ void precompute_caches(
     }
 
     std::cout << "Precomputed " << sdme_cache.size() << " SDME values\n";
+}
+
+/**
+ * @brief Calculate the intensity of the fit results.
+ *
+ * Useful for comparing to H0_0000 moment, or the AmpTools reported intensity, to check
+ * that \ref get_production_coefficients "the production coefficient calculator" is
+ * working properly.
+ *
+ * @param results The fit results to calculate the intensity for.
+ * @return complex<double> The calculated intensity.
+ */
+complex<double> calculate_intensity(const FitResults &results)
+{
+    complex<double> intensity = 0.0;
+
+    for (const std::string &reaction : results.reactionList())
+    {
+        for (const std::string &amplitude : results.ampList(reaction))
+        {
+            AmplitudeParser parser(amplitude);
+            complex<double> c = get_production_coefficient(
+                parser.get_e_int(),
+                parser.get_J_int(),
+                parser.get_m_int(),
+                parser.get_L_int(),
+                reaction,
+                results);
+            intensity += c * std::conj(c);
+        }
+    }
+
+    if (intensity.imag() != 0.0)
+    {
+        std::cerr << "Warning: Non-zero imaginary part in intensity calculation\n";
+    }
+
+    return intensity;
 }
