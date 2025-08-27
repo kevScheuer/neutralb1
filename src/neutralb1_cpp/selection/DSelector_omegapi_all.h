@@ -3,12 +3,12 @@
 
 #include <iostream>
 
+#include "TH1I.h"
+#include "TH2I.h"
+
 #include "DSelector/DSelector.h"
 #include "DSelector/DHistogramActions.h"
 #include "DSelector/DCutActions.h"
-
-#include "TH1I.h"
-#include "TH2I.h"
 
 class DSelector_omegapi_all : public DSelector
 {
@@ -30,17 +30,15 @@ private:
 
 	bool dIsMC;
 
-	TH1F *dHist_KinFitChiSq;
-	TH1F *dHist_4piMassSum, *dHist_3piMassSum, *dHist_3piMassSumMatched, *dHist_2gammaMassSum;
-	TH2F *dHist_3piMassCorrWeight, *dHist_3piMassCorr[10], *dHist_3piMassCorr2DWeight[10];
+	// CREATE REACTION-SPECIFIC PARTICLE ARRAYS 
 
-	TH2F *dHist_cosTheta_4piMass, *dHist_phi_4piMass;
-	TH2F *dHist_cosThetaH_4piMass, *dHist_phiH_4piMass;
-	TH2F *dHist_lambda_4piMass;
+	// (parentheses highlight which particle is captured)
 
-	// CREATE REACTION-SPECIFIC PARTICLE ARRAYS
-
-	// Step 0
+	// Step 0 
+	// (gamma) p -> omega pi01 (p)
+	//		pi01 -> gamma1 gamma2
+	//		omega -> (pi+) (pi-) pi02
+	//			pi02 -> gamma3 gamma4
 	DParticleComboStep *dStep0Wrapper;
 	DBeamParticle *dComboBeamWrapper;
 	DChargedTrackHypothesis *dPiPlusWrapper;
@@ -48,19 +46,33 @@ private:
 	DChargedTrackHypothesis *dProtonWrapper;
 
 	// Step 1
+	// gamma p -> omega pi01 p
+	//		(pi01) -> (gamma1) (gamma2)
+	//		omega -> pi+ pi- pi02
+	//			pi02 -> gamma3 gamma4
 	DParticleComboStep *dStep1Wrapper;
 	DKinematicData *dDecayingPi01Wrapper;
 	DNeutralParticleHypothesis *dPhoton1Wrapper;
 	DNeutralParticleHypothesis *dPhoton2Wrapper;
 
 	// Step 2
+	// gamma p -> omega pi01 p
+	//		pi01 -> gamma1 gamma2
+	//		omega -> pi+ pi- pi02
+	//			(pi02) -> (gamma3) (gamma4)
 	DParticleComboStep *dStep2Wrapper;
 	DKinematicData *dDecayingPi02Wrapper;
 	DNeutralParticleHypothesis *dPhoton3Wrapper;
 	DNeutralParticleHypothesis *dPhoton4Wrapper;
 
-	// DEFINE YOUR HISTOGRAMS HERE
-	// EXAMPLES:
+	// HISTOGRAMS
+	TH1F *dHist_KinFitChiSq;
+	TH1F *dHist_4piMassSum, *dHist_3piMassSum, *dHist_3piMassSumMatched, *dHist_2gammaMassSum;
+	TH2F *dHist_3piMassCorrWeight, *dHist_3piMassCorr[10], *dHist_3piMassCorr2DWeight[10];
+
+	TH2F *dHist_cosTheta_4piMass, *dHist_phi_4piMass;
+	TH2F *dHist_cosThetaH_4piMass, *dHist_phiH_4piMass;
+	TH2F *dHist_lambda_4piMass;
 	TH1I *dHist_MissingMassSquared;
 	TH1I *dHist_BeamEnergy;
 
