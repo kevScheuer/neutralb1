@@ -1,5 +1,20 @@
 #include "DSelector_omegapi_all.h"
 
+/* TODO:
+	- sideband subtraction overcomplicated. Try to instead fill 2D hist with pi+pi- and 
+		both pi01 and pi02 events on 1 axis, and the other axis be RF sidebands. Label
+		each region with weights
+			omega + RF window: 1
+			omega, not in RF: -1/8
+			not in omega, in RF: -1/2
+			not in omega, not in RF: -1/16
+
+	- Once file is confirmed to be largely unchanged, implement the background file
+		Have the 2D SB histogram written out, and use that in copy_tree_with_cuts to 
+		vary the selection regions for systematics. The selection will be written to 
+		the background file
+*/
+
 void DSelector_omegapi_all::Init(TTree *locTree)
 {
 	// USERS: IN THIS FUNCTION, ONLY MODIFY SECTIONS WITH A "USER" OR "EXAMPLE" LABEL. LEAVE THE REST ALONE.
@@ -19,6 +34,7 @@ void DSelector_omegapi_all::Init(TTree *locTree)
 	// We need to re-initialize the tree interface & branch wrappers, but don't want to recreate histograms
 	bool locInitializedPriorFlag = dInitializedFlag; // save whether have been initialized previously
 	DSelector::Init(locTree);						 // This must be called to initialize wrappers for each new TTree
+
 	// gDirectory now points to the output file with name dOutputFileName (if any)
 	if (locInitializedPriorFlag)
 		return; // have already created histograms, etc. below: exit
@@ -29,8 +45,6 @@ void DSelector_omegapi_all::Init(TTree *locTree)
 		dSkipNoTriggerEvents = false;
 	}
 
-	if (!(dTreeInterface->Get_Branch("NumCombos") == NULL))
-		Get_ComboWrappers();
 	dPreviousRunNumber = 0;
 
 	if (!(dTreeInterface->Get_Branch("NumCombos") == NULL))
@@ -38,21 +52,31 @@ void DSelector_omegapi_all::Init(TTree *locTree)
 		Get_ComboWrappers();
 
 		// PID
+
+		// don't create a PID hist for each particle
 		dAnalysisActions.push_back(new DHistogramAction_ParticleID(dComboWrapper, false));
-		// below: value: +/- N ns, Unknown: All PIDs, SYS_NULL: all timing systems
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, Proton, SYS_TOF));
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, Proton, SYS_BCAL));
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, PiPlus, SYS_TOF));
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, PiPlus, SYS_BCAL));
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, PiMinus, SYS_TOF));
-		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, PiMinus, SYS_BCAL));
+
+		// Make cuts on the measured timing values, in +/- ns, for a PID and system
+		// TODO: this is a todo in note, not sure how useful these are...
+		// TODO: also why do we use measured, not kinfit timings?
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, Proton, SYS_TOF));		
 		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, Gamma, SYS_BCAL));
 
-		// KINFIT RESULTS
+		// these cuts are redundant with the Analysis Launch Cut, but kept here for consistency
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, PiPlus, SYS_TOF));
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 0.5, PiMinus, SYS_TOF));
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, PiMinus, SYS_BCAL));
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, PiPlus, SYS_BCAL));
+		dAnalysisActions.push_back(new DCutAction_PIDDeltaT(dComboWrapper, false, 1.0, Proton, SYS_BCAL));
+
+		// KINFIT RESULTS (produces a chi2/ndf hist)
 		dAnalysisActions.push_back(new DHistogramAction_KinFitResults(dComboWrapper));
 
 		// CUT MISSING MASS
+		// TODO: write about this next
 		dAnalysisActions.push_back(new DCutAction_MissingMassSquared(dComboWrapper, false, -0.05, 0.05));
+
+		// TODO: This has a relation to chi2, and so we can toss it because we already cut on chi2 later.
 		dAnalysisActions.push_back(new DCutAction_KinFitFOM(dComboWrapper, 0.01));
 
 		// INITIALIZE ACTIONS
@@ -211,9 +235,10 @@ Bool_t DSelector_omegapi_all::Process(Long64_t locEntry)
 		// Set branch array indices for combo and all combo particles
 		dComboWrapper->Set_ComboIndex(loc_i);
 
-		// Is used to indicate when combos have been cut
-		if (dComboWrapper->Get_IsComboCut()) // Is false when tree originally created
-			continue;						 // Combo has been cut previously
+		// If the combo does not pass the dAnalysisActions set of cuts, then this flag will be true
+		// and we will skip this combo
+		if (dComboWrapper->Get_IsComboCut()) 
+			continue;						 
 
 		if (dIsMC)
 		{
