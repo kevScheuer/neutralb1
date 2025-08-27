@@ -755,9 +755,9 @@ double calculate_intensity(const FitResults &results)
                 parser.get_e_int(),
                 parser.get_J_int(),
                 parser.get_m_int(),
-            parser.get_L_int(),
-            reaction,
-            results);
+                parser.get_L_int(),
+                reaction,
+                results);
             intensity += c * std::conj(c);
         }
     }

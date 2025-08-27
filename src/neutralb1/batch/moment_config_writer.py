@@ -67,6 +67,7 @@ class MomentConfigWriter:
                 self.config.general.reaction,
                 self.config.data.orientations,
             )
+            # TODO: add no_dalitz parsing
             self._write_dalitz(
                 cfg_file, self.config.general.reaction, self.config.data.orientations
             )
