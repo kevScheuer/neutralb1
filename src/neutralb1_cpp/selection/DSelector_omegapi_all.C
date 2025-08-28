@@ -455,6 +455,8 @@ Bool_t DSelector_omegapi_all::Process(Long64_t locEntry)
 			double locHmin = 0.830;
 			double locHmax = 0.875;
 
+			// TODO: when doing 1d sideband, weight all by 1/2 to account for double counting
+
 			if ((loc3PiMass > locomegamin && loc3PiMass < locomegamax) && (loc3PiMass_alt > locomegamin && loc3PiMass_alt < locomegamax))
 			{
 				// "double-omega" events only used once, closest to true omega mass
