@@ -538,7 +538,7 @@ complex<double> get_production_coefficient_pair(
         {
             matching_amplitudes.push_back(i_amp);
         }
-        else if (i_amp_name == amp_conj_name_to_get)
+        if (i_amp_name == amp_conj_name_to_get)
         {
             matching_amplitudes_conj.push_back(i_amp);
         }
@@ -549,13 +549,13 @@ complex<double> get_production_coefficient_pair(
     {
         return 0.0; // amplitude not found, return 0
     }
-    else if (matching_amplitudes.size() > 2)
+    if (matching_amplitudes.size() > 2)
     {
         throw std::runtime_error(
             "Amplitude '" + amp_name_to_get +
             "' was found in more than two coherent sums");
     }
-    else if (matching_amplitudes_conj.size() > 2)
+    if (matching_amplitudes_conj.size() > 2)
     {
         throw std::runtime_error(
             "Amplitude '" + amp_conj_name_to_get +
@@ -604,7 +604,7 @@ complex<double> get_production_coefficient_pair(
 
     // get scale (s) multiplied by the production coefficient (c)
     complex<double> prod1 = results.scaledProductionParameter(matching_amplitudes[0]);
-    complex<double> prod2 = results.scaledProductionParameter(matching_amplitudes_conj[0]);
+    complex<double> prod2 = std::conj(results.scaledProductionParameter(matching_amplitudes_conj[0]));
 
     return prod1 * prod2 * sum_normalization_integrals;
 }
@@ -785,11 +785,19 @@ double calculate_intensity(const FitResults &results)
 
     for (const std::string &reaction : results.reactionList())
     {
+        // first calculate the |c|^2 terms
         for (const std::string &amplitude : results.ampList(reaction))
         {
             // skip background wave
             if (amplitude.find("iso") != std::string::npos ||
                 amplitude.find("Bkgd") != std::string::npos)
+            {
+                continue;
+            }
+
+            // skip one of each of the constrained coherent sums, since we already 
+            // account for it in get_production_pair
+            if (amplitude.find("ImagNegSign") != std::string::npos || amplitude.find("ImagPosSign") != std::string::npos)
             {
                 continue;
             }
@@ -808,7 +816,55 @@ double calculate_intensity(const FitResults &results)
                 results);
             intensity += result;
         }
-    }
+
+        // now the interference terms  
+        for (size_t i = 0; i < results.ampList(reaction).size(); ++i)
+        {
+            for (size_t j = i + 1; j < results.ampList(reaction).size(); ++j)
+            {                
+                std::string amp1 = results.ampList(reaction)[i];
+                std::string amp2 = results.ampList(reaction)[j];
+
+                // skip one of each of the constrained coherent sums, since we already 
+                // account for it in get_production_pair
+                if (amp1.find("ImagNegSign") != std::string::npos || amp1.find("ImagPosSign") != std::string::npos)
+                {
+                    continue;
+                }
+                if (amp2.find("ImagNegSign") != std::string::npos || amp2.find("ImagPosSign") != std::string::npos)
+                {
+                    continue;
+                }
+
+                // skip background wave
+                if (amp1.find("iso") != std::string::npos ||
+                    amp1.find("Bkgd") != std::string::npos)
+                {
+                    continue;
+                }
+                if (amp2.find("iso") != std::string::npos ||
+                    amp2.find("Bkgd") != std::string::npos)
+                {
+                    continue;
+                }
+
+                AmplitudeParser parser1(amp1);
+                AmplitudeParser parser2(amp2);
+                complex<double> result = get_production_coefficient_pair(
+                    parser1.get_e_int(),
+                    parser1.get_J_int(),
+                    parser1.get_m_int(),
+                    parser1.get_L_int(),
+                    parser2.get_e_int(),
+                    parser2.get_J_int(),
+                    parser2.get_m_int(),
+                    parser2.get_L_int(),
+                    reaction,
+                    results);
+                intensity += 2 * std::real(result);
+            }
+        }
+    }    
 
     if (intensity.imag() != 0.0)
     {
