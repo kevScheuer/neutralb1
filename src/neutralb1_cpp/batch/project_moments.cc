@@ -102,11 +102,13 @@ complex<double> calculate_SDME(
 double calculate_CGs(
     int Ji, int li, int mi, int Jj, int lj, int mj,
     int lambda_i, int lambda_j, const Moment &moment);
-complex<double> get_production_coefficient(
+complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
+    int e_conj, int J_conj, int m_conj, int L_conj,
     const std::string &reaction, const FitResults &results);
 int sign(int i);
 int find_max_J(const FitResults &results);
+int calculate_system_parity(int L);
 void clear_sdme_cache();
 void precompute_caches(
     const std::vector<std::string> &reactions,
@@ -423,45 +425,39 @@ complex<double> calculate_SDME(
 
     // Calculate SDME value if not cached
     complex<double> sdme = 0.0;
-    complex<double> c1, c2, c3, c4; // the four complex production coefficients
-    double s1, s2;                  // sign factors in the SDME formula
+    complex<double> pair1, pair2; // the two pairs of complex production coefficients
+    double s1, s2;                // sign factors in the SDME formula
     std::vector<double> reflectivities = {-1, 1};
     for (double e : reflectivities)
     {
         switch (alpha)
         {
         case 0:
-            c1 = get_production_coefficient(e, Ji, mi, li, reaction, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
-            c3 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
+            pair1 = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, mj, lj, reaction, results);
+            pair2 = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, -mj, lj, reaction, results);
 
             s1 = 1.0;
             s2 = sign(mi + mj + li + lj + Ji + Jj);
 
-            sdme += s1 * c1 * c2 + s2 * c3 * c4;
+            sdme += s1 * pair1 + s2 * pair2;
             break;
         case 1:
-            c1 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
-            c3 = get_production_coefficient(e, Ji, mi, li, reaction, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
+            pair1 = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
+            pair2 = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
 
             s1 = sign(1 + mi + li + Ji);
             s2 = sign(1 + mj + lj + Jj);
 
-            sdme += e * (s1 * c1 * c2 + s2 * c3 * c4);
+            sdme += e * (s1 * pair1 + s2 * pair2);
             break;
         case 2:
-            c1 = get_production_coefficient(e, Ji, -mi, li, reaction, results);
-            c2 = std::conj(get_production_coefficient(e, Jj, mj, lj, reaction, results));
-            c3 = get_production_coefficient(e, Ji, mi, li, reaction, results);
-            c4 = std::conj(get_production_coefficient(e, Jj, -mj, lj, reaction, results));
+            pair1 = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
+            pair2 = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
 
             s1 = sign(mi + li + Ji);
             s2 = sign(mj + lj + Jj);
 
-            sdme += e * (s1 * c1 * c2 - s2 * c3 * c4);
+            sdme += e * (s1 * pair1 - s2 * pair2);
             break;
         }
     }
@@ -494,19 +490,20 @@ complex<double> calculate_SDME(
  * @param[in] reaction The reaction string (for polarization orientation)
  * @return The production coefficient if found, or 0 if not found.
  */
-complex<double> get_production_coefficient(
+complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
+    int e_conj, int J_conj, int m_conj, int L_conj,
     const std::string &reaction, const FitResults &results)
 {
-    // determine the parity of the amplitude being requested
-    int P_omega = -1;                // parity of the omega
-    int P_pi = -1;                   // parity of the pion
-    int P_L = (L % 2 == 0) ? 1 : -1; // parity due to relative orbital angular momentum of the 2-particle system
-    int P = P_omega * P_pi * P_L;    // total parity of the system
+    // determine the parity values for each amplitude
+    int P = calculate_system_parity(L);
+    int P_conj = calculate_system_parity(L_conj);
 
-    // construct the amplitude name in the vec-ps format
+    // construct the amplitude names in the vec-ps format
     AmplitudeParser parser(e, J, P, m, L);
+    AmplitudeParser parser_conj(e_conj, J_conj, P_conj, m_conj, L_conj);
     std::string amp_name_to_get = parser.get_amplitude_name();
+    std::string amp_conj_name_to_get = parser_conj.get_amplitude_name();
 
     // we'll need to find the amplitude's value by looping through the available amplitude list
     std::vector<std::string> amp_list = results.ampList();
@@ -524,8 +521,9 @@ complex<double> get_production_coefficient(
         amp_list.end());
 
     // the production coefficient from constrained sums is equal, but their
-    // normalization aren't, and so we need to capture both sums
+    // normalization integrals aren't, and so we need to capture both sums
     std::vector<std::string> matching_amplitudes;
+    std::vector<std::string> matching_amplitudes_conj;
     for (const std::string &i_amp : amp_list)
     {
         AmplitudeParser i_amp_parser(i_amp);
@@ -540,17 +538,27 @@ complex<double> get_production_coefficient(
         {
             matching_amplitudes.push_back(i_amp);
         }
+        if (i_amp_name == amp_conj_name_to_get)
+        {
+            matching_amplitudes_conj.push_back(i_amp);
+        }
     }
 
     // run some error checks
-    if (matching_amplitudes.empty())
+    if (matching_amplitudes.empty() || matching_amplitudes_conj.empty())
     {
         return 0.0; // amplitude not found, return 0
     }
-    else if (matching_amplitudes.size() > 2)
+    if (matching_amplitudes.size() > 2)
     {
         throw std::runtime_error(
             "Amplitude '" + amp_name_to_get +
+            "' was found in more than two coherent sums");
+    }
+    if (matching_amplitudes_conj.size() > 2)
+    {
+        throw std::runtime_error(
+            "Amplitude '" + amp_conj_name_to_get +
             "' was found in more than two coherent sums");
     }
     if (results.scaledProductionParameter(matching_amplitudes[0]) !=
@@ -561,23 +569,44 @@ complex<double> get_production_coefficient(
             "' has different production parameters in coherent sums,"
             " check that it is constrained in the fit");
     }
-
-    // get the production coefficient, and the normalization integrals from the 2 sums
-    complex<double> production_coefficient = results.scaledProductionParameter(matching_amplitudes[0]);
-    complex<double> sum_normalization_integrals = 0.0;
-
-    for (const std::string &amp : matching_amplitudes)
+    if (results.scaledProductionParameter(matching_amplitudes_conj[0]) !=
+        results.scaledProductionParameter(matching_amplitudes_conj[1]))
     {
-        // NOTE: currently only uses normInt, so no acceptance correction done
-        AmplitudeParser amp_parser(amp);
-        const NormIntInterface *norm_interface = results.normInt(amp_parser.get_amplitude_reaction());
-        complex<double> N = norm_interface->normInt(amp, amp);
-        sum_normalization_integrals += std::real(N);
+        throw std::runtime_error(
+            "Amplitude '" + amp_conj_name_to_get +
+            "' has different production parameters in coherent sums,"
+            " check that it is constrained in the fit");
     }
 
-    production_coefficient *= std::sqrt(sum_normalization_integrals);
+    // Find the normalization integrals of the 2 constrained sums for the prod coeff
+    complex<double> sum_normalization_integrals = 0.0;
+    for (const std::string &amp : matching_amplitudes)
+    {
+        for (const std::string &amp_conj : matching_amplitudes_conj)
+        {
 
-    return production_coefficient;
+            AmplitudeParser amp_parser(amp);
+            AmplitudeParser amp_parser_conj(amp_conj);
+
+            if (amp_parser.get_amplitude_sum() != amp_parser_conj.get_amplitude_sum())
+            {
+                // only want the normalization integral from the same sum. This should
+                // already be handled in it, but just in case, we skip it
+                continue;
+            }
+
+            // NOTE: currently only uses normInt, so no acceptance correction done
+            const NormIntInterface *norm_interface = results.normInt(reaction);
+            complex<double> N = norm_interface->normInt(amp, amp_conj);
+            sum_normalization_integrals += N;
+        }
+    }
+
+    // get scale (s) multiplied by the production coefficient (c)
+    complex<double> prod1 = results.scaledProductionParameter(matching_amplitudes[0]);
+    complex<double> prod2 = std::conj(results.scaledProductionParameter(matching_amplitudes_conj[0]));
+
+    return prod1 * prod2 * sum_normalization_integrals;
 }
 
 /**
@@ -651,6 +680,21 @@ int find_max_J(const FitResults &results)
     }
 
     return max_J;
+}
+
+/**
+ * @brief Calculate the parity of the omega pi0 system
+ *
+ * @param L Angular momenta between the omega and pi0
+ * @return int The calculated parity
+ */
+int calculate_system_parity(int L)
+{
+    int P_omega = -1;                // parity of the omega
+    int P_pi = -1;                   // parity of the pion
+    int P_L = (L % 2 == 0) ? 1 : -1; // parity due to relative orbital angular momentum of the 2-particle system
+    int P = P_omega * P_pi * P_L;    // total parity of the system
+    return P;
 }
 
 /**
@@ -741,6 +785,7 @@ double calculate_intensity(const FitResults &results)
 
     for (const std::string &reaction : results.reactionList())
     {
+        // first calculate the |c|^2 terms
         for (const std::string &amplitude : results.ampList(reaction))
         {
             // skip background wave
@@ -750,17 +795,76 @@ double calculate_intensity(const FitResults &results)
                 continue;
             }
 
+            // skip one of each of the constrained coherent sums, since we already 
+            // account for it in get_production_pair
+            if (amplitude.find("ImagNegSign") != std::string::npos || amplitude.find("ImagPosSign") != std::string::npos)
+            {
+                continue;
+            }
+
             AmplitudeParser parser(amplitude);
-            complex<double> c = get_production_coefficient(
+            complex<double> result = get_production_coefficient_pair(
+                parser.get_e_int(),
+                parser.get_J_int(),
+                parser.get_m_int(),
+                parser.get_L_int(),
                 parser.get_e_int(),
                 parser.get_J_int(),
                 parser.get_m_int(),
                 parser.get_L_int(),
                 reaction,
                 results);
-            intensity += c * std::conj(c);
+            intensity += result;
         }
-    }
+
+        // now the interference terms  
+        for (size_t i = 0; i < results.ampList(reaction).size(); ++i)
+        {
+            for (size_t j = i + 1; j < results.ampList(reaction).size(); ++j)
+            {                
+                std::string amp1 = results.ampList(reaction)[i];
+                std::string amp2 = results.ampList(reaction)[j];
+
+                // skip one of each of the constrained coherent sums, since we already 
+                // account for it in get_production_pair
+                if (amp1.find("ImagNegSign") != std::string::npos || amp1.find("ImagPosSign") != std::string::npos)
+                {
+                    continue;
+                }
+                if (amp2.find("ImagNegSign") != std::string::npos || amp2.find("ImagPosSign") != std::string::npos)
+                {
+                    continue;
+                }
+
+                // skip background wave
+                if (amp1.find("iso") != std::string::npos ||
+                    amp1.find("Bkgd") != std::string::npos)
+                {
+                    continue;
+                }
+                if (amp2.find("iso") != std::string::npos ||
+                    amp2.find("Bkgd") != std::string::npos)
+                {
+                    continue;
+                }
+
+                AmplitudeParser parser1(amp1);
+                AmplitudeParser parser2(amp2);
+                complex<double> result = get_production_coefficient_pair(
+                    parser1.get_e_int(),
+                    parser1.get_J_int(),
+                    parser1.get_m_int(),
+                    parser1.get_L_int(),
+                    parser2.get_e_int(),
+                    parser2.get_J_int(),
+                    parser2.get_m_int(),
+                    parser2.get_L_int(),
+                    reaction,
+                    results);
+                intensity += 2 * std::real(result);
+            }
+        }
+    }    
 
     if (intensity.imag() != 0.0)
     {
