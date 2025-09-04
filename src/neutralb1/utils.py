@@ -72,7 +72,7 @@ def load_environment() -> None:
     return
 
 
-def display_pdf(file: str, resolution: int = 100) -> None:
+def display_pdf(file: str, page: int, resolution: int = 100) -> None:
     """Display a PDF file in a Jupyter notebook using WandImage
 
     Converts a pdf to png for cropping of whitespace and proper display.
@@ -81,7 +81,7 @@ def display_pdf(file: str, resolution: int = 100) -> None:
         file (str): Path to the PDF file to be displayed.
         resolution (int, optional): Resolution for rendering the PDF. Defaults to 100.
     """
-    with WandImage(filename=file, resolution=resolution) as img:
+    with WandImage(filename=f"{file}[{page}]", resolution=resolution) as img:
         img.format = "png"
         img.trim()  # Crop whitespace
         png_bytes = img.make_blob()
