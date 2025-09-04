@@ -2,7 +2,7 @@
 
 This script is used for two fit result purposes:
 1. To aggregate the AmpTools .fit files into a single .csv file for easier analysis.
-    a. The covariance and correlation matrices are also included in separate .csv files
+a. The covariance and correlation matrices are also included in separate .csv files
 2. To convert the ROOT files that the .fit files are based off of into a .csv file.
 
 Behind the scenes, this runs compiled c++ scripts for either situation.
