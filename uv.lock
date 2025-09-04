@@ -1121,7 +1121,7 @@ requires-dist = [
     { name = "nbqa", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pandas", specifier = ">=2.3.1" },
-    { name = "pydata-sphinx-theme", marker = "extra == 'dev'" },
+    { name = "pydata-sphinx-theme", marker = "extra == 'dev'", specifier = ">=0.16.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "scipy", specifier = ">=1.16.0" },
