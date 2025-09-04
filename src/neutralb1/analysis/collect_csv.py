@@ -12,7 +12,8 @@ import argparse
 import os
 
 import pandas as pd
-import utils
+
+import neutralb1.utils as utils
 
 
 def main(args: dict) -> None:
