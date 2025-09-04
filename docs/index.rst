@@ -6,12 +6,16 @@
 neutralb1 documentation
 =======================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Welcome to the documentation for the neutralb1 project! This project contains all the
+scripts necessary to perform a combined partial wave and moment analysis of the 
+photoproduced :math:{\omega\pi^0} channel. The channel is dominated by the neutral 
+:math:{b_1(1235)} meson, for which the project is named after. This is the author's
+thesis project, and so is a continuing work in progress.
 
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   api
 
