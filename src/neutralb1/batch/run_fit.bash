@@ -122,10 +122,10 @@ if ! [ -f "$my_reaction.fit" ]; then
     echo -e "\n\nError: $my_reaction.fit not found, assuming fit failed. Exiting."
     exit 1
 fi
-if ! [ -f "${my_reaction}_moment.fit" ]; then
-    echo -e "\n\nError: ${my_reaction}_moment.fit not found, assuming fit failed. Exiting."
-    exit 1
-fi
+# if ! [ -f "${my_reaction}_moment.fit" ]; then
+#     echo -e "\n\nError: ${my_reaction}_moment.fit not found, assuming fit failed. Exiting."
+#     exit 1
+# fi
 
 # =============== FIT DIAGNOSTICS AND RESULTS ===============
 mv "$my_reaction".fit best.fit
@@ -280,3 +280,10 @@ fi
 end_time=$(date +%s)
 elapsed_time=$((end_time - start_time))
 echo "Execution time: $elapsed_time seconds"
+
+# symlink the log file here for easy access
+current_dir=$(pwd)
+common_path=${current_dir#*"$USER"/}
+
+ln -s "/farm_out/$common_path/log/out.log" ./out.log
+ln -s "/farm_out/$common_path/log/err.log" ./err.log
