@@ -385,13 +385,19 @@ class AmpToolsConfigWriter:
             )
 
         # create reaction, scale, and data loops for each orientation
-        reaction_and_angles = ""
+        reaction_with_angles = ""
         loop_data_str = ""
         for ont in orientations:
-            reaction_and_angles += f" {reaction}_{POL_DICT[ont]['angle']}"
+            reaction_with_angles += f" {reaction}_{POL_DICT[ont]['angle']}"
             loop_data_str += f" anglesOmegaPiAmplitude_{POL_DICT[ont]['angle']}.root"
 
-        cfg_file.write(f"\nloop LOOPREAC{reaction_and_angles}\n")
+            # explicitly need to write each normintfile with orientation angle in it
+            cfg_file.write(
+                f"normintfile {reaction}_{POL_DICT[ont]['angle']}"
+                f" {reaction}_{POL_DICT[ont]['angle']}.ni\n"
+            )
+
+        cfg_file.write(f"\nloop LOOPREAC{reaction_with_angles}\n")
 
         # the phasespace files are the same for each orientation
         cfg_file.write(
