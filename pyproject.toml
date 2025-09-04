@@ -28,7 +28,8 @@ dev = [
     "pytest>=8.0.0",
     "isort>=5.12.0",
     "nbqa>=1.7.0",
-    "nb-clean>=4.0.1"
+    "nb-clean>=4.0.1",
+    "sphinx>=8.2.3"
 ]
 
 [build-system]
