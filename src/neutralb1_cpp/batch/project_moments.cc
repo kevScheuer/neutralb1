@@ -105,7 +105,7 @@ double calculate_CGs(
 complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
     int e_conj, int J_conj, int m_conj, int L_conj,
-    const std::string &reaction, const FitResults &results);
+    const std::string &reaction, const FitResults &results, bool acceptance_corrected=true);
 int sign(int i);
 int find_max_J(const FitResults &results);
 int calculate_system_parity(int L);
@@ -483,17 +483,23 @@ complex<double> calculate_SDME(
  * processes for now, and is reaction and sum independent. Any fit with multiple
  * reactions and non-constrained sums could be subject to undefined behavior.
  *
- * @param[in] e reflectivity
- * @param[in] J total angular momentum
- * @param[in] m m-projection
- * @param[in] L orbital angular momentum
+ * @param[in] e reflectivity of the first wave
+ * @param[in] J total angular momentum of the first wave
+ * @param[in] m m-projection of the first wave
+ * @param[in] L orbital angular momentum of the first wave
+ * @param[in] e_conj reflectivity of the conjugate wave
+ * @param[in] J_conj total angular momentum of the conjugate wave
+ * @param[in] m_conj m-projection of the conjugate wave
+ * @param[in] L_conj orbital angular momentum of the conjugate wave
  * @param[in] reaction The reaction string (for polarization orientation)
+ * @param[in] results The fit results containing the necessary data.
+ * @param[in] acceptance_corrected Whether to use acceptance-corrected production coefficients
  * @return The production coefficient if found, or 0 if not found.
  */
 complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
     int e_conj, int J_conj, int m_conj, int L_conj,
-    const std::string &reaction, const FitResults &results)
+    const std::string &reaction, const FitResults &results, bool acceptance_corrected)
 {
     // determine the parity values for each amplitude
     int P = calculate_system_parity(L);
@@ -578,13 +584,12 @@ complex<double> get_production_coefficient_pair(
             " check that it is constrained in the fit");
     }
 
-    // Find the normalization integrals of the 2 constrained sums for the prod coeff
+    // Find the normalization integrals of the 2 constrained sums for the pair
     complex<double> sum_normalization_integrals = 0.0;
     for (const std::string &amp : matching_amplitudes)
     {
         for (const std::string &amp_conj : matching_amplitudes_conj)
         {
-
             AmplitudeParser amp_parser(amp);
             AmplitudeParser amp_parser_conj(amp_conj);
 
@@ -597,7 +602,15 @@ complex<double> get_production_coefficient_pair(
 
             // NOTE: currently only uses normInt, so no acceptance correction done
             const NormIntInterface *norm_interface = results.normInt(reaction);
-            complex<double> N = norm_interface->normInt(amp, amp_conj);
+            complex<double> N;
+            if (acceptance_corrected)
+            {
+                N = norm_interface->ampInt(amp, amp_conj);
+            }
+            else
+            {
+                N = norm_interface->normInt(amp, amp_conj);
+            }
             sum_normalization_integrals += N;
         }
     }
