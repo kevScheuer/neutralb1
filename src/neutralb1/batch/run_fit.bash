@@ -157,6 +157,10 @@ vecps_plotter best_moment.fit
 hadd -f vecps_plot_moment.root vecps_plot_*.root
 vecps_moment_files=(./vecps_plot_*.root)
 for file in ${vecps_moment_files[@]}; do
+    # avoid running this on the combined file
+    if [ "$(basename "$file")" = "vecps_plot_moment.root" ]; then
+        continue
+    fi
     [ -e "$file" ] || continue
     angle_plotter -f "$file" --gluex-style
     pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
