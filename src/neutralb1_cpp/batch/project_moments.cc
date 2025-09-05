@@ -105,7 +105,7 @@ double calculate_CGs(
 complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
     int e_conj, int J_conj, int m_conj, int L_conj,
-    const std::string &reaction, const FitResults &results, bool acceptance_corrected=true);
+    const std::string &reaction, const FitResults &results, bool acceptance_corrected = true);
 int sign(int i);
 int find_max_J(const FitResults &results);
 int calculate_system_parity(int L);
@@ -292,7 +292,7 @@ std::vector<Moment> initialize_moments(const FitResults &results)
         J_vector.push_back(J);
     }
     std::vector<int> M_vector; // similar to lambda, (-) M values are proportional to (+)
-    for (int m = 0; m <= max_wave_J; ++m)
+    for (int m = 0; m <= 2 * max_wave_J; ++m)
     {
         M_vector.push_back(m);
     }
@@ -808,7 +808,7 @@ double calculate_intensity(const FitResults &results)
                 continue;
             }
 
-            // skip one of each of the constrained coherent sums, since we already 
+            // skip one of each of the constrained coherent sums, since we already
             // account for it in get_production_pair
             if (amplitude.find("ImagNegSign") != std::string::npos || amplitude.find("ImagPosSign") != std::string::npos)
             {
@@ -830,15 +830,15 @@ double calculate_intensity(const FitResults &results)
             intensity += result;
         }
 
-        // now the interference terms  
+        // now the interference terms
         for (size_t i = 0; i < results.ampList(reaction).size(); ++i)
         {
             for (size_t j = i + 1; j < results.ampList(reaction).size(); ++j)
-            {                
+            {
                 std::string amp1 = results.ampList(reaction)[i];
                 std::string amp2 = results.ampList(reaction)[j];
 
-                // skip one of each of the constrained coherent sums, since we already 
+                // skip one of each of the constrained coherent sums, since we already
                 // account for it in get_production_pair
                 if (amp1.find("ImagNegSign") != std::string::npos || amp1.find("ImagPosSign") != std::string::npos)
                 {
@@ -877,7 +877,7 @@ double calculate_intensity(const FitResults &results)
                 intensity += 2 * std::real(result);
             }
         }
-    }    
+    }
 
     if (intensity.imag() != 0.0)
     {
