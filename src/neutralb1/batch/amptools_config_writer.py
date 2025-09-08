@@ -1,10 +1,11 @@
-"""Class for writing an AmpTools fit cfg file for binned fits to be performed
+"""Contains class for writing an AmpTools fit cfg file for binned fits to be performed
 
 Its role is to write a fit cfg file that will be run in each bin of the fit. It uses the
 user requested waveset and all its modifications to write the necessary AmpTools
 recognized lines to the cfg file.
 
-NOTE: This file (and other batch files) are tuned specifically to omegapi0
+.. note::
+    This file (and other batch files) are currently tuned specifically to omegapi0
 """
 
 from collections import defaultdict
