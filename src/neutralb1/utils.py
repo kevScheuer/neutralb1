@@ -294,7 +294,15 @@ def convert_amp_name(input_string: str) -> str:
     e = r"\Sigma\varepsilon" if amp_dict["e"] == "" else pm_dict[amp_dict["e"]]
     j = r"\Sigma J" if amp_dict["J"] == "" else amp_dict["J"]
     p = "" if amp_dict["P"] == "" else pm_dict[amp_dict["P"]]
-    m = r"\Sigma m" if amp_dict["m"] == "" else m_proj_dict[amp_dict["m"]]
+    if amp_dict["m"] == "":
+        m = r"\Sigma m"
+    else:
+        m_val = m_proj_dict[amp_dict["m"]]
+        # Always show sign for m (except for 0)
+        if isinstance(m_val, int) and m_val != 0:
+            m = f"{m_val:+d}"
+        else:
+            m = f"{m_val}"
     l = r"\Sigma \ell" if amp_dict["L"] == "" else amp_dict["L"]
 
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
