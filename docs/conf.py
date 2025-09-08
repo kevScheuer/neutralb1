@@ -20,6 +20,7 @@ extensions = [
     "sphinx.ext.napoleon",  # for our Google style docstrings
     "sphinx.ext.viewcode",  # add links to highlighted source code
     "sphinx.ext.autosummary",  # automatically generate api
+    "sphinx.ext.mathjax",  # render math
 ]
 
 # ---Autosummary settings---
