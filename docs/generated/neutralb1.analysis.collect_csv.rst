@@ -1,4 +1,4 @@
-﻿neutralb1.analysis.collect\_csv
+neutralb1.analysis.collect\_csv
 ===============================
 
 .. automodule:: neutralb1.analysis.collect_csv

@@ -23,8 +23,8 @@ class ResultManager:
     ) -> None:
         """Initialize the ResultManager.
 
-        See [link to converter script] for more details on how the DataFrames are
-        constructed.
+        See :py:mod:`neutralb1.batch.convert_to_csv` for more details on how the
+        DataFrames are constructed.
 
         Args:
             fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically

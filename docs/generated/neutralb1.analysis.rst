@@ -1,4 +1,4 @@
-neutralb1.analysis
+﻿neutralb1.analysis
 ==================
 
 .. automodule:: neutralb1.analysis
@@ -12,7 +12,6 @@ neutralb1.analysis
 
    collect_csv
    physics
-   plotting
    preprocessing
    result
    statistics
