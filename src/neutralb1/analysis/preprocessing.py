@@ -72,6 +72,36 @@ def standardize_data_types(df: pd.DataFrame) -> pd.DataFrame:
     return df.astype(columns_to_types)
 
 
+def standardize_moment_types(df: pd.DataFrame) -> pd.DataFrame:
+    """Standardize the types of the columns in a moment DataFrame.
+
+    A 'moment' DataFrame contains the values of the fitted moments, or moment projected
+    from the fit results. This function converts the columns to smaller types to save
+    memory.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to standardize.
+    Returns:
+        pd.DataFrame: The DataFrame with standardized types.
+    """
+    moment_columns = [c for c in df.columns if c.startswith("H")]
+
+    # we never need more than float16 precision, but can expect some columns to exceeed
+    # the max float16 value
+    f16_columns = [
+        c for c in moment_columns if df[c].abs().max() < np.finfo("float16").max
+    ]
+    f32_columns = [c for c in moment_columns if c not in f16_columns]
+
+    columns_to_types = {
+        "file": "category",
+        **{c: "float16" for c in f16_columns if f16_columns},
+        **{c: "float32" for c in f32_columns if f32_columns},
+    }
+
+    return df.astype(columns_to_types)
+
+
 def find_null_columns(df: pd.DataFrame) -> list:
     """Find columns in a DataFrame that contain null values.
 
@@ -305,3 +335,54 @@ def restore_breit_wigner_phases(
         )
 
     return df
+
+
+def filter_projected_moments(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove projected moment columns that are expected to be zero.
+
+    When projecting the moments from the fit results, all moments are split
+    into their real and imaginary parts. The H0 and H1 moments should be purely real,
+    and the H2 moment should be purely imaginary. This function checks that this is
+    the case, and removes H0 and H1 imaginary parts, and H2 real parts.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing projected moment columns.
+    Returns:
+        pd.DataFrame: The DataFrame with the specified projected moment columns removed.
+    """
+    cols_to_remove = []
+    for col in df.columns:
+        if (col.startswith("H0") or col.startswith("H1")) and col.endswith("_imag"):
+            cols_to_remove.append(col)
+        elif col.startswith("H2") and col.endswith("_real"):
+            cols_to_remove.append(col)
+
+    for col in cols_to_remove:
+        if not np.allclose(df[col], 0, atol=1e-3):
+            raise ValueError(
+                f"Projected moment column {col} is expected to be 0 but contains"
+                " non-zero values."
+            )
+
+    return df.drop(columns=cols_to_remove)
+
+
+def remove_real_imag_suffixes(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove the '_real' and '_imag' suffixes from projected moment columns.
+
+    .. note::
+        This function should be called after :func:`filter_projected_moments`, which
+        removes the projected moment columns that are expected to be zero.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing projected moment columns.
+    Returns:
+        pd.DataFrame: The DataFrame with the specified projected moment columns renamed.
+    """
+    return df.rename(
+        columns={
+            col: col.rsplit("_", 1)[0]
+            for col in df.columns
+            if col.endswith("_real") or col.endswith("_imag")
+        }
+    )

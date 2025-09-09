@@ -16,6 +16,7 @@ class ResultManager:
         data_df: pd.DataFrame,
         random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
+        proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the ResultManager.
@@ -31,6 +32,8 @@ class ResultManager:
                 with each nominal fit result. Defaults to None.
             bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
                 fit. Defaults to None.
+            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
+                calculated from the fit results. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for the
                 fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to
                 None.
@@ -42,6 +45,9 @@ class ResultManager:
         self.random_df = random_df.copy() if random_df is not None else pd.DataFrame()
         self.bootstrap_df = (
             bootstrap_df.copy() if bootstrap_df is not None else pd.DataFrame()
+        )
+        self.proj_moments_df = (
+            proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
         )
         self.truth_df = truth_df.copy() if truth_df is not None else pd.DataFrame()
 
@@ -67,6 +73,9 @@ class ResultManager:
             - Converting unbound phase columns in radians to degrees from -180 to 180
             - Standardizing types across DataFrames to save memory
             - Aligning phase difference names across DataFrames
+            - Remove projected moment columns expected to be 0
+                Imag(H0) = Imag(H1) = Real(H2) = 0
+            - Remove real/imaginary suffixes from projected moment columns
             - Adding missing columns to the truth DataFrame
 
         Args:
@@ -111,6 +120,16 @@ class ResultManager:
                 UserWarning,
             )
 
+        if not self.proj_moments_df.empty and preprocessing.find_null_columns(
+            self.proj_moments_df
+        ):
+            warnings.warn(
+                "The projected moments DataFrame contains null values. Consider"
+                " checking the following columns: "
+                f"{', '.join(preprocessing.find_null_columns(self.proj_moments_df))}",
+                UserWarning,
+            )
+
         if not self.truth_df.empty and preprocessing.find_null_columns(self.truth_df):
             warnings.warn(
                 "The truth DataFrame contains null values. Consider checking the "
@@ -131,6 +150,10 @@ class ResultManager:
             self.bootstrap_df = preprocessing.link_dataframes(
                 self.fit_df, self.bootstrap_df, linker_max_depth
             )
+        if not self.proj_moments_df.empty:
+            self.proj_moments_df = preprocessing.link_dataframes(
+                self.fit_df, self.proj_moments_df, linker_max_depth
+            )
         if not self.truth_df.empty:
             self.truth_df = preprocessing.link_dataframes(
                 self.fit_df, self.truth_df, linker_max_depth
@@ -146,6 +169,18 @@ class ResultManager:
         if not self.truth_df.empty:
             self.truth_df = preprocessing.wrap_phases(self.truth_df)
 
+        # Remove projected moment columns expected to be 0
+        if not self.proj_moments_df.empty:
+            self.proj_moments_df = preprocessing.filter_projected_moments(
+                self.proj_moments_df
+            )
+
+        # remove real/imaginary suffixes from projected moment columns
+        if not self.proj_moments_df.empty:
+            self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
+                self.proj_moments_df
+            )
+
         # standardize types across DataFrames to save memory
         self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
         self.data_df = preprocessing.standardize_data_types(self.data_df)
@@ -153,6 +188,10 @@ class ResultManager:
             self.random_df = preprocessing.standardize_fit_types(self.random_df)
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.standardize_fit_types(self.bootstrap_df)
+        if not self.proj_moments_df.empty:
+            self.proj_moments_df = preprocessing.standardize_moment_types(
+                self.proj_moments_df
+            )
         if not self.truth_df.empty:
             self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
 
