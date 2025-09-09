@@ -112,9 +112,10 @@ class BootstrapPlotter(BasePWAPlotter):
                 # Create prettier labels for amplitudes and phases
                 label_mapping = {}
                 for col in columns:
-                    if any(
-                        col in sublist for sublist in self.coherent_sums.values()
-                    ) or col in set(self.phase_differences.values()):
+                    if (
+                        any(col in sublist for sublist in self.coherent_sums.values())
+                        or col in self.phase_differences
+                    ):
                         label_mapping[col] = utils.convert_amp_name(col)
                     else:
                         label_mapping[col] = col
@@ -502,7 +503,7 @@ class BootstrapPlotter(BasePWAPlotter):
 
             if len(subset) > 1:
                 # Use circular statistics for phase differences
-                if col_label in set(self.phase_differences.values()):
+                if col_label in self.phase_differences:
                     radian_phases = np.deg2rad(subset)
                     stdev = scipy.stats.circstd(
                         radian_phases, low=int(-np.pi), high=int(np.pi)
@@ -541,9 +542,10 @@ class BootstrapPlotter(BasePWAPlotter):
 
     def _get_pretty_label(self, column: str) -> str:
         """Convert column name to pretty LaTeX formatting."""
-        if any(
-            column in sublist for sublist in self.coherent_sums.values()
-        ) or column in set(self.phase_differences.values()):
+        if (
+            any(column in sublist for sublist in self.coherent_sums.values())
+            or column in self.phase_differences
+        ):
             return utils.convert_amp_name(column)
         return column
 
@@ -727,7 +729,7 @@ class BootstrapPlotter(BasePWAPlotter):
         ):
             # All intensity columns - start from zero
             x_min = 0.0
-        elif all(col in set(self.phase_differences.values()) for col in columns):
+        elif all(col in self.phase_differences for col in columns):
             # All phase differences - use standard phase range
             x_min, x_max = -180.0, 180.0
         else:
@@ -865,8 +867,9 @@ class BootstrapPlotter(BasePWAPlotter):
             if legend is not None:
                 for text in legend.get_texts():
                     label = text.get_text()
-                    if any(
-                        label in sublist for sublist in self.coherent_sums.values()
-                    ) or label in set(self.phase_differences.values()):
+                    if (
+                        any(label in sublist for sublist in self.coherent_sums.values())
+                        or label in self.phase_differences
+                    ):
                         pretty_label = utils.convert_amp_name(label)
                         text.set_text(pretty_label)

@@ -231,10 +231,10 @@ class DiagnosticPlotter(BasePWAPlotter):
             ratio, ratio_err = self._calculate_ds_ratio(d_wave, s_wave)
 
             # Get phase difference
-            if (d_wave, s_wave) in self.phase_differences:
-                phase_dif_name = self.phase_differences[(d_wave, s_wave)]
-            elif (s_wave, d_wave) in self.phase_differences:
-                phase_dif_name = self.phase_differences[(s_wave, d_wave)]
+            if (d_wave, s_wave) in self.phase_difference_dict:
+                phase_dif_name = self.phase_difference_dict[(d_wave, s_wave)]
+            elif (s_wave, d_wave) in self.phase_difference_dict:
+                phase_dif_name = self.phase_difference_dict[(s_wave, d_wave)]
             else:
                 continue  # Skip if phase difference not available
 
@@ -605,10 +605,10 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Get phase difference data
         amp1, amp2 = f"p{JPmL_row}", f"p{JPmL_col}"
-        if (amp1, amp2) in self.phase_differences:
-            phase_dif = self.phase_differences[(amp1, amp2)]
-        elif (amp2, amp1) in self.phase_differences:
-            phase_dif = self.phase_differences[(amp2, amp1)]
+        if (amp1, amp2) in self.phase_difference_dict:
+            phase_dif = self.phase_difference_dict[(amp1, amp2)]
+        elif (amp2, amp1) in self.phase_difference_dict:
+            phase_dif = self.phase_difference_dict[(amp2, amp1)]
         else:
             return  # Skip if phase difference not available
 
@@ -690,10 +690,10 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Get phase difference data
         amp1, amp2 = f"m{JPmL_row}", f"m{JPmL_col}"
-        if (amp1, amp2) in self.phase_differences:
-            phase_dif = self.phase_differences[(amp1, amp2)]
-        elif (amp2, amp1) in self.phase_differences:
-            phase_dif = self.phase_differences[(amp2, amp1)]
+        if (amp1, amp2) in self.phase_difference_dict:
+            phase_dif = self.phase_difference_dict[(amp1, amp2)]
+        elif (amp2, amp1) in self.phase_difference_dict:
+            phase_dif = self.phase_difference_dict[(amp2, amp1)]
         else:
             return  # Skip if phase difference not available
 

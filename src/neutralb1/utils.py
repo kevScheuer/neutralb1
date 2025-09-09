@@ -9,7 +9,7 @@ import os
 import pathlib
 import re
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -212,7 +212,7 @@ def get_coherent_sums(df: pd.DataFrame) -> Dict[str, List[str]]:
     return {k: sorted(v) for k, v in coherent_sums.items()}  # sort each set
 
 
-def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
+def get_phase_difference_dict(df: pd.DataFrame) -> Dict[tuple, str]:
     """Returns dict of all the phase difference columns in the dataframe
 
     The keys are specifically like (eJPmL_1, eJPmL_2), and there is no way to
@@ -244,6 +244,17 @@ def get_phase_differences(df: pd.DataFrame) -> Dict[tuple, str]:
             phase_differences[tuple(reversed(combo))] = reverse_name
 
     return phase_differences
+
+
+def get_phase_differences(df: pd.DataFrame) -> Set[str]:
+    """Returns the set of all phase difference columns in the dataframe
+
+    Args:
+        df (pd.DataFrame): dataframe of fit results loaded from csv
+    Returns:
+        set: set of all phase difference column names in the dataframe
+    """
+    return set(get_phase_difference_dict(df).values())
 
 
 def convert_amp_name(input_string: str) -> str:

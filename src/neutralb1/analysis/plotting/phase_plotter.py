@@ -29,7 +29,7 @@ class PhasePlotter(BasePWAPlotter):
             - Add option to plot with MINUIT or bootstrap errors
         """
 
-        phase_dif = self.phase_differences[(amp1, amp2)]
+        phase_dif = self.phase_difference_dict[(amp1, amp2)]
         color = "red" if amp1[0] == "p" else "blue"
 
         fig, ax = plt.subplots()
@@ -155,7 +155,7 @@ class PhasePlotter(BasePWAPlotter):
             )
 
         # plot the phase difference on the second subplot
-        phase_dif = self.phase_differences[(amp1, amp2)]
+        phase_dif = self.phase_difference_dict[(amp1, amp2)]
         axs[1].errorbar(
             self._masses,
             self.fit_df[phase_dif],

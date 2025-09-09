@@ -44,4 +44,5 @@ class BasePWAPlotter:
 
         # Extract coherent sums and phase differences
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
+        self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
