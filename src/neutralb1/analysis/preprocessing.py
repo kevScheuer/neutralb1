@@ -272,6 +272,10 @@ def restore_breit_wigner_phases(
     difference. This function is used to restore the phases of such DataFrames to their
     correct values.
 
+    Note:
+        The error for the phase differences will no longer be meaningful, but this
+        application is normally done for truth DataFrames, which do not have errors.
+
     Args:
         df (pd.DataFrame): The DataFrame containing truth phase columns to be reset.
         mass_bins (pd.Series): The center of the mass bins for each fit result row.
