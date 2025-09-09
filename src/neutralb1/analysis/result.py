@@ -5,7 +5,8 @@ from typing import Optional
 
 import pandas as pd
 
-from neutralb1.analysis import plotting, preprocessing
+from neutralb1.analysis import preprocessing
+from neutralb1.analysis.plotting.factory_plotter import FactoryPlotter
 
 
 class ResultManager:
@@ -255,11 +256,11 @@ class ResultManager:
             )
 
     @property
-    def plot(self) -> plotting.FactoryPlotter:
+    def plot(self) -> FactoryPlotter:
         """Return a FactoryPlotter instance for plotting fit results."""
 
         if self.plotter_factory is None:
-            self.plotter_factory = plotting.FactoryPlotter(
+            self.plotter_factory = FactoryPlotter(
                 fit_df=self.fit_df,
                 data_df=self.data_df,
                 random_df=self.random_df,
