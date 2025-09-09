@@ -18,6 +18,7 @@ class ResultManager:
         bootstrap_df: Optional[pd.DataFrame] = None,
         proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
+        truth_proj_moments_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the ResultManager.
 
@@ -37,6 +38,10 @@ class ResultManager:
             truth_df (pd.DataFrame, optional): Contains the ground truth values for the
                 fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to
                 None.
+            truth_proj_moments_df (pd.DataFrame, optional): Contains the ground truth
+                projected moments for the fit, i.e. the projected moments obtained from
+                the truth_df. Only applicable for Monte Carlo Input-Output Studies.
+                Defaults to None.
         """
 
         # create local copies of the DataFrames to avoid modifying the originals
@@ -50,6 +55,11 @@ class ResultManager:
             proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
         )
         self.truth_df = truth_df.copy() if truth_df is not None else pd.DataFrame()
+        self.truth_proj_moments_df = (
+            truth_proj_moments_df.copy()
+            if truth_proj_moments_df is not None
+            else pd.DataFrame()
+        )
 
         # warn user of any bad error matrices
         if any(status != 3 for status in self.fit_df["eMatrixStatus"]):
@@ -138,6 +148,18 @@ class ResultManager:
                 UserWarning,
             )
 
+        if not self.truth_proj_moments_df.empty and preprocessing.find_null_columns(
+            self.truth_proj_moments_df
+        ):
+            warnings.warn(
+                "The truth projected moments DataFrame contains null values. Consider"
+                " checking the following columns: "
+                f"{', '.join(
+                    preprocessing.find_null_columns(self.truth_proj_moments_df)
+                )}",
+                UserWarning,
+            )
+
         # link the DataFrames together by adding a 'fit_index' column
         self.data_df = preprocessing.link_dataframes(
             self.fit_df, self.data_df, linker_max_depth
@@ -158,6 +180,10 @@ class ResultManager:
             self.truth_df = preprocessing.link_dataframes(
                 self.fit_df, self.truth_df, linker_max_depth
             )
+        if not self.truth_proj_moments_df.empty:
+            self.truth_proj_moments_df = preprocessing.link_dataframes(
+                self.fit_df, self.truth_proj_moments_df, linker_max_depth
+            )
 
         # convert unbound phase columns in radians to degrees from -180 to 180
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
@@ -174,11 +200,19 @@ class ResultManager:
             self.proj_moments_df = preprocessing.filter_projected_moments(
                 self.proj_moments_df
             )
+        if not self.truth_proj_moments_df.empty:
+            self.truth_proj_moments_df = preprocessing.filter_projected_moments(
+                self.truth_proj_moments_df
+            )
 
         # remove real/imaginary suffixes from projected moment columns
         if not self.proj_moments_df.empty:
             self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.proj_moments_df
+            )
+        if not self.truth_proj_moments_df.empty:
+            self.truth_proj_moments_df = preprocessing.remove_real_imag_suffixes(
+                self.truth_proj_moments_df
             )
 
         # standardize types across DataFrames to save memory
@@ -194,6 +228,10 @@ class ResultManager:
             )
         if not self.truth_df.empty:
             self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
+        if not self.truth_proj_moments_df.empty:
+            self.truth_proj_moments_df = preprocessing.standardize_moment_types(
+                self.truth_proj_moments_df
+            )
 
         # align phase difference names across DataFrames
         if not self.random_df.empty:
