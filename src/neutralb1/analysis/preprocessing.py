@@ -131,7 +131,7 @@ def link_dataframes(
                 fit_file, target_file
             )
 
-            if not ancestor or not fit_depth or not target_depth:
+            if not ancestor or fit_depth == None or target_depth == None:
                 continue  # Skip if no common ancestor
 
             if fit_depth <= max_depth and target_depth <= max_depth:
