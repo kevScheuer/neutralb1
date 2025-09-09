@@ -316,6 +316,8 @@ class ResultManager:
                 data_df=self.data_df,
                 random_df=self.random_df,
                 bootstrap_df=self.bootstrap_df,
+                proj_moments_df=self.proj_moments_df,
+                bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
                 truth_df=self.truth_df,
             )
         return self.plotter_factory

@@ -12,7 +12,11 @@ from neutralb1.analysis.plotting.randomized_plotter import RandomizedPlotter
 
 
 class FactoryPlotter:
-    """Factory class that interfaces with all sub-plotters."""
+    """Factory class that interfaces with all sub-plotters.
+
+    Todo:
+        - Add projected moments to sub-plotters
+    """
 
     def __init__(
         self,
@@ -20,6 +24,8 @@ class FactoryPlotter:
         data_df: pd.DataFrame,
         random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
+        proj_moments_df: Optional[pd.DataFrame] = None,
+        bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the factory with common data and utilities."""

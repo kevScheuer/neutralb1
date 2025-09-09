@@ -14,6 +14,8 @@ class BasePWAPlotter:
         data_df: pd.DataFrame,
         random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
+        proj_moments_df: Optional[pd.DataFrame] = None,
+        bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         channel: Optional[str] = r"$\omega\pi^0$",
     ) -> None:
@@ -24,6 +26,10 @@ class BasePWAPlotter:
             data_df (pd.DataFrame): Contains the data used for the fit.
             bootstrap_df (pd.DataFrame, optional): Bootstrap results for each nominal
                 fit. Defaults to None.
+            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
+                results for each nominal fit. Defaults to None.
+            bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
+                moments results for each bootstrap fit. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for
                 the fit. Defaults to None.
             channel (str, optional): The channel label to be used in plot axes. Defaults
@@ -35,6 +41,8 @@ class BasePWAPlotter:
         self.data_df = data_df
         self.random_df = random_df
         self.bootstrap_df = bootstrap_df
+        self.proj_moments_df = proj_moments_df
+        self.bootstrap_proj_moments_df = bootstrap_proj_moments_df
         self.truth_df = truth_df
         self.channel = channel
 
