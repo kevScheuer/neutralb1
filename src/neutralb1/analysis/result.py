@@ -18,6 +18,7 @@ class ResultManager:
         random_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         proj_moments_df: Optional[pd.DataFrame] = None,
+        bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
     ) -> None:
@@ -36,6 +37,8 @@ class ResultManager:
                 fit. Defaults to None.
             proj_moments_df (pd.DataFrame, optional): Contains the projected moments
                 calculated from the fit results. Defaults to None.
+            bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
+                moments calculated from the bootstrap fits. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for the
                 fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to
                 None.
@@ -54,6 +57,11 @@ class ResultManager:
         )
         self.proj_moments_df = (
             proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
+        )
+        self.bootstrap_proj_moments_df = (
+            bootstrap_proj_moments_df.copy()
+            if bootstrap_proj_moments_df is not None
+            else pd.DataFrame()
         )
         self.truth_df = truth_df.copy() if truth_df is not None else pd.DataFrame()
         self.truth_proj_moments_df = (
@@ -141,6 +149,19 @@ class ResultManager:
                 UserWarning,
             )
 
+        if (
+            not self.bootstrap_proj_moments_df.empty
+            and preprocessing.find_null_columns(self.bootstrap_proj_moments_df)
+        ):
+            warnings.warn(
+                "The bootstrap projected moments DataFrame contains null values."
+                " Consider checking the following columns: "
+                f"{', '.join(
+                    preprocessing.find_null_columns(self.bootstrap_proj_moments_df)
+                )}",
+                UserWarning,
+            )
+
         if not self.truth_df.empty and preprocessing.find_null_columns(self.truth_df):
             warnings.warn(
                 "The truth DataFrame contains null values. Consider checking the "
@@ -177,6 +198,10 @@ class ResultManager:
             self.proj_moments_df = preprocessing.link_dataframes(
                 self.fit_df, self.proj_moments_df, linker_max_depth
             )
+        if not self.bootstrap_proj_moments_df.empty:
+            self.bootstrap_proj_moments_df = preprocessing.link_dataframes(
+                self.fit_df, self.bootstrap_proj_moments_df, linker_max_depth
+            )
         if not self.truth_df.empty:
             self.truth_df = preprocessing.link_dataframes(
                 self.fit_df, self.truth_df, linker_max_depth
@@ -201,6 +226,10 @@ class ResultManager:
             self.proj_moments_df = preprocessing.filter_projected_moments(
                 self.proj_moments_df
             )
+        if not self.bootstrap_proj_moments_df.empty:
+            self.bootstrap_proj_moments_df = preprocessing.filter_projected_moments(
+                self.bootstrap_proj_moments_df
+            )
         if not self.truth_proj_moments_df.empty:
             self.truth_proj_moments_df = preprocessing.filter_projected_moments(
                 self.truth_proj_moments_df
@@ -210,6 +239,10 @@ class ResultManager:
         if not self.proj_moments_df.empty:
             self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.proj_moments_df
+            )
+        if not self.bootstrap_proj_moments_df.empty:
+            self.bootstrap_proj_moments_df = preprocessing.remove_real_imag_suffixes(
+                self.bootstrap_proj_moments_df
             )
         if not self.truth_proj_moments_df.empty:
             self.truth_proj_moments_df = preprocessing.remove_real_imag_suffixes(
@@ -226,6 +259,10 @@ class ResultManager:
         if not self.proj_moments_df.empty:
             self.proj_moments_df = preprocessing.standardize_moment_types(
                 self.proj_moments_df
+            )
+        if not self.bootstrap_proj_moments_df.empty:
+            self.bootstrap_proj_moments_df = preprocessing.standardize_moment_types(
+                self.bootstrap_proj_moments_df
             )
         if not self.truth_df.empty:
             self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
