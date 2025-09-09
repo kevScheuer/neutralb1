@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 import neutralb1.analysis.physics as physics
-import neutralb1.utils
+import neutralb1.utils as utils
 
 
 def standardize_fit_types(df: pd.DataFrame) -> pd.DataFrame:
@@ -29,7 +29,7 @@ def standardize_fit_types(df: pd.DataFrame) -> pd.DataFrame:
         "file": "category",
     }
     zero_columns = [col for col in df.columns if (df[col] == 0).all()]
-    phase_columns = neutralb1.utils.get_phase_differences(df).values()
+    phase_columns = utils.get_phase_differences(df).values()
 
     # warn the user if phase columns are not yet wrapped
     if any(df[col].max() > 180.0 or df[col].min() < -180.0 for col in phase_columns):
@@ -157,7 +157,7 @@ def link_dataframes(
         """If target_path shares a common ancestor with a fit file, return its index."""
         for index, fit_file in index_to_fit_file.items():
 
-            ancestor, fit_depth, target_depth = neutralb1.utils.shared_ancestor_info(
+            ancestor, fit_depth, target_depth = utils.shared_ancestor_info(
                 fit_file, target_file
             )
 
@@ -219,7 +219,7 @@ def wrap_phases(df: pd.DataFrame, phase_columns: Optional[list] = None) -> pd.Da
         pd.DataFrame: The DataFrame with wrapped phase columns.
     """
     if phase_columns is None:
-        phase_columns = list(set(neutralb1.utils.get_phase_differences(df).values()))
+        phase_columns = list(set(utils.get_phase_differences(df).values()))
 
     return df.assign(**{col: df[col].map(wrap_radians) for col in phase_columns})
 
@@ -249,9 +249,7 @@ def align_phase_difference_names(
         pd.DataFrame: The DataFrame with aligned phase columns.
     """
     if phase_columns is None:
-        phase_columns = list(
-            set(neutralb1.utils.get_phase_differences(reference_df).values())
-        )
+        phase_columns = list(set(utils.get_phase_differences(reference_df).values()))
 
     reversed_phase_columns = ["_".join(pd.split("_")[::-1]) for pd in phase_columns]
 
@@ -308,17 +306,16 @@ def restore_breit_wigner_phases(
         return phase1 - phase2
 
     if phase_columns is None:
-        phase_columns = list(set(neutralb1.utils.get_phase_differences(df).values()))
+        phase_columns = list(set(utils.get_phase_differences(df).values()))
 
     df = df.copy()
-    for pd in set(neutralb1.utils.get_phase_differences(df).values()):
-        l_to_int = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
+    for pd in phase_columns:
         amp1, amp2 = pd.split("_")
 
         jp1 = amp1[1:3]
-        l1 = l_to_int[amp1[-1]]
+        l1 = utils.char_to_int(amp1[-1])
         jp2 = amp2[1:3]
-        l2 = l_to_int[amp2[-1]]
+        l2 = utils.char_to_int(amp2[-1])
 
         df[pd] = np.vectorize(new_phase_dif)(
             mass_bins,
