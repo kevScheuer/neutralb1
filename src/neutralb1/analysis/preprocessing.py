@@ -138,7 +138,7 @@ def link_dataframes(
                 return index
 
         # If not found, check if the target_path is a parent of any fit file
-        raise ValueError(f"No matching fit found for {target_file}")
+        raise FileNotFoundError(f"No matching fit found for {target_file}")
 
     return target_df.assign(fit_index=target_files.map(find_fit_index).astype("uint16"))
 
