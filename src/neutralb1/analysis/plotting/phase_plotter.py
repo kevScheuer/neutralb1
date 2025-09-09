@@ -24,6 +24,9 @@ class PhasePlotter(BasePWAPlotter):
                 phase motions near the boundaries. Defaults to True.
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
+
+        Todo:
+            - Add option to plot with MINUIT or bootstrap errors
         """
 
         phase_dif = self.phase_differences[(amp1, amp2)]

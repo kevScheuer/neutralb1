@@ -18,6 +18,9 @@ class IntensityPlotter(BasePWAPlotter):
                 (GlueX Phase-I)".
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
+
+        Todo:
+            - Add option to plot with MINUIT or bootstrap errors
         """
 
         # property map for consistent plotting
