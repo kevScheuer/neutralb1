@@ -58,7 +58,7 @@ class ResultManager:
 
         return
 
-    def preprocess(self, linker_max_depth: int = 1) -> None:
+    def preprocess(self, linker_max_depth: int = 2) -> None:
         """Preprocess the DataFrames, and modify their class copies in place.
 
         This includes:
