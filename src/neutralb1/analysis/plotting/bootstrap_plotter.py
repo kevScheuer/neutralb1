@@ -14,7 +14,12 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 
 
 class BootstrapPlotter(BasePWAPlotter):
-    """Handles plots that rely on bootstrap results."""
+    """Handles plots that rely on bootstrap results.
+
+    Todo:
+        - All methods that use multiple batches of fits should use fit_index as the
+            selection criteria, not file names.
+    """
 
     def __init__(
         self,
@@ -72,7 +77,8 @@ class BootstrapPlotter(BasePWAPlotter):
         ]
         if missing_columns:
             raise ValueError(
-                f"The following columns are missing from bootstrap_df: {missing_columns}"
+                f"The following columns are missing from bootstrap_df:"
+                f" {missing_columns}"
             )
 
         # Validate method
@@ -81,7 +87,7 @@ class BootstrapPlotter(BasePWAPlotter):
             raise ValueError(f"Method must be one of {valid_methods}, got '{method}'")
 
         # Handle directories
-        available_dirs = self.bootstrap_df["directory"].unique()  # type: ignore
+        available_dirs = self.bootstrap_df["directory"].unique()
         if directories is None:
             directories = available_dirs.tolist()
         else:
