@@ -1,4 +1,4 @@
-"""A collection of some utility functions"""
+"""A collection of various helper functions for partial wave analysis"""
 
 # TODO: Many of these functions can be combined into a pythonized version of the
 #   AmplitudeParser class
