@@ -319,6 +319,34 @@ def convert_amp_name(input_string: str) -> str:
     return rf"${j}^{{{p}}}{l}_{{{m}}}^{{({e})}}$"
 
 
+def convert_moment_name(input_string: str) -> str:
+    """Converts moment string to H^alpha(Jv, Lambda, J, M) style LaTeX string
+
+    Args:
+        input_string (str): string in H<alpha>_<Jv><Lambda><J><M> format
+    Returns:
+        str: Prettier LaTeX style string in H^alpha(Jv, Lambda, J, M) format
+
+    Example:
+        H0_0000 -> :math:`H^0(0, 0, 0, 0)`
+        H1_1011 -> $H^1(1, 0, 1, 1)$
+    """
+
+    if not input_string.startswith("H") or "_" not in input_string:
+        raise ValueError("Moment must be in 'H<alpha>_<Jv><Lambda><J><M>' format!")
+
+    try:
+        alpha = int(input_string[1])
+        jv = int(input_string.split("_")[1][0])
+        lam = int(input_string.split("_")[1][1])
+        j = int(input_string.split("_")[1][2])
+        m = int(input_string.split("_")[1][3])
+    except (IndexError, ValueError):
+        raise ValueError("Moment must be in 'H<alpha>_<Jv><Lambda><J><M>' format!")
+
+    return rf"$H^{alpha}({jv}, {lam}, {j}, {m})$"
+
+
 def human_format(num: float) -> str:
     """Converts orders of magnitude to letters i.e. 12369 -> 12.4K
 
