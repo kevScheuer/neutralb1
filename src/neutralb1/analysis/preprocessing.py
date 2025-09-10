@@ -15,8 +15,7 @@ def standardize_fit_types(df: pd.DataFrame) -> pd.DataFrame:
     """Standardize the types of the columns in a fit result DataFrame.
 
     All fit result dataframes have common columns that need not be large float values.
-    This function converts those columns to smaller types, such as float16, to save
-    memory.
+    This function converts those columns to smaller types to save memory.
 
     Args:
         df (pd.DataFrame): The DataFrame to standardize.
@@ -42,7 +41,7 @@ def standardize_fit_types(df: pd.DataFrame) -> pd.DataFrame:
     return (
         df.astype(info_columns_to_types)
         .astype({c: "int8" for c in zero_columns} if zero_columns else {})
-        .astype({c: "float16" for c in phase_columns} if phase_columns else {})
+        .astype({c: "float32" for c in phase_columns} if phase_columns else {})
     )
 
 
@@ -86,18 +85,7 @@ def standardize_moment_types(df: pd.DataFrame) -> pd.DataFrame:
     """
     moment_columns = [c for c in df.columns if c.startswith("H")]
 
-    # we never need more than float16 precision, but can expect some columns to exceeed
-    # the max float16 value
-    f16_columns = [
-        c for c in moment_columns if df[c].abs().max() < np.finfo("float16").max
-    ]
-    f32_columns = [c for c in moment_columns if c not in f16_columns]
-
-    columns_to_types = {
-        "file": "category",
-        **{c: "float16" for c in f16_columns if f16_columns},
-        **{c: "float32" for c in f32_columns if f32_columns},
-    }
+    columns_to_types = {"file": "category", **{c: "float32" for c in moment_columns}}
 
     return df.astype(columns_to_types)
 
