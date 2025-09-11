@@ -22,7 +22,7 @@ class FactoryPlotter:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
-        random_df: Optional[pd.DataFrame] = None,
+        randomized_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
@@ -31,7 +31,7 @@ class FactoryPlotter:
         """Initialize the factory with common data and utilities."""
         self.fit_df = fit_df
         self.data_df = data_df
-        self.random_df = random_df
+        self.randomized_df = randomized_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
@@ -52,8 +52,8 @@ class FactoryPlotter:
             self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
         )
 
-    def random(self):
-        return RandomizedPlotter(self.fit_df, self.data_df, self.random_df)
+    def randomized(self):
+        return RandomizedPlotter(self.fit_df, self.data_df, self.randomized_df)
 
     def bootstrap(self):
         return BootstrapPlotter(

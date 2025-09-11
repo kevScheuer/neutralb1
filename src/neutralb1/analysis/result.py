@@ -15,7 +15,8 @@ class ResultManager:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
-        random_df: Optional[pd.DataFrame] = None,
+        randomized_df: Optional[pd.DataFrame] = None,
+        randomized_proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
@@ -31,8 +32,10 @@ class ResultManager:
             fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically
                 the "best" fits of many randomized ones.
             data_df (pd.DataFrame): Contains the data used for the fit.
-            random_df (pd.DataFrame, optional): Contains all randomized fits associated
-                with each nominal fit result. Defaults to None.
+            randomized_df (pd.DataFrame, optional): Contains all randomized fits
+                associated with each nominal fit result. Defaults to None.
+            randomized_proj_moments_df (pd.DataFrame, optional): Contains the projected
+                moments calculated from the randomized fits. Defaults to None.
             bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
                 fit. Defaults to None.
             proj_moments_df (pd.DataFrame, optional): Contains the projected moments
@@ -51,7 +54,14 @@ class ResultManager:
         # create local copies of the DataFrames to avoid modifying the originals
         self.fit_df = fit_df.copy()
         self.data_df = data_df.copy()
-        self.random_df = random_df.copy() if random_df is not None else pd.DataFrame()
+        self.randomized_df = (
+            randomized_df.copy() if randomized_df is not None else pd.DataFrame()
+        )
+        self.randomized_proj_moments_df = (
+            randomized_proj_moments_df.copy()
+            if randomized_proj_moments_df is not None
+            else pd.DataFrame()
+        )
         self.bootstrap_df = (
             bootstrap_df.copy() if bootstrap_df is not None else pd.DataFrame()
         )
@@ -121,11 +131,26 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.random_df.empty and preprocessing.find_null_columns(self.random_df):
+        if not self.randomized_df.empty and preprocessing.find_null_columns(
+            self.randomized_df
+        ):
             warnings.warn(
                 "The random DataFrame contains null values. Consider checking the "
                 "following columns: "
-                f"{', '.join(preprocessing.find_null_columns(self.random_df))}",
+                f"{', '.join(preprocessing.find_null_columns(self.randomized_df))}",
+                UserWarning,
+            )
+
+        if (
+            not self.randomized_proj_moments_df.empty
+            and preprocessing.find_null_columns(self.randomized_proj_moments_df)
+        ):
+            warnings.warn(
+                "The randomized projected moments DataFrame contains null values."
+                " Consider checking the following columns: "
+                f"{', '.join(
+                    preprocessing.find_null_columns(self.randomized_proj_moments_df)
+                )}",
                 UserWarning,
             )
 
@@ -186,9 +211,13 @@ class ResultManager:
         self.data_df = preprocessing.link_dataframes(
             self.fit_df, self.data_df, linker_max_depth
         )
-        if not self.random_df.empty:
-            self.random_df = preprocessing.link_dataframes(
-                self.fit_df, self.random_df, linker_max_depth
+        if not self.randomized_df.empty:
+            self.randomized_df = preprocessing.link_dataframes(
+                self.fit_df, self.randomized_df, linker_max_depth
+            )
+        if not self.randomized_proj_moments_df.empty:
+            self.randomized_proj_moments_df = preprocessing.link_dataframes(
+                self.fit_df, self.randomized_proj_moments_df, linker_max_depth
             )
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.link_dataframes(
@@ -214,8 +243,8 @@ class ResultManager:
         # convert unbound phase columns in radians to degrees from -180 to 180
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
         self.data_df = preprocessing.wrap_phases(self.data_df)
-        if not self.random_df.empty:
-            self.random_df = preprocessing.wrap_phases(self.random_df)
+        if not self.randomized_df.empty:
+            self.randomized_df = preprocessing.wrap_phases(self.randomized_df)
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.wrap_phases(self.bootstrap_df)
         if not self.truth_df.empty:
@@ -225,6 +254,10 @@ class ResultManager:
         if not self.proj_moments_df.empty:
             self.proj_moments_df = preprocessing.filter_projected_moments(
                 self.proj_moments_df
+            )
+        if not self.randomized_proj_moments_df.empty:
+            self.randomized_proj_moments_df = preprocessing.filter_projected_moments(
+                self.randomized_proj_moments_df
             )
         if not self.bootstrap_proj_moments_df.empty:
             self.bootstrap_proj_moments_df = preprocessing.filter_projected_moments(
@@ -240,6 +273,10 @@ class ResultManager:
             self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.proj_moments_df
             )
+        if not self.randomized_proj_moments_df.empty:
+            self.randomized_proj_moments_df = preprocessing.remove_real_imag_suffixes(
+                self.randomized_proj_moments_df
+            )
         if not self.bootstrap_proj_moments_df.empty:
             self.bootstrap_proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.bootstrap_proj_moments_df
@@ -252,8 +289,12 @@ class ResultManager:
         # standardize types across DataFrames to save memory
         self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
         self.data_df = preprocessing.standardize_data_types(self.data_df)
-        if not self.random_df.empty:
-            self.random_df = preprocessing.standardize_fit_types(self.random_df)
+        if not self.randomized_df.empty:
+            self.randomized_df = preprocessing.standardize_fit_types(self.randomized_df)
+        if not self.randomized_proj_moments_df.empty:
+            self.randomized_proj_moments_df = preprocessing.standardize_moment_types(
+                self.randomized_proj_moments_df
+            )
         if not self.bootstrap_df.empty:
             self.bootstrap_df = preprocessing.standardize_fit_types(self.bootstrap_df)
         if not self.proj_moments_df.empty:
@@ -272,9 +313,9 @@ class ResultManager:
             )
 
         # align phase difference names across DataFrames
-        if not self.random_df.empty:
-            self.random_df = preprocessing.align_phase_difference_names(
-                self.fit_df, self.random_df
+        if not self.randomized_df.empty:
+            self.randomized_df = preprocessing.align_phase_difference_names(
+                self.fit_df, self.randomized_df
             )
         if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.align_phase_difference_names(
@@ -314,7 +355,7 @@ class ResultManager:
             self.plotter_factory = FactoryPlotter(
                 fit_df=self.fit_df,
                 data_df=self.data_df,
-                random_df=self.random_df,
+                randomized_df=self.randomized_df,
                 bootstrap_df=self.bootstrap_df,
                 proj_moments_df=self.proj_moments_df,
                 bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
