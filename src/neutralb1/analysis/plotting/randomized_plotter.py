@@ -17,7 +17,7 @@ class RandomizedPlotter(BasePWAPlotter):
         random_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Ensure random DataFrame is not None and initialize the plotter."""
-        super().__init__(fit_df, data_df, random_df)
+        super().__init__(fit_df=fit_df, data_df=data_df, random_df=random_df)
         if self.random_df is None:
             raise ValueError("RandomPlotter requires a non-None random_df.")
 
