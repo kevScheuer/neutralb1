@@ -106,16 +106,16 @@ echo "Amplitude fitting took: $((amplitude_end_time - amplitude_start_time)) sec
 
 # moment fits
 # these can be run in the same directory because output is <reaction>_moment.fit
-echo -e "\n\n==================================================\n
-Beginning Moment fits \n\n\n\n"
-moment_start_time=$(date +%s)
-if [ "$use_mpi" = true ]; then
-    mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
-else
-    fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
-fi
-moment_end_time=$(date +%s)
-echo "Moment fitting took: $((moment_end_time - moment_start_time)) seconds"
+# echo -e "\n\n==================================================\n
+# Beginning Moment fits \n\n\n\n"
+# moment_start_time=$(date +%s)
+# if [ "$use_mpi" = true ]; then
+#     mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
+# else
+#     fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
+# fi
+# moment_end_time=$(date +%s)
+# echo "Moment fitting took: $((moment_end_time - moment_start_time)) seconds"
 
 # Quit job if fit failed
 if ! [ -f "$my_reaction.fit" ]; then
@@ -130,8 +130,8 @@ fi
 # =============== FIT DIAGNOSTICS AND RESULTS ===============
 mv "$my_reaction".fit best.fit
 mv fitPars.txt bestFitPars.txt
-mv "${my_reaction}_moment.fit" best_moment.fit
-mv fitPars_moment.txt bestFitPars_moment.txt
+# mv "${my_reaction}_moment.fit" best_moment.fit
+# mv fitPars_moment.txt bestFitPars_moment.txt
 
 # This section will create vecps_plot.root files with tons of angular distribution
 # histograms, and combine the ones of primary interest into pdfs
@@ -153,25 +153,25 @@ mv vecps_plot*.root ./distributions/
 mv *.pdf ./distributions/
 
 # moments
-vecps_plotter best_moment.fit
-hadd -f vecps_plot_moment.root vecps_plot_*.root
-vecps_moment_files=(./vecps_plot_*.root)
-for file in ${vecps_moment_files[@]}; do
-    # avoid running this on the combined file
-    if [ "$(basename "$file")" = "vecps_plot_moment.root" ]; then
-        continue
-    fi
-    [ -e "$file" ] || continue
-    angle_plotter -f "$file" --gluex-style
-    pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
-    mv angles.pdf "angles_moment_$pol_angle.pdf"
-    # now rename the root files to not interfere with the amplitude ones
-    mv "$file" "$(basename "$file" .root)_moment.root"
-done
-angle_plotter -f ./vecps_plot_moment.root --gluex-style
-mv angles.pdf angles_moment.pdf
-mv vecps_plot*.root ./distributions/
-mv *.pdf ./distributions/
+# vecps_plotter best_moment.fit
+# hadd -f vecps_plot_moment.root vecps_plot_*.root
+# vecps_moment_files=(./vecps_plot_*.root)
+# for file in ${vecps_moment_files[@]}; do
+#     # avoid running this on the combined file
+#     if [ "$(basename "$file")" = "vecps_plot_moment.root" ]; then
+#         continue
+#     fi
+#     [ -e "$file" ] || continue
+#     angle_plotter -f "$file" --gluex-style
+#     pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
+#     mv angles.pdf "angles_moment_$pol_angle.pdf"
+#     # now rename the root files to not interfere with the amplitude ones
+#     mv "$file" "$(basename "$file" .root)_moment.root"
+# done
+# angle_plotter -f ./vecps_plot_moment.root --gluex-style
+# mv angles.pdf angles_moment.pdf
+# mv vecps_plot*.root ./distributions/
+# mv *.pdf ./distributions/
 
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
@@ -183,8 +183,8 @@ uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
 
 # convert best fit results to csvs
 uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv
-uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
 uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments
+# uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
 
 # TODO: this file should be replaced by a python script using a csv of the rand fits
 # if [ -z "$my_truth_file" ]; then
@@ -198,7 +198,7 @@ if [ $my_num_rand_fits -ne 0 ]; then
     mv -f fitPars_*.txt rand/    
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments
-    uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
+    # uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
 fi
@@ -247,22 +247,22 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     echo "All amplitude bootstrap fits took: $((all_amplitude_bootstrap_end_time - all_amplitude_bootstrap_start_time)) seconds"
 
     # run bootstrap fits for moments
-    all_moment_bootstrap_start_time=$(date +%s)
-    for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
-        echo -e "\nMOMENT BOOTSTRAP FIT: $i\n"              
-        sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit_moment.cfg        
-        bootstrap_start_time=$(date +%s)
-        if [ "$use_mpi" = true ]; then 
-            mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
-        else
-            fit -c bootstrap_fit.cfg -m 1000000
-        fi
-        mv "${my_reaction}"_moment.fit "${my_reaction}"_moment_"$i".fit
-        bootstrap_end_time=$(date +%s)
-        echo "Moment bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
-    done    
-    all_moment_bootstrap_end_time=$(date +%s)
-    echo "All moment bootstrap fits took: $((all_moment_bootstrap_end_time - all_moment_bootstrap_start_time)) seconds"
+    # all_moment_bootstrap_start_time=$(date +%s)
+    # for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
+    #     echo -e "\nMOMENT BOOTSTRAP FIT: $i\n"              
+    #     sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit_moment.cfg        
+    #     bootstrap_start_time=$(date +%s)
+    #     if [ "$use_mpi" = true ]; then 
+    #         mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
+    #     else
+    #         fit -c bootstrap_fit.cfg -m 1000000
+    #     fi
+    #     mv "${my_reaction}"_moment.fit "${my_reaction}"_moment_"$i".fit
+    #     bootstrap_end_time=$(date +%s)
+    #     echo "Moment bootstrap fit $i took: $((bootstrap_end_time - bootstrap_start_time)) seconds"
+    # done    
+    # all_moment_bootstrap_end_time=$(date +%s)
+    # echo "All moment bootstrap fits took: $((all_moment_bootstrap_end_time - all_moment_bootstrap_start_time)) seconds"
 
     ls -al 
     # process bootstrap fits into subdirectory
@@ -270,9 +270,9 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     mv -f "$my_reaction"_.ni bootstrap/
     mv -f bootstrap_fit.cfg bootstrap/
     mv -f bootstrap_fit_moment.cfg bootstrap/
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments
-    uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_moment*.fit -o $(pwd)/bootstrap/bootstrap_moment.csv
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments
+    # uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_moment*.fit -o $(pwd)/bootstrap/bootstrap_moment.csv
     
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
     ls -al
@@ -291,5 +291,5 @@ echo "Execution time: $elapsed_time seconds"
 current_dir=$(pwd)
 common_path=${current_dir#*"$USER"/}
 
-ln -s "/farm_out/$common_path/log/out.log" ./out.log
-ln -s "/farm_out/$common_path/log/err.log" ./err.log
+ln -s "/farm_out/$USER/$common_path/log/out.log" ./out.log
+ln -s "/farm_out/$USER/$common_path/log/err.log" ./err.log
