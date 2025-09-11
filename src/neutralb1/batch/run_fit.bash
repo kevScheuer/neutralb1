@@ -198,6 +198,7 @@ if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f fitPars_*.txt rand/    
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments
     # uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
