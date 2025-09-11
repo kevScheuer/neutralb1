@@ -431,3 +431,40 @@ def propagate_product_error(
     )
 
     return relative_error
+
+
+def circular_residual(
+    angle1: float, angle2: float, in_degrees: bool = False, low=-np.pi, high=np.pi
+) -> float:
+    """Calculate the circular residual between two angles
+
+    A residual in circular data needs to account for the periodicity of the data.
+    This function calculates the smallest difference between the two angles.
+
+    Args:
+        angle1 (float): First angle
+        angle2 (float): Second angle
+        in_degrees (bool, optional): When True, indicates that the input angles are in
+            degrees. The calculation and output will also be in degrees. Defaults to
+            False, in which case the input angles are in radians and the output will be
+            in radians.
+        low (float, optional): Lower bound of the circular range. Defaults to -π.
+        high (float, optional): Upper bound of the circular range. Defaults to π.
+
+    Returns:
+        float: Residual between the two angles, in the same units as the input
+    """
+    if in_degrees:
+        angle1 = np.deg2rad(angle1)
+        angle2 = np.deg2rad(angle2)
+        low = np.deg2rad(low) if low != -np.pi else -np.pi
+        high = np.deg2rad(high) if high != np.pi else np.pi
+
+    diff = angle1 - angle2
+    period = high - low
+    # Wrap to [low, high)
+    wrapped = (diff - low) % period + low
+
+    if in_degrees:
+        wrapped = np.rad2deg(wrapped)
+    return wrapped
