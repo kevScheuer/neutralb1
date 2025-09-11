@@ -295,7 +295,6 @@ class BootstrapPlotter(BasePWAPlotter):
         self._update_pairplot_labels(pg, columns)
 
         # Get fit file names for title
-        fit_files = self.fit_df.loc[fit_indices, "file"].tolist()
         plt.tight_layout()
 
         return pg
