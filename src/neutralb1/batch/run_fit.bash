@@ -183,6 +183,7 @@ uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv
 
 # convert best fit results to csvs
 uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_acceptance_corrected.csv -a
 uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments
 # uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
 
@@ -271,6 +272,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     mv -f bootstrap_fit.cfg bootstrap/
     mv -f bootstrap_fit_moment.cfg bootstrap/
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_acceptance_corrected.csv -a
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments
     # uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_moment*.fit -o $(pwd)/bootstrap/bootstrap_moment.csv
     
