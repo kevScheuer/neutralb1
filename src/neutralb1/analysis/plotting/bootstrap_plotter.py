@@ -175,7 +175,6 @@ class BootstrapPlotter(BasePWAPlotter):
         self,
         fit_indices: list[int],
         columns: list[str],
-        is_acceptance_corrected=False,
         show_truth: bool = True,
         show_uncertainty_bands: bool = True,
         correlation_threshold: float = 0.7,
@@ -192,9 +191,6 @@ class BootstrapPlotter(BasePWAPlotter):
             fit_indices (list[int]): Indices of fits to include in the analysis.
                 These should correspond to indices in the linked DataFrames.
             columns (list[str]): Fit parameters to plot in the matrix.
-            is acceptance_corrected (bool): Whether the fits are acceptance corrected.
-                Defaults to False, meaning amplitude fit fractions are divided by
-                the number of detected events, rather than generated events.
             show_truth (bool): Whether to overlay truth values if available.
                 Defaults to True.
             show_uncertainty_bands (bool): Whether to show MINUIT uncertainty bands.
@@ -249,9 +245,7 @@ class BootstrapPlotter(BasePWAPlotter):
             )
 
         # Prepare data
-        data = self._prepare_pairplot_data(
-            columns, fit_indices, show_truth, is_acceptance_corrected
-        )
+        data = self._prepare_pairplot_data(columns, fit_indices, show_truth)
 
         # Set up the plot
         if figsize is None:
@@ -288,7 +282,6 @@ class BootstrapPlotter(BasePWAPlotter):
             show_truth,
             show_uncertainty_bands,
             correlation_threshold,
-            is_acceptance_corrected,
         )
 
         # Update labels to prettier versions
@@ -304,12 +297,11 @@ class BootstrapPlotter(BasePWAPlotter):
         columns: list,
         fit_indices: list,
         show_truth: bool,
-        is_acceptance_corrected: bool,
     ) -> dict:
         """Prepare and normalize data for pairplot visualization."""
 
         total_intensity = (
-            "generated_events" if is_acceptance_corrected else "detected_events"
+            "generated_events" if self.is_acceptance_corrected else "detected_events"
         )
 
         # Extract relevant data using fit_indices directly
@@ -349,7 +341,6 @@ class BootstrapPlotter(BasePWAPlotter):
         show_truth: bool,
         show_uncertainty_bands: bool,
         correlation_threshold: float,
-        is_acceptance_corrected: bool,
     ) -> None:
         """Add uncertainty bands, truth values, and correlation highlights."""
 
@@ -367,12 +358,8 @@ class BootstrapPlotter(BasePWAPlotter):
                 row_label = columns[row]
 
                 # Calculate scaling factors for fit fractions
-                x_scaling = self._get_scaling_factor(
-                    col_label, fit_data, is_acceptance_corrected
-                )
-                y_scaling = self._get_scaling_factor(
-                    row_label, fit_data, is_acceptance_corrected
-                )
+                x_scaling = self._get_scaling_factor(col_label, fit_data)
+                y_scaling = self._get_scaling_factor(row_label, fit_data)
 
                 # Add uncertainty bands
                 if show_uncertainty_bands:
@@ -417,9 +404,7 @@ class BootstrapPlotter(BasePWAPlotter):
                         ax, bootstrap_data, fit_data, col_label
                     )
 
-    def _get_scaling_factor(
-        self, column: str, fit_data: pd.DataFrame, is_acceptance_corrected: bool
-    ) -> pd.Series:
+    def _get_scaling_factor(self, column: str, fit_data: pd.DataFrame) -> pd.Series:
         """Get appropriate scaling factor for amplitude vs phase columns.
 
         Returns:
@@ -427,7 +412,7 @@ class BootstrapPlotter(BasePWAPlotter):
                 ones.
         """
         if any(column in sublist for sublist in self.coherent_sums.values()):
-            if is_acceptance_corrected:
+            if self.is_acceptance_corrected:
                 return fit_data["generated_events"]
             else:
                 return fit_data["detected_events"]
