@@ -25,6 +25,13 @@ class ResultManager:
     ) -> None:
         """Initialize the ResultManager.
 
+        This class is the main interface for managing and analyzing fit results. At its
+        core, a fit result consists of a fit to data, collected in the `fit_df` and
+        `data_df` DataFrames. Additional DataFrames can be provided to include
+        randomized fits, bootstrap fits, projected moments, and ground truth values.
+        The class provides preprocessing methods to clean and standardize the
+        DataFrames, and plotting methods to visualize the results.
+
         See :py:mod:`neutralb1.batch.convert_to_csv` for more details on how the
         DataFrames are constructed.
 
