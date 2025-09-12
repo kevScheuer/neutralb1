@@ -1,6 +1,9 @@
+import warnings
+
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
@@ -354,7 +357,8 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Error propagation for sqrt(A)/sqrt(B)
         ratio_err = ratio * np.sqrt(
-            0.25 * np.square(d_err / safe_d) + 0.25 * np.square(s_err / safe_s)
+            np.multiply(np.square(d_err / safe_d), 0.25)
+            + np.multiply(np.square(s_err / safe_s), 0.25)
         )
 
         return ratio, ratio_err
@@ -748,3 +752,104 @@ class DiagnosticPlotter(BasePWAPlotter):
                 color="blue",
                 alpha=0.8,
             )
+
+    def compare_results(
+        self, fit1: pd.Series, fit2: pd.Series, columns: list, figsize=(15, 6)
+    ) -> matplotlib.axes.Axes:
+        """Compare two fit results by plotting the weighted residuals between them.
+
+        The weighted residual is defined as (fit1 - fit2) / sqrt(err1^2 + err2^2).
+        The plot also provides an averaged sum of the squared weighted residuals across
+        the columns. This is similar to a chi2 / ndf, but important to distinguish as
+        we don't know the number of degrees of freedom here, and so it cannot be
+        strictly interpreted as such.
+
+        Args:
+            fit1_df (pd.Series): Series containing the first fit results.
+            fit2_df (pd.Series): Series containing the second fit results.
+            columns (list): List of column names to compare between the two fits.
+            figsize (tuple): Figure size in inches (width, height). Defaults to (15, 6).
+        """
+
+        # complain if columns are not in both dataframes
+        missing_cols = []
+        for col in columns:
+            if col not in fit1.index or col not in fit2.index:
+                missing_cols.append(col)
+        if missing_cols:
+            warnings.warn(
+                f"The following columns are missing in fit results, only those that exist"
+                f" in both will be compared: {missing_cols}",
+                UserWarning,
+            )
+            columns.remove(missing_cols)
+
+        weighted_residuals = []
+        for col in columns:
+            try:
+                val1, err1 = float(fit1[col]), float(fit1[f"{col}_err"])  # type: ignore
+                val2, err2 = float(fit2[col]), float(fit2[f"{col}_err"])  # type: ignore
+            except (ValueError, TypeError):
+                warnings.warn(
+                    f"Non-numeric data found in column {col}, skipping comparison.",
+                    UserWarning,
+                )
+                continue
+
+            # Avoid division by zero
+            total_err = np.sqrt(err1**2 + err2**2)
+            total_err = np.where(total_err == 0, np.finfo(float).eps, total_err)
+
+            if col in self.phase_differences:
+                # For phase differences, account for circular data
+                w_res = utils.circular_residual(val1, val2) / total_err
+            else:
+                w_res = (val1 - val2) / total_err
+
+            weighted_residuals.append(w_res)
+
+        avg_squared_weighted_residuals = np.mean(np.square(weighted_residuals))
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        ax.bar(x=columns, height=weighted_residuals, color="darkblue", width=0.8)
+
+        ax.set_xlabel("Fit Parameters")
+        ax.set_ylabel("Weighted Residuals")
+        ax.axhline(0, color="black", linestyle="-", linewidth=1.0)
+
+        # lines at +/- 3 to denote 3 sigma threshold
+        ax.axhline(3, color="red", linestyle="--", linewidth=1.0)
+        ax.axhline(-3, color="red", linestyle="--", linewidth=1.0)
+
+        # improve label readability
+        ax.set_xticks(range(len(columns)))
+        pretty_labels = []
+        for label in columns:
+            if (
+                any(label in sublist for sublist in self.coherent_sums.values())
+                or label in self.phase_differences
+            ):
+                pretty_labels.append(utils.convert_amp_name(label))
+            elif label.startswith("H"):
+                pretty_labels.append(utils.convert_moment_name(label))
+            else:
+                pretty_labels.append(label)
+
+        ax.set_xticklabels(
+            pretty_labels, rotation=45, ha="right", rotation_mode="anchor"
+        )
+
+        # put value of avg_squared_weighted_residuals in the corner
+        ax.text(
+            1.0,
+            0.9,
+            rf"$\frac{{1}}{{N}}\sum_i^N w^2_i = {avg_squared_weighted_residuals:.2f}$",
+            horizontalalignment="right",
+            fontsize=12,
+            transform=ax.transAxes,
+            bbox=dict(facecolor="white", alpha=0.8, edgecolor="none", pad=2),
+        )
+
+        plt.tight_layout()
+        return ax
