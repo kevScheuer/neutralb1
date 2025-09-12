@@ -23,6 +23,7 @@ class FactoryPlotter:
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
         randomized_df: Optional[pd.DataFrame] = None,
+        randomized_proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
         proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
@@ -32,6 +33,9 @@ class FactoryPlotter:
         self.fit_df = fit_df
         self.data_df = data_df
         self.randomized_df = randomized_df
+        self.randomized_proj_moments_df = randomized_proj_moments_df
+        self.proj_moments_df = proj_moments_df
+        self.bootstrap_proj_moments_df = bootstrap_proj_moments_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
 
@@ -53,7 +57,12 @@ class FactoryPlotter:
         )
 
     def randomized(self):
-        return RandomizedPlotter(self.fit_df, self.data_df, self.randomized_df)
+        return RandomizedPlotter(
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            randomized_df=self.randomized_df,
+            randomized_proj_moments_df=self.randomized_proj_moments_df,
+        )
 
     def bootstrap(self):
         return BootstrapPlotter(
