@@ -178,10 +178,16 @@ int main(int argc, char *argv[])
         // initialize the set of moments we can have from this file's waveset
         moments = initialize_moments(results);
 
-        if (!is_header_written)
+        if (!is_header_written) // write the header row if this is the first file
         {
-            // write the header row if this is the first file
+            // standard outputs
             csv_data << "file,";
+            csv_data << "eMatrixStatus,";
+            csv_data << "lastMinuitCommandStatus,";
+            csv_data << "likelihood,";
+            csv_data << "detected_events,detected_events_err,";
+            csv_data << "generated_events,generated_events_err,";
+
             for (auto it = moments.begin(); it != moments.end(); ++it)
             {
                 csv_data << (it->name()) << "_real," << (it->name()) << "_imag";
@@ -237,8 +243,16 @@ int main(int argc, char *argv[])
         }
 
         // ==== WRITE TO CSV ====
-        // write the file name as the first column
+
+        // write standard outputs first
         csv_data << file << ",";
+        csv_data << results.eMatrixStatus() << ",";
+        csv_data << results.lastMinuitCommandStatus() << ",";
+        csv_data << results.likelihood() << ",";
+        csv_data << results.intensity(false).first << ",";
+        csv_data << results.intensity(false).second << ",";
+        csv_data << results.intensity(true).first << ",";
+        csv_data << results.intensity(true).second << ",";
 
         for (auto it = moments.begin(); it != moments.end(); ++it)
         {
