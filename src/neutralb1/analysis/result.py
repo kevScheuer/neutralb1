@@ -5,6 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
+import neutralb1.utils as utils
 from neutralb1.analysis import preprocessing
 from neutralb1.analysis.plotting.factory_plotter import FactoryPlotter
 
@@ -95,6 +96,10 @@ class ResultManager:
                 f" not full and accurate:\n{"\n".join(bad_files)}",
                 UserWarning,
             )
+
+        self.coherent_sums = utils.get_coherent_sums(self.fit_df)
+        self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
+        self.phase_differences = utils.get_phase_differences(self.fit_df)
 
         self.plotter_factory = None  # initialize to None until plotter is called
 
