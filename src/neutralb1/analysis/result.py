@@ -16,10 +16,10 @@ class ResultManager:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
+        proj_moments_df: Optional[pd.DataFrame] = None,
         randomized_df: Optional[pd.DataFrame] = None,
         randomized_proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
-        proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
@@ -40,14 +40,14 @@ class ResultManager:
             fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically
                 the "best" fits of many randomized ones.
             data_df (pd.DataFrame): Contains the data used for the fit.
+            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
+                calculated from the fit results. Defaults to None.
             randomized_df (pd.DataFrame, optional): Contains all randomized fits
                 associated with each nominal fit result. Defaults to None.
             randomized_proj_moments_df (pd.DataFrame, optional): Contains the projected
                 moments calculated from the randomized fits. Defaults to None.
             bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
                 fit. Defaults to None.
-            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
-                calculated from the fit results. Defaults to None.
             bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
                 moments calculated from the bootstrap fits. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for the
@@ -62,6 +62,9 @@ class ResultManager:
         # create local copies of the DataFrames to avoid modifying the originals
         self.fit_df = fit_df.copy()
         self.data_df = data_df.copy()
+        self.proj_moments_df = (
+            proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
+        )
         self.randomized_df = (
             randomized_df.copy() if randomized_df is not None else pd.DataFrame()
         )
@@ -72,9 +75,6 @@ class ResultManager:
         )
         self.bootstrap_df = (
             bootstrap_df.copy() if bootstrap_df is not None else pd.DataFrame()
-        )
-        self.proj_moments_df = (
-            proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
         )
         self.bootstrap_proj_moments_df = (
             bootstrap_proj_moments_df.copy()

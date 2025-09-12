@@ -12,10 +12,10 @@ class BasePWAPlotter:
         self,
         fit_df: pd.DataFrame,
         data_df: pd.DataFrame,
+        proj_moments_df: Optional[pd.DataFrame] = None,
         randomized_df: Optional[pd.DataFrame] = None,
         randomized_proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_df: Optional[pd.DataFrame] = None,
-        proj_moments_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         channel: Optional[str] = r"$\omega\pi^0$",
@@ -25,14 +25,14 @@ class BasePWAPlotter:
         Args:
             fit_df (pd.DataFrame): Nominal fit results DataFrame.
             data_df (pd.DataFrame): Contains the data used for the fit.
+            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
+                results for each nominal fit. Defaults to None.
             randomized_df (pd.DataFrame, optional): Randomized results for each
                 nominal fit. Defaults to None.
             randomized_proj_moments_df (pd.DataFrame, optional): Contains the
                 projected moments results for each randomized fit. Defaults to None.
             bootstrap_df (pd.DataFrame, optional): Bootstrap results for each nominal
                 fit. Defaults to None.
-            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
-                results for each nominal fit. Defaults to None.
             bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
                 moments results for each bootstrap fit. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for
