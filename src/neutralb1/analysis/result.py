@@ -367,9 +367,10 @@ class ResultManager:
             self.plotter_factory = FactoryPlotter(
                 fit_df=self.fit_df,
                 data_df=self.data_df,
-                randomized_df=self.randomized_df,
-                bootstrap_df=self.bootstrap_df,
                 proj_moments_df=self.proj_moments_df,
+                randomized_df=self.randomized_df,
+                randomized_proj_moments_df=self.randomized_proj_moments_df,
+                bootstrap_df=self.bootstrap_df,
                 bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
                 truth_df=self.truth_df,
             )
