@@ -63,29 +63,23 @@ class ResultManager:
         self.fit_df = fit_df.copy()
         self.data_df = data_df.copy()
         self.proj_moments_df = (
-            proj_moments_df.copy() if proj_moments_df is not None else pd.DataFrame()
+            proj_moments_df.copy() if proj_moments_df is not None else None
         )
-        self.randomized_df = (
-            randomized_df.copy() if randomized_df is not None else pd.DataFrame()
-        )
+        self.randomized_df = randomized_df.copy() if randomized_df is not None else None
         self.randomized_proj_moments_df = (
             randomized_proj_moments_df.copy()
             if randomized_proj_moments_df is not None
-            else pd.DataFrame()
+            else None
         )
-        self.bootstrap_df = (
-            bootstrap_df.copy() if bootstrap_df is not None else pd.DataFrame()
-        )
+        self.bootstrap_df = bootstrap_df.copy() if bootstrap_df is not None else None
         self.bootstrap_proj_moments_df = (
             bootstrap_proj_moments_df.copy()
             if bootstrap_proj_moments_df is not None
-            else pd.DataFrame()
+            else None
         )
-        self.truth_df = truth_df.copy() if truth_df is not None else pd.DataFrame()
+        self.truth_df = truth_df.copy() if truth_df is not None else None
         self.truth_proj_moments_df = (
-            truth_proj_moments_df.copy()
-            if truth_proj_moments_df is not None
-            else pd.DataFrame()
+            truth_proj_moments_df.copy() if truth_proj_moments_df is not None else None
         )
 
         # warn user of any bad error matrices
@@ -143,7 +137,7 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.randomized_df.empty and preprocessing.find_null_columns(
+        if self.randomized_df is not None and preprocessing.find_null_columns(
             self.randomized_df
         ):
             warnings.warn(
@@ -154,7 +148,7 @@ class ResultManager:
             )
 
         if (
-            not self.randomized_proj_moments_df.empty
+            self.randomized_proj_moments_df is not None
             and preprocessing.find_null_columns(self.randomized_proj_moments_df)
         ):
             warnings.warn(
@@ -166,7 +160,7 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.bootstrap_df.empty and preprocessing.find_null_columns(
+        if self.bootstrap_df is not None and preprocessing.find_null_columns(
             self.bootstrap_df
         ):
             warnings.warn(
@@ -176,7 +170,7 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.proj_moments_df.empty and preprocessing.find_null_columns(
+        if self.proj_moments_df is not None and preprocessing.find_null_columns(
             self.proj_moments_df
         ):
             warnings.warn(
@@ -187,7 +181,7 @@ class ResultManager:
             )
 
         if (
-            not self.bootstrap_proj_moments_df.empty
+            self.bootstrap_proj_moments_df is not None
             and preprocessing.find_null_columns(self.bootstrap_proj_moments_df)
         ):
             warnings.warn(
@@ -199,7 +193,7 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.truth_df.empty and preprocessing.find_null_columns(self.truth_df):
+        if self.truth_df is not None and preprocessing.find_null_columns(self.truth_df):
             warnings.warn(
                 "The truth DataFrame contains null values. Consider checking the "
                 "following columns: "
@@ -207,7 +201,7 @@ class ResultManager:
                 UserWarning,
             )
 
-        if not self.truth_proj_moments_df.empty and preprocessing.find_null_columns(
+        if self.truth_proj_moments_df is not None and preprocessing.find_null_columns(
             self.truth_proj_moments_df
         ):
             warnings.warn(
@@ -223,31 +217,31 @@ class ResultManager:
         self.data_df = preprocessing.link_dataframes(
             self.fit_df, self.data_df, linker_max_depth
         )
-        if not self.randomized_df.empty:
+        if self.randomized_df is not None:
             self.randomized_df = preprocessing.link_dataframes(
                 self.fit_df, self.randomized_df, linker_max_depth
             )
-        if not self.randomized_proj_moments_df.empty:
+        if self.randomized_proj_moments_df is not None:
             self.randomized_proj_moments_df = preprocessing.link_dataframes(
                 self.fit_df, self.randomized_proj_moments_df, linker_max_depth
             )
-        if not self.bootstrap_df.empty:
+        if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.link_dataframes(
                 self.fit_df, self.bootstrap_df, linker_max_depth
             )
-        if not self.proj_moments_df.empty:
+        if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.link_dataframes(
                 self.fit_df, self.proj_moments_df, linker_max_depth
             )
-        if not self.bootstrap_proj_moments_df.empty:
+        if self.bootstrap_proj_moments_df is not None:
             self.bootstrap_proj_moments_df = preprocessing.link_dataframes(
                 self.fit_df, self.bootstrap_proj_moments_df, linker_max_depth
             )
-        if not self.truth_df.empty:
+        if self.truth_df is not None:
             self.truth_df = preprocessing.link_dataframes(
                 self.fit_df, self.truth_df, linker_max_depth
             )
-        if not self.truth_proj_moments_df.empty:
+        if self.truth_proj_moments_df is not None:
             self.truth_proj_moments_df = preprocessing.link_dataframes(
                 self.fit_df, self.truth_proj_moments_df, linker_max_depth
             )
@@ -255,45 +249,45 @@ class ResultManager:
         # convert unbound phase columns in radians to degrees from -180 to 180
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
         self.data_df = preprocessing.wrap_phases(self.data_df)
-        if not self.randomized_df.empty:
+        if self.randomized_df is not None:
             self.randomized_df = preprocessing.wrap_phases(self.randomized_df)
-        if not self.bootstrap_df.empty:
+        if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.wrap_phases(self.bootstrap_df)
-        if not self.truth_df.empty:
+        if self.truth_df is not None:
             self.truth_df = preprocessing.wrap_phases(self.truth_df)
 
         # Remove projected moment columns expected to be 0
-        if not self.proj_moments_df.empty:
+        if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.filter_projected_moments(
                 self.proj_moments_df
             )
-        if not self.randomized_proj_moments_df.empty:
+        if self.randomized_proj_moments_df is not None:
             self.randomized_proj_moments_df = preprocessing.filter_projected_moments(
                 self.randomized_proj_moments_df
             )
-        if not self.bootstrap_proj_moments_df.empty:
+        if self.bootstrap_proj_moments_df is not None:
             self.bootstrap_proj_moments_df = preprocessing.filter_projected_moments(
                 self.bootstrap_proj_moments_df
             )
-        if not self.truth_proj_moments_df.empty:
+        if self.truth_proj_moments_df is not None:
             self.truth_proj_moments_df = preprocessing.filter_projected_moments(
                 self.truth_proj_moments_df
             )
 
         # remove real/imaginary suffixes from projected moment columns
-        if not self.proj_moments_df.empty:
+        if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.proj_moments_df
             )
-        if not self.randomized_proj_moments_df.empty:
+        if self.randomized_proj_moments_df is not None:
             self.randomized_proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.randomized_proj_moments_df
             )
-        if not self.bootstrap_proj_moments_df.empty:
+        if self.bootstrap_proj_moments_df is not None:
             self.bootstrap_proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.bootstrap_proj_moments_df
             )
-        if not self.truth_proj_moments_df.empty:
+        if self.truth_proj_moments_df is not None:
             self.truth_proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.truth_proj_moments_df
             )
@@ -301,31 +295,31 @@ class ResultManager:
         # standardize types across DataFrames to save memory
         self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
         self.data_df = preprocessing.standardize_data_types(self.data_df)
-        if not self.randomized_df.empty:
+        if self.randomized_df is not None:
             self.randomized_df = preprocessing.standardize_fit_types(self.randomized_df)
-        if not self.randomized_proj_moments_df.empty:
+        if self.randomized_proj_moments_df is not None:
             self.randomized_proj_moments_df = preprocessing.standardize_moment_types(
                 self.randomized_proj_moments_df
             )
-        if not self.bootstrap_df.empty:
+        if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.standardize_fit_types(self.bootstrap_df)
-        if not self.proj_moments_df.empty:
+        if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.standardize_moment_types(
                 self.proj_moments_df
             )
-        if not self.bootstrap_proj_moments_df.empty:
+        if self.bootstrap_proj_moments_df is not None:
             self.bootstrap_proj_moments_df = preprocessing.standardize_moment_types(
                 self.bootstrap_proj_moments_df
             )
-        if not self.truth_df.empty:
+        if self.truth_df is not None:
             self.truth_df = preprocessing.standardize_fit_types(self.truth_df)
-        if not self.truth_proj_moments_df.empty:
+        if self.truth_proj_moments_df is not None:
             self.truth_proj_moments_df = preprocessing.standardize_moment_types(
                 self.truth_proj_moments_df
             )
 
         # align phase difference names across DataFrames
-        if not self.randomized_df.empty:
+        if self.randomized_df is not None:
             self.randomized_df = preprocessing.align_phase_difference_names(
                 self.fit_df, self.randomized_df
             )
@@ -340,7 +334,7 @@ class ResultManager:
 
         # add missing columns to the truth DataFrame. Useful for waveset comparisons
         # where the fit DataFrame has a different set of columns than the truth
-        if not self.truth_df.empty:
+        if self.truth_df is not None:
             self.truth_df = preprocessing.add_missing_columns(
                 self.fit_df, self.truth_df
             )
@@ -348,7 +342,7 @@ class ResultManager:
         # truth fits always include a Breit-Wigner in the amplitude, so we need to
         # reset the phases in the truth DataFrame, as AmpTools does not include
         # this modulation in its phaseDiff method
-        if not self.truth_df.empty:
+        if self.truth_df is not None:
             # make sure that the list of mass bins is in the same order as the truth_df
             # by checking the fit_index column
             mass_bins = self.data_df.set_index("fit_index").loc[
