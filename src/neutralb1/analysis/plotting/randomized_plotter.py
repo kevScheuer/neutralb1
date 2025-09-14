@@ -48,17 +48,13 @@ class RandomizedPlotter(BasePWAPlotter):
         else:
             bootstrap_proj_moments_df = None
 
-        likelihoods = rand_df["likelihood"]
-        best_likelihood = best_series["likelihood"]
-        delta_lnL = [ll - best_likelihood for ll in likelihoods]
-
+        # DETERMINE COLUMNS TO USE
         # use all coherent sums and phase differences above threshold if not given
         if fit_columns is None:
             fit_columns = self._find_significant_columns(
                 best_series,
                 contribution_threshold,
             )
-
         # use all moments above threshold if not given
         if (
             moment_columns is None
@@ -75,10 +71,10 @@ class RandomizedPlotter(BasePWAPlotter):
                 "moment_columns provided but dataframe of projected moments from"
                 " randomized fits is None."
             )
-
         if not fit_columns:
             raise ValueError("No significant fit columns found above the threshold.")
 
+        # CALCULATE THE WEIGHTED RESIDUALS
         fit_avg_squared_weighted_residuals = self._average_squared_weighted_residual(
             best_series=best_series,
             rand_df=rand_df,
@@ -99,6 +95,10 @@ class RandomizedPlotter(BasePWAPlotter):
             )
         else:
             moment_avg_squared_weighted_residuals = None
+
+        likelihoods = rand_df["likelihood"]
+        best_likelihood = best_series["likelihood"]
+        delta_lnL = [ll - best_likelihood for ll in likelihoods]
 
         # Create plot based on whether moment residuals are available
         if moment_avg_squared_weighted_residuals is not None:
