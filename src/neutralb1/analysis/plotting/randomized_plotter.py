@@ -5,6 +5,7 @@ import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.stats
 
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
@@ -16,7 +17,8 @@ class RandomizedPlotter(BasePWAPlotter):
     def likelihood_comparison(
         self,
         fit_index: int,
-        contribution_threshold=0.01,
+        pwa_threshold=0.1,
+        moment_threshold=0.01,
         fit_columns=None,
         moment_columns=None,
     ) -> matplotlib.axes.Axes:
@@ -26,6 +28,13 @@ class RandomizedPlotter(BasePWAPlotter):
         # extract best fits and corresponding randomized fits for the requested index
         best_series = self._assert_series(self.fit_df.loc[fit_index])
         rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+
+        if self.bootstrap_df is not None:
+            bootstrap_df = self.bootstrap_df.loc[
+                self.bootstrap_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_df = None
 
         if self.proj_moments_df is not None:
             proj_moments_series = self._assert_series(
@@ -53,7 +62,7 @@ class RandomizedPlotter(BasePWAPlotter):
         if fit_columns is None:
             fit_columns = self._find_significant_columns(
                 best_series,
-                contribution_threshold,
+                pwa_threshold,
             )
         # use all moments above threshold if not given
         if (
@@ -63,7 +72,7 @@ class RandomizedPlotter(BasePWAPlotter):
         ):
             moment_columns = self._find_significant_columns(
                 proj_moments_series,
-                contribution_threshold,
+                moment_threshold,
             )
 
         elif moment_columns is not None and rand_proj_moments_df is None:
@@ -79,6 +88,7 @@ class RandomizedPlotter(BasePWAPlotter):
             best_series=best_series,
             rand_df=rand_df,
             columns=fit_columns,
+            bootstrap_df=bootstrap_df,
         )
         if (
             proj_moments_series is not None
@@ -223,7 +233,21 @@ class RandomizedPlotter(BasePWAPlotter):
             if phase_columns:
                 rand_values = rand_series[phase_columns].to_numpy()
                 best_values = best_series[phase_columns].to_numpy()
-                err_values = best_series[phase_err_columns].to_numpy()
+                if bootstrap_df is None:
+                    err_values = best_series[phase_err_columns].to_numpy()
+                else:
+                    err_values = np.array(
+                        [
+                            np.rad2deg(
+                                scipy.stats.circstd(
+                                    np.deg2rad(bootstrap_df[col]),
+                                    low=-np.pi,  # type: ignore
+                                    high=np.pi,
+                                )
+                            )
+                            for col in phase_columns
+                        ]
+                    )
                 mask = np.abs(err_values) < 1e-10
                 if mask.any():
                     warnings.warn(
@@ -234,6 +258,11 @@ class RandomizedPlotter(BasePWAPlotter):
                         }. "
                         "This will result in NaN weighted residuals that are ignored.",
                         UserWarning,
+                    )
+
+                for i, phase in enumerate(phase_columns):
+                    print(
+                        f"{phase}: {rand_values[i]:.2f} - {best_values[i]:.2f} / {err_values[i]:.2f} = { utils.circular_residual(rand_values[i], best_values[i]) / err_values[i]:.2f}"
                     )
                 phase_weighted_residuals = (
                     vectorized_circular_residual(
