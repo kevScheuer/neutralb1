@@ -260,10 +260,6 @@ class RandomizedPlotter(BasePWAPlotter):
                         UserWarning,
                     )
 
-                for i, phase in enumerate(phase_columns):
-                    print(
-                        f"{phase}: {rand_values[i]:.2f} - {best_values[i]:.2f} / {err_values[i]:.2f} = { utils.circular_residual(rand_values[i], best_values[i]) / err_values[i]:.2f}"
-                    )
                 phase_weighted_residuals = (
                     vectorized_circular_residual(
                         rand_values,
@@ -277,26 +273,24 @@ class RandomizedPlotter(BasePWAPlotter):
                 phase_weighted_residuals = np.array([])
 
             # moments currently require bootstrap uncertainties, so handled separately
-            if moment_columns and bootstrap_df is None:
-                if not hasattr(self, "_moment_residuals_warned"):
-                    warnings.warn(
-                        "Attempting to compute moment residuals without bootstrap"
-                        " uncertainties, so no errors are available. Weighting will be done"
-                        " with err=1.0.",
-                        UserWarning,
+            if moment_columns:
+                rand_values = rand_series[moment_columns].to_numpy()
+                best_values = best_series[moment_columns].to_numpy()
+
+                if bootstrap_df is None:
+                    if not hasattr(self, "_moment_residuals_warned"):
+                        warnings.warn(
+                            "Attempting to compute moment residuals without bootstrap"
+                            " uncertainties, so no errors are available. Weighting will be done"
+                            " with err=1.0.",
+                            UserWarning,
+                        )
+                        self._moment_residuals_warned = True
+                    err_values = np.ones_like(best_values)
+                else:
+                    err_values = np.array(
+                        [bootstrap_df[col].std() for col in moment_columns]
                     )
-                    self._moment_residuals_warned = True
-
-                rand_values = rand_series[moment_columns].to_numpy()
-                best_values = best_series[moment_columns].to_numpy()
-                moment_weighted_residuals = (rand_values - best_values) / 1.0
-            elif moment_columns and bootstrap_df is not None:
-                rand_values = rand_series[moment_columns].to_numpy()
-                best_values = best_series[moment_columns].to_numpy()
-                err_values = np.array(
-                    [bootstrap_df[col].std() for col in moment_columns]
-                )
-
                 moment_weighted_residuals = (rand_values - best_values) / err_values
             else:
                 moment_weighted_residuals = np.array([])
@@ -305,7 +299,12 @@ class RandomizedPlotter(BasePWAPlotter):
             if other_columns:
                 rand_values = rand_series[other_columns].to_numpy()
                 best_values = best_series[other_columns].to_numpy()
-                err_values = best_series[other_err_columns].to_numpy()
+                if bootstrap_df is None:
+                    err_values = best_series[other_err_columns].to_numpy()
+                else:
+                    err_values = np.array(
+                        [bootstrap_df[col].std() for col in other_err_columns]
+                    )
 
                 # Check for division by zero or very small errors
                 mask = np.abs(err_values) < 1e-10
