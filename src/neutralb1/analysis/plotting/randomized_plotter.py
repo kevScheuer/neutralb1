@@ -23,36 +23,14 @@ class RandomizedPlotter(BasePWAPlotter):
 
         assert self.randomized_df is not None, "randomized_df must be provided"
 
-        # TODO: move this dataframe selection to private method
-        # self._select_dataframes(fit_index)
-
         # extract best fits and corresponding randomized fits for the requested index
-        best_series = self.fit_df.loc[fit_index].squeeze()
-        if isinstance(best_series, pd.DataFrame) and len(best_series) != 1:
-            raise ValueError(
-                f"fit_df.loc[{fit_index}] returned {len(best_series)} rows, expected"
-                " exactly one row."
-            )
-        assert isinstance(best_series, pd.Series), "best_series must be a Series"
-
+        best_series = self._assert_series(self.fit_df.loc[fit_index])
         rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
 
         if self.proj_moments_df is not None:
-            proj_moments_series = self.proj_moments_df.loc[
-                self.proj_moments_df["fit_index"] == fit_index
-            ].squeeze()
-            if (
-                isinstance(proj_moments_series, pd.DataFrame)
-                and len(proj_moments_series) != 1
-            ):
-                raise ValueError(
-                    f"proj_moments_df.loc[{fit_index}] returned"
-                    f" {len(proj_moments_series)}"
-                    " rows, expected exactly one row."
-                )
-            assert isinstance(
-                proj_moments_series, pd.Series
-            ), "proj_moments_series must be a Series"
+            proj_moments_series = self._assert_series(
+                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
+            )
         else:
             proj_moments_series = None
 
@@ -161,6 +139,14 @@ class RandomizedPlotter(BasePWAPlotter):
         plt.tight_layout()
 
         return ax
+
+    def _assert_series(self, df: pd.DataFrame | pd.Series) -> pd.Series:
+        """Asserts that the dataframe has exactly one row and returns it as a Series."""
+        if isinstance(df, pd.DataFrame) and len(df) != 1:
+            raise ValueError(f"DataFrame has {len(df)} rows, expected exactly one row.")
+        series = df.squeeze()
+        assert isinstance(series, pd.Series), "Result must be a Series"
+        return series
 
     def _find_significant_columns(
         self, series: pd.Series, threshold: float
