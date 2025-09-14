@@ -18,6 +18,7 @@ class BasePWAPlotter:
         bootstrap_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
+        truth_proj_moments_df: Optional[pd.DataFrame] = None,
         channel: Optional[str] = r"$\omega\pi^0$",
     ) -> None:
         """Initialize base plotter with common data and utilities.
@@ -37,6 +38,8 @@ class BasePWAPlotter:
                 moments results for each bootstrap fit. Defaults to None.
             truth_df (pd.DataFrame, optional): Contains the ground truth values for
                 the fit. Defaults to None.
+            truth_proj_moments_df (pd.DataFrame, optional): Contains the ground truth
+                projected moments values for the fit. Defaults to None.
             channel (str, optional): The channel label to be used in plot axes. Defaults
                 to r"$\\omega\\pi^0$".
         """
@@ -50,6 +53,7 @@ class BasePWAPlotter:
         self.proj_moments_df = proj_moments_df
         self.bootstrap_proj_moments_df = bootstrap_proj_moments_df
         self.truth_df = truth_df
+        self.truth_proj_moments_df = truth_proj_moments_df
         self.channel = channel
 
         # Common properties

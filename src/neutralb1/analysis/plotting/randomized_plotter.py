@@ -13,25 +13,6 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 class RandomizedPlotter(BasePWAPlotter):
     """Handles plots that rely on randomized parameter fitting"""
 
-    def __init__(
-        self,
-        fit_df: pd.DataFrame,
-        data_df: pd.DataFrame,
-        proj_moments_df: Optional[pd.DataFrame] = None,
-        randomized_df: Optional[pd.DataFrame] = None,
-        randomized_proj_moments_df: Optional[pd.DataFrame] = None,
-    ) -> None:
-        """Ensure random DataFrame is not None and initialize the plotter."""
-        super().__init__(
-            fit_df=fit_df,
-            data_df=data_df,
-            proj_moments_df=proj_moments_df,
-            randomized_df=randomized_df,
-            randomized_proj_moments_df=randomized_proj_moments_df,
-        )
-        if self.randomized_df is None:
-            raise ValueError("RandomPlotter requires a non-None randomized_df.")
-
     def likelihood_comparison(
         self,
         fit_index: int,
@@ -41,6 +22,9 @@ class RandomizedPlotter(BasePWAPlotter):
     ) -> matplotlib.axes.Axes:
 
         assert self.randomized_df is not None, "randomized_df must be provided"
+
+        # TODO: move this dataframe selection to private method
+        # self._select_dataframes(fit_index)
 
         # extract best fits and corresponding randomized fits for the requested index
         best_series = self.fit_df.loc[fit_index].squeeze()
@@ -78,6 +62,13 @@ class RandomizedPlotter(BasePWAPlotter):
             ]
         else:
             rand_proj_moments_df = None
+
+        if self.bootstrap_proj_moments_df is not None:
+            bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
+                self.bootstrap_proj_moments_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_proj_moments_df = None
 
         likelihoods = rand_df["likelihood"]
         best_likelihood = best_series["likelihood"]
@@ -125,6 +116,7 @@ class RandomizedPlotter(BasePWAPlotter):
                     best_series=proj_moments_series,
                     rand_df=rand_proj_moments_df,
                     columns=moment_columns,
+                    bootstrap_df=bootstrap_proj_moments_df,
                 )
             )
         else:
@@ -284,11 +276,13 @@ class RandomizedPlotter(BasePWAPlotter):
                 best_values = best_series[moment_columns].to_numpy()
                 moment_weighted_residuals = (rand_values - best_values) / 1.0
             elif moment_columns and bootstrap_df is not None:
-                # TODO: implement moment residuals with bootstrap uncertainties
                 rand_values = rand_series[moment_columns].to_numpy()
                 best_values = best_series[moment_columns].to_numpy()
-                moment_weighted_residuals = (rand_values - best_values) / 1.0
-                pass
+                err_values = np.array(
+                    [bootstrap_df[col].std() for col in moment_columns]
+                )
+
+                moment_weighted_residuals = (rand_values - best_values) / err_values
             else:
                 moment_weighted_residuals = np.array([])
 

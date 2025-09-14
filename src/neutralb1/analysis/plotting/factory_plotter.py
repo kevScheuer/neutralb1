@@ -28,6 +28,7 @@ class FactoryPlotter:
         bootstrap_df: Optional[pd.DataFrame] = None,
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
+        truth_proj_moments_df: Optional[pd.DataFrame] = None,
     ) -> None:
         """Initialize the factory with common data and utilities."""
         self.fit_df = fit_df
@@ -38,6 +39,7 @@ class FactoryPlotter:
         self.bootstrap_proj_moments_df = bootstrap_proj_moments_df
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
+        self.truth_proj_moments_df = truth_proj_moments_df
 
         # Set the matplotlib style for consistent plotting
         WORKSPACE_DIR = utils.get_workspace_dir()
@@ -45,15 +47,41 @@ class FactoryPlotter:
 
     def intensity(self):
         return IntensityPlotter(
-            self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            proj_moments_df=self.proj_moments_df,
+            randomized_df=self.randomized_df,
+            randomized_proj_moments_df=self.randomized_proj_moments_df,
+            bootstrap_df=self.bootstrap_df,
+            bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
+            truth_df=self.truth_df,
+            truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
     def phase(self):
-        return PhasePlotter(self.fit_df, self.data_df, self.bootstrap_df, self.truth_df)
+        return PhasePlotter(
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            proj_moments_df=self.proj_moments_df,
+            randomized_df=self.randomized_df,
+            randomized_proj_moments_df=self.randomized_proj_moments_df,
+            bootstrap_df=self.bootstrap_df,
+            bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
+            truth_df=self.truth_df,
+            truth_proj_moments_df=self.truth_proj_moments_df,
+        )
 
     def diagnostic(self):
         return DiagnosticPlotter(
-            self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            proj_moments_df=self.proj_moments_df,
+            randomized_df=self.randomized_df,
+            randomized_proj_moments_df=self.randomized_proj_moments_df,
+            bootstrap_df=self.bootstrap_df,
+            bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
+            truth_df=self.truth_df,
+            truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
     def randomized(self):
@@ -63,9 +91,21 @@ class FactoryPlotter:
             proj_moments_df=self.proj_moments_df,
             randomized_df=self.randomized_df,
             randomized_proj_moments_df=self.randomized_proj_moments_df,
+            bootstrap_df=self.bootstrap_df,
+            bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
+            truth_df=self.truth_df,
+            truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
     def bootstrap(self):
         return BootstrapPlotter(
-            self.fit_df, self.data_df, self.bootstrap_df, self.truth_df
+            fit_df=self.fit_df,
+            data_df=self.data_df,
+            proj_moments_df=self.proj_moments_df,
+            randomized_df=self.randomized_df,
+            randomized_proj_moments_df=self.randomized_proj_moments_df,
+            bootstrap_df=self.bootstrap_df,
+            bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
+            truth_df=self.truth_df,
+            truth_proj_moments_df=self.truth_proj_moments_df,
         )

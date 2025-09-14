@@ -21,20 +21,6 @@ class BootstrapPlotter(BasePWAPlotter):
             selection criteria, not file names.
     """
 
-    def __init__(
-        self,
-        fit_df: pd.DataFrame,
-        data_df: pd.DataFrame,
-        bootstrap_df: Optional[pd.DataFrame] = None,
-        truth_df: Optional[pd.DataFrame] = None,
-    ) -> None:
-        """Ensure bootstrap DataFrame is not None and initialize the plotter."""
-        super().__init__(
-            fit_df=fit_df, data_df=data_df, bootstrap_df=bootstrap_df, truth_df=truth_df
-        )
-        if self.bootstrap_df is None:
-            raise ValueError("BootstrapPlotter requires a non-None bootstrap_df.")
-
     def correlation_matrix(
         self,
         columns: list[str],
@@ -70,7 +56,6 @@ class BootstrapPlotter(BasePWAPlotter):
             None: Saves plots to PDF file and prints confirmation.
         """
 
-        # Tell type checkers that self.bootstrap_df is not None
         assert self.bootstrap_df is not None
 
         # Check for missing columns
@@ -213,12 +198,7 @@ class BootstrapPlotter(BasePWAPlotter):
                 calculations.
         """
 
-        # Validate inputs
-        if self.bootstrap_df is None:
-            raise ValueError(
-                "Bootstrap DataFrame required for pairplot analysis. "
-                "Provide bootstrap_df during initialization."
-            )
+        assert self.bootstrap_df is not None
 
         if not fit_indices:
             raise ValueError("At least one fit index must be specified.")
@@ -609,8 +589,9 @@ class BootstrapPlotter(BasePWAPlotter):
         """
 
         # Validate bootstrap DataFrame
-        if self.bootstrap_df is None:
-            raise ValueError("Bootstrap DataFrame required for joyplot analysis.")
+        assert (
+            self.bootstrap_df is not None
+        ), "Bootstrap DataFrame required for joyplot analysis."
 
         # Validate columns
         missing_columns = []

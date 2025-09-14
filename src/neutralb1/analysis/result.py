@@ -367,5 +367,6 @@ class ResultManager:
                 bootstrap_df=self.bootstrap_df,
                 bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
                 truth_df=self.truth_df,
+                truth_proj_moments_df=self.truth_proj_moments_df,
             )
         return self.plotter_factory
