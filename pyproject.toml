@@ -11,10 +11,10 @@ dependencies = [
     "joypy>=0.2.6",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.3",
-    "numpy>=2.3.1",
+    "numpy>=2.3.3",
     "pandas>=2.3.1",
     "pyyaml>=6.0.0",
-    "scipy>=1.16.0",
+    "scipy>=1.16.2",
     "seaborn>=0.13.2",
     "Wand>=0.6.13",
 ]
