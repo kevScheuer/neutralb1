@@ -132,42 +132,39 @@ class RandomizedPlotter(BasePWAPlotter):
 
         # Create plot based on whether moment residuals are available
         if moment_avg_squared_weighted_residuals is not None:
-            # Create 3D plot when moment residuals are available
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection="3d")
+            # Create 2D plot when moment residuals are available
+            fig, ax = plt.subplots()
 
-            color1 = "tab:green"
-
-            ax.scatter(
-                fit_avg_squared_weighted_residuals,
+            # Use viridis colormap (colorblind friendly) with reversed order
+            # so that good values (close to 0) are yellow/bright
+            scatter = ax.scatter(
                 moment_avg_squared_weighted_residuals,
-                delta_lnL,
-                c=color1,
-                alpha=0.6,
-                label="PWA Fit vs Moments",
+                fit_avg_squared_weighted_residuals,
+                c=delta_lnL,
+                cmap="viridis_r",
+                alpha=0.7,
                 s=50,
             )
 
-            ax.set_xlabel("Distance from Best Result (Fit Residuals)")
-            ax.set_ylabel("Distance from Best Result (Moment Residuals)")
-            ax.set_zlabel(r"$\Delta(-2\ln(\mathcal{L}))$")
-            ax.legend(loc="upper right")
+            # Add colorbar
+            cbar = plt.colorbar(scatter, ax=ax)
+            cbar.set_label(r"$\Delta(-2\ln(\mathcal{L}))$")
+
+            ax.set_xlabel("Distance from Best Result (Moment Residuals)")
+            ax.set_ylabel("Distance from Best Result (Fit Residuals)")
         else:
             # Create 2D plot when only fit residuals are available
             fig, ax = plt.subplots()
 
-            color1 = "tab:green"
             ax.set_xlabel(r"$\Delta(-2\ln(\mathscr{L}))$")
-            ax.set_ylabel("Fit Avg Squared Error-Weighted Residuals", color=color1)
+            ax.set_ylabel("Fit Avg Squared Error-Weighted Residuals")
             ax.scatter(
                 delta_lnL,
                 fit_avg_squared_weighted_residuals,
-                color=color1,
+                color="black",
                 alpha=0.6,
                 label="PWA Fit",
             )
-            ax.tick_params(axis="y", labelcolor=color1)
-            ax.legend(loc="upper right")
 
         plt.tight_layout()
 
