@@ -646,8 +646,8 @@ class BootstrapPlotter(BasePWAPlotter):
                 col_label = self._get_pretty_label(pg.axes[-1, col].get_xlabel())
                 row_label = self._get_pretty_label(pg.axes[row, 0].get_ylabel())
 
-                pg.axes[pg.axes.shape[0] - 1, col].set_xlabel(col_label)
-                pg.axes[row, 0].set_ylabel(row_label)
+                pg.axes[pg.axes.shape[0] - 1, col].set_xlabel(col_label, loc="center")
+                pg.axes[row, 0].set_ylabel(row_label, loc="center")
 
     def _get_pretty_label(self, column: str) -> str:
         """Convert column name to pretty LaTeX formatting."""

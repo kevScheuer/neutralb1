@@ -11,3 +11,5 @@ ytick.minor.width : 1.8
 lines.markersize : 10
 grid.alpha : 0.8
 axes.grid : True
+xaxis.labellocation: right
+yaxis.labellocation: top
