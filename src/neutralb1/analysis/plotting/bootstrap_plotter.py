@@ -1,3 +1,4 @@
+import warnings
 from typing import Literal, Optional
 
 import joypy
@@ -96,7 +97,9 @@ class BootstrapPlotter(BasePWAPlotter):
                 ][columns]
 
                 if dir_data.empty:
-                    print(f"Warning: No data found for directory {directory}")
+                    warnings.warn(
+                        f"No data found for directory {directory}", UserWarning
+                    )
                     continue
 
                 # Calculate correlation matrix
@@ -196,12 +199,14 @@ class BootstrapPlotter(BasePWAPlotter):
             Amplitudes are automatically converted to fit fractions for visualization.
             Phase differences use circular statistics for standard deviation
                 calculations.
-
-        Todo:
-            - If column is a moment, use the moment data thats available
         """
 
         assert self.bootstrap_df is not None
+
+        # if we want moments, ensure we have that dataframe and flag it
+        if any([c.startswith("H") and c[1].isdigit() for c in columns]):
+            assert self.proj_moments_df is not None
+            assert self.bootstrap_proj_moments_df is not None
 
         if not fit_indices:
             raise ValueError("At least one fit index must be specified.")
@@ -210,19 +215,47 @@ class BootstrapPlotter(BasePWAPlotter):
             raise ValueError("At least one column must be specified for plotting.")
 
         # Validate columns exist
-        missing_columns = [
-            col for col in columns if col not in self.bootstrap_df.columns
-        ]
+        missing_columns = []
+        for col in columns:
+            if (
+                self.bootstrap_proj_moments_df is None
+                and col not in self.bootstrap_df.columns
+            ):
+                missing_columns.append(col)
+            elif (
+                self.bootstrap_proj_moments_df is not None
+                and col not in self.bootstrap_df.columns
+                and col not in self.bootstrap_proj_moments_df.columns
+            ):
+                missing_columns.append(col)
+
         if missing_columns:
             raise ValueError(
-                "The following columns are missing from bootstrap_df:"
+                "The following columns are missing from the bootstrap dataframes:"
                 f" {missing_columns}"
             )
 
+        # will be normalized to always be 1, and so breaks kde
+        if "H0_0000" in columns:
+            columns.remove("H0_0000")
+
         # Verify bootstrap samples exist for all requested fit indices
-        available_indices = set(self.bootstrap_df["fit_index"].unique())
-        missing_indices = [idx for idx in fit_indices if idx not in available_indices]
-        if missing_indices:
+        available_fit_indices = self.bootstrap_df["fit_index"].unique()
+        missing_fit_indices = [
+            idx for idx in fit_indices if idx not in available_fit_indices
+        ]
+        if self.bootstrap_proj_moments_df is not None:
+            available_moment_indices = self.bootstrap_proj_moments_df[
+                "fit_index"
+            ].unique()
+            missing_moment_indices = [
+                idx for idx in fit_indices if idx not in available_moment_indices
+            ]
+        else:
+            missing_moment_indices = []
+
+        missing_indices = set(missing_fit_indices) | set(missing_moment_indices)
+        if missing_fit_indices:
             raise IndexError(
                 f"No bootstrap samples found for fit indices: {missing_indices}"
             )
@@ -260,7 +293,6 @@ class BootstrapPlotter(BasePWAPlotter):
         self._add_pairplot_overlays(
             pg,
             data,
-            columns,
             palette,
             show_truth,
             show_uncertainty_bands,
@@ -268,7 +300,7 @@ class BootstrapPlotter(BasePWAPlotter):
         )
 
         # Update labels to prettier versions
-        self._update_pairplot_labels(pg, columns)
+        self._update_pairplot_labels(pg)
 
         # Get fit file names for title
         plt.tight_layout()
@@ -281,32 +313,69 @@ class BootstrapPlotter(BasePWAPlotter):
         fit_indices: list,
         show_truth: bool,
     ) -> dict:
-        """Prepare and normalize data for pairplot visualization."""
+        """Prepare and normalize data for pairplot visualization.
+
+        Many of the dataframes are type: ignore'd here because the main method has
+        already verified that they're not None if needed.
+        """
 
         total_intensity = (
             "generated_events" if self.is_acceptance_corrected else "detected_events"
         )
 
+        # separate the fit and moment columns
+        pwa_cols = []
+        moment_cols = []
+        for col in columns:
+            if col.startswith("H") and col[1].isdigit():
+                moment_cols.append(col)
+            else:
+                pwa_cols.append(col)
+
         # Extract relevant data using fit_indices directly
         fit_data = self.fit_df.loc[fit_indices][
-            columns + [f"{c}_err" for c in columns] + [total_intensity]
+            pwa_cols + [f"{c}_err" for c in pwa_cols] + [total_intensity]
         ].copy()
+        if moment_cols:
+            moment_data = self.proj_moments_df.loc[fit_indices][moment_cols + ["H0_0000"]].copy()  # type: ignore
+            fit_data = pd.concat([fit_data, moment_data], axis=1)
 
+        # Extract relevant bootstrap data
         bootstrap_data = self.bootstrap_df[  # type: ignore
             self.bootstrap_df["fit_index"].isin(fit_indices)  # type: ignore
-        ][columns + ["fit_index", total_intensity]].copy()
+        ][pwa_cols + ["fit_index", total_intensity]].copy()
 
+        if moment_cols:
+            moment_bootstrap = self.bootstrap_proj_moments_df[  # type: ignore
+                self.bootstrap_proj_moments_df["fit_index"].isin(fit_indices)  # type: ignore
+            ][moment_cols + ["H0_0000"]].copy()
+            bootstrap_data = pd.concat([bootstrap_data, moment_bootstrap], axis=1)
+
+        # Extract truth data if available
         truth_data = None
         if self.truth_df is not None and show_truth:
             truth_data = self.truth_df[self.truth_df.index.isin(fit_indices)][
-                columns + [total_intensity]
+                pwa_cols + [total_intensity]
             ].copy()
+        if self.truth_proj_moments_df is not None and show_truth and moment_cols:
+            truth_moments = self.truth_proj_moments_df[
+                self.truth_proj_moments_df.index.isin(fit_indices)
+            ][moment_cols + ["H0_0000"]].copy()
+            if truth_data is not None:
+                truth_data = pd.concat([truth_data, truth_moments], axis=1)
+            else:
+                truth_data = truth_moments
 
-        # Convert amplitudes to fit fractions
-        plot_data = bootstrap_data.copy().drop(columns=[total_intensity])
+        # drop the intensity from the plot data to prevent it from being plotted
+        columns_to_drop = [total_intensity]
+        columns_to_drop += ["H0_0000"] if moment_cols else []
+        plot_data = bootstrap_data.copy().drop(columns=columns_to_drop)
+        # Convert amplitudes or moments to fit fractions
         for col in columns:
             if any(col in sublist for sublist in self.coherent_sums.values()):
                 plot_data[col] = plot_data[col] / bootstrap_data[total_intensity]
+            if col in moment_cols:
+                plot_data[col] = plot_data[col] / bootstrap_data["H0_0000"]
 
         return {
             "fit_data": fit_data,
@@ -319,7 +388,6 @@ class BootstrapPlotter(BasePWAPlotter):
         self,
         pg: sns.PairGrid,
         data: dict,
-        columns: list,
         palette,
         show_truth: bool,
         show_uncertainty_bands: bool,
@@ -327,18 +395,18 @@ class BootstrapPlotter(BasePWAPlotter):
     ) -> None:
         """Add uncertainty bands, truth values, and correlation highlights."""
 
-        num_plots = len(columns)
         fit_data = data["fit_data"]
         truth_data = data["truth_data"]
         bootstrap_data = data["bootstrap_data"]
 
-        for row in range(num_plots):
-            for col in range(num_plots):
+        for row in range(pg.axes.shape[0]):
+            for col in range(pg.axes.shape[1]):
                 ax = pg.axes[row, col]
 
-                # Get column labels
-                col_label = columns[col]
-                row_label = columns[row]
+                # Get labels. There seems to be a bug where diagonal plots labels
+                # are empty, so we get them from the bottom row and first column instead
+                col_label = pg.axes[-1, col].get_xlabel()
+                row_label = pg.axes[row, 0].get_ylabel()
 
                 # Calculate scaling factors for fit fractions
                 x_scaling = self._get_scaling_factor(col_label, fit_data)
@@ -384,22 +452,27 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # Add statistical annotations on diagonal
                 if row == col:
-                    self._add_diagonal_annotations(
-                        ax, bootstrap_data, fit_data, col_label
-                    )
+                    if row_label.startswith("H") and row_label[1].isdigit():
+                        pass  # No minuit uncertainty for projected moments
+                    else:
+                        self._add_diagonal_annotations(
+                            ax, bootstrap_data, fit_data, col_label
+                        )
 
     def _get_scaling_factor(self, column: str, fit_data: pd.DataFrame) -> pd.Series:
-        """Get appropriate scaling factor for amplitude vs phase columns.
+        """Get appropriate scaling factor for amplitudes and moments.
 
         Returns:
-            pd.Series: # of events for coherent sums or amplitudes, otherwise
-                ones.
+            pd.Series: # of events for coherent sums or amplitudes, H0_0000 for moments,
+            otherwise ones.
         """
         if any(column in sublist for sublist in self.coherent_sums.values()):
             if self.is_acceptance_corrected:
                 return fit_data["generated_events"]
             else:
                 return fit_data["detected_events"]
+        elif column.startswith("H") and column[1].isdigit():
+            return fit_data["H0_0000"]
         return pd.Series(1.0, index=fit_data.index)
 
     def _add_uncertainty_bands(
@@ -413,23 +486,34 @@ class BootstrapPlotter(BasePWAPlotter):
         palette,
         is_diagonal: bool,
     ) -> None:
-        """Add MINUIT uncertainty bands to the plot."""
+        """Add MINUIT uncertainty bands to the plot.
+
+        Projected moments have no minuit uncertainty, so those are skipped here
+        """
 
         for idx, color in zip(fit_data.index, palette):
             # X-direction uncertainty band
-            x_center = fit_data.loc[idx, col_label] / x_scaling.loc[idx]
-            x_error = fit_data.loc[idx, f"{col_label}_err"] / x_scaling.loc[idx]
+            if col_label.startswith("H") and col_label[1].isdigit():
+                pass
+            else:
+                x_center = fit_data.loc[idx, col_label] / x_scaling.loc[idx]
+                x_error = fit_data.loc[idx, f"{col_label}_err"] / x_scaling.loc[idx]
 
-            ax.axvspan(x_center - x_error, x_center + x_error, color=color, alpha=0.2)
+                ax.axvspan(
+                    x_center - x_error, x_center + x_error, color=color, alpha=0.2
+                )
 
             # Y-direction uncertainty band (only for off-diagonal)
             if not is_diagonal:
-                y_center = fit_data.loc[idx, row_label] / y_scaling.loc[idx]
-                y_error = fit_data.loc[idx, f"{row_label}_err"] / y_scaling.loc[idx]
+                if row_label.startswith("H") and row_label[1].isdigit():
+                    pass
+                else:
+                    y_center = fit_data.loc[idx, row_label] / y_scaling.loc[idx]
+                    y_error = fit_data.loc[idx, f"{row_label}_err"] / y_scaling.loc[idx]
 
-                ax.axhspan(
-                    y_center - y_error, y_center + y_error, color=color, alpha=0.2
-                )
+                    ax.axhspan(
+                        y_center - y_error, y_center + y_error, color=color, alpha=0.2
+                    )
 
     def _add_truth_markers(
         self,
@@ -550,20 +634,20 @@ class BootstrapPlotter(BasePWAPlotter):
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7),
             )
 
-    def _update_pairplot_labels(self, pg, columns: list) -> None:
+    def _update_pairplot_labels(self, pg: sns.PairGrid) -> None:
         """Update axis labels to prettier LaTeX formatting."""
 
-        num_plots = len(columns)
-        for i, col in enumerate(columns):
-            # Update x-axis label (bottom row)
-            if hasattr(pg.axes[num_plots - 1, i], "xaxis"):
-                pretty_label = self._get_pretty_label(col)
-                pg.axes[num_plots - 1, i].set_xlabel(pretty_label)
+        for row in range(pg.axes.shape[0]):
+            for col in range(pg.axes.shape[1]):
+                ax = pg.axes[row, col]
 
-            # Update y-axis label (first column)
-            if hasattr(pg.axes[i, 0], "yaxis"):
-                pretty_label = self._get_pretty_label(col)
-                pg.axes[i, 0].set_ylabel(pretty_label)
+                # Get labels. There seems to be a bug where diagonal plots labels
+                # are empty, so we get them from the bottom row and first column instead
+                col_label = self._get_pretty_label(pg.axes[-1, col].get_xlabel())
+                row_label = self._get_pretty_label(pg.axes[row, 0].get_ylabel())
+
+                pg.axes[pg.axes.shape[0] - 1, col].set_xlabel(col_label)
+                pg.axes[row, 0].set_ylabel(row_label)
 
     def _get_pretty_label(self, column: str) -> str:
         """Convert column name to pretty LaTeX formatting."""
@@ -572,7 +656,10 @@ class BootstrapPlotter(BasePWAPlotter):
             or column in self.phase_differences
         ):
             return utils.convert_amp_name(column)
-        return column
+        elif column.startswith("H") and column[1].isdigit():
+            return utils.convert_moment_name(column)
+        else:
+            return column
 
     def joyplot(
         self,
