@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Optional
+from typing import List
 
 import matplotlib.axes
 import matplotlib.pyplot as plt
@@ -22,6 +22,34 @@ class RandomizedPlotter(BasePWAPlotter):
         fit_columns=None,
         moment_columns=None,
     ) -> matplotlib.axes.Axes:
+        """Plot likelihoods of randomized fits against their distance from the best fit.
+
+
+
+        Args:
+            fit_index (int): Index of the fit to compare against.
+            pwa_threshold (float, optional): Threshold for PWA fits. Amplitude fit
+                fractions must surpass this to be included. For a phase difference, the
+                average of the two amplitude fit fractions must surpass this.
+                Defaults to 0.1.
+            moment_threshold (float, optional): Threshold for moment fits. Moment values
+                must surpass this fraction of H0_0000 to be included. Defaults to 0.01.
+            fit_columns (list[str], optional): Columns to use from a PWA fit to
+                to calculate the distance from the best fit. If None, all coherent sums
+                and phase differences above the `pwa_threshold` are used. Defaults to
+                None.
+            moment_columns (list[str], optional): Columns to use from the projected
+                moments to calculate the distance from the best fit. If None, all
+                moments above the `moment_threshold` are used. Defaults to None.
+
+        Raises:
+            ValueError: If no significant columns are found.
+            ValueError: If `moment_columns` is provided but the dataframe of projected
+                moments from randomized fits is None.
+
+        Returns:
+            matplotlib.axes.Axes: The axes object containing the plot.
+        """
 
         assert self.randomized_df is not None, "randomized_df must be provided"
 
@@ -143,7 +171,6 @@ class RandomizedPlotter(BasePWAPlotter):
                 fit_avg_squared_weighted_residuals,
                 color="black",
                 alpha=0.6,
-                label="PWA Fit",
             )
 
         plt.tight_layout()
