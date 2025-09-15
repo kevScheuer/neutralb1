@@ -359,6 +359,7 @@ class BootstrapPlotter(BasePWAPlotter):
                     self._add_truth_markers(
                         ax,
                         truth_data,
+                        bootstrap_data,
                         col_label,
                         row_label,
                         x_scaling,
@@ -429,8 +430,9 @@ class BootstrapPlotter(BasePWAPlotter):
 
     def _add_truth_markers(
         self,
-        ax,
+        ax: matplotlib.axes.Axes,
         truth_data: pd.DataFrame,
+        bootstrap_data: pd.DataFrame,
         col_label: str,
         row_label: str,
         x_scaling: pd.Series,
@@ -443,6 +445,17 @@ class BootstrapPlotter(BasePWAPlotter):
         for idx, color in zip(truth_data.index, palette):
             x_truth = truth_data.loc[idx, col_label] / x_scaling.loc[idx]
 
+            # phases are sign ambiguous, so match the sign to the bootstrap mean
+            if col_label in self.phase_differences:
+                subset = np.deg2rad(
+                    bootstrap_data[bootstrap_data["fit_index"] == idx][col_label]
+                )
+                bootstrap_mean = np.rad2deg(
+                    scipy.stats.circmean(subset, low=-np.pi, high=np.pi)  # type: ignore
+                )
+                if np.sign(x_truth) != np.sign(bootstrap_mean):
+                    x_truth = -x_truth
+
             if is_diagonal:
                 # Vertical line for diagonal plots
                 ax.axvline(
@@ -451,6 +464,20 @@ class BootstrapPlotter(BasePWAPlotter):
             else:
                 # Scatter point for off-diagonal plots
                 y_truth = truth_data.loc[idx, row_label] / y_scaling.loc[idx]
+
+                # apply same sign correction for y if it's a phase
+                if row_label in self.phase_differences:
+                    subset = np.deg2rad(
+                        bootstrap_data[bootstrap_data["fit_index"] == idx][row_label]
+                    )
+                    bootstrap_mean = np.rad2deg(
+                        scipy.stats.circmean(
+                            subset, low=-np.pi, high=np.pi  # type: ignore
+                        )
+                    )
+                    if np.sign(y_truth) != np.sign(bootstrap_mean):
+                        y_truth = -y_truth
+
                 ax.scatter(
                     x_truth,
                     y_truth,
