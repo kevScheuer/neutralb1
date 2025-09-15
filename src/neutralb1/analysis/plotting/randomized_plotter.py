@@ -240,8 +240,8 @@ class RandomizedPlotter(BasePWAPlotter):
                         [
                             np.rad2deg(
                                 scipy.stats.circstd(
-                                    np.deg2rad(bootstrap_df[col]),
-                                    low=-np.pi,  # type: ignore
+                                    np.deg2rad(np.abs(bootstrap_df[col])),
+                                    low=0,  # type: ignore
                                     high=np.pi,
                                 )
                             )
@@ -262,8 +262,8 @@ class RandomizedPlotter(BasePWAPlotter):
 
                 phase_weighted_residuals = (
                     vectorized_circular_residual(
-                        rand_values,
-                        best_values,
+                        np.abs(rand_values),
+                        np.abs(best_values),
                         in_degrees=True,
                     )
                     / err_values
