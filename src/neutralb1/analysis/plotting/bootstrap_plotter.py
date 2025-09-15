@@ -501,9 +501,8 @@ class BootstrapPlotter(BasePWAPlotter):
                 # Use circular statistics for phase differences
                 if col_label in self.phase_differences:
                     radian_phases = np.deg2rad(subset)
-                    stdev = scipy.stats.circstd(
-                        radian_phases, low=-np.pi, high=np.pi  # type: ignore
-                    )
+                    radian_phases = np.abs(radian_phases)  # Correct for sign ambiguity
+                    stdev = scipy.stats.circstd(radian_phases, low=0, high=np.pi)
                     stdev = np.rad2deg(stdev)
                 else:
                     stdev = subset.std()
