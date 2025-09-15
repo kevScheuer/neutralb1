@@ -253,7 +253,22 @@ class ResultManager:
             self.randomized_df = preprocessing.wrap_phases(self.randomized_df)
         if self.bootstrap_df is not None:
             self.bootstrap_df = preprocessing.wrap_phases(self.bootstrap_df)
+
+        # truth fits always include a Breit-Wigner in the amplitude, so we need to
+        # reset the phases in the truth DataFrame, as AmpTools does not include
+        # this modulation in its phaseDiff method
         if self.truth_df is not None:
+            # make sure that the list of mass bins is in the same order as the truth_df
+            # by checking the fit_index column
+            mass_bins = self.data_df.set_index("fit_index").loc[
+                self.truth_df["fit_index"], "m_avg"
+            ]
+
+            self.truth_df = preprocessing.restore_breit_wigner_phases(
+                self.truth_df, mass_bins
+            )
+
+            # wrap the phases after restoring the Breit-Wigner modulation
             self.truth_df = preprocessing.wrap_phases(self.truth_df)
 
         # Remove projected moment columns expected to be 0
@@ -337,20 +352,6 @@ class ResultManager:
         if self.truth_df is not None:
             self.truth_df = preprocessing.add_missing_columns(
                 self.fit_df, self.truth_df
-            )
-
-        # truth fits always include a Breit-Wigner in the amplitude, so we need to
-        # reset the phases in the truth DataFrame, as AmpTools does not include
-        # this modulation in its phaseDiff method
-        if self.truth_df is not None:
-            # make sure that the list of mass bins is in the same order as the truth_df
-            # by checking the fit_index column
-            mass_bins = self.data_df.set_index("fit_index").loc[
-                self.truth_df["fit_index"], "m_avg"
-            ]
-
-            self.truth_df = preprocessing.restore_breit_wigner_phases(
-                self.truth_df, mass_bins
             )
 
     @property
