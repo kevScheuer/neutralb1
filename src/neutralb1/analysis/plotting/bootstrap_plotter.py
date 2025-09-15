@@ -196,6 +196,9 @@ class BootstrapPlotter(BasePWAPlotter):
             Amplitudes are automatically converted to fit fractions for visualization.
             Phase differences use circular statistics for standard deviation
                 calculations.
+
+        Todo:
+            - If column is a moment, use the moment data thats available
         """
 
         assert self.bootstrap_df is not None
