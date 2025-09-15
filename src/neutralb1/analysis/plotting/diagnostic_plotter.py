@@ -10,7 +10,11 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 
 
 class DiagnosticPlotter(BasePWAPlotter):
-    """Handles more complex diagnostic plots."""
+    """Handles more complex diagnostic plots.
+
+    Todo:
+        - Add shapiro test for bootstrap distributions, like in february study
+    """
 
     def ds_ratio(
         self, show_e852_reference: bool = True, figsize: tuple = (10, 8)
@@ -389,6 +393,10 @@ class DiagnosticPlotter(BasePWAPlotter):
         Note:
             This plot can become cramped for large models. Consider adjusting dpi
             or figsize, or using a subset of waves for better readability.
+
+        Todo:
+            - implement bootstrap errors if available. Copy (or extract in separate
+                method) phase difference handling from likelihood_comparison
         """
 
         # Validate that we have wave data to plot
