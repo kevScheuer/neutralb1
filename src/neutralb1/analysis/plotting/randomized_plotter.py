@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats
+from matplotlib.colors import Normalize
 
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
@@ -366,3 +367,54 @@ class RandomizedPlotter(BasePWAPlotter):
             avg_squared_weighted_residuals.append(mean_squared)
 
         return avg_squared_weighted_residuals
+
+    def likelihood_distribution(
+        self, fit_index: int, **hist_kwargs
+    ) -> matplotlib.axes.Axes:
+        """Plot the distribution of likelihoods from randomized fits.
+
+        Args:
+            fit_index (int): Index of the fit to compare against.
+        Returns:
+            matplotlib.axes.Axes: The axes object containing the plot.
+        """
+
+        assert self.randomized_df is not None, "randomized_df must be provided"
+
+        # extract best fits and corresponding randomized fits for the requested index
+        best_series = self._assert_series(self.fit_df.loc[fit_index])
+        rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+
+        likelihoods = rand_df["likelihood"]
+        best_likelihood = best_series["likelihood"]
+        delta_lnL = [ll - best_likelihood for ll in likelihoods]
+
+        fig, ax = plt.subplots()
+
+        # Compute histogram
+        counts, bins = np.histogram(delta_lnL, bins=30)
+        bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+        # Normalize delta_lnL for colormap
+        cmap = plt.get_cmap("viridis_r")
+        norm = Normalize(vmin=np.min(delta_lnL), vmax=np.max(delta_lnL))
+
+        # Draw each bar with its color
+        for i in range(len(counts)):
+            color = cmap(norm(bin_centers[i]))
+            ax.bar(
+                bin_centers[i],
+                counts[i],
+                width=(bins[1] - bins[0]),
+                align="center",
+                color=color,
+                edgecolor="black",
+                alpha=1.0,
+                **hist_kwargs,
+            )
+
+        ax.set_xlabel(r"$\Delta(-2\ln(\mathscr{L}))$")
+        ax.set_ylabel("Counts")
+
+        plt.tight_layout()
+        return ax
