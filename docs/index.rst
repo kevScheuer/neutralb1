@@ -18,4 +18,5 @@ thesis project, and so is a continuing work in progress.
    :caption: Contents:
 
    api
+   scripts
 

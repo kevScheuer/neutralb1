@@ -10,7 +10,6 @@
    :toctree:
    :recursive:
 
-   collect_csv
    physics
    preprocessing
    result

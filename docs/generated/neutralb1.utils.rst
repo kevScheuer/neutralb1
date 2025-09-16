@@ -9,6 +9,7 @@
    .. autosummary::
    
       char_to_int
+      circular_residual
       convert_amp_name
       convert_moment_name
       display

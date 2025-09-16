@@ -2,6 +2,7 @@ import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from uncertainties import ufloat, unumpy
 
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
@@ -51,9 +52,12 @@ class IntensityPlotter(BasePWAPlotter):
         )
 
         # Plot Fit Result as a grey histogram with its error bars
+        num_events_col = (
+            "generated_events" if self.is_acceptance_corrected else "detected_events"
+        )
         ax.bar(
             self._masses,
-            self.fit_df["detected_events"],
+            self.fit_df[num_events_col],
             width=self._bin_width,
             color="0.1",
             alpha=0.15,
@@ -61,8 +65,8 @@ class IntensityPlotter(BasePWAPlotter):
         )
         ax.errorbar(
             x=self._masses,
-            y=self.fit_df["detected_events"],
-            yerr=self.fit_df["detected_events_err"],
+            y=self.fit_df[num_events_col],
+            yerr=self.fit_df[f"{num_events_col}_err"],
             marker=",",
             markersize=0,
             color="0.1",
@@ -157,19 +161,22 @@ class IntensityPlotter(BasePWAPlotter):
         )
 
         # Prepare normalization data
+        num_events_col = (
+            "generated_events" if self.is_acceptance_corrected else "detected_events"
+        )
         if fractional:
-            total_intensity = self.fit_df["detected_events"]
-            total_intensity_err = self.fit_df["detected_events_err"]
+            total_intensity = self.fit_df[num_events_col]
+            total_intensity_err = self.fit_df[f"{num_events_col}_err"]
             truth_total = (
-                self.truth_df["detected_events"] if self.truth_df is not None else None
+                self.truth_df[num_events_col] if self.truth_df is not None else None
             )
         else:
             total_intensity = pd.Series(
-                np.ones_like(self.fit_df["detected_events"]),
+                np.ones_like(self.fit_df[num_events_col]),
                 index=self.fit_df.index,
             )
             total_intensity_err = pd.Series(
-                np.zeros_like(self.fit_df["detected_events_err"]),
+                np.zeros_like(self.fit_df[f"{num_events_col}_err"]),
                 index=self.fit_df.index,
             )
             truth_total = None
@@ -303,6 +310,104 @@ class IntensityPlotter(BasePWAPlotter):
                 bbox_to_anchor=(0.98, 0.98),
                 fontsize=12,
             )
+
+        plt.tight_layout()
+        plt.minorticks_on()
+
+        return axs
+
+    def moments(self, fractional: bool = False, sharey: bool = False) -> np.ndarray:
+        """Plot all the projected moments in a grid format.
+
+        Moments cannot be organized like what is done in :meth:`waves`, so they
+        are simply all plotted in a grid together.
+
+        Args:
+            fractional (bool, optional): When true, normalizes all moments to the
+                H0_0000 moment. Defaults to False.
+            sharey (bool, optional): When true, shares the y-axis limits across all
+                moments. Defaults to False.
+
+        Returns:
+            np.ndarray: Array of axes for the moments.
+        """
+
+        assert self.proj_moments_df is not None, "No projected moments data available."
+
+        columns = [
+            col
+            for col in self.proj_moments_df.columns
+            if col.startswith("H") and col[1].isdigit()
+        ]
+
+        n_moments = len(columns)
+
+        fig, axs = plt.subplots(
+            nrows=int(np.ceil(n_moments / 3)),
+            ncols=min(10, n_moments),
+            figsize=(15, 5 * np.ceil(n_moments / 3)),
+            sharex=True,
+            sharey=sharey,
+        )
+
+        if self.bootstrap_proj_moments_df is not None:
+            grouped_moment_errors = (
+                self.bootstrap_proj_moments_df[columns + ["fit_index"]]
+                .groupby("fit_index")
+                .std()
+            )
+        else:
+            grouped_moment_errors = None
+
+        for ax, col in zip(axs.flatten(), columns):
+            ax.set_title(col, fontsize=14)
+            ax.set_xlabel(rf"{self.channel} inv. mass (GeV)", fontsize=12)
+
+            if not fractional:
+                ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
+            y_values = self.proj_moments_df[col]
+            y_errors = (
+                grouped_moment_errors[col]
+                if grouped_moment_errors is not None
+                else np.zeros_like(y_values)
+            )
+
+            if fractional:
+                denom = self.proj_moments_df["H0_0000"]
+                denom_err = (
+                    grouped_moment_errors["H0_0000"]
+                    if grouped_moment_errors is not None
+                    else np.zeros_like(denom)
+                )
+
+                # handle error propagation
+                y_values_u = unumpy.uarray(y_values, y_errors)
+                denom_u = unumpy.uarray(denom, denom_err)
+                frac_u = y_values_u / denom_u
+                y_values = unumpy.nominal_values(frac_u)
+                y_errors = unumpy.std_devs(frac_u)
+
+            ax.errorbar(
+                x=self._masses,
+                xerr=self._bin_width / 2,
+                y=y_values,
+                yerr=y_errors,
+                fmt="o",
+                markersize=5,
+            )
+
+            # TODO: plot truth data if available
+
+        # figure wide labels
+        y_label = (
+            f"Normalized Moment / {self._bin_width:.3f} GeV"
+            if fractional
+            else f"Moment / {self._bin_width:.3f} GeV"
+        )
+
+        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=16)
+        fig.supylabel(y_label, fontsize=16)
 
         plt.tight_layout()
         plt.minorticks_on()
