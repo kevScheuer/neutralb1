@@ -16,6 +16,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "scipy>=1.16.2",
     "seaborn>=0.13.2",
+    "uncertainties>=3.2.3",
     "Wand>=0.6.13",
 ]
 
