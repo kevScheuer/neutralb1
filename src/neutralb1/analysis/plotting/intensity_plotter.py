@@ -131,6 +131,8 @@ class IntensityPlotter(BasePWAPlotter):
 
         Raises:
             ValueError: If no wave amplitudes are found in the fit results.
+        Todo:
+            - create space for legend in upper right corner
         """
 
         # Validate that we have wave data to plot
