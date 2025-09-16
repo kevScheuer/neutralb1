@@ -215,7 +215,7 @@ class ResultManager:
 
         # link the DataFrames together by adding a 'fit_index' column
         self.data_df = preprocessing.link_dataframes(
-            self.fit_df, self.data_df, linker_max_depth
+            self.fit_df, self.data_df, 1  # expected to be fit sibling
         )
         if self.randomized_df is not None:
             self.randomized_df = preprocessing.link_dataframes(
@@ -231,7 +231,7 @@ class ResultManager:
             )
         if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.link_dataframes(
-                self.fit_df, self.proj_moments_df, linker_max_depth
+                self.fit_df, self.proj_moments_df, 1  # expected to be fit sibling
             )
         if self.bootstrap_proj_moments_df is not None:
             self.bootstrap_proj_moments_df = preprocessing.link_dataframes(
