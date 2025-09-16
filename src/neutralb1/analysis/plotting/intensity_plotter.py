@@ -22,10 +22,11 @@ class IntensityPlotter(BasePWAPlotter):
 
         Todo:
             - Add option to plot with MINUIT or bootstrap errors
+            - Handle very small mismatch between data widths and bar widths
         """
 
         # property map for consistent plotting
-        colors = colormaps["Dark2"].colors  # type: ignore
+        colors = plt.colormaps["Dark2"].colors  # type: ignore
         jp_map = {
             "Bkgd": {"color": colors[0], "marker": "."},
             "0m": {"color": colors[1], "marker": "x"},
@@ -47,6 +48,7 @@ class IntensityPlotter(BasePWAPlotter):
             y=self.data_df["events"],
             yerr=self.data_df["events_err"],
             marker=".",
+            linestyle="",
             color="black",
             label=data_label,
         )
@@ -68,6 +70,7 @@ class IntensityPlotter(BasePWAPlotter):
             y=self.fit_df[num_events_col],
             yerr=self.fit_df[f"{num_events_col}_err"],
             marker=",",
+            linestyle="",
             markersize=0,
             color="0.1",
             alpha=0.2,
@@ -344,7 +347,7 @@ class IntensityPlotter(BasePWAPlotter):
 
         fig, axs = plt.subplots(
             nrows=int(np.ceil(n_moments / 3)),
-            ncols=min(10, n_moments),
+            ncols=min(3, n_moments),
             figsize=(15, 5 * np.ceil(n_moments / 3)),
             sharex=True,
             sharey=sharey,
@@ -406,7 +409,6 @@ class IntensityPlotter(BasePWAPlotter):
             else f"Moment / {self._bin_width:.3f} GeV"
         )
 
-        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=16)
         fig.supylabel(y_label, fontsize=16)
 
         plt.tight_layout()
