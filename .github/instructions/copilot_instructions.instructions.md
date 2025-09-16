@@ -4,10 +4,11 @@ applyTo: '**/*.py'
 # Project coding standards
 
 ## General format
-Python files should be formatted using black and isort. 
+Python files should be formatted using black and isort. Documentation should be
+compatible with Sphinx. Double quotes are preferred over single quotes.
 
 ## Docstrings
-Docstrings should follow the following format:
+Function and Class docstrings should follow the following format:
 ```python
 def function_name(param1: type, param2: type) -> type:
     """Brief description of the function.
