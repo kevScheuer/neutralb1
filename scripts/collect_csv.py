@@ -6,17 +6,30 @@ Raises:
 
 Returns:
     None: Writes the combined CSV file to specified output path.
+
+Examples:
+    1. Wildcard combine csv files, with no sorting
+
+    ``$ python scripts/collect_csv -i my_dir/*.csv -o results.csv -s False``
+
+    2. Combine csv files, sorting using the second to last number in the file path
+
+    ``$ python scripts/collect_csv -i dir1/result10.csv dir2/result_20.csv
+    --sort-index -2``
 """
 
 import argparse
 import os
+import sys
+from typing import Any, Dict
 
 import pandas as pd
 
 import neutralb1.utils as utils
 
 
-def main(args: dict) -> None:
+def main() -> int:
+    args = parse_args()
     # Check if args["output"] ends with .csv
     if args["output"] and not args["output"].endswith(".csv"):
         args["output"] += ".csv"
@@ -37,7 +50,7 @@ def main(args: dict) -> None:
 
     # Ensure all input files exist and are .csv files
     if input_files == []:
-        raise ValueError("No input files provided.")
+        raise FileNotFoundError("No input files provided.")
     for f in input_files:
         if not os.path.exists(f):
             raise FileNotFoundError(f"File not found: {f}")
@@ -56,15 +69,27 @@ def main(args: dict) -> None:
         print("Files that will be processed:")
         for file in input_files:
             print(f"\t{file}")
-        return
+        return 0
 
     # Combine the CSV files
     combined_df = pd.concat([pd.read_csv(f) for f in input_files])
     combined_df.to_csv(args["output"], index=False)
     print(f"Combined CSV saved to {args['output']}")
 
+    return 0
 
-def parse_args() -> dict:
+
+def parse_args() -> Dict[str, Any]:
+    """Parse command-line arguments for the CSV collection script.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing parsed command-line arguments.
+            - input: List of input CSV file paths
+            - output: Output CSV file path
+            - sorted: Whether to sort input files
+            - preview: Whether to preview files without processing
+            - sort_index: Index for sorting files by numbers in filename
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "-i",
@@ -107,4 +132,9 @@ def parse_args() -> dict:
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    try:
+        exit_code = main()
+        sys.exit(exit_code)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
