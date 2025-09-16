@@ -57,8 +57,8 @@ class BasePWAPlotter:
         self.channel = channel
 
         # Common properties
-        self._masses = self.data_df["m_center"]
-        self._bin_width = (self.data_df["m_high"] - self.data_df["m_low"])[0]
+        self._masses = self.data_df["m_center"].astype(float).round(3)
+        self._bin_width = (self.data_df["m_high"] - self.data_df["m_low"]).mean()
 
         # Extract coherent sums and phase differences
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
