@@ -1,5 +1,5 @@
 import warnings
-from typing import List
+from typing import Dict, List
 
 import matplotlib.axes
 import matplotlib.pyplot as plt
@@ -204,31 +204,71 @@ class RandomizedPlotter(BasePWAPlotter):
         bootstrap_df=None,
     ) -> List[float]:
 
-        # separate out the phase and moment columns
-        phase_columns = []
-        phase_err_columns = []
-        moment_columns = []
-        other_columns = []
-        other_err_columns = []
-        for col in columns:
-            if col in self.phase_differences:
-                phase_columns.append(col)
-                phase_err_columns.append(f"{col}_err")
-            elif col.startswith("H") and col[1].isdigit():
-                moment_columns.append(col)
-            else:
-                other_columns.append(col)
-                other_err_columns.append(f"{col}_err")
+        # Get the weighted residuals dictionary from the existing function
+        weighted_residuals = self._weighted_residuals(
+            best_series=best_series,
+            rand_df=rand_df,
+            columns=columns,
+            bootstrap_df=bootstrap_df,
+        )
 
+        # Convert the dict structure to compute average squared residuals for each row
         avg_squared_weighted_residuals = []
+        num_rows = len(rand_df)
+
+        for row_idx in range(num_rows):
+            # Collect all weighted residuals for this row across all columns
+            row_residuals = []
+            for col in columns:
+                residual = weighted_residuals[col][row_idx]
+                if not np.isnan(residual):  # Only include non-NaN values
+                    row_residuals.append(residual)
+
+            # Compute average of squared residuals for this row
+            if row_residuals:
+                squared_residuals = np.square(row_residuals)
+                mean_squared = np.mean(squared_residuals)
+            else:
+                # If all residuals are NaN, return NaN for this row
+                mean_squared = np.nan
+
+            avg_squared_weighted_residuals.append(mean_squared)
+
+        return avg_squared_weighted_residuals
+
+    def _weighted_residuals(
+        self,
+        best_series: pd.Series,
+        rand_df: pd.DataFrame,
+        columns: List[str],
+        bootstrap_df=None,
+    ) -> Dict[str, List[float]]:
+        """Compute error-weighted residuals between the best fit and randomized fits."""
+        # track which column is a phase, moment, or other column (e.g. coherent sum)
+        phase_indices = []
+        moment_indices = []
+        other_indices = []
+        for i, col in enumerate(columns):
+            if col in self.phase_differences:
+                phase_indices.append(i)
+            elif col.startswith("H") and col[1].isdigit():
+                moment_indices.append(i)
+            else:
+                other_indices.append(i)
+
+        weighted_residuals = {col: [] for col in columns}
+
         for _, rand_series in rand_df.iterrows():
             # compute weighted residuals for this row
+            all_weighted_residuals = np.full(len(columns), np.nan)
 
             # phases need special treatment since they are circular quantities
-            vectorized_circular_residual = np.vectorize(utils.circular_residual)
-            if phase_columns:
+            if phase_indices:
+                phase_columns = [columns[i] for i in phase_indices]
+                phase_err_columns = [f"{columns[i]}_err" for i in phase_indices]
                 rand_values = rand_series[phase_columns].to_numpy()
                 best_values = best_series[phase_columns].to_numpy()
+
                 if bootstrap_df is None:
                     err_values = best_series[phase_err_columns].to_numpy()
                 else:
@@ -244,18 +284,17 @@ class RandomizedPlotter(BasePWAPlotter):
                             for col in phase_columns
                         ]
                     )
+
                 mask = np.abs(err_values) < 1e-10
                 if mask.any():
                     warnings.warn(
                         f"Very small or zero error values found in columns: "
-                        f"{
-                            [col for col, is_small in zip(err_values, mask) if 
-                            is_small]
-                        }. "
+                        f"{[col for col, is_small in zip(phase_columns, mask) if is_small]}. "
                         "This will result in NaN weighted residuals that are ignored.",
                         UserWarning,
                     )
 
+                vectorized_circular_residual = np.vectorize(utils.circular_residual)
                 phase_weighted_residuals = (
                     vectorized_circular_residual(
                         np.abs(rand_values),
@@ -265,11 +304,13 @@ class RandomizedPlotter(BasePWAPlotter):
                     / err_values
                 )
 
-            else:
-                phase_weighted_residuals = np.array([])
+                # Store phase residuals in the correct positions
+                for i, idx in enumerate(phase_indices):
+                    all_weighted_residuals[idx] = phase_weighted_residuals[i]
 
             # moments currently require bootstrap uncertainties, so handled separately
-            if moment_columns:
+            if moment_indices:
+                moment_columns = [columns[i] for i in moment_indices]
                 rand_values = rand_series[moment_columns].to_numpy()
                 best_values = best_series[moment_columns].to_numpy()
 
@@ -277,8 +318,8 @@ class RandomizedPlotter(BasePWAPlotter):
                     if not hasattr(self, "_moment_residuals_warned"):
                         warnings.warn(
                             "Attempting to compute moment residuals without bootstrap"
-                            " uncertainties, so no errors are available. Weighting will be done"
-                            " with err=1.0.",
+                            " uncertainties, so no errors are available. Weighting will"
+                            " be done with err=1.0.",
                             UserWarning,
                         )
                         self._moment_residuals_warned = True
@@ -287,19 +328,25 @@ class RandomizedPlotter(BasePWAPlotter):
                     err_values = np.array(
                         [bootstrap_df[col].std() for col in moment_columns]
                     )
+
                 moment_weighted_residuals = (rand_values - best_values) / err_values
-            else:
-                moment_weighted_residuals = np.array([])
+
+                # Store moment residuals in the correct positions
+                for i, idx in enumerate(moment_indices):
+                    all_weighted_residuals[idx] = moment_weighted_residuals[i]
 
             # compute all other weighted residuals normally
-            if other_columns:
+            if other_indices:
+                other_columns = [columns[i] for i in other_indices]
+                other_err_columns = [f"{columns[i]}_err" for i in other_indices]
                 rand_values = rand_series[other_columns].to_numpy()
                 best_values = best_series[other_columns].to_numpy()
+
                 if bootstrap_df is None:
                     err_values = best_series[other_err_columns].to_numpy()
                 else:
                     err_values = np.array(
-                        [bootstrap_df[col].std() for col in other_err_columns]
+                        [bootstrap_df[col].std() for col in other_columns]
                     )
 
                 # Check for division by zero or very small errors
@@ -307,34 +354,22 @@ class RandomizedPlotter(BasePWAPlotter):
                 if mask.any():
                     warnings.warn(
                         f"Very small or zero error values found in columns: "
-                        f"{
-                            [col for col, is_small in zip(other_err_columns, mask) if 
-                            is_small]
-                        }. "
+                        f"{[col for col, is_small in zip(other_columns, mask) if is_small]}. "
                         "This will result in NaN weighted residuals that are ignored.",
                         UserWarning,
                     )
 
                 other_weighted_residuals = (rand_values - best_values) / err_values
 
-            else:
-                other_weighted_residuals = np.array([])
+                # Store other residuals in the correct positions
+                for i, idx in enumerate(other_indices):
+                    all_weighted_residuals[idx] = other_weighted_residuals[i]
 
-            combined_weighted_residuals = np.concatenate(
-                (
-                    phase_weighted_residuals,
-                    moment_weighted_residuals,
-                    other_weighted_residuals,
-                )
-            )
+            # Append the weighted residuals for this row to each column's list
+            for i, col in enumerate(columns):
+                weighted_residuals[col].append(all_weighted_residuals[i])
 
-            # compute the average of the squared weighted residuals
-            # Ignore nan values when computing the mean
-            squared_residuals = np.square(combined_weighted_residuals)
-            mean_squared = np.nanmean(squared_residuals)
-            avg_squared_weighted_residuals.append(mean_squared)
-
-        return avg_squared_weighted_residuals
+        return weighted_residuals
 
     def _prepare_randomized_data(self, fit_index: int) -> dict:
         """Prepare and extract relevant data for a given fit index."""
@@ -385,39 +420,93 @@ class RandomizedPlotter(BasePWAPlotter):
 
         assert self.randomized_df is not None, "randomized_df must be provided"
 
-        # extract best fits and corresponding randomized fits for the requested index
-        best_series = self._assert_series(self.fit_df.loc[fit_index])
-        rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+        data = self._prepare_randomized_data(fit_index)
 
-        if self.bootstrap_df is not None:
-            bootstrap_df = self.bootstrap_df.loc[
-                self.bootstrap_df["fit_index"] == fit_index
-            ]
-        else:
-            bootstrap_df = None
+        weighted_residuals = self._weighted_residuals(
+            best_series=data["best_series"],
+            rand_df=data["rand_df"],
+            columns=columns,
+            bootstrap_df=data["bootstrap_df"],
+        )
 
-        if self.proj_moments_df is not None:
-            proj_moments_series = self._assert_series(
-                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
-            )
-        else:
-            proj_moments_series = None
+        # Calculate delta_lnL for coloring
+        likelihoods = data["rand_df"]["likelihood"]
+        best_likelihood = data["best_series"]["likelihood"]
+        delta_lnL = np.array([ll - best_likelihood for ll in likelihoods])
 
-        if self.randomized_proj_moments_df is not None:
-            rand_proj_moments_df = self.randomized_proj_moments_df.loc[
-                self.randomized_proj_moments_df["fit_index"] == fit_index
-            ]
-        else:
-            rand_proj_moments_df = None
+        fig, ax = plt.subplots(figsize=(12, 6))
 
-        if self.bootstrap_proj_moments_df is not None:
-            bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
-                self.bootstrap_proj_moments_df["fit_index"] == fit_index
-            ]
-        else:
-            bootstrap_proj_moments_df = None
+        # Set up colormap
+        cmap = plt.get_cmap("viridis_r")
+        norm = Normalize(vmin=np.min(delta_lnL), vmax=np.max(delta_lnL))
 
-        fig, ax = plt.subplots()
+        # Cluster delta_lnL values into 4 groups using quartiles
+        quartiles = np.percentile(delta_lnL, [25, 50, 75])
+
+        # Define line styles and alpha values for each group
+        # Group 0 (best fits): solid line, highest alpha
+        # Group 1: dotted line
+        # Group 2: dashed line
+        # Group 3 (worst fits): dashdot line, lowest alpha
+        line_styles = ["-", ":", "--", "-."]
+        alpha_values = [0.8, 0.6, 0.4, 0.2]
+
+        # Assign each fit to a group based on delta_lnL quartiles
+        groups = np.digitize(delta_lnL, quartiles)
+
+        # Create x-axis positions for columns
+        x_positions = np.arange(len(columns))
+
+        # Plot each fit as a line
+        for row_idx in range(len(data["rand_df"])):
+            y_values = []
+            valid_x_positions = []
+
+            # Collect non-NaN residuals and their corresponding x positions
+            for col_idx, col in enumerate(columns):
+                residual = weighted_residuals[col][row_idx]
+                if not np.isnan(residual):
+                    y_values.append(residual)
+                    valid_x_positions.append(x_positions[col_idx])
+
+            # Plot line only if there are valid points
+            if y_values:
+                color = cmap(norm(delta_lnL[row_idx]))
+                group = groups[row_idx]
+                ax.plot(
+                    valid_x_positions,
+                    y_values,
+                    color=color,
+                    alpha=alpha_values[group],
+                    linewidth=0.8,
+                    linestyle=line_styles[group],
+                    marker="o",
+                    markersize=3,
+                )
+
+        # Customize the plot
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(
+            [self._get_pretty_label(col) for col in columns],
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor",
+        )
+        ax.set_xlabel("Columns")
+        ax.set_ylabel("Weighted Residuals")
+        ax.set_title(f"Weighted Residuals for Fit Index {fit_index}")
+        ax.grid(True, alpha=0.3)
+        ax.axhline(y=0, color="black", linestyle="-", alpha=0.5)
+        ax.axhline(y=3, color="red", linestyle="--", alpha=0.5)
+        ax.axhline(y=-3, color="red", linestyle="--", alpha=0.5)
+
+        # Add colorbar
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax)
+        cbar.set_label(r"$\Delta(-2\ln(\mathcal{L}))$")
+
+        plt.tight_layout()
 
         return ax
 
