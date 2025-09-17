@@ -1,5 +1,5 @@
 import warnings
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 
 import joypy
 import matplotlib.axes
@@ -167,6 +167,7 @@ class BootstrapPlotter(BasePWAPlotter):
         show_uncertainty_bands: bool = True,
         correlation_threshold: float = 0.7,
         figsize: Optional[tuple] = None,
+        normalize_axis_limits: bool = False,
         **kwargs,
     ) -> sns.PairGrid:
         """Create a comprehensive pairplot matrix of bootstrap fit results.
@@ -187,6 +188,9 @@ class BootstrapPlotter(BasePWAPlotter):
                 correlated parameters with black borders. Defaults to 0.7.
             figsize (tuple, optional): Figure size. If None, calculated automatically.
             **kwargs: Additional arguments passed to seaborn.PairGrid.
+            normalize_axis_limits (bool): If True, all amplitude and moment subplots will
+                be plotted in the range [0, 1]. Phase differences will be plotted in
+                the range [-180, 180]. Defaults to False.
 
         Raises:
             ValueError: If bootstrap DataFrame is None or parameters are invalid.
@@ -299,10 +303,12 @@ class BootstrapPlotter(BasePWAPlotter):
             correlation_threshold,
         )
 
+        if normalize_axis_limits:
+            self._normalize_axis_limits(pg)
+
         # Update labels to prettier versions
         self._update_pairplot_labels(pg)
 
-        # Get fit file names for title
         plt.tight_layout()
 
         return pg
@@ -337,7 +343,9 @@ class BootstrapPlotter(BasePWAPlotter):
             pwa_cols + [f"{c}_err" for c in pwa_cols] + [total_intensity]
         ].copy()
         if moment_cols:
-            moment_data = self.proj_moments_df.loc[fit_indices][moment_cols + ["H0_0000"]].copy()  # type: ignore
+            moment_data = self.proj_moments_df.loc[fit_indices][  # type: ignore
+                moment_cols + ["H0_0000"]
+            ].copy()
             fit_data = pd.concat([fit_data, moment_data], axis=1)
 
         # Extract relevant bootstrap data
@@ -347,7 +355,9 @@ class BootstrapPlotter(BasePWAPlotter):
 
         if moment_cols:
             moment_bootstrap = self.bootstrap_proj_moments_df[  # type: ignore
-                self.bootstrap_proj_moments_df["fit_index"].isin(fit_indices)  # type: ignore
+                self.bootstrap_proj_moments_df["fit_index"].isin(  # type: ignore
+                    fit_indices
+                )
             ][moment_cols + ["H0_0000"]].copy()
             bootstrap_data = pd.concat([bootstrap_data, moment_bootstrap], axis=1)
 
@@ -405,8 +415,7 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # Get labels. There seems to be a bug where diagonal plots labels
                 # are empty, so we get them from the bottom row and first column instead
-                col_label = pg.axes[-1, col].get_xlabel()
-                row_label = pg.axes[row, 0].get_ylabel()
+                col_label, row_label = self._get_pairgrid_xy_labels(pg, row, col)
 
                 # Calculate scaling factors for fit fractions
                 x_scaling = self._get_scaling_factor(col_label, fit_data)
@@ -458,6 +467,18 @@ class BootstrapPlotter(BasePWAPlotter):
                         self._add_diagonal_annotations(
                             ax, bootstrap_data, fit_data, col_label
                         )
+
+    def _get_pairgrid_xy_labels(
+        self, pg: sns.PairGrid, row: int, col: int
+    ) -> Tuple[str, str]:
+        """Get the x and y labels for the current subplot in the PairGrid.
+
+        There seems to be a bug where diagonal plot labels are empty, so we get them
+        from the bottom row and first column instead
+        """
+        x_label = pg.axes[-1, col].get_xlabel()
+        y_label = pg.axes[row, 0].get_ylabel()
+        return x_label, y_label
 
     def _get_scaling_factor(self, column: str, fit_data: pd.DataFrame) -> pd.Series:
         """Get appropriate scaling factor for amplitudes and moments.
@@ -643,11 +664,36 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # Get labels. There seems to be a bug where diagonal plots labels
                 # are empty, so we get them from the bottom row and first column instead
-                col_label = self._get_pretty_label(pg.axes[-1, col].get_xlabel())
-                row_label = self._get_pretty_label(pg.axes[row, 0].get_ylabel())
+                col_label, row_label = self._get_pairgrid_xy_labels(pg, row, col)
+                col_label = self._get_pretty_label(col_label)
+                row_label = self._get_pretty_label(row_label)
 
                 pg.axes[pg.axes.shape[0] - 1, col].set_xlabel(col_label, loc="center")
                 pg.axes[row, 0].set_ylabel(row_label, loc="center")
+
+    def _normalize_axis_limits(self, pg: sns.PairGrid) -> None:
+        """Normalize axis limits for amplitudes, moments, and phase differences"""
+        for row in range(pg.axes.shape[0]):
+            for col in range(pg.axes.shape[1]):
+                ax = pg.axes[row, col]
+                col_label, row_label = self._get_pairgrid_xy_labels(pg, row, col)
+
+                # normalize x axis limits
+                if any(
+                    col_label in sublist for sublist in self.coherent_sums.values()
+                ) or (col_label.startswith("H") and col_label[1].isdigit()):
+                    ax.set_xlim(0, 1)
+                elif col_label in self.phase_differences:
+                    ax.set_xlim(-180, 180)
+                # normalize y axis limits, except on diagonal
+                if row == col:
+                    continue
+                if any(
+                    row_label in sublist for sublist in self.coherent_sums.values()
+                ) or (row_label.startswith("H") and row_label[1].isdigit()):
+                    ax.set_ylim(0, 1)
+                elif row_label in self.phase_differences:
+                    ax.set_ylim(-180, 180)
 
     def joyplot(
         self,
