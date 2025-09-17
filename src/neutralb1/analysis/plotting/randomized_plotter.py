@@ -25,8 +25,6 @@ class RandomizedPlotter(BasePWAPlotter):
     ) -> matplotlib.axes.Axes:
         """Plot likelihoods of randomized fits against their distance from the best fit.
 
-
-
         Args:
             fit_index (int): Index of the fit to compare against.
             pwa_threshold (float, optional): Threshold for PWA fits. Amplitude fit
@@ -54,57 +52,27 @@ class RandomizedPlotter(BasePWAPlotter):
 
         assert self.randomized_df is not None, "randomized_df must be provided"
 
-        # extract best fits and corresponding randomized fits for the requested index
-        best_series = self._assert_series(self.fit_df.loc[fit_index])
-        rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
-
-        if self.bootstrap_df is not None:
-            bootstrap_df = self.bootstrap_df.loc[
-                self.bootstrap_df["fit_index"] == fit_index
-            ]
-        else:
-            bootstrap_df = None
-
-        if self.proj_moments_df is not None:
-            proj_moments_series = self._assert_series(
-                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
-            )
-        else:
-            proj_moments_series = None
-
-        if self.randomized_proj_moments_df is not None:
-            rand_proj_moments_df = self.randomized_proj_moments_df.loc[
-                self.randomized_proj_moments_df["fit_index"] == fit_index
-            ]
-        else:
-            rand_proj_moments_df = None
-
-        if self.bootstrap_proj_moments_df is not None:
-            bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
-                self.bootstrap_proj_moments_df["fit_index"] == fit_index
-            ]
-        else:
-            bootstrap_proj_moments_df = None
+        data = self._prepare_randomized_data(fit_index)
 
         # DETERMINE COLUMNS TO USE
         # use all coherent sums and phase differences above threshold if not given
         if fit_columns is None:
             fit_columns = self._find_significant_columns(
-                best_series,
+                data["best_series"],
                 pwa_threshold,
             )
         # use all moments above threshold if not given
         if (
             moment_columns is None
-            and proj_moments_series is not None
-            and rand_proj_moments_df is not None
+            and data["proj_moments_series"] is not None
+            and data["rand_proj_moments_df"] is not None
         ):
             moment_columns = self._find_significant_columns(
-                proj_moments_series,
+                data["proj_moments_series"],
                 moment_threshold,
             )
 
-        elif moment_columns is not None and rand_proj_moments_df is None:
+        elif moment_columns is not None and data["rand_proj_moments_df"] is None:
             raise ValueError(
                 "moment_columns provided but dataframe of projected moments from"
                 " randomized fits is None."
@@ -114,29 +82,29 @@ class RandomizedPlotter(BasePWAPlotter):
 
         # CALCULATE THE WEIGHTED RESIDUALS
         fit_avg_squared_weighted_residuals = self._average_squared_weighted_residual(
-            best_series=best_series,
-            rand_df=rand_df,
+            best_series=data["best_series"],
+            rand_df=data["rand_df"],
             columns=fit_columns,
-            bootstrap_df=bootstrap_df,
+            bootstrap_df=data["bootstrap_df"],
         )
         if (
-            proj_moments_series is not None
-            and rand_proj_moments_df is not None
+            data["proj_moments_series"] is not None
+            and data["rand_proj_moments_df"] is not None
             and moment_columns is not None
         ):
             moment_avg_squared_weighted_residuals = (
                 self._average_squared_weighted_residual(
-                    best_series=proj_moments_series,
-                    rand_df=rand_proj_moments_df,
+                    best_series=data["proj_moments_series"],
+                    rand_df=data["rand_proj_moments_df"],
                     columns=moment_columns,
-                    bootstrap_df=bootstrap_proj_moments_df,
+                    bootstrap_df=data["bootstrap_proj_moments_df"],
                 )
             )
         else:
             moment_avg_squared_weighted_residuals = None
 
-        likelihoods = rand_df["likelihood"]
-        best_likelihood = best_series["likelihood"]
+        likelihoods = data["rand_df"]["likelihood"]
+        best_likelihood = data["best_series"]["likelihood"]
         delta_lnL = [ll - best_likelihood for ll in likelihoods]
 
         # Create plot based on whether moment residuals are available
@@ -160,7 +128,7 @@ class RandomizedPlotter(BasePWAPlotter):
             cbar.set_label(r"$\Delta(-2\ln(\mathcal{L}))$")
 
             ax.set_xlabel("Distance from Best Result (Moment Residuals)")
-            ax.set_ylabel("Distance from Best Result (Fit Residuals)")
+            ax.set_ylabel("Distance from Best Result (PWA Residuals)")
         else:
             # Create 2D plot when only fit residuals are available
             fig, ax = plt.subplots()
@@ -367,6 +335,91 @@ class RandomizedPlotter(BasePWAPlotter):
             avg_squared_weighted_residuals.append(mean_squared)
 
         return avg_squared_weighted_residuals
+
+    def _prepare_randomized_data(self, fit_index: int) -> dict:
+        """Prepare and extract relevant data for a given fit index."""
+
+        assert self.randomized_df is not None, "randomized_df must be provided"
+        # extract best fits and corresponding randomized fits for the requested index
+        best_series = self._assert_series(self.fit_df.loc[fit_index])
+        rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+
+        if self.bootstrap_df is not None:
+            bootstrap_df = self.bootstrap_df.loc[
+                self.bootstrap_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_df = None
+
+        if self.proj_moments_df is not None:
+            proj_moments_series = self._assert_series(
+                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
+            )
+        else:
+            proj_moments_series = None
+
+        if self.randomized_proj_moments_df is not None:
+            rand_proj_moments_df = self.randomized_proj_moments_df.loc[
+                self.randomized_proj_moments_df["fit_index"] == fit_index
+            ]
+        else:
+            rand_proj_moments_df = None
+
+        if self.bootstrap_proj_moments_df is not None:
+            bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
+                self.bootstrap_proj_moments_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_proj_moments_df = None
+
+        return {
+            "best_series": best_series,
+            "rand_df": rand_df,
+            "bootstrap_df": bootstrap_df,
+            "proj_moments_series": proj_moments_series,
+            "rand_proj_moments_df": rand_proj_moments_df,
+            "bootstrap_proj_moments_df": bootstrap_proj_moments_df,
+        }
+
+    def weighted_residuals(self, fit_index: int, columns: list) -> matplotlib.axes.Axes:
+
+        assert self.randomized_df is not None, "randomized_df must be provided"
+
+        # extract best fits and corresponding randomized fits for the requested index
+        best_series = self._assert_series(self.fit_df.loc[fit_index])
+        rand_df = self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+
+        if self.bootstrap_df is not None:
+            bootstrap_df = self.bootstrap_df.loc[
+                self.bootstrap_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_df = None
+
+        if self.proj_moments_df is not None:
+            proj_moments_series = self._assert_series(
+                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
+            )
+        else:
+            proj_moments_series = None
+
+        if self.randomized_proj_moments_df is not None:
+            rand_proj_moments_df = self.randomized_proj_moments_df.loc[
+                self.randomized_proj_moments_df["fit_index"] == fit_index
+            ]
+        else:
+            rand_proj_moments_df = None
+
+        if self.bootstrap_proj_moments_df is not None:
+            bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
+                self.bootstrap_proj_moments_df["fit_index"] == fit_index
+            ]
+        else:
+            bootstrap_proj_moments_df = None
+
+        fig, ax = plt.subplots()
+
+        return ax
 
     def likelihood_distribution(
         self, fit_index: int, **hist_kwargs
