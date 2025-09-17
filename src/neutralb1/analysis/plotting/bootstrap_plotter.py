@@ -649,18 +649,6 @@ class BootstrapPlotter(BasePWAPlotter):
                 pg.axes[pg.axes.shape[0] - 1, col].set_xlabel(col_label, loc="center")
                 pg.axes[row, 0].set_ylabel(row_label, loc="center")
 
-    def _get_pretty_label(self, column: str) -> str:
-        """Convert column name to pretty LaTeX formatting."""
-        if (
-            any(column in sublist for sublist in self.coherent_sums.values())
-            or column in self.phase_differences
-        ):
-            return utils.convert_amp_name(column)
-        elif column.startswith("H") and column[1].isdigit():
-            return utils.convert_moment_name(column)
-        else:
-            return column
-
     def joyplot(
         self,
         columns: list[str],

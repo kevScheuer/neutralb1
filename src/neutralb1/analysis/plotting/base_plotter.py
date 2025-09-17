@@ -87,3 +87,15 @@ class BasePWAPlotter:
         ):
             return True
         return False
+
+    def _get_pretty_label(self, label: str) -> str:
+        """Convert label name to nicer LaTeX formatting."""
+        if (
+            any(label in sublist for sublist in self.coherent_sums.values())
+            or label in self.phase_differences
+        ):
+            return utils.convert_amp_name(label)
+        elif label.startswith("H") and label[1].isdigit():
+            return utils.convert_moment_name(label)
+        else:
+            return label
