@@ -417,6 +417,23 @@ class RandomizedPlotter(BasePWAPlotter):
         }
 
     def weighted_residuals(self, fit_index: int, columns: list) -> matplotlib.axes.Axes:
+        """Calculate and plot the weighted residuals for a given fit index and columns.
+
+        This method is particularly useful in conjuction with
+        :py:func:`likelihood_comparison` to understand the residuals that are averaged
+        over in that plot. The weighted residuals are calculated as the difference
+        between the randomized fit values and the best fit values, divided by the
+        uncertainty (error) in the best fit values. Points are automatically grouped
+        into four categories based on their delta_lnL values, with different line styles
+        and alpha values for each group.
+
+        Args:
+            fit_index (int): The index of the fit to analyze.
+            columns (list): The list of columns to plot
+
+        Returns:
+            matplotlib.axes.Axes: The axes object containing the plot.
+        """
 
         assert self.randomized_df is not None, "randomized_df must be provided"
 
