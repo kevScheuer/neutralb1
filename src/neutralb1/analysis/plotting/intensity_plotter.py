@@ -214,7 +214,7 @@ class IntensityPlotter(BasePWAPlotter):
                     ax.set_title(f"m = {m}", fontsize=14, pad=10)
                 if col == 0:
                     wave_label = rf"${J}^{{{pm_dict[P]}}}{L}$"
-                    ax.set_ylabel(wave_label, fontsize=14)
+                    ax.set_ylabel(wave_label, fontsize=14, loc="center")
 
                 # Plot negative reflectivity contribution
                 neg_amp_name = f"m{JPmL}"
