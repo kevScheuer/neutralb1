@@ -509,9 +509,8 @@ class RandomizedPlotter(BasePWAPlotter):
             ha="right",
             rotation_mode="anchor",
         )
-        ax.set_xlabel("Columns")
         ax.set_ylabel("Weighted Residuals")
-        ax.set_title(f"Weighted Residuals for Fit Index {fit_index}")
+        ax.set_title(f"Fit Index: {fit_index}")
         ax.grid(True, alpha=0.3)
         ax.axhline(y=0, color="black", linestyle="-", alpha=0.5)
         ax.axhline(y=3, color="red", linestyle="--", alpha=0.5)
