@@ -41,12 +41,20 @@ class IntensityPlotter(BasePWAPlotter):
 
         fig, ax = plt.subplots()
 
+        # acceptance correct the data points using the efficiency, if needed
+        if self.is_acceptance_corrected:
+            efficiency = (
+                self.fit_df["detected_events"] / self.fit_df["generated_events"]
+            )
+        else:
+            efficiency = 1.0
+
         # plot data
         ax.errorbar(
             x=self._masses,
             xerr=self._bin_width / 2,
-            y=self.data_df["events"],
-            yerr=self.data_df["events_err"],
+            y=self.data_df["events"].div(efficiency),
+            yerr=self.data_df["events_err"].div(efficiency),
             marker=".",
             linestyle="",
             color="black",
