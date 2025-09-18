@@ -187,12 +187,6 @@ uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_acceptance_corrected.csv
 uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments --verbose
 # uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
 
-# TODO: this file should be replaced by a python script using a csv of the rand fits
-# if [ -z "$my_truth_file" ]; then
-#     cwd=$(pwd)
-#     root -l -n -b -q "$my_code_dir/rand_fit_diagnostic.C(\"$cwd\")" 
-# fi
-
 # process random fits into subdirectory
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
