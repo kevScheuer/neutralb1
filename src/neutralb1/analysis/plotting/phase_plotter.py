@@ -99,7 +99,7 @@ class PhasePlotter(BasePWAPlotter):
 
         return ax
 
-    def mass_phase(self, amp1: str, amp2: str, color: str = "black") -> np.ndarray:
+    def mass_phase(self, amp1: str, amp2: str) -> np.ndarray:
         """_summary_
 
         Args:
@@ -124,8 +124,10 @@ class PhasePlotter(BasePWAPlotter):
             self.fit_df[amp1],
             self.fit_df[f"{amp1}_err"],
             self._bin_width / 2,
-            "o",
-            color=color,
+            marker="o",
+            linestyle="",
+            markersize=5,
+            color="black",
             label=utils.convert_amp_name(amp1),
         )
         axs[0].errorbar(
@@ -133,8 +135,10 @@ class PhasePlotter(BasePWAPlotter):
             self.fit_df[amp2],
             self.fit_df[f"{amp2}_err"],
             self._bin_width / 2,
-            "s",
-            color=color,
+            marker="s",
+            linestyle="",
+            markersize=5,
+            color="gray",
             label=utils.convert_amp_name(amp2),
         )
 
@@ -144,14 +148,14 @@ class PhasePlotter(BasePWAPlotter):
                 self.truth_df[amp1],
                 linestyle="-",
                 marker="",
-                color=color,
+                color="black",
             )
             axs[0].plot(
                 self._masses,
                 self.truth_df[amp2],
                 linestyle="-",
                 marker="",
-                color=color,
+                color="gray",
             )
 
         # plot the phase difference on the second subplot
@@ -163,7 +167,7 @@ class PhasePlotter(BasePWAPlotter):
             self._bin_width / 2,
             linestyle="",
             marker=".",
-            color=color,
+            color="black",
         )
         axs[1].errorbar(
             self._masses,
@@ -172,7 +176,7 @@ class PhasePlotter(BasePWAPlotter):
             self._bin_width / 2,
             linestyle="",
             marker=".",
-            color=color,
+            color="black",
         )
         if self.truth_df is not None:
             axs[1].plot(
@@ -180,7 +184,7 @@ class PhasePlotter(BasePWAPlotter):
                 self.truth_df[phase_dif],
                 linestyle="-",
                 marker="",
-                color=color,
+                color="black",
             )
 
         axs[0].set_ylim(bottom=0.0)
