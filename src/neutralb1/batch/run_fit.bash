@@ -275,11 +275,6 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     ls -al
 fi
 
-# rename truth file outputs
-if [ $my_truth_bool -eq 1 ]; then
-    mv -f best.fit best_truth.fit    
-fi
-
 end_time=$(date +%s)
 elapsed_time=$((end_time - start_time))
 echo "Execution time: $elapsed_time seconds"
