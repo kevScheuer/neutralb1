@@ -135,9 +135,9 @@ file(GLOB_RECURSE UTILS_SOURCES "${SRC_DIR}/utils/*.cc")
 # Remove shell scripts and ROOT macros from executable list
 list(FILTER BATCH_SOURCES EXCLUDE REGEX "\\.(sh|C)$")
 
-# Create a shared library from utility, analysis, and selection code
+# Create a static library from utility, analysis, and selection code
 if(UTILS_SOURCES OR ANALYSIS_SOURCES OR SELECTION_SOURCES)
-    add_library(neutralb1_core SHARED 
+    add_library(neutralb1_core STATIC
         ${UTILS_SOURCES} 
         ${ANALYSIS_SOURCES} 
         ${SELECTION_SOURCES}
