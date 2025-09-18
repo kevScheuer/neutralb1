@@ -134,7 +134,7 @@ def parse_args() -> Dict[str, Any]:
 if __name__ == "__main__":
     try:
         exit_code = main()
-        sys.exit(exit_code)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}")
-        sys.exit(1)
+        exit_code = 1
+    sys.exit(exit_code)
