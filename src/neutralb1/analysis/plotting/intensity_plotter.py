@@ -118,6 +118,7 @@ class IntensityPlotter(BasePWAPlotter):
         ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
         ax.set_ylim(bottom=0.0)
         ax.legend()
+        plt.tight_layout()
         plt.minorticks_on()
 
         return ax
@@ -171,6 +172,7 @@ class IntensityPlotter(BasePWAPlotter):
             sharey=sharey,
             figsize=(fig_width, fig_height),
             squeeze=False,  # Always return 2D array even for single subplot
+            layout="constrained",
         )
 
         # Prepare normalization data
@@ -298,15 +300,26 @@ class IntensityPlotter(BasePWAPlotter):
                             alpha=0.8,
                         )
 
-                # Set y-limit to start from zero
-                ax.set_ylim(bottom=0)
+        # Set y-limit to start from zero only after all plotting is done
+        # This preserves the sharey behavior when enabled
+        if not sharey:
+            # Only set individual limits when not sharing y-axis
+            for row in range(n_rows):
+                for col in range(n_cols):
+                    axs[row, col].set_ylim(bottom=0)
+        else:
+            # For shared y-axis, set the limit on one axis per row
+            # which will apply to all axes in that row
+            for row in range(n_rows):
+                current_bottom, current_top = axs[row, 0].get_ylim()
+                axs[row, 0].set_ylim(bottom=0, top=current_top)
 
         # Configure figure-wide labels and legend
         y_label = (
             "Fit Fraction" if fractional else f"Events / {self._bin_width:.3f} GeV"
         )
 
-        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=16)
+        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=16, x=0.53)
         fig.supylabel(y_label, fontsize=16)
 
         # Add legend if we have plot handles
@@ -320,11 +333,10 @@ class IntensityPlotter(BasePWAPlotter):
             fig.legend(
                 handles=legend_handles,
                 loc="upper right",
-                bbox_to_anchor=(0.98, 0.98),
+                bbox_to_anchor=(1.02, 1.05),
                 fontsize=12,
             )
 
-        plt.tight_layout()
         plt.minorticks_on()
 
         return axs

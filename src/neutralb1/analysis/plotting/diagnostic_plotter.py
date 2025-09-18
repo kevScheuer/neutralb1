@@ -1,6 +1,8 @@
 import warnings
+from typing import Tuple
 
 import matplotlib.axes
+import matplotlib.container
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -438,6 +440,8 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Set up phase tick values
         phase_ticks = np.linspace(-180, 180, 5)
 
+        neg_handle, pos_handle = None, None
+
         # Plot matrix elements
         for row, JPmL_row in enumerate(self.coherent_sums["JPmL"]):
             for col, JPmL_col in enumerate(self.coherent_sums["JPmL"]):
@@ -452,7 +456,7 @@ class DiagnosticPlotter(BasePWAPlotter):
 
                 # DIAGONAL ELEMENTS: Plot wave intensities
                 if row == col:
-                    self._plot_diagonal_intensity(
+                    neg_handle, pos_handle = self._plot_diagonal_intensity(
                         ax,
                         JPmL_row,
                         max_intensity,
@@ -460,11 +464,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                         intensity_labels,
                         row,
                     )
-
-                    # Store plot handles from first diagonal element
-                    if row == 0:
-                        pos_plot_handle = ax.lines[-1] if ax.lines else None
-                        neg_plot_handle = ax.lines[-2] if len(ax.lines) >= 2 else None
 
                 # UPPER TRIANGLE: Positive reflectivity phase differences
                 elif col > row:
@@ -480,11 +479,11 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Configure figure-wide labels and styling
         fig.text(
-            0.5, 0.04, rf"{self.channel} inv. mass (GeV)", ha="center", fontsize=14
+            0.53, 0.04, rf"{self.channel} inv. mass (GeV)", ha="center", fontsize=14
         )
         fig.text(
-            0.04,
-            0.5,
+            0.03,
+            0.55,
             r"Phase Differences ($^{\circ}$)",
             ha="center",
             va="center",
@@ -494,21 +493,21 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Add legend if we have plot handles
         legend_handles = []
-        if pos_plot_handle is not None:
-            legend_handles.append(pos_plot_handle)
-        if neg_plot_handle is not None:
-            legend_handles.append(neg_plot_handle)
+        if pos_handle is not None:
+            legend_handles.append(pos_handle)
+        if neg_handle is not None:
+            legend_handles.append(neg_handle)
 
         if legend_handles:
             fig.legend(
                 handles=legend_handles,
                 loc="upper right",
-                bbox_to_anchor=(0.98, 0.98),
-                fontsize=10,
+                bbox_to_anchor=(1.0, 1.08),
+                fontsize=12,
             )
 
         plt.tight_layout()
-        plt.subplots_adjust(bottom=0.08, left=0.08)
+        plt.subplots_adjust(bottom=0.1, left=0.1)
 
         return axs
 
@@ -520,7 +519,10 @@ class DiagnosticPlotter(BasePWAPlotter):
         intensity_ticks: np.ndarray,
         intensity_labels: list,
         row: int,
-    ) -> None:
+    ) -> Tuple[
+        matplotlib.container.ErrorbarContainer | None,
+        matplotlib.container.ErrorbarContainer | None,
+    ]:
         """Plot wave intensities on diagonal elements of the matrix."""
 
         ax.set_ylim(0, max_intensity)
@@ -534,16 +536,18 @@ class DiagnosticPlotter(BasePWAPlotter):
         if row == 0:
             title = utils.convert_amp_name(JPmL).replace(r"^{(\Sigma\varepsilon)}", "")
             ax.set_title(title, fontsize=10, pad=8)
-            ax.set_ylabel(title, fontsize=10)
+            ax.set_ylabel(title, fontsize=10, loc="center")
             ax.set_yticks(intensity_ticks, intensity_labels)
         else:
             # Remove y-tick labels for other diagonal elements to save space
             ax.set_yticks(intensity_ticks, [""] * len(intensity_ticks))
 
+        neg_handle, pos_handle = None, None
+
         # Plot negative reflectivity
         neg_amp = f"m{JPmL}"
         if neg_amp in self.fit_df.columns:
-            ax.errorbar(
+            neg_handle = ax.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=self.fit_df[neg_amp],
@@ -570,7 +574,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Plot positive reflectivity
         pos_amp = f"p{JPmL}"
         if pos_amp in self.fit_df.columns:
-            ax.errorbar(
+            pos_handle = ax.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=self.fit_df[pos_amp],
@@ -593,6 +597,8 @@ class DiagnosticPlotter(BasePWAPlotter):
                     color="red",
                     alpha=0.8,
                 )
+
+        return neg_handle, pos_handle
 
     def _plot_upper_triangle_phase(
         self,
@@ -695,7 +701,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             title = utils.convert_amp_name(JPmL_row).replace(
                 r"^{(\Sigma\varepsilon)}", ""
             )
-            ax.set_ylabel(title, fontsize=10)
+            ax.set_ylabel(title, fontsize=10, loc="center")
             ax.set_yticks(phase_ticks)
         else:
             ax.set_yticks(phase_ticks, [""] * len(phase_ticks))
