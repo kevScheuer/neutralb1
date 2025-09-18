@@ -24,6 +24,7 @@ class ResultManager:
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
+        is_preprocessed: bool = False,
     ) -> None:
         """Initialize the ResultManager.
 
@@ -58,6 +59,10 @@ class ResultManager:
                 projected moments for the fit, i.e. the projected moments obtained from
                 the truth_df. Only applicable for Monte Carlo Input-Output Studies.
                 Defaults to None.
+            is_preprocessed (bool, optional): Whether the DataFrames have already been
+                preprocessed. It's unlikely that the user would set this to True. Main
+                purpose is tracking if preprocessing has been done when loading from
+                a pickle file. Defaults to False.
         """
 
         # create local copies of the DataFrames to avoid modifying the originals
@@ -96,7 +101,7 @@ class ResultManager:
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
-        self.is_preprocessed = False  # flag to track if preprocessing has been done
+        self.is_preprocessed = is_preprocessed
 
         # private attributes
         self._plotter_factory = None  # initialize to None until plotter is called
@@ -452,6 +457,7 @@ class ResultManager:
             "bootstrap_proj_moments_df": self.bootstrap_proj_moments_df,
             "truth_df": self.truth_df,
             "truth_proj_moments_df": self.truth_proj_moments_df,
+            "is_preprocessed": self.is_preprocessed,
         }
         try:
             with open(filepath, "wb") as f:
