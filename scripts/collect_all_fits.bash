@@ -55,10 +55,32 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/data.csv -o ${output_dir}/data.csv
 python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best.csv -o ${output_dir}/best.csv
 python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best_acceptance_corrected.csv -o ${output_dir}/best_acceptance_corrected.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best_projected_moments.csv -o ${output_dir}/moments.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand.csv -o ${output_dir}/rand.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand_acceptance_corrected.csv -o ${output_dir}/rand_acceptance_corrected.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand_projected_moments.csv -o ${output_dir}/rand_moments.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap.csv -o ${output_dir}/bootstrap.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap_acceptance_corrected.csv -o ${output_dir}/bootstrap_acceptance_corrected.csv
-python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap_projected_moments.csv -o ${output_dir}/bootstrap_moments.csv
+
+# handle optional files
+if [ -f ${input_dir}/mass*/best_projected_moments.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best_projected_moments.csv -o ${output_dir}/moments.csv
+fi
+
+if [ -f ${input_dir}/mass*/rand/rand.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand.csv -o ${output_dir}/rand.csv
+fi
+
+if [ -f ${input_dir}/mass*/rand/rand_acceptance_corrected.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand_acceptance_corrected.csv -o ${output_dir}/rand_acceptance_corrected.csv
+fi
+
+if [ -f ${input_dir}/mass*/rand/rand_projected_moments.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/rand/rand_projected_moments.csv -o ${output_dir}/rand_moments.csv
+fi
+
+if [ -f ${input_dir}/mass*/bootstrap/bootstrap.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap.csv -o ${output_dir}/bootstrap.csv
+fi
+
+if [ -f ${input_dir}/mass*/bootstrap/bootstrap_acceptance_corrected.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap_acceptance_corrected.csv -o ${output_dir}/bootstrap_acceptance_corrected.csv
+fi
+
+if [ -f ${input_dir}/mass*/bootstrap/bootstrap_projected_moments.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap_projected_moments.csv -o ${output_dir}/bootstrap_moments.csv
+fi
