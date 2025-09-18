@@ -9,8 +9,8 @@
 #           - randomized fit results
 
 usage() {
-    echo "Usage: collect_all_fits.bash -d <input_directory> -o <output_directory> [-p] [-h]"
-    echo "  -d: -t bin directory containing subdirectories with fit results"
+    echo "Usage: collect_all_fits.bash -i <input_directory> -o <output_directory> [-p] [-h]"
+    echo "  -i: -t bin directory containing subdirectories with fit results"
     echo "  -o: Output directory to store collected csv files"
     echo "  -p: Preview mode (do not execute commands)"
     echo "  -h: Display this help message"    
@@ -18,9 +18,9 @@ usage() {
 
 preview_mode="false"
 
-while getopts ":d:o:ph" opt; do
+while getopts ":i:o:ph" opt; do
     case $opt in
-        d) input_dir="$OPTARG"
+        i) input_dir="$OPTARG"
         ;;
         o) output_dir="$OPTARG"
         ;;
