@@ -84,3 +84,15 @@ fi
 if [ -f ${input_dir}/mass*/bootstrap/bootstrap_projected_moments.csv ]; then
     python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/bootstrap/bootstrap_projected_moments.csv -o ${output_dir}/bootstrap_moments.csv
 fi
+
+if [ -f ${input_dir}/mass*/truth/best.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/truth/best.csv -o ${output_dir}/truth.csv
+fi
+
+if [ -f ${input_dir}/mass*/truth/best.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/truth/best_acceptance_corrected.csv -o ${output_dir}/truth_acceptance_corrected.csv
+fi
+
+if [ -f ${input_dir}/mass*/truth/best_projected_moments.csv ]; then
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/truth/best_projected_moments.csv -o ${output_dir}/truth_projected_moments.csv
+fi
