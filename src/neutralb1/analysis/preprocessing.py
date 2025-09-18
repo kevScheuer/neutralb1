@@ -327,6 +327,57 @@ def restore_breit_wigner_phases(
     return df
 
 
+def restore_ds_phases(df: pd.DataFrame) -> pd.DataFrame:
+    """Restore the phase differences for D waves when a D/S ratio is used in the fit.
+
+    Due to how the D/S ratio is implemented in AmpTools, the phase differences involving
+    D waves will not be correct. This function searches for a `dphase` column in the
+    DataFrame, and if found, uses it and the other waves' complex value to restore the
+    correct phase differences.
+
+    Args:
+        df (pd.DataFrame): pandas DataFrame containing the fit results.
+
+    Returns:
+        pd.DataFrame: pandas DataFrame with restored phase differences.
+
+    Todo:
+        Propagate the errors using the covariance matrix.
+    """
+
+    if "dphase" not in df.columns:
+        raise KeyError("The DataFrame does not contain a 'dphase' column.")
+
+    new_phase_differences = {}
+    for phase_difference in utils.get_phase_differences(df):
+
+        wave1, wave2 = phase_difference.split("_")
+        if "D" in wave1:
+            d_wave, other_wave = wave1, wave2
+            is_d_first = True
+        elif "D" in wave2:
+            d_wave, other_wave = wave2, wave1
+            is_d_first = False
+        else:
+            continue
+
+        if f"{other_wave}_re" not in df.columns or f"{other_wave}_im" not in df.columns:
+            raise KeyError(
+                "The DataFrame does not contain the necessary real and imaginary parts"
+                f" of the complex production coefficient for {other_wave}."
+            )
+        other_wave_complex = df[f"{other_wave}_re"] + 1j * df[f"{other_wave}_im"]
+        other_phase = np.angle(other_wave_complex)
+
+        new_phase_diff = (
+            df["dphase"] - other_phase if is_d_first else other_phase - df["dphase"]
+        )
+
+        new_phase_differences[phase_difference] = new_phase_diff
+
+    return df.assign(**new_phase_differences)
+
+
 def filter_projected_moments(df: pd.DataFrame) -> pd.DataFrame:
     """Remove projected moment columns that are expected to be zero.
 
