@@ -69,6 +69,9 @@ python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/data.csv -o ${output_d
 python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best.csv -o ${output_dir}/best.csv $preview
 python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best_acceptance_corrected.csv -o ${output_dir}/best_acceptance_corrected.csv $preview
 
+
+shopt -s nullglob # avoid literal wildcard if no matches
+
 # handle optional files
 files=(${input_dir}/mass*/best_projected_moments.csv)
 if [ ${#files[@]} -gt 0 ]; then
