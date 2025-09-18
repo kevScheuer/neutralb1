@@ -1,5 +1,6 @@
 """Contains the ResultManager class with methods to manage and analyze fit results."""
 
+import pickle
 import warnings
 from typing import Optional
 
@@ -91,11 +92,14 @@ class ResultManager:
                 UserWarning,
             )
 
+        # store commonly used derived quantities
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
+        self.is_preprocessed = False  # flag to track if preprocessing has been done
 
-        self.plotter_factory = None  # initialize to None until plotter is called
+        # private attributes
+        self._plotter_factory = None  # initialize to None until plotter is called
 
         return
 
@@ -120,6 +124,12 @@ class ResultManager:
                 See :func:`neutralb1.analysis.utils.link_dataframes` for details.
 
         """
+        if self.is_preprocessed:
+            warnings.warn(
+                "The DataFrames have already been preprocessed. Skipping this step.",
+                UserWarning,
+            )
+            return
 
         # if D/S ratio used in the fit, restore the relevant phases before anything else
         if "dphase" in self.fit_df.columns:
@@ -365,12 +375,99 @@ class ResultManager:
                 self.fit_df, self.truth_df
             )
 
+        self.is_preprocessed = True  # set flag to True after preprocessing is done
+        return
+
+    def summary(self) -> None:
+        """Print a summary of the fit results contained in the DataFrames.
+
+        Args:
+            None
+        Returns:
+            None, just prints to console
+        """
+
+        print("Fit DataFrame Summary:")
+        print(self.fit_df.info())
+        print("\nData DataFrame Summary:")
+        print(self.data_df.info())
+        if self.proj_moments_df is not None:
+            print("\nProjected Moments DataFrame Summary:")
+            print(self.proj_moments_df.info())
+        if self.randomized_df is not None:
+            print("\nRandomized Fit DataFrame Summary:")
+            print(self.randomized_df.info())
+        if self.randomized_proj_moments_df is not None:
+            print("\nRandomized Projected Moments DataFrame Summary:")
+            print(self.randomized_proj_moments_df.info())
+        if self.bootstrap_df is not None:
+            print("\nBootstrap Fit DataFrame Summary:")
+            print(self.bootstrap_df.info())
+        if self.bootstrap_proj_moments_df is not None:
+            print("\nBootstrap Projected Moments DataFrame Summary:")
+            print(self.bootstrap_proj_moments_df.info())
+        if self.truth_df is not None:
+            print("\nTruth Fit DataFrame Summary:")
+            print(self.truth_df.info())
+        if self.truth_proj_moments_df is not None:
+            print("\nTruth Projected Moments DataFrame Summary:")
+            print(self.truth_proj_moments_df.info())
+
+        return
+
+    def save(self, filepath: str, preprocess=True) -> None:
+        """Save all preprocessed DataFrames to a pickle file.
+
+        This method serializes all internal DataFrames to a single pickle file,
+        allowing for easy reloading into a new ResultManager instance later.
+
+        Args:
+            filepath (str): Path to the output pickle file.
+            preprocess (bool, optional): Whether to preprocess the DataFrames before
+                saving. Defaults to True.
+
+        Raises:
+            IOError: If the file cannot be written.
+
+        Returns:
+            None, just saves to file.
+
+        Example:
+            >>> result_manager.save("fit_results.pkl")
+            >>> # Later, to load the results:
+            >>> with open("fit_results.pkl", "rb") as f:
+            >>>     data = pickle.load(f)
+            >>> new_result_manager = ResultManager(**data)
+        """
+        if preprocess:
+            self.preprocess()
+
+        data = {
+            "fit_df": self.fit_df,
+            "data_df": self.data_df,
+            "proj_moments_df": self.proj_moments_df,
+            "randomized_df": self.randomized_df,
+            "randomized_proj_moments_df": self.randomized_proj_moments_df,
+            "bootstrap_df": self.bootstrap_df,
+            "bootstrap_proj_moments_df": self.bootstrap_proj_moments_df,
+            "truth_df": self.truth_df,
+            "truth_proj_moments_df": self.truth_proj_moments_df,
+        }
+        try:
+            with open(filepath, "wb") as f:
+                pickle.dump(data, f)
+                print(f"DataFrames successfully saved to {filepath}")
+        except IOError as e:
+            raise IOError(f"Could not write to {filepath}: {e}")
+
+        return
+
     @property
     def plot(self) -> FactoryPlotter:
         """Return a FactoryPlotter instance for plotting fit results."""
 
-        if self.plotter_factory is None:
-            self.plotter_factory = FactoryPlotter(
+        if self._plotter_factory is None:
+            self._plotter_factory = FactoryPlotter(
                 fit_df=self.fit_df,
                 data_df=self.data_df,
                 proj_moments_df=self.proj_moments_df,
@@ -381,4 +478,4 @@ class ResultManager:
                 truth_df=self.truth_df,
                 truth_proj_moments_df=self.truth_proj_moments_df,
             )
-        return self.plotter_factory
+        return self._plotter_factory
