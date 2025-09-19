@@ -49,6 +49,7 @@ void plot2D(TFile *f, TString dir);
 std::vector<TColor *> create_custom_colors();
 const std::map<TString, JP_props> create_jp_map();
 const std::set<TString> get_unique_jp_keys(TFile *f);
+bool is_background_present(TFile *f);
 const std::set<std::string> get_unique_amp_keys(TFile *f);
 
 int main(int argc, char *argv[])
@@ -170,6 +171,10 @@ TCanvas *summary_plot(TFile *f, TString data_title)
 
     // iterate through the histograms in the file and find the JP contributions
     std::set<TString> jp_keys = get_unique_jp_keys(f);
+
+    // if background is present, add it to the set of jp_keys
+    if (is_background_present(f))
+        jp_keys.insert("Bkgd");
 
     // create a unique canvas and setup some plot parameters
     static int canvas_count = 0;
@@ -513,6 +518,7 @@ const std::map<TString, JP_props> create_jp_map()
     std::vector<TColor *> custom_colors = create_custom_colors();
 
     const std::map<TString, JP_props> jp_map = {
+        {"Bkgd", JP_props{"Bkgd", custom_colors[0], 1}},
         {"0m", JP_props{"#[]{0^{#minus}}^{(#pm)} (P)", custom_colors[1], 5}},
         {"1p", JP_props{"#[]{1^{#plus}}^{(#pm)} (S+D)", custom_colors[2], 20}},
         {"1m", JP_props{"#[]{1^{#minus}}^{(#pm)} (P)", custom_colors[3], 21}},
@@ -522,6 +528,19 @@ const std::map<TString, JP_props> create_jp_map()
     };
 
     return jp_map;
+}
+
+bool is_background_present(TFile *f)
+{
+    TString key = "isotropic";
+    TList *keys = f->GetListOfKeys();
+    for (int i = 0; i < keys->GetSize(); i++)
+    {
+        TString key_name = keys->At(i)->GetName();
+        if (key_name.Contains(key))
+            return true;
+    }
+    return false;
 }
 
 /**
