@@ -136,16 +136,6 @@ class ResultManager:
             )
             return
 
-        # if D/S ratio used in the fit, restore the relevant phases before anything else
-        if "dphase" in self.fit_df.columns:
-            self.fit_df = preprocessing.restore_ds_phases(self.fit_df)
-        if self.randomized_df is not None and "dphase" in self.randomized_df.columns:
-            self.randomized_df = preprocessing.restore_ds_phases(self.randomized_df)
-        if self.bootstrap_df is not None and "dphase" in self.bootstrap_df.columns:
-            self.bootstrap_df = preprocessing.restore_ds_phases(self.bootstrap_df)
-        if self.truth_df is not None and "dphase" in self.truth_df.columns:
-            self.truth_df = preprocessing.restore_ds_phases(self.truth_df)
-
         # warn of missing values in the DataFrames
         if preprocessing.find_null_columns(self.fit_df):
             warnings.warn(

@@ -31,6 +31,7 @@ NOTE: this script is "reaction" independent, meaning if multiple reactions are i
 */
 
 #include <cstring>
+#include <complex>
 #include <fstream> // for writing csv
 #include <iostream>
 #include <map>
@@ -49,6 +50,10 @@ void fill_maps(
     std::map<std::string, std::complex<double>> &production_coefficients,
     std::map<std::string, std::map<std::string, std::vector<std::string>>> &coherent_sums,
     std::map<std::string, std::pair<std::string, std::string>> &phase_diffs);
+std::pair<double, double> corrected_dphase(
+    std::string phase1_amplitude, 
+    std::string phase2_amplitude, 
+    FitResults &results);
 
 int main(int argc, char *argv[])
 {
@@ -147,6 +152,17 @@ int main(int argc, char *argv[])
         }
         phase_diffs.clear();
 
+        // flag if dphase parameter is used, will affect phase differences later
+        bool is_dphase_present = false;
+        for (const auto &par_name : results.parNameList())
+        {
+            if (par_name.find("dphase") != std::string::npos)
+            {
+                is_dphase_present = true;
+                break;
+            }
+        }
+
         // fill all the maps for this file
         fill_maps(results, standard_results, production_coefficients, coherent_sums, phase_diffs);
 
@@ -231,14 +247,30 @@ int main(int argc, char *argv[])
                 csv_data << results.intensity(sub_pair.second, is_acceptance_corrected).second << ",";
             }
         }
-        // 5. phase differences, again avoiding an extra comma at the end
+        // 5. phase differences
         for (auto it = phase_diffs.begin(); it != phase_diffs.end(); ++it)
         {
             std::string phase1 = it->second.first;
             std::string phase2 = it->second.second;
-            auto phase_diff = results.phaseDiff(phase1, phase2);
-            csv_data << phase_diff.first << ","; // value
-            csv_data << phase_diff.second;       // error
+            
+            // if dphase parameter is used, need to specially handle it
+            if (is_dphase_present && 
+                (phase1.find("D") != std::string::npos 
+                || phase2.find("D") != std::string::npos)
+            )
+            {
+                auto phase_diff = corrected_dphase(phase1, phase2, results);
+                csv_data << phase_diff.first << ","; // value
+                csv_data << phase_diff.second;       // error
+            }
+            else // otherwise, normal phase difference calculation
+            {
+                auto phase_diff = results.phaseDiff(phase1, phase2);
+                csv_data << phase_diff.first << ","; // value
+                csv_data << phase_diff.second;       // error
+            }
+
+            // again avoiding an extra comma at the end
             if (std::next(it) != phase_diffs.end())
             {
                 csv_data << ",";
@@ -352,4 +384,74 @@ void fill_maps(
             }
         }
     }
+}
+
+/**
+ * @brief Correct the phase difference between two amplitudes, when one is a D-wave
+ * 
+ * The function will automatically determine which amplitude is the D-wave,
+ * and apply the appropriate correction to the phase difference.
+ * 
+ * @param phase1_amplitude "full" amplitude name of the first amplitude
+ * @param phase2_amplitude "full" amplitude name of the second amplitude
+ * @param results the FitResults object containing the fit parameters
+ * @return std::pair<double, double> The corrected phase difference and its error
+ * @note This assumes the "dsratio" and "dphase" parameters are present, and dphase is in radians
+ */
+std::pair<double, double> corrected_dphase(
+    std::string phase1_amplitude, 
+    std::string phase2_amplitude, 
+    FitResults &results)
+{
+    // --- determine which amplitude is the D-wave ---
+    AmplitudeParser parser1(phase1_amplitude);
+    AmplitudeParser parser2(phase2_amplitude);
+    std::string d_amp;
+    std::string other_amp;
+    bool is_d_amp_first;
+
+    if (parser1.get_L_char() == 'D' && parser2.get_L_char() == 'D') 
+    {
+        // by definition this difference is zero since dphase is common to all D waves
+        return std::make_pair(0.0, 0.0); 
+    }
+    else if (parser1.get_L_char() == 'D') 
+    {
+        d_amp = phase1_amplitude;
+        other_amp = phase2_amplitude;
+        is_d_amp_first = true;
+    } 
+    else if (parser2.get_L_char() == 'D') {
+        d_amp = phase2_amplitude;
+        other_amp = phase1_amplitude;
+        is_d_amp_first = false;
+    } 
+    else {
+        throw std::invalid_argument("Neither amplitude is a D-wave");
+    }
+
+    // --- get production coefficients ---
+    complex<double> other_prod_coeff = results.productionParameter(other_amp);
+    complex<double> d_prod_coeff = results.productionParameter(d_amp);
+    
+    // the d-wave needs to be modified by the "extra" complex parameter we gave it
+    double ratio = results.parValue("dsratio");
+    double dphase = results.parValue("dphase");
+    complex<double> extra_param = std::polar(ratio , dphase);
+
+    d_prod_coeff *= extra_param;
+
+    // --- compute the phase difference ---
+    double phase_diff;
+    if (is_d_amp_first)
+    {
+        phase_diff = std::arg(d_prod_coeff) - std::arg(other_prod_coeff);
+    }
+    else
+    {
+        phase_diff = std::arg(other_prod_coeff) - std::arg(d_prod_coeff);
+    }
+    std::cout << "Returning " << phase_diff << " for dphase between " 
+              << d_amp << " and " << other_amp << "\n";
+    return std::make_pair(phase_diff, 0.0); // TODO: propagate error
 }
