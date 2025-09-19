@@ -11,17 +11,21 @@ Example:
 """
 
 import argparse
+import glob
 import os
 import pathlib
 import pickle
 import subprocess
 import sys
+import warnings
 from typing import Any, Dict
 
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+from PyPDF2 import PdfReader, PdfWriter
 
+import neutralb1.utils as utils
 from neutralb1.analysis.result import ResultManager
 
 
@@ -123,6 +127,11 @@ def main() -> int:
     save_standard_plots(result, args["output"])
     print("Plotting completed.")
 
+    # If input was a t-bin directory (not a .pkl file), also stitch angle PDFs
+    if not args["input"].endswith(".pkl"):
+        combined_angles_path = f"{args['output']}/plots/combined_angles.pdf"
+        stitch_angle_pdfs(args["input"], combined_angles_path)
+
     return 0
 
 
@@ -159,6 +168,67 @@ def save_standard_plots(result: ResultManager, output_dir: str) -> None:
     plt.gcf().savefig(f"{output_dir}/plots/matrix.pdf", bbox_inches="tight")
 
     return
+
+
+def stitch_angle_pdfs(t_bin_dir: str, output_path: str) -> None:
+    """Stitch together angle distribution PDFs from all mass bins in a t-bin.
+
+    This function finds all PDF files matching the pattern
+    "t_bin/mass*/distributions/angles.pdf", sorts them by mass bin, and combines only
+    the first page of each PDF into one large PDF file.
+
+    Args:
+        t_bin_dir (str): Path to the t-bin directory containing mass bin subdirectories.
+        output_path (str): Path where the combined PDF should be saved.
+
+    Raises:
+        FileNotFoundError: If no angle PDF files are found in the t-bin directory.
+
+    Returns:
+        None: Saves the combined PDF to the specified output path.
+    """
+    # Find all angle PDF files matching the pattern
+    pdf_pattern = os.path.join(t_bin_dir, "mass*", "distributions", "angles.pdf")
+    pdf_files = glob.glob(pdf_pattern)
+
+    if not pdf_files:
+        raise FileNotFoundError(
+            f"No angle PDF files found matching pattern: {pdf_pattern}"
+        )
+
+    # Sort the PDF files using the same logic as collect_csv.py
+    # This sorts by the last number in the path (mass bin number)
+    sorted_pdf_files = utils.sort_input_files(pdf_files, position=-1)
+
+    print(f"Found {len(sorted_pdf_files)} angle PDF files to combine:")
+    for pdf_file in sorted_pdf_files:
+        print(f"  {pdf_file}")
+
+    # Create a PdfWriter object for the combined PDF
+    pdf_writer = PdfWriter()
+
+    # Process each PDF file
+    for i, pdf_file in enumerate(sorted_pdf_files):
+        # Extract mass bin from pdf_file path
+        mass_bin = pathlib.Path(pdf_file).parent.parent.name
+        with open(pdf_file, "rb") as file:
+            pdf_reader = PdfReader(file)
+
+            # Add only the first page of each PDF
+            if len(pdf_reader.pages) > 0:
+                first_page = pdf_reader.pages[0]
+                pdf_writer.add_page(first_page)
+                pdf_writer.add_outline_item(mass_bin, i)
+            else:
+                warnings.warn(f"{pdf_file} has no pages, skipping.", UserWarning)
+
+    # Write the combined PDF to the output path
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    with open(output_path, "wb") as output_file:
+        pdf_writer.write(output_file)
+
+    print(f"Combined PDF saved to: {output_path}")
 
 
 def parse_args() -> Dict[str, Any]:
