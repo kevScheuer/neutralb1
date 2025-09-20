@@ -14,6 +14,8 @@ rm -f ./*.ni
 rm -f ./rand/*
 rm -f ./bootstrap/*
 rm -f ./distributions/*
+rm -f out.log
+rm -f err.log
 
 # =============== GET ALL THE FIT PARAMETERS USING OPTARG ===============
 usage() {
