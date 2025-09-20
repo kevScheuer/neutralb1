@@ -7,7 +7,9 @@ a. The covariance and correlation matrices are also included in separate .csv fi
 
 Behind the scenes, this runs compiled c++ scripts for either situation.
 
-TODO: Eventually, the fit converter should simply include the needed data info in it
+Todo:
+    - Eventually, the fit converter should simply include the needed data info in it
+    - return codes are overwritten and so won't communicate errors properly
 """
 
 import argparse
@@ -19,7 +21,7 @@ import tempfile
 import neutralb1.utils as utils
 
 
-def main() -> None:
+def main() -> int:
 
     parser = create_parser()
     args = vars(parser.parse_args())
@@ -69,7 +71,7 @@ def main() -> None:
         print("Files that will be processed:")
         for file in input_files:
             print(f"\t{file}")
-        return
+        return 0
 
     # create a tempfile that contains the list of input files
     # this seems to improve the speed of subprocess.Popen
@@ -100,7 +102,7 @@ def main() -> None:
                 f"{output_file_name}",
                 f"{is_acceptance_corrected}",
             ]
-        run_process(command, args["verbose"])
+        return_code = run_process(command, args["verbose"])
 
         if args["correlation"]:
             corr_output_name = output_file_name.replace(".csv", "_corr.csv")
@@ -109,7 +111,7 @@ def main() -> None:
                 f"{temp_file_path}",
                 f"{corr_output_name}",
             ]
-            run_process(corr_command, args["verbose"])
+            return_code = run_process(corr_command, args["verbose"])
         if args["covariance"]:
             cov_output_name = output_file_name.replace(".csv", "_cov.csv")
             cov_command = [
@@ -117,7 +119,7 @@ def main() -> None:
                 f"{temp_file_path}",
                 f"{cov_output_name}",
             ]
-            run_process(cov_command, args["verbose"])
+            return_code = run_process(cov_command, args["verbose"])
     elif file_type == "root":
         output_file_name = "data.csv" if not args["output"] else args["output"]
         bin_command = [
@@ -126,14 +128,15 @@ def main() -> None:
             f"{output_file_name}",
             f"{args['mass_branch']}",
         ]
-        run_process(bin_command, args["verbose"])
+        return_code = run_process(bin_command, args["verbose"])
     else:
+        return_code = 1
         raise ValueError("Invalid type. Must be either 'fit' or 'root'")
 
-    return
+    return return_code
 
 
-def run_process(command: list, is_verbose: bool) -> None:
+def run_process(command: list, is_verbose: bool) -> int:
     """Run a command with subprocess and print the output if requested"""
     print("Running command:", command)
     proc = subprocess.Popen(
@@ -153,9 +156,10 @@ def run_process(command: list, is_verbose: bool) -> None:
         if stderr_output:
             print("Error while running command:")
             print(stderr_output, end="")
+            return 1
     print("Process completed successfully")
 
-    return
+    return 0
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -254,4 +258,9 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        exit_code = main()
+        sys.exit(exit_code)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
