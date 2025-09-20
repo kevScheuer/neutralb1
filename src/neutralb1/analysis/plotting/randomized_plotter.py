@@ -111,7 +111,7 @@ class RandomizedPlotter(BasePWAPlotter):
         # Create plot based on whether moment residuals are available
         if moment_avg_squared_weighted_residuals is not None:
             # Create 2D plot when moment residuals are available
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
 
             # Use viridis colormap (colorblind friendly) with reversed order
             # so that good values (close to 0) are yellow/bright
@@ -132,7 +132,7 @@ class RandomizedPlotter(BasePWAPlotter):
             ax.set_ylabel("Distance from Best Result (PWA Residuals)")
         else:
             # Create 2D plot when only fit residuals are available
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
 
             ax.set_xlabel(r"$\Delta(-2\ln(\mathscr{L}))$")
             ax.set_ylabel("Fit Avg Squared Error-Weighted Residuals")
@@ -206,7 +206,7 @@ class RandomizedPlotter(BasePWAPlotter):
     ) -> List[float]:
 
         # Get the weighted residuals dictionary from the existing function
-        weighted_residuals = self._weighted_residuals(
+        weighted_residuals = self._calculate_weighted_residuals(
             best_series=best_series,
             rand_df=rand_df,
             columns=columns,
@@ -237,7 +237,7 @@ class RandomizedPlotter(BasePWAPlotter):
 
         return avg_squared_weighted_residuals
 
-    def _weighted_residuals(
+    def _calculate_weighted_residuals(
         self,
         best_series: pd.Series,
         rand_df: pd.DataFrame,
@@ -295,15 +295,19 @@ class RandomizedPlotter(BasePWAPlotter):
                         UserWarning,
                     )
 
+                # Only compute residuals whose errors are not too small
+                phase_weighted_residuals = np.full_like(err_values, np.nan)
+                valid_indices = ~mask
                 vectorized_circular_residual = np.vectorize(utils.circular_residual)
-                phase_weighted_residuals = (
-                    vectorized_circular_residual(
-                        np.abs(rand_values),
-                        np.abs(best_values),
-                        in_degrees=True,
+                if np.any(valid_indices):
+                    phase_weighted_residuals[valid_indices] = (
+                        vectorized_circular_residual(
+                            np.abs(rand_values[valid_indices]),
+                            np.abs(best_values[valid_indices]),
+                            in_degrees=True,
+                        )
+                        / err_values[valid_indices]
                     )
-                    / err_values
-                )
 
                 # Store phase residuals in the correct positions
                 for i, idx in enumerate(phase_indices):
@@ -360,7 +364,12 @@ class RandomizedPlotter(BasePWAPlotter):
                         UserWarning,
                     )
 
-                other_weighted_residuals = (rand_values - best_values) / err_values
+                # Only compute residuals whose errors are not too small
+                other_weighted_residuals = np.full_like(err_values, np.nan)
+                valid_indices = ~mask
+                other_weighted_residuals[valid_indices] = (
+                    rand_values[valid_indices] - best_values[valid_indices]
+                ) / err_values[valid_indices]
 
                 # Store other residuals in the correct positions
                 for i, idx in enumerate(other_indices):
@@ -440,7 +449,7 @@ class RandomizedPlotter(BasePWAPlotter):
 
         data = self._prepare_randomized_data(fit_index)
 
-        weighted_residuals = self._weighted_residuals(
+        weighted_residuals = self._calculate_weighted_residuals(
             best_series=data["best_series"],
             rand_df=data["rand_df"],
             columns=columns,
