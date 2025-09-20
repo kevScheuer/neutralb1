@@ -18,10 +18,11 @@ class RandomizedPlotter(BasePWAPlotter):
     def likelihood_comparison(
         self,
         fit_index: int,
-        pwa_threshold=0.1,
-        moment_threshold=0.01,
-        fit_columns=None,
-        moment_columns=None,
+        pwa_threshold: float = 0.1,
+        moment_threshold: float = 0.01,
+        fit_columns: list[str] | None = None,
+        moment_columns: list[str] | None = None,
+        figsize: tuple = (10, 8),
     ) -> matplotlib.axes.Axes:
         """Plot likelihoods of randomized fits against their distance from the best fit.
 
@@ -527,7 +528,7 @@ class RandomizedPlotter(BasePWAPlotter):
         return ax
 
     def likelihood_distribution(
-        self, fit_index: int, **hist_kwargs
+        self, fit_index: int, figsize: tuple = (10, 8), **hist_kwargs
     ) -> matplotlib.axes.Axes:
         """Plot the distribution of likelihoods from randomized fits.
 
@@ -547,7 +548,7 @@ class RandomizedPlotter(BasePWAPlotter):
         best_likelihood = best_series["likelihood"]
         delta_lnL = [ll - best_likelihood for ll in likelihoods]
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=figsize)
 
         # Compute histogram
         counts, bins = np.histogram(delta_lnL, bins=30)
