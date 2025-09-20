@@ -32,7 +32,7 @@ dev = [
     "nb-clean>=4.0.1",
     "sphinx>=8.2.3", # required for building docs
     "pydata-sphinx-theme>=0.16.1", # required for building docs
-    "pypdf2>=3.0.1", # used for scripts
+    "pypdf>=6.0.0", # used for scripts
 ]
 
 [build-system]

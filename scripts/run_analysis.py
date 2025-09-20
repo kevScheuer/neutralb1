@@ -23,7 +23,7 @@ from typing import Any, Dict
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-from PyPDF2 import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 
 import neutralb1.utils as utils
 from neutralb1.analysis.result import ResultManager
@@ -201,8 +201,6 @@ def stitch_angle_pdfs(t_bin_dir: str, output_path: str) -> None:
     sorted_pdf_files = utils.sort_input_files(pdf_files, position=-1)
 
     print(f"Found {len(sorted_pdf_files)} angle PDF files to combine:")
-    for pdf_file in sorted_pdf_files:
-        print(f"  {pdf_file}")
 
     # Create a PdfWriter object for the combined PDF
     pdf_writer = PdfWriter()
