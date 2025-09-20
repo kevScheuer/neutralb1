@@ -451,7 +451,5 @@ std::pair<double, double> corrected_dphase(
     {
         phase_diff = std::arg(other_prod_coeff) - std::arg(d_prod_coeff);
     }
-    std::cout << "Returning " << phase_diff << " for dphase between " 
-              << d_amp << " and " << other_amp << "\n";
     return std::make_pair(phase_diff, 0.0); // TODO: propagate error
 }
