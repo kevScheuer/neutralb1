@@ -325,7 +325,7 @@ class RandomizedPlotter(BasePWAPlotter):
         assert data["rand_df"] is not None, "randomized fits must be provided"
 
         # Compute histogram
-        counts, bins = np.histogram(data["delta_lnL"], bins=30)
+        counts, bins = np.histogram(data["delta_lnL"], bins=100)
         bin_centers = 0.5 * (bins[:-1] + bins[1:])
 
         # Normalize delta_lnL for colormap
@@ -347,6 +347,11 @@ class RandomizedPlotter(BasePWAPlotter):
 
         ax.set_xlabel(r"$\Delta(-2\ln(\mathscr{L}))$")
         ax.set_ylabel("Counts")
+
+        # Ensure left hand side of plot is at 0 (with padding)
+        x_min, x_max = ax.get_xlim()
+        pad_x = max(0.05, 0.05 * (x_max - x_min))
+        ax.set_xlim(left=0 - pad_x)
 
         return ax
 
@@ -414,7 +419,7 @@ class RandomizedPlotter(BasePWAPlotter):
         # Group 2: dashed line
         # Group 3 (worst fits): dashdot line, lowest alpha
         line_styles = ["-", ":", "--", "-."]
-        alpha_values = [0.8, 0.6, 0.4, 0.2]
+        alpha_values = [1.0, 0.8, 0.6, 0.5]
 
         # Assign each fit to a group based on delta_lnL quartiles
         groups = np.digitize(delta_lnL, quartiles)
@@ -446,7 +451,6 @@ class RandomizedPlotter(BasePWAPlotter):
             ha="right",
             rotation_mode="anchor",
         )
-        ax.grid(True, alpha=0.3)
 
         # show 0, and 3 sigma lines
         ax.axhline(y=0, color="black", linestyle="-", alpha=0.5)
@@ -458,6 +462,8 @@ class RandomizedPlotter(BasePWAPlotter):
         y_min = np.nanmin([np.nanmin(res) for res in weighted_residuals.values()])
         y_limit = max(abs(y_max), abs(y_min)) * 1.1  # add some padding
         ax.set_ylim(-y_limit, y_limit)
+
+        ax.grid(True, alpha=0.3)
 
         return ax
 
@@ -576,8 +582,8 @@ class RandomizedPlotter(BasePWAPlotter):
                 s=50,
             )
 
-            ax.set_xlabel("Distance from Best Result (Moment Residuals)")
-            ax.set_ylabel("Distance from Best Result (PWA Residuals)")
+            ax.set_xlabel("Distance (Moment Residuals)")
+            ax.set_ylabel("Distance (PWA Residuals)")
         else:
             # Create 1D scatterplot with PWA residuals on y-axis and delta_lnL on x-axis
             ax.scatter(
@@ -590,6 +596,20 @@ class RandomizedPlotter(BasePWAPlotter):
             )
 
             ax.set_xlabel(r"$\Delta(-2\ln(\mathscr{L}))$")
-            ax.set_ylabel("Distance from Best Result (PWA Residuals)")
+            ax.set_ylabel("Distance (PWA Residuals)")
+
+        # Ensure lower left corner is at (0, 0) with some padding
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+
+        if np.isclose(x_max, 0.0, atol=0.1):
+            x_max = 0 + 0.1  # ensure some range if all x are 0
+        if np.isclose(y_max, 0.0, atol=0.1):
+            y_max = 0 + 0.1  # ensure some range if all y are 0
+
+        pad_x = max(0.05, 0.05 * (x_max - x_min))
+        pad_y = max(0.05, 0.05 * (y_max - y_min))
+        ax.set_xlim(0 - pad_x, x_max)
+        ax.set_ylim(0 - pad_y, y_max)
 
         return ax
