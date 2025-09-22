@@ -206,9 +206,15 @@ class RandomizedPlotter(BasePWAPlotter):
 
         # before we limit the rand_df to specific columns, extract delta_lnL values
         # and error columns (projected moments don't have errors)
-        delta_lnL = pd.Series(
+        delta_lnL = np.array(
             [ll - best_series["likelihood"] for ll in rand_df["likelihood"]]
         )
+
+        # filter based on likelihood threshold
+        likelihood_mask = delta_lnL <= likelihood_threshold
+        delta_lnL = delta_lnL[likelihood_mask]
+        rand_df = rand_df.iloc[likelihood_mask]
+
         pwa_error_columns = [f"{col}_err" for col in pwa_columns]
         pwa_columns += pwa_error_columns
 
@@ -221,6 +227,7 @@ class RandomizedPlotter(BasePWAPlotter):
             bootstrap_df = self.bootstrap_df.loc[
                 self.bootstrap_df["fit_index"] == fit_index
             ][pwa_columns]
+            bootstrap_df = bootstrap_df.iloc[likelihood_mask]
         else:
             bootstrap_df = None
 
@@ -235,6 +242,7 @@ class RandomizedPlotter(BasePWAPlotter):
             rand_proj_moments_df = self.randomized_proj_moments_df.loc[
                 self.randomized_proj_moments_df["fit_index"] == fit_index
             ][moment_columns]
+            rand_proj_moments_df = rand_proj_moments_df.iloc[likelihood_mask]
         else:
             rand_proj_moments_df = None
 
@@ -242,6 +250,7 @@ class RandomizedPlotter(BasePWAPlotter):
             bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
                 self.bootstrap_proj_moments_df["fit_index"] == fit_index
             ][moment_columns]
+            bootstrap_proj_moments_df = bootstrap_proj_moments_df.iloc[likelihood_mask]
         else:
             bootstrap_proj_moments_df = None
 
@@ -346,7 +355,7 @@ class RandomizedPlotter(BasePWAPlotter):
         ax: matplotlib.axes.Axes,
         best_series: pd.Series,
         rand_df: pd.DataFrame,
-        delta_lnL: pd.Series,
+        delta_lnL: np.ndarray,
         bootstrap_df: Optional[pd.DataFrame] = None,
     ) -> matplotlib.axes.Axes:
         """Calculate and plot the weighted residuals for randomized fits.
