@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
+from IPython.display import HTML
 from IPython.display import Image as IPyImage
 from IPython.display import display
 from wand.image import Image as WandImage
@@ -88,6 +89,18 @@ def display_pdf(file: str, page: int, resolution: int = 100) -> None:
         display(IPyImage(data=png_bytes))
 
     return
+
+
+def big_print(input_string: str, size: float) -> None:
+    """Print a string in large font size in a Jupyter notebook
+
+    Args:
+        input_string (str): The string to be displayed.
+        size (float): The font size multiplier (e.g., 2.0 for double size).
+    Returns:
+        None, just displays the string
+    """
+    display(HTML(f"<span style='font-size:{size}em'>{input_string}</span>"))
 
 
 def get_workspace_dir() -> str:
@@ -417,6 +430,8 @@ def propagate_product_error(
 
     Returns:
         pd.Series: Propagated relative errors.
+
+    TODO: replace with uncertainties package
     """
     # Avoid division by zero
     safe_var1 = np.where(var1 == 0, np.finfo(float).eps, var1)
