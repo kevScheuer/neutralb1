@@ -548,7 +548,7 @@ class RandomizedPlotter(BasePWAPlotter):
         }
         values = np.array(list(pwa_residuals.values())).T  # shape = (N_fits, N_columns)
         pwa_averages = [
-            np.nanmean(np.square(values[row])) for row in range(values.shape[0])
+            np.nanmean(np.abs(values[row])) for row in range(values.shape[0])
         ]
 
         if (
@@ -569,7 +569,7 @@ class RandomizedPlotter(BasePWAPlotter):
             }
             values = np.array(list(moment_residuals.values())).T
             moment_averages = [
-                np.nanmean(np.square(values[row])) for row in range(values.shape[0])
+                np.nanmean(np.abs(values[row])) for row in range(values.shape[0])
             ]
 
             # Create 2D scatterplot with moments on x-axis and PWA on y-axis
