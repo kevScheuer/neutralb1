@@ -63,6 +63,9 @@ class ResultManager:
                 preprocessed. It's unlikely that the user would set this to True. Main
                 purpose is tracking if preprocessing has been done when loading from
                 a pickle file. Defaults to False.
+
+        Todo:
+            - apply phase conversion and wrapping to dphase parameter if present
         """
 
         # create local copies of the DataFrames to avoid modifying the originals
