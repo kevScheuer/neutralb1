@@ -49,6 +49,7 @@ def main() -> int:
             f" -o {args['output']}/raw/"
         )
         command += " -p" if args["preview"] else ""
+        command += " -f" if args["force"] else ""
 
         run_result = subprocess.run(command, shell=True, check=True)
         if run_result.returncode != 0:
@@ -123,7 +124,12 @@ def main() -> int:
             pickle_file = f"{args['output']}/preprocessed_results{ac_str}.pkl"
             result.save(pickle_file, preprocess=False)  # preprocess already done above
 
-    print("Results ready, plotting...")
+    print("Results ready.")
+
+    if args["no_plots"]:
+        print("Skipping plotting as per --no-plots flag.")
+        return 0
+    print("Generating standard plots...")
     save_standard_plots(result, args["output"])
     print("Plotting completed.")
 
@@ -256,6 +262,16 @@ def parse_args() -> Dict[str, Any]:
         "--no-save",
         action="store_true",
         help="If passed, do not save preprocessed results to output directory.",
+    )
+    parser.add_argument(
+        "--no-plots",
+        action="store_true",
+        help="If passed, do not generate and save standard plots.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="If passed, overwrite existing output raw csv files.",
     )
     parser.add_argument(
         "-a",
