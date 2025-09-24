@@ -81,6 +81,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             sharex=True,
             figsize=figsize,
             gridspec_kw={"wspace": 0.0, "hspace": 0.12},
+            layout="constrained",
         )
 
         ax_ratio, ax_phase, ax_corr = axs
@@ -146,6 +147,11 @@ class DiagnosticPlotter(BasePWAPlotter):
                 markersize=4,
                 label="Correlation",
             )
+            ax_corr.set_xlabel(rf"{self.channel} inv. mass (GeV)", loc="right")
+            ax_corr.set_ylabel("ρ(D/S, D-S)", loc="top")
+            ax_corr.set_ylim(-1, 1)
+            ax_corr.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
+            ax_corr.legend()
 
         # Configure axes
         ax_ratio.set_ylabel("D/S Ratio", loc="top")
@@ -157,13 +163,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_phase.set_ylim(-180, 180)
         ax_phase.legend()
 
-        ax_corr.set_xlabel(rf"{self.channel} inv. mass (GeV)", loc="right")
-        ax_corr.set_ylabel("ρ(D/S, D-S)", loc="top")
-        ax_corr.set_ylim(-1, 1)
-        ax_corr.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
-        ax_corr.legend()
-
-        plt.tight_layout()
         return axs
 
     def _plot_ds_ratio_from_amplitudes(
