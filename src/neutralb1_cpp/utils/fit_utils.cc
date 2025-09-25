@@ -148,7 +148,7 @@ complex<double> get_production_coefficient_pair(
 }
 
 
-double calculate_intensity(const FitResults &results)
+double calculate_intensity(const FitResults &results, bool acceptance_corrected)
 {
     complex<double> intensity = 0.0;
 
@@ -182,7 +182,8 @@ double calculate_intensity(const FitResults &results)
                 parser.get_m_int(),
                 parser.get_L_int(),
                 reaction,
-                results);
+                results,
+                acceptance_corrected);
             intensity += result;
         }
 

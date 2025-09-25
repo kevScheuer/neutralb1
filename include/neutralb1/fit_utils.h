@@ -54,9 +54,10 @@ complex<double> get_production_coefficient_pair(
  * working properly.
  *
  * @param[in] results The fit results to calculate the intensity for.
+ * @param[in] acceptance_corrected Whether to return the acceptance-corrected intensity. Defaults to true.
  * @return complex<double> The calculated intensity.
  */
-double calculate_intensity(const FitResults &results);
+double calculate_intensity(const FitResults &results, bool acceptance_corrected = true);
 
 /**
  * @brief Find the maximum spin J value from the fit results.
