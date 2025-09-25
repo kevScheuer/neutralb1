@@ -180,7 +180,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         marker_map = {"q": "h", "p": "^", "0": ".", "m": "v", "n": "s"}
         color_map = {"p": "red", "m": "blue"}
 
-        fig = plt.figure(figsize=figsize, dpi=300)
+        fig = plt.figure(figsize=figsize, dpi=300, layout="constrained")
         subfigs = fig.subfigures(1, 2, width_ratios=[2, 1])
 
         # Left subfigure: ratio and phase vs mass
@@ -342,7 +342,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_corr.set_ylim(-180, 180)
         ax_corr.legend(fontsize=10)
 
-        plt.tight_layout()
         return np.array([ax_ratio, ax_phase, ax_corr])
 
     def _calculate_ds_ratio(self, d_wave: str, s_wave: str) -> tuple:
