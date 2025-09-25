@@ -209,6 +209,9 @@ def wrap_phases(df: pd.DataFrame, phase_columns: Optional[list] = None) -> pd.Da
     if phase_columns is None:
         phase_columns = list(set(utils.get_phase_differences(df)))
         phase_columns += [f"{col}_err" for col in phase_columns]
+    if "dphase" in df.columns:
+        phase_columns.append("dphase")
+        phase_columns.append("dphase_err")
 
     return df.assign(**{col: df[col].map(wrap_radians) for col in phase_columns})
 
