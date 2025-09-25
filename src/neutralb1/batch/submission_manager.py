@@ -172,12 +172,24 @@ class SubmissionManager:
         """
 
         volatile_dir = f"/volatile/halld/home/{pwd.getpwuid(os.getuid())[0]}"
+
+        # handle truth subdirectory path if doing truth fits
         truth_subdir = ""
         if config.data.truth_file:
             if "init" in config.data.truth_file:
                 truth_subdir = "truth-init"
             else:
                 truth_subdir = "truth"
+
+        # attach ds ratio to waveset directory
+        if config.physics.ds_ratio:
+            waveset_dir = "_".join(sorted(config.physics.waveset)) + (
+                f"_ds{config.physics.ds_ratio}"
+            )
+        else:
+            # the empty string means ds ratio defined but allowed to float
+            waveset_dir = "_".join(sorted(config.physics.waveset)) + (f"_dsfloat")
+
         return "/".join(
             [
                 volatile_dir,
@@ -187,7 +199,7 @@ class SubmissionManager:
                 "_".join(sorted(config.data.orientations)),
                 f"{config.data.data_version}{config.data.data_option}",
                 f"{config.data.phasespace_version}{config.data.phasespace_option}",
-                "_".join(sorted(config.physics.waveset)),
+                waveset_dir,
                 f"recoil_pi_mass_{config.data.cut_recoil_pi_mass}",
                 f"t_{low_t:.2f}-{high_t:.2f}",
                 f"mass_{low_mass:.3f}-{high_mass:.3f}",
