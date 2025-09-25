@@ -1105,7 +1105,7 @@ dev = [
     { name = "nb-clean" },
     { name = "nbqa" },
     { name = "pydata-sphinx-theme" },
-    { name = "pypdf2" },
+    { name = "pypdf" },
     { name = "pytest" },
     { name = "sphinx" },
 ]
@@ -1124,7 +1124,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3.3" },
     { name = "pandas", specifier = ">=2.3.1" },
     { name = "pydata-sphinx-theme", marker = "extra == 'dev'", specifier = ">=0.16.1" },
-    { name = "pypdf2", marker = "extra == 'dev'", specifier = ">=3.0.1" },
+    { name = "pypdf", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "scipy", specifier = ">=1.16.2" },
@@ -1481,12 +1481,12 @@ wheels = [
 ]
 
 [[package]]
-name = "pypdf2"
-version = "3.0.1"
+name = "pypdf"
+version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9f/bb/18dc3062d37db6c491392007dfd1a7f524bb95886eb956569ac38a23a784/PyPDF2-3.0.1.tar.gz", hash = "sha256:a74408f69ba6271f71b9352ef4ed03dc53a31aa404d29b5d31f53bfecfee1440", size = 227419, upload-time = "2022-12-31T10:36:13.13Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/ac/44d86f16b8ad9b42ea1da4b9aa145be71c89927566d9be87fe74bda1dfef/pypdf-6.1.0.tar.gz", hash = "sha256:0cba440d024da5a2a9304f03cd645346052827b84c5a461c6123e24ed5a3b0b9", size = 5072609, upload-time = "2025-09-21T13:38:39.1Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/5e/c86a5643653825d3c913719e788e41386bee415c2b87b4f955432f2de6b2/pypdf2-3.0.1-py3-none-any.whl", hash = "sha256:d16e4205cfee272fbdc0568b68d82be796540b1537508cef59388f839c191928", size = 232572, upload-time = "2022-12-31T10:36:10.327Z" },
+    { url = "https://files.pythonhosted.org/packages/07/f3/4939b609cfd374e495450b22a0385ee3f531e9aa40e8812e5c405f030c54/pypdf-6.1.0-py3-none-any.whl", hash = "sha256:6b34e4147df20978bf270af19826692e0485431a9d3944617b9533bc77efb695", size = 322468, upload-time = "2025-09-21T13:38:37.467Z" },
 ]
 
 [[package]]
