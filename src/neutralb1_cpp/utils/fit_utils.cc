@@ -230,7 +230,8 @@ double calculate_intensity(const FitResults &results, bool acceptance_corrected)
                     parser2.get_m_int(),
                     parser2.get_L_int(),
                     reaction,
-                    results);
+                    results,
+                    acceptance_corrected);
                 intensity += 2 * std::real(result);
             }
         }
