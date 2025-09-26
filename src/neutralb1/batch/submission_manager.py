@@ -188,7 +188,7 @@ class SubmissionManager:
             )
         else:
             # the empty string means ds ratio defined but allowed to float
-            waveset_dir = "_".join(sorted(config.physics.waveset)) + (f"_dsfloat")
+            waveset_dir = "_".join(sorted(config.physics.waveset)) + (f"_dsconstrained")
 
         return "/".join(
             [
