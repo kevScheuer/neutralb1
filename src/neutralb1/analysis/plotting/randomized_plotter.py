@@ -393,12 +393,12 @@ class RandomizedPlotter(BasePWAPlotter):
             del weighted_residuals[col]
 
         # warn user if any columns contain NaN values
-        contain_non_columns = [
+        contain_nan_columns = [
             col
             for col in weighted_residuals.keys()
             if np.any(np.isnan(weighted_residuals[col]))
         ]
-        for col in contain_non_columns:
+        for col in contain_nan_columns:
             warnings.warn(
                 f"Some weighted residuals for column '{col}' are NaN. This may be"
                 " due to missing or zero errors in the best fit. These points will"
