@@ -1,6 +1,8 @@
 from typing import Optional
 
+import numpy as np
 import pandas as pd
+import scipy.stats
 
 import neutralb1.utils as utils
 
@@ -99,3 +101,56 @@ class BasePWAPlotter:
             return utils.convert_moment_name(label)
         else:
             return label
+
+    def get_bootstrap_error(self, label: str) -> pd.Series:
+        """
+        Calculate the bootstrap error (standard deviation) for the given label,
+        grouped by fit index.
+
+        Args:
+            label (str): The column name for which to calculate the error.
+
+        Returns:
+            pd.Series: Standard deviation for each fit index.
+        """
+        if self.bootstrap_df is None:
+            raise ValueError("No bootstrap DataFrame provided.")
+
+        grouped = self.bootstrap_df.groupby("fit_index")[label]
+        if label in self.phase_differences:
+            vectorized_circular_std = np.vectorize(self._circular_std)
+            return grouped.apply(vectorized_circular_std)
+        else:
+            return grouped.std()
+
+    def _circular_std(self, angles: pd.Series) -> float:
+        """Calculate the circular standard deviation of a series of angles.
+
+        Implemented here due to calculation being specific to the amplitude analysis
+        model used.
+
+        Args:
+            angles (pd.Series): Series of angles in radians.
+
+        Returns:
+            float: Circular standard deviation in radians.
+
+        Note:
+            Assumes data has been preprocessed to be within [-π, π] and in degrees.
+        """
+        angles = angles.dropna()
+        if len(angles) == 0:
+            return float("nan")
+
+        angles_rad = np.deg2rad(angles)  # convert to radians
+        angles_rad = np.abs(angles_rad)  # correct for sign ambiguity
+
+        if angles_rad.max() > np.pi:
+            raise ValueError(
+                "Data must be within [-π, π] range in degrees. Ensure preprocessing"
+                " step has been applied."
+            )
+        stdev = scipy.stats.circstd(angles_rad, low=0, high=np.pi)
+
+        # convert back to degrees
+        return np.rad2deg(stdev)
