@@ -129,7 +129,7 @@ fi
 #     exit 1
 # fi
 
-# =============== FIT DIAGNOSTICS AND RESULTS ===============
+# =============== VECPS PLOTTER AND ANGULAR DISTRIBUTIONS ===============
 mv "$my_reaction".fit best.fit
 mv fitPars.txt bestFitPars.txt
 # mv "${my_reaction}_moment.fit" best_moment.fit
@@ -178,6 +178,8 @@ mv *.pdf ./distributions/
 vecps_end_time=$(date +%s)
 echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 
+# =============== CONVERT RESULTS TO CSV ===============
+csv_start_time=$(date +%s)
 
 # get total data csv file
 hadd -f all_data.root *Amplitude*.root
@@ -195,13 +197,17 @@ if [ $my_num_rand_fits -ne 0 ]; then
     mv -f fitPars_*.txt rand/    
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv --verbose
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a --verbose
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --verbose
+    # TODO: rand projected moments far too slow with many fits, need to optimize
+    # uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --verbose
     # uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
 fi
 
 ls -al
+
+csv_end_time=$(date +%s)
+echo "producing csv files took: $((csv_end_time - csv_start_time)) seconds"
 
 # =============== BOOTSTRAP FITS ===============
 if [ $my_num_bootstrap_fits -ne 0 ]; then    
