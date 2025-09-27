@@ -12,11 +12,7 @@ from neutralb1.analysis.plotting.randomized_plotter import RandomizedPlotter
 
 
 class FactoryPlotter:
-    """Factory class that interfaces with all sub-plotters.
-
-    Todo:
-        - Add projected moments to sub-plotters
-    """
+    """Factory class that interfaces with all sub-plotters."""
 
     def __init__(
         self,
@@ -45,6 +41,7 @@ class FactoryPlotter:
         WORKSPACE_DIR = utils.get_workspace_dir()
         plt.style.use(f"{WORKSPACE_DIR}/config/neutralb1.mplstyle")
 
+    @property
     def intensity(self):
         return IntensityPlotter(
             fit_df=self.fit_df,
@@ -58,6 +55,7 @@ class FactoryPlotter:
             truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
+    @property
     def phase(self):
         return PhasePlotter(
             fit_df=self.fit_df,
@@ -71,6 +69,7 @@ class FactoryPlotter:
             truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
+    @property
     def diagnostic(self):
         return DiagnosticPlotter(
             fit_df=self.fit_df,
@@ -84,6 +83,7 @@ class FactoryPlotter:
             truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
+    @property
     def randomized(self):
         return RandomizedPlotter(
             fit_df=self.fit_df,
@@ -97,6 +97,7 @@ class FactoryPlotter:
             truth_proj_moments_df=self.truth_proj_moments_df,
         )
 
+    @property
     def bootstrap(self):
         return BootstrapPlotter(
             fit_df=self.fit_df,
