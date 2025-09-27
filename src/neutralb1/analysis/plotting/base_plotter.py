@@ -116,7 +116,19 @@ class BasePWAPlotter:
         if self.bootstrap_df is None:
             raise ValueError("No bootstrap DataFrame provided.")
 
-        grouped = self.bootstrap_df.groupby("fit_index")[label]
+        # Determine if label is a moment, or belongs to the PWA fit result
+        if label.startswith("H") and label[1].isdigit():
+            if self.bootstrap_proj_moments_df is None:
+                raise KeyError(
+                    f"No bootstrap projected moments DataFrame provided for moment"
+                    f" label {label}."
+                )
+            grouped = self.bootstrap_proj_moments_df.groupby("fit_index")[label]
+        else:
+            if label not in self.bootstrap_df.columns:
+                raise KeyError(f"Label {label} not found in bootstrap DataFrame.")
+            grouped = self.bootstrap_df.groupby("fit_index")[label]
+
         if label in self.phase_differences:
             vectorized_circular_std = np.vectorize(self._circular_std)
             return grouped.apply(vectorized_circular_std)
