@@ -214,7 +214,15 @@ class DiagnosticPlotter(BasePWAPlotter):
         e852_phase: float,
         figsize: tuple,
     ) -> np.ndarray:
-        """Plot D/S ratio calculated from individual amplitudes."""
+        """Plot D/S ratio calculated from individual amplitudes.
+
+        Todo:
+            - Implement bootstrap errors for ratio calculation.
+            - Very messy and difficult to read plot. Needs improvement, though still
+                helpful as it visualizes correlation as a function of mass. Would be
+                nice to compare bootstrap correlation value in each bin to visual
+                correlation across bins.
+        """
 
         # Marker and color maps for different quantum numbers
         marker_map = {"q": "h", "p": "^", "0": ".", "m": "v", "n": "s"}
@@ -585,11 +593,16 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Plot negative reflectivity
         neg_amp = f"m{JPmL}"
         if neg_amp in self.fit_df.columns:
+            yerr = (
+                self.get_bootstrap_error(neg_amp)
+                if self.bootstrap_df is not None
+                else self.fit_df[f"{neg_amp}_err"]
+            )
             neg_handle = ax.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=self.fit_df[neg_amp],
-                yerr=self.fit_df[f"{neg_amp}_err"],
+                yerr=yerr,
                 marker="v",
                 color="blue",
                 markersize=3,
@@ -612,11 +625,16 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Plot positive reflectivity
         pos_amp = f"p{JPmL}"
         if pos_amp in self.fit_df.columns:
+            yerr = (
+                self.get_bootstrap_error(pos_amp)
+                if self.bootstrap_df is not None
+                else self.fit_df[f"{pos_amp}_err"]
+            )
             pos_handle = ax.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=self.fit_df[pos_amp],
-                yerr=self.fit_df[f"{pos_amp}_err"],
+                yerr=yerr,
                 marker="^",
                 color="red",
                 markersize=3,
@@ -663,14 +681,16 @@ class DiagnosticPlotter(BasePWAPlotter):
         amp1, amp2 = f"p{JPmL_row}", f"p{JPmL_col}"
         if (amp1, amp2) in self.phase_difference_dict:
             phase_dif = self.phase_difference_dict[(amp1, amp2)]
-        elif (amp2, amp1) in self.phase_difference_dict:
-            phase_dif = self.phase_difference_dict[(amp2, amp1)]
         else:
             return  # Skip if phase difference not available
 
         # Plot phase values and their sign ambiguity
         phase_values = self.fit_df[phase_dif]
-        phase_errors = self.fit_df[f"{phase_dif}_err"].abs()
+        phase_errors = (
+            self.get_bootstrap_error(phase_dif)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{phase_dif}_err"].abs()
+        )
 
         # Plot positive values
         ax.plot(
@@ -748,14 +768,16 @@ class DiagnosticPlotter(BasePWAPlotter):
         amp1, amp2 = f"m{JPmL_row}", f"m{JPmL_col}"
         if (amp1, amp2) in self.phase_difference_dict:
             phase_dif = self.phase_difference_dict[(amp1, amp2)]
-        elif (amp2, amp1) in self.phase_difference_dict:
-            phase_dif = self.phase_difference_dict[(amp2, amp1)]
         else:
             return  # Skip if phase difference not available
 
         # Plot phase values and their sign ambiguity
         phase_values = self.fit_df[phase_dif]
-        phase_errors = self.fit_df[f"{phase_dif}_err"].abs()
+        phase_errors = (
+            self.get_bootstrap_error(phase_dif)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{phase_dif}_err"].abs()
+        )
 
         # Plot positive values
         ax.plot(
