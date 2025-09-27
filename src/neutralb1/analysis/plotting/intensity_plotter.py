@@ -92,11 +92,17 @@ class IntensityPlotter(BasePWAPlotter):
                     if "Bkgd" not in jp
                     else "Iso. Background"
                 )
+                yerr = (
+                    self.get_bootstrap_error(jp)
+                    if self.bootstrap_df is not None
+                    else self.fit_df[f"{jp}_err"]
+                )
+
                 ax.errorbar(
                     x=self._masses,
                     xerr=self._bin_width / 2,
                     y=self.fit_df[jp],
-                    yerr=self.fit_df[f"{jp}_err"],
+                    yerr=yerr,
                     linestyle="",
                     label=l,
                     **props,
@@ -175,24 +181,25 @@ class IntensityPlotter(BasePWAPlotter):
             layout="constrained",
         )
 
-        # Prepare normalization data
+        # Prepare normalization data. The easiest way to handle fractional plots is to
+        # convert everything to unumpy arrays and let it handle the error propagation.
         num_events_col = (
             "generated_events" if self.is_acceptance_corrected else "detected_events"
         )
         if fractional:
-            total_intensity = self.fit_df[num_events_col]
-            total_intensity_err = self.fit_df[f"{num_events_col}_err"]
+            total_intensity = unumpy.uarray(
+                self.fit_df[num_events_col].to_numpy(),
+                self.fit_df[f"{num_events_col}_err"].to_numpy(),
+            )
             truth_total = (
                 self.truth_df[num_events_col] if self.truth_df is not None else None
             )
         else:
-            total_intensity = pd.Series(
+            # to make plotting code simpler, define total_intensity as ones with zero
+            # error when not fractional
+            total_intensity = unumpy.uarray(
                 np.ones_like(self.fit_df[num_events_col]),
-                index=self.fit_df.index,
-            )
-            total_intensity_err = pd.Series(
                 np.zeros_like(self.fit_df[f"{num_events_col}_err"]),
-                index=self.fit_df.index,
             )
             truth_total = None
 
@@ -221,19 +228,22 @@ class IntensityPlotter(BasePWAPlotter):
                 # Plot negative reflectivity contribution
                 neg_amp_name = f"m{JPmL}"
                 if neg_amp_name in self.coherent_sums["eJPmL"]:
-                    y_values = self.fit_df[neg_amp_name] / total_intensity
-                    y_errors = utils.propagate_product_error(
-                        self.fit_df[neg_amp_name],
-                        self.fit_df[f"{neg_amp_name}_err"],
-                        total_intensity,
-                        total_intensity_err,
+                    y_errs = (
+                        self.get_bootstrap_error(neg_amp_name)
+                        if self.bootstrap_df is not None
+                        else self.fit_df[f"{neg_amp_name}_err"]
                     )
+                    y_values = unumpy.uarray(
+                        self.fit_df[neg_amp_name].to_numpy(),
+                        y_errs.to_numpy(),
+                    )
+                    y_values = y_values / total_intensity
 
                     neg_plot_handle = ax.errorbar(
                         x=self._masses,
                         xerr=self._bin_width / 2,
-                        y=y_values,
-                        yerr=y_errors,
+                        y=y_values.nominal_values,
+                        yerr=y_values.std_devs,
                         marker="v",
                         linestyle="",
                         markersize=6,
@@ -262,19 +272,22 @@ class IntensityPlotter(BasePWAPlotter):
                 # Plot positive reflectivity contribution
                 pos_amp_name = f"p{JPmL}"
                 if pos_amp_name in self.coherent_sums["eJPmL"]:
-                    y_values = self.fit_df[pos_amp_name] / total_intensity
-                    y_errors = utils.propagate_product_error(
-                        self.fit_df[pos_amp_name],
-                        self.fit_df[f"{pos_amp_name}_err"],
-                        total_intensity,
-                        total_intensity_err,
+                    y_errs = (
+                        self.get_bootstrap_error(pos_amp_name)
+                        if self.bootstrap_df is not None
+                        else self.fit_df[f"{pos_amp_name}_err"]
                     )
+                    y_values = unumpy.uarray(
+                        self.fit_df[pos_amp_name].to_numpy(),
+                        y_errs.to_numpy(),
+                    )
+                    y_values = y_values / total_intensity
 
                     pos_plot_handle = ax.errorbar(
                         x=self._masses,
                         xerr=self._bin_width / 2,
-                        y=y_values,
-                        yerr=y_errors,
+                        y=y_values.nominal_values,
+                        yerr=y_values.std_devs,
                         marker="^",
                         linestyle="",
                         markersize=6,
@@ -375,15 +388,6 @@ class IntensityPlotter(BasePWAPlotter):
             sharey=sharey,
         )
 
-        if self.bootstrap_proj_moments_df is not None:
-            grouped_moment_errors = (
-                self.bootstrap_proj_moments_df[columns + ["fit_index"]]
-                .groupby("fit_index")
-                .std()
-            )
-        else:
-            grouped_moment_errors = None
-
         for ax, col in zip(axs.flatten(), columns):
             ax.set_title(col, fontsize=14)
             ax.set_xlabel(rf"{self.channel} inv. mass (GeV)", fontsize=12)
@@ -393,16 +397,16 @@ class IntensityPlotter(BasePWAPlotter):
 
             y_values = self.proj_moments_df[col]
             y_errors = (
-                grouped_moment_errors[col]
-                if grouped_moment_errors is not None
+                self.get_bootstrap_error(col)
+                if self.bootstrap_proj_moments_df is not None
                 else np.zeros_like(y_values)
             )
 
             if fractional:
                 denom = self.proj_moments_df["H0_0000"]
                 denom_err = (
-                    grouped_moment_errors["H0_0000"]
-                    if grouped_moment_errors is not None
+                    self.get_bootstrap_error("H0_0000")
+                    if self.bootstrap_proj_moments_df is not None
                     else np.zeros_like(denom)
                 )
 
