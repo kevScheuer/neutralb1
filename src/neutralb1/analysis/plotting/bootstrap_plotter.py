@@ -464,9 +464,7 @@ class BootstrapPlotter(BasePWAPlotter):
                     if row_label.startswith("H") and row_label[1].isdigit():
                         pass  # No minuit uncertainty for projected moments
                     else:
-                        self._add_diagonal_annotations(
-                            ax, bootstrap_data, fit_data, col_label
-                        )
+                        self._add_diagonal_annotations(ax, fit_data, col_label)
 
     def _get_pairgrid_xy_labels(
         self, pg: sns.PairGrid, row: int, col: int
@@ -622,7 +620,6 @@ class BootstrapPlotter(BasePWAPlotter):
     def _add_diagonal_annotations(
         self,
         ax,
-        bootstrap_data: pd.DataFrame,
         fit_data: pd.DataFrame,
         col_label: str,
     ) -> None:
