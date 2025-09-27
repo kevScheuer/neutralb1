@@ -55,6 +55,9 @@ class BootstrapPlotter(BasePWAPlotter):
 
         Returns:
             None: Saves plots to PDF file and prints confirmation.
+
+        Todo:
+            - Outdated directories method, should use fit_index instead.
         """
 
         assert self.bootstrap_df is not None
