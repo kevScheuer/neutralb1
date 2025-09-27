@@ -1,3 +1,5 @@
+from typing import Any, Dict, Optional
+
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,20 +26,22 @@ class PhasePlotter(BasePWAPlotter):
                 phase motions near the boundaries. Defaults to True.
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
-
-        Todo:
-            - Add option to plot with MINUIT or bootstrap errors
         """
 
         phase_dif = self.phase_difference_dict[(amp1, amp2)]
         color = "red" if amp1[0] == "p" else "blue"
 
         fig, ax = plt.subplots()
+        yerr = (
+            self.get_bootstrap_error(phase_dif)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{phase_dif}_err"].abs()
+        )
         ax.errorbar(
             x=self._masses,
             xerr=self._bin_width / 2,
             y=self.fit_df[phase_dif],
-            yerr=self.fit_df[f"{phase_dif}_err"].abs(),
+            yerr=yerr,
             linestyle="",
             marker=".",
             color=color,
@@ -48,7 +52,7 @@ class PhasePlotter(BasePWAPlotter):
             x=self._masses,
             xerr=self._bin_width / 2,
             y=-self.fit_df[phase_dif],
-            yerr=self.fit_df[f"{phase_dif}_err"].abs(),
+            yerr=yerr,
             linestyle="",
             marker=".",
             color=color,
@@ -71,7 +75,7 @@ class PhasePlotter(BasePWAPlotter):
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=self.fit_df[phase_dif].abs() - 360.0,
-                yerr=self.fit_df[f"{phase_dif}_err"].abs(),
+                yerr=yerr,
                 linestyle="",
                 marker=".",
                 color=color,
@@ -81,7 +85,7 @@ class PhasePlotter(BasePWAPlotter):
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=-(self.fit_df[phase_dif].abs()) + 360.0,
-                yerr=self.fit_df[f"{phase_dif}_err"].abs(),
+                yerr=yerr,
                 linestyle="",
                 marker=".",
                 color=color,
@@ -99,16 +103,28 @@ class PhasePlotter(BasePWAPlotter):
 
         return ax
 
-    def mass_phase(self, amp1: str, amp2: str) -> np.ndarray:
-        """_summary_
+    def mass_phase(
+        self,
+        amp1: str,
+        amp2: str,
+        amp1_kwargs: Optional[Dict[str, Any]] = None,
+        amp2_kwargs: Optional[Dict[str, Any]] = None,
+        phase_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> np.ndarray:
+        """Plot the mass distributions and phase difference of two amplitudes together
 
         Args:
-            amp1 (str): _description_
-            amp2 (str): _description_
-            color (str, optional): _description_. Defaults to "black".
+            amp1 (str): first amplitude in eJPmL format
+            amp2 (str): second amplitude in eJPmL format
+            amp1_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
+                amplitude axes for amp1 (axes 0). Defaults to None.
+            amp2_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
+                amplitude axes for amp2 (axes 0). Defaults to None.
+            phase_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
+                phase axes (axes 1). Defaults to None.
 
         Returns:
-            matplotlib.axes.Axes: _description_
+            matplotlib.axes.Axes: The axes object for further customization.
         """
         fig, axs = plt.subplots(
             2,
@@ -119,27 +135,39 @@ class PhasePlotter(BasePWAPlotter):
         )
 
         # plot the two amplitudes on the first subplot
+        amp1_err = (
+            self.get_bootstrap_error(amp1)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{amp1}_err"]
+        )
+        amp2_err = (
+            self.get_bootstrap_error(amp2)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{amp2}_err"]
+        )
         axs[0].errorbar(
-            self._masses,
-            self.fit_df[amp1],
-            self.fit_df[f"{amp1}_err"],
-            self._bin_width / 2,
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=self.fit_df[amp1],
+            yerr=amp1_err,
             marker="o",
             linestyle="",
             markersize=5,
             color="black",
             label=utils.convert_amp_name(amp1),
+            **(amp1_kwargs if amp1_kwargs is not None else {}),
         )
         axs[0].errorbar(
-            self._masses,
-            self.fit_df[amp2],
-            self.fit_df[f"{amp2}_err"],
-            self._bin_width / 2,
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=self.fit_df[amp2],
+            yerr=amp2_err,
             marker="s",
             linestyle="",
             markersize=5,
             color="gray",
             label=utils.convert_amp_name(amp2),
+            **(amp2_kwargs if amp2_kwargs is not None else {}),
         )
 
         if self.truth_df is not None:
@@ -160,23 +188,30 @@ class PhasePlotter(BasePWAPlotter):
 
         # plot the phase difference on the second subplot
         phase_dif = self.phase_difference_dict[(amp1, amp2)]
-        axs[1].errorbar(
-            self._masses,
-            self.fit_df[phase_dif],
-            self.fit_df[f"{phase_dif}_err"].abs(),
-            self._bin_width / 2,
-            linestyle="",
-            marker=".",
-            color="black",
+        phase_err = (
+            self.get_bootstrap_error(phase_dif)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{phase_dif}_err"].abs()
         )
         axs[1].errorbar(
-            self._masses,
-            -self.fit_df[phase_dif],
-            self.fit_df[f"{phase_dif}_err"].abs(),
-            self._bin_width / 2,
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=self.fit_df[phase_dif],
+            yerr=phase_err,
             linestyle="",
             marker=".",
             color="black",
+            **(phase_kwargs if phase_kwargs is not None else {}),
+        )
+        axs[1].errorbar(
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=-self.fit_df[phase_dif],
+            yerr=phase_err,
+            linestyle="",
+            marker=".",
+            color="black",
+            **(phase_kwargs if phase_kwargs is not None else {}),
         )
         if self.truth_df is not None:
             axs[1].plot(
