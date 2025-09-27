@@ -460,7 +460,18 @@ class ResultManager:
 
     @property
     def plot(self) -> FactoryPlotter:
-        """Return a FactoryPlotter instance for plotting fit results."""
+        """Return a FactoryPlotter instance for plotting fit results.
+
+        Example:
+            >>> import matplotlib.pyplot as plt
+            >>> from neutralb1.analysis import ResultManager
+            >>> # Assuming fit_df and data_df are already defined
+            >>> result_manager = ResultManager(fit_df, data_df)
+            >>> result_manager.preprocess()  # Preprocess the DataFrames
+            >>> plotter = result_manager.plot
+            >>> plotter.intensity.waves(sharey=True)
+            >>> plt.show()
+        """
 
         if self._plotter_factory is None:
             self._plotter_factory = FactoryPlotter(
