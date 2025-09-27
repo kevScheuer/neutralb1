@@ -129,7 +129,8 @@ class BasePWAPlotter:
                 raise KeyError(f"Label {label} not found in bootstrap DataFrame.")
             grouped = self.bootstrap_df.groupby("fit_index")[label]
 
-        if label in self.phase_differences:
+        # Use circular standard deviation for phase differences
+        if label in self.phase_differences or label == "dphase":
             vectorized_circular_std = np.vectorize(self._circular_std)
             return grouped.apply(vectorized_circular_std)
         else:
