@@ -96,16 +96,21 @@ class DiagnosticPlotter(BasePWAPlotter):
                 label=f"E852 ratio ({e852_ratio})",
             )
 
+        yerr = (
+            self.get_bootstrap_error("dsratio")
+            if self.bootstrap_df is not None
+            else self.fit_df["dsratio_err"]
+        )
+
         ax_ratio.errorbar(
             x=self._masses,
             xerr=self._bin_width / 2,
             y=self.fit_df["dsratio"],
-            yerr=self.fit_df["dsratio_err"],
-            marker=".",
+            yerr=yerr,
+            color="black",
             linestyle="",
-            color="darkblue",
+            marker=".",
             capsize=2,
-            label="Fit Result",
         )
 
         # Plot phase
@@ -119,20 +124,35 @@ class DiagnosticPlotter(BasePWAPlotter):
             )
             ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
 
+        yerr = (
+            self.get_bootstrap_error("dphase")
+            if self.bootstrap_df is not None
+            else self.fit_df["dphase_err"].abs()
+        )
         ax_phase.errorbar(
             x=self._masses,
             xerr=self._bin_width / 2,
             y=self.fit_df["dphase"],
-            yerr=self.fit_df["dphase_err"].abs(),
-            marker=".",
+            yerr=yerr,
+            color="black",
             linestyle="",
-            color="darkred",
+            marker=".",
             capsize=2,
-            label="Fit Result",
+        )
+        ax_phase.errorbar(
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=-self.fit_df["dphase"],
+            yerr=yerr,
+            color="black",
+            linestyle="",
+            marker=".",
+            capsize=2,
         )
 
         # Plot correlation
         if "cov_dsratio_dphase" in self.fit_df.columns:
+            color = "tab:blue" if self.bootstrap_df is not None else "black"
             correlation = (
                 self.fit_df["cov_dsratio_dphase"]
                 / (self.fit_df["dsratio_err"] * self.fit_df["dphase_err"])
@@ -141,17 +161,31 @@ class DiagnosticPlotter(BasePWAPlotter):
             ax_corr.plot(
                 self._masses,
                 correlation,
-                marker="s",
+                color=color,
                 linestyle="",
-                color="darkgreen",
+                marker=".",
                 markersize=4,
-                label="Correlation",
+                label="MINUIT Correlation",
             )
-            ax_corr.set_xlabel(rf"{self.channel} inv. mass (GeV)", loc="right")
-            ax_corr.set_ylabel("ρ(D/S, D-S)", loc="top")
-            ax_corr.set_ylim(-1, 1)
-            ax_corr.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
-            ax_corr.legend()
+
+        if self.bootstrap_df is not None:
+            color = (
+                "tab:orange" if "cov_dsratio_dphase" in self.fit_df.columns else "black"
+            )
+            bootstrap_correlation = (
+                self.bootstrap_df.groupby("fit_index")
+                .corr()
+                .unstack()[("dsratio", "dphase")]
+            )
+            ax_corr.plot(
+                self._masses,
+                bootstrap_correlation,
+                color=color,
+                linestyle="",
+                marker=".",
+                markersize=4,
+                label="Bootstrap Correlation",
+            )
 
         # Configure axes
         ax_ratio.set_ylabel("D/S Ratio", loc="top")
@@ -162,6 +196,12 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_phase.set_yticks(np.linspace(-180, 180, 5))
         ax_phase.set_ylim(-180, 180)
         ax_phase.legend()
+
+        ax_corr.set_xlabel(rf"{self.channel} inv. mass (GeV)", loc="right")
+        ax_corr.set_ylabel("ρ(D/S, D-S)", loc="top")
+        ax_corr.set_ylim(-1, 1)
+        ax_corr.axhline(y=0, color="black", linestyle="-")
+        ax_corr.legend()
 
         return axs
 
