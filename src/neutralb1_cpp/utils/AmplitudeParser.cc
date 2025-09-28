@@ -5,9 +5,9 @@
  */
 
 #include <map>
+#include <sstream>
 #include <string>
 #include <stdexcept>
-#include <regex>
 
 #include "neutralb1/AmplitudeParser.h"
 
@@ -45,17 +45,27 @@ void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
     m_sum = amplitude.substr(first_colon + 2, second_colon - (first_colon + 2));
     std::string amp_name = amplitude.substr(second_colon + 2);
 
-    // Use regex to parse the components according to expected format:
-    // e = reflectivity (p or m)
-    // J = total angular momentum (0-9)
-    // P = parity (p or m)
-    // m = m-projection (l, n, m, 0, p, q, r for -3, -2, -1, 0, 1, 2, 3)
-    // L = orbital angular momentum (S, P, D, F, G, H, I, etc.)
+    // obtain quantum numbers from amp_name
+    if (amp_name.length() < 5)
+    {
+        throw std::invalid_argument(
+            "Amplitude name '" + amp_name + "' is too short to contain all quantum numbers.");
+    }
 
-    std::regex amp_regex("([pm])([0-9])([pm])([lnm0pqr])([SPDFG])");
-    std::smatch matches;
+    m_e_char = amp_name[0];
+    m_J_char = amp_name[1];
+    m_P_char = amp_name[2];
+    m_m_char = amp_name[3];
+    m_L_char = amp_name[4];
 
-    if (!std::regex_match(amp_name, matches, amp_regex))
+    if ((m_e_char != 'p' && m_e_char != 'm') ||
+        (m_J_char < '0' || m_J_char > '9') ||
+        (m_P_char != 'p' && m_P_char != 'm') ||
+        (m_m_char != 'l' && m_m_char != 'n' && m_m_char != 'm' &&
+         m_m_char != '0' && m_m_char != 'p' && m_m_char != 'q' && m_m_char != 'r') ||
+        (m_L_char != 'S' && m_L_char != 'P' && m_L_char != 'D' &&
+         m_L_char != 'F' && m_L_char != 'G') // extend as needed
+    )
     {
         throw std::invalid_argument(
             "Amplitude name '" + amp_name + "' does not match expected format. "
@@ -67,11 +77,35 @@ void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)
                                             "and remaining characters are orbital angular momentum (S/P/D/F/...).");
     }
 
-    m_e_char = matches[1].str()[0]; // reflectivity
-    m_J_char = matches[2].str()[0]; // total angular momentum
-    m_P_char = matches[3].str()[0]; // parity
-    m_m_char = matches[4].str()[0]; // m-projection
-    m_L_char = matches[5].str()[0]; // orbital angular momentum
+    // obsolete regex parsing method, far too slow
+
+    // // Use regex to parse the components according to expected format:
+    // // e = reflectivity (p or m)
+    // // J = total angular momentum (0-9)
+    // // P = parity (p or m)
+    // // m = m-projection (l, n, m, 0, p, q, r for -3, -2, -1, 0, 1, 2, 3)
+    // // L = orbital angular momentum (S, P, D, F, G, H, I, etc.)
+
+    // std::regex amp_regex("([pm])([0-9])([pm])([lnm0pqr])([SPDFG])");
+    // std::smatch matches;
+
+    // if (!std::regex_match(amp_name, matches, amp_regex))
+    // {
+    //     throw std::invalid_argument(
+    //         "Amplitude name '" + amp_name + "' does not match expected format. "
+    //                                         "Expected format: [pm][0-9][pm][lnm0pqr][SPDFG...] where "
+    //                                         "first character is reflectivity (p/m), "
+    //                                         "second is total angular momentum (0-9), "
+    //                                         "third is parity (p/m), "
+    //                                         "fourth is m-projection (l/n/m/0/p/q/r), "
+    //                                         "and remaining characters are orbital angular momentum (S/P/D/F/...).");
+    // }
+
+    // m_e_char = matches[1].str()[0]; // reflectivity
+    // m_J_char = matches[2].str()[0]; // total angular momentum
+    // m_P_char = matches[3].str()[0]; // parity
+    // m_m_char = matches[4].str()[0]; // m-projection
+    // m_L_char = matches[5].str()[0]; // orbital angular momentum
 }
 
 void AmplitudeParser::compute_integers()
@@ -84,7 +118,7 @@ void AmplitudeParser::compute_integers()
     else
         throw std::invalid_argument("Invalid reflectivity: " + std::string(1, m_e_char));
 
-    // Convert total angular momentum    
+    // Convert total angular momentum
     m_J_int = m_J_char - '0';
     if (m_J_int < 0 || m_J_int > 9)
     {
@@ -196,8 +230,8 @@ std::string AmplitudeParser::get_latex_amplitude() const
 {
     // convert reflectivity and parity to +/- characters
     char e_sign = (m_e_int == 1) ? '+' : '-';
-    char P_sign = (m_P_int == 1) ? '+' : '-';    
-    
+    char P_sign = (m_P_int == 1) ? '+' : '-';
+
     // Format: J^{P}L_m^e
     std::ostringstream oss;
     oss << m_J_char << "^{" << P_sign << "}" << m_L_char << "_{" << m_m_int << "}^{" << e_sign << "}";
