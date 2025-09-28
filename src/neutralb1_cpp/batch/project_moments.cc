@@ -12,7 +12,6 @@ fit, then a moment is the sum of moments calculated independently for each orien
 */
 
 // TODO: add the ability to optionally printout csv of each orientation
-// TODO: Drastically needs performance improvements
 
 #include <algorithm>
 #include <iostream>
