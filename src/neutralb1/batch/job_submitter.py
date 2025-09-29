@@ -268,7 +268,7 @@ class JobSubmitter:
                 [
                     "#SBATCH --partition=gpu",
                     f"#SBATCH --gres=gpu:{gpu_type}:{n_gpus}",
-                    f"#SBATCH --ntasks=2",
+                    f"#SBATCH --ntasks={n_gpus}+1",  # +1 for CPU core needed
                     f"#SBATCH --mem-per-cpu={mem_per_cpu}",
                     "#SBATCH --ntasks-per-core=1",
                     "#SBATCH --cpus-per-task=1",
