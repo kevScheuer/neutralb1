@@ -249,10 +249,6 @@ class JobSubmitter:
             f"#SBATCH --error={log_dir}err.log",
             f"#SBATCH --output={log_dir}out.log",
             f"#SBATCH --job-name={job_name}",
-            f"#SBATCH --mem-per-cpu={mem_per_cpu}",
-            "#SBATCH --cpus-per-task=1",
-            "#SBATCH --ntasks-per-core=1",
-            "#SBATCH --threads-per-core=1",
             "#SBATCH --constraint=el9",
         ]
 
@@ -272,14 +268,21 @@ class JobSubmitter:
                 [
                     "#SBATCH --partition=gpu",
                     f"#SBATCH --gres=gpu:{gpu_type}:{n_gpus}",
-                    f"#SBATCH --ntasks={n_gpus+1}",  # mpigpu always needs n_gpus+1
+                    f"#SBATCH --ntasks=2",
+                    f"#SBATCH --mem-per-cpu={mem_per_cpu}",
+                    "#SBATCH --ntasks-per-core=1",
+                    "#SBATCH --cpus-per-task=1",
+                    "#SBATCH --threads-per-core=1",
                 ]
             )
         else:
+            # TODO: these need to be tuned later for optimal MPI CPU performance
             script_lines.extend(
                 [
                     "#SBATCH --partition=ifarm",
                     f"#SBATCH --ntasks={n_cpus}",
+                    "#SBATCH --cpus-per-task=8",
+                    "#SBATCH --threads-per-core=2",
                 ]
             )
 
