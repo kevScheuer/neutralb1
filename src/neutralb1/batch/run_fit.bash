@@ -98,7 +98,7 @@ elif [ "$use_mpi" = true ]; then
     which mpirun
     which mpicxx
 
-    mpirun fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars.txt" $my_seed
+    mpirun --mca btl ^openib --display-map --display-allocation fitMPI -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars.txt" $my_seed
 else
     fit -c fit.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars.txt" $my_seed
 fi
@@ -112,7 +112,7 @@ echo "Amplitude fitting took: $((amplitude_end_time - amplitude_start_time)) sec
 # Beginning Moment fits \n\n\n\n"
 # moment_start_time=$(date +%s)
 # if [ "$use_mpi" = true ]; then
-#     mpirun fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
+#     mpirun --mca btl ^openib --display-map --display-allocation fitMPI -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 # else
 #     fit -c fit_moment.cfg -m 1000000 -r $my_num_rand_fits -s "fitPars_moment.txt" $my_seed
 # fi
@@ -239,7 +239,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         # run fit
         bootstrap_start_time=$(date +%s)
         if [ "$use_mpi" = true ]; then 
-            mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
+            mpirun --mca btl ^openib --display-map --display-allocation fitMPI -c bootstrap_fit.cfg -m 1000000
         else
             fit -c bootstrap_fit.cfg -m 1000000
         fi
@@ -257,7 +257,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     #     sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit_moment.cfg        
     #     bootstrap_start_time=$(date +%s)
     #     if [ "$use_mpi" = true ]; then 
-    #         mpirun fitMPI -c bootstrap_fit.cfg -m 1000000
+    #         mpirun --mca btl ^openib --display-map --display-allocation fitMPI -c bootstrap_fit.cfg -m 1000000
     #     else
     #         fit -c bootstrap_fit.cfg -m 1000000
     #     fi
