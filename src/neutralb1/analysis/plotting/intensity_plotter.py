@@ -242,8 +242,8 @@ class IntensityPlotter(BasePWAPlotter):
                     neg_plot_handle = ax.errorbar(
                         x=self._masses,
                         xerr=self._bin_width / 2,
-                        y=y_values.nominal_values,
-                        yerr=y_values.std_devs,
+                        y=unumpy.nominal_values(y_values),
+                        yerr=unumpy.std_devs(y_values),
                         marker="v",
                         linestyle="",
                         markersize=6,
@@ -286,8 +286,8 @@ class IntensityPlotter(BasePWAPlotter):
                     pos_plot_handle = ax.errorbar(
                         x=self._masses,
                         xerr=self._bin_width / 2,
-                        y=y_values.nominal_values,
-                        yerr=y_values.std_devs,
+                        y=unumpy.nominal_values(y_values),
+                        yerr=unumpy.std_devs(y_values),
                         marker="^",
                         linestyle="",
                         markersize=6,
