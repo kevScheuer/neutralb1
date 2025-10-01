@@ -157,7 +157,7 @@ def save_standard_plots(result: ResultManager, output_dir: str) -> None:
     matplotlib.use("Agg")
 
     # Intensity plots
-    intensity = result.plot.intensity()
+    intensity = result.plot.intensity
     intensity.jp()
     plt.gcf().savefig(f"{output_dir}/plots/jp.pdf", bbox_inches="tight")
 
@@ -169,7 +169,7 @@ def save_standard_plots(result: ResultManager, output_dir: str) -> None:
         plt.gcf().savefig(f"{output_dir}/plots/proj_moments.pdf", bbox_inches="tight")
 
     # Diagnostic plots
-    diagnostic = result.plot.diagnostic()
+    diagnostic = result.plot.diagnostic
     diagnostic.matrix()
     plt.gcf().savefig(f"{output_dir}/plots/matrix.pdf", bbox_inches="tight")
 
