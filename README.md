@@ -57,4 +57,6 @@ uv build
 ```
 
 # Documentation
+Documentation is currently compiled by running `make html` within the [`docs` folder](./docs/).
+
 TODO: Describe where to find documentation, and maybe a short description of how to make it. Might want to use sphinx + doxygen [as described here](https://devblogs.microsoft.com/cppblog/clear-functional-c-documentation-with-sphinx-breathe-doxygen-cmake/), but need to look into other suggestions for easiest solution to making dual c++/python docs

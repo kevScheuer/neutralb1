@@ -2,11 +2,18 @@ neutralb1.analysis.preprocessing
 ================================
 
 .. automodule:: neutralb1.analysis.preprocessing
+   :no-index:
 
+   
+   
+   
+
+   
    
    .. rubric:: Functions
 
    .. autosummary::
+      :toctree: .
    
       add_missing_columns
       align_phase_difference_names
@@ -21,3 +28,15 @@ neutralb1.analysis.preprocessing
       wrap_phases
       wrap_radians
    
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

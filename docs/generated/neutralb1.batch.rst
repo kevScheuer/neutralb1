@@ -2,12 +2,31 @@
 ===============
 
 .. automodule:: neutralb1.batch
+   :no-index:
 
    
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
 .. rubric:: Modules
 
 .. autosummary::
-   :toctree:
+   :toctree: .
+   :template: autosummary/module.rst
    :recursive:
 
    amptools_config_writer
@@ -19,3 +38,4 @@
    moment_config_writer
    submission_manager
    submit_cli
+

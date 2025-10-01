@@ -1,5 +1,3 @@
-"""Contains the ResultManager class with methods to manage and analyze fit results."""
-
 import pickle
 import warnings
 from typing import Optional
@@ -12,6 +10,42 @@ from neutralb1.analysis.plotting.factory_plotter import FactoryPlotter
 
 
 class ResultManager:
+    """The main interface for managing and analyzing fit results.
+
+    At its core, a fit result consists of a fit to data, collected in the `fit_df` and
+    `data_df` DataFrames. Additional DataFrames can be provided to include randomized
+    fits, bootstrap fits, projected moments, and truth values. The class provides
+    preprocessing methods to clean and standardize the DataFrames, and plotting methods
+    to visualize the results.
+
+    See :py:mod:`neutralb1.batch.convert_to_csv` for more details on how the DataFrames
+    are constructed.
+
+    Args:
+        fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically
+            the "best" fits of many randomized ones.
+        data_df (pd.DataFrame): Contains the data used for the fit.
+        proj_moments_df (pd.DataFrame, optional): Contains the projected moments
+            calculated from the fit results. Defaults to None.
+        randomized_df (pd.DataFrame, optional): Contains all randomized fits
+            associated with each nominal fit result. Defaults to None.
+        randomized_proj_moments_df (pd.DataFrame, optional): Contains the projected
+            moments calculated from the randomized fits. Defaults to None.
+        bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
+            fit. Defaults to None.
+        bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
+            moments calculated from the bootstrap fits. Defaults to None.
+        truth_df (pd.DataFrame, optional): Contains the ground truth values for the
+            fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to None.
+        truth_proj_moments_df (pd.DataFrame, optional): Contains the ground truth
+            projected moments for the fit, i.e. the projected moments obtained from the
+            truth_df. Only applicable for Monte Carlo Input-Output Studies. Defaults to
+            None.
+        is_preprocessed (bool, optional): Whether the DataFrames have already been
+            preprocessed. It's unlikely that the user would set this to True. Main
+            purpose is tracking if preprocessing has been done when loading from a
+            pickle file. Defaults to False.
+    """
 
     def __init__(
         self,
@@ -26,44 +60,6 @@ class ResultManager:
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
         is_preprocessed: bool = False,
     ) -> None:
-        """Initialize the ResultManager.
-
-        This class is the main interface for managing and analyzing fit results. At its
-        core, a fit result consists of a fit to data, collected in the `fit_df` and
-        `data_df` DataFrames. Additional DataFrames can be provided to include
-        randomized fits, bootstrap fits, projected moments, and ground truth values.
-        The class provides preprocessing methods to clean and standardize the
-        DataFrames, and plotting methods to visualize the results.
-
-        See :py:mod:`neutralb1.batch.convert_to_csv` for more details on how the
-        DataFrames are constructed.
-
-        Args:
-            fit_df (pd.DataFrame): Nominal fit results DataFrame. These are typically
-                the "best" fits of many randomized ones.
-            data_df (pd.DataFrame): Contains the data used for the fit.
-            proj_moments_df (pd.DataFrame, optional): Contains the projected moments
-                calculated from the fit results. Defaults to None.
-            randomized_df (pd.DataFrame, optional): Contains all randomized fits
-                associated with each nominal fit result. Defaults to None.
-            randomized_proj_moments_df (pd.DataFrame, optional): Contains the projected
-                moments calculated from the randomized fits. Defaults to None.
-            bootstrap_df (pd.DataFrame, optional): bootstrap results for each nominal
-                fit. Defaults to None.
-            bootstrap_proj_moments_df (pd.DataFrame, optional): Contains the projected
-                moments calculated from the bootstrap fits. Defaults to None.
-            truth_df (pd.DataFrame, optional): Contains the ground truth values for the
-                fit. Only applicable for Monte Carlo Input-Output Studies. Defaults to
-                None.
-            truth_proj_moments_df (pd.DataFrame, optional): Contains the ground truth
-                projected moments for the fit, i.e. the projected moments obtained from
-                the truth_df. Only applicable for Monte Carlo Input-Output Studies.
-                Defaults to None.
-            is_preprocessed (bool, optional): Whether the DataFrames have already been
-                preprocessed. It's unlikely that the user would set this to True. Main
-                purpose is tracking if preprocessing has been done when loading from
-                a pickle file. Defaults to False.
-        """
 
         # create local copies of the DataFrames to avoid modifying the originals
         self.fit_df = fit_df.copy()
@@ -118,7 +114,7 @@ class ResultManager:
             - Standardizing types across DataFrames to save memory
             - Aligning phase difference names across DataFrames
             - Remove projected moment columns expected to be 0
-                Imag(H0) = Imag(H1) = Real(H2) = 0
+                :math: `\\Im(H0) = \\Im(H1) = \\Re(H2) = 0`
             - Remove real/imaginary suffixes from projected moment columns
             - Adding missing columns to the truth DataFrame
 

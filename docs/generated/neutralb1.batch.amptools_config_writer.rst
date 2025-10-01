@@ -2,22 +2,32 @@ neutralb1.batch.amptools\_config\_writer
 ========================================
 
 .. automodule:: neutralb1.batch.amptools_config_writer
+   :no-index:
 
    
-   .. rubric:: Functions
-
-   .. autosummary::
    
-      dataclass
+   
+
+   
+   
+   
+
+   
    
    .. rubric:: Classes
 
    .. autosummary::
+      :toctree: .
+      :template: autosummary/class.rst
    
       AmpToolsConfigWriter
-      PWAConfig
-      TextIO
       Wave
-      defaultdict
-      product
    
+   
+
+   
+   
+   
+
+
+
