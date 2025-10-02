@@ -173,7 +173,8 @@ class DiagnosticPlotter(BasePWAPlotter):
                 "tab:orange" if "cov_dsratio_dphase" in self.fit_df.columns else "black"
             )
             bootstrap_correlation = (
-                self.bootstrap_df.groupby("fit_index")
+                self.bootstrap_df.drop("file", axis=1)
+                .groupby("fit_index")
                 .corr()
                 .unstack()[("dsratio", "dphase")]
             )
@@ -183,7 +184,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 color=color,
                 linestyle="",
                 marker=".",
-                markersize=4,
+                markersize=8,
                 label="Bootstrap Correlation",
             )
 
