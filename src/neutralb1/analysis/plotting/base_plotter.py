@@ -131,8 +131,7 @@ class BasePWAPlotter:
 
         # Use circular standard deviation for phase differences
         if label in self.phase_differences or label == "dphase":
-            vectorized_circular_std = np.vectorize(self._circular_std)
-            return grouped.apply(vectorized_circular_std)
+            return grouped.apply(self._circular_std)
         else:
             return grouped.std()
 
