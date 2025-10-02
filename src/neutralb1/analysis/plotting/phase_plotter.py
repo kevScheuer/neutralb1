@@ -145,30 +145,37 @@ class PhasePlotter(BasePWAPlotter):
             if self.bootstrap_df is not None
             else self.fit_df[f"{amp2}_err"]
         )
-        axs[0].errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df[amp1],
-            yerr=amp1_err,
-            marker="o",
-            linestyle="",
-            markersize=5,
-            color="black",
-            label=utils.convert_amp_name(amp1),
-            **(amp1_kwargs if amp1_kwargs is not None else {}),
-        )
-        axs[0].errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df[amp2],
-            yerr=amp2_err,
-            marker="s",
-            linestyle="",
-            markersize=5,
-            color="gray",
-            label=utils.convert_amp_name(amp2),
-            **(amp2_kwargs if amp2_kwargs is not None else {}),
-        )
+        # Set default parameters for amp1 and allow kwargs to override
+        amp1_params = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": self.fit_df[amp1],
+            "yerr": amp1_err,
+            "marker": "o",
+            "linestyle": "",
+            "markersize": 5,
+            "color": "black",
+            "label": utils.convert_amp_name(amp1),
+        }
+        if amp1_kwargs is not None:
+            amp1_params.update(amp1_kwargs)
+        axs[0].errorbar(**amp1_params)
+
+        # Set default parameters for amp2 and allow kwargs to override
+        amp2_params = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": self.fit_df[amp2],
+            "yerr": amp2_err,
+            "marker": "s",
+            "linestyle": "",
+            "markersize": 5,
+            "color": "gray",
+            "label": utils.convert_amp_name(amp2),
+        }
+        if amp2_kwargs is not None:
+            amp2_params.update(amp2_kwargs)
+        axs[0].errorbar(**amp2_params)
 
         if self.truth_df is not None:
             axs[0].plot(
@@ -193,26 +200,24 @@ class PhasePlotter(BasePWAPlotter):
             if self.bootstrap_df is not None
             else self.fit_df[f"{phase_dif}_err"].abs()
         )
-        axs[1].errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df[phase_dif],
-            yerr=phase_err,
-            linestyle="",
-            marker=".",
-            color="black",
-            **(phase_kwargs if phase_kwargs is not None else {}),
-        )
-        axs[1].errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=-self.fit_df[phase_dif],
-            yerr=phase_err,
-            linestyle="",
-            marker=".",
-            color="black",
-            **(phase_kwargs if phase_kwargs is not None else {}),
-        )
+        # Set default parameters for phase difference and allow kwargs to override
+        phase_params = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": self.fit_df[phase_dif],
+            "yerr": phase_err,
+            "linestyle": "",
+            "marker": ".",
+            "color": "black",
+        }
+        if phase_kwargs is not None:
+            phase_params.update(phase_kwargs)
+        axs[1].errorbar(**phase_params)
+
+        # Also plot the negative phase with the same parameters (except for y values)
+        phase_params_neg = phase_params.copy()
+        phase_params_neg["y"] = -self.fit_df[phase_dif]
+        axs[1].errorbar(**phase_params_neg)
         if self.truth_df is not None:
             axs[1].plot(
                 self._masses,
