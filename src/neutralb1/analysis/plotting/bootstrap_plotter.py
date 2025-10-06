@@ -58,6 +58,7 @@ class BootstrapPlotter(BasePWAPlotter):
 
         Todo:
             - Outdated directories method, should use fit_index instead.
+            - implement methods from statistics.report_correlations
         """
 
         assert self.bootstrap_df is not None
