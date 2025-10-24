@@ -1,0 +1,1 @@
+This directory contains the event selection scripts that gives us the flat trees for our AmpTools PWA. Note that the DSelector (and runSelector) is deprecated, and to refer to the FSRoot based scripts for the cuts in use. The old selectors are included for reference to past analyses.
