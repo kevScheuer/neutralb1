@@ -100,6 +100,7 @@
         "${workspaceFolder}/include",
         "/group/halld/Software/builds/Linux_Alma9-x86_64-gcc11.5.0/root/root-6.24.04/include",
         "/work/halld/kscheuer/my_build/AmpTools/AmpTools",
+        "/work/halld/kscheuer/my_build/FSRoot/",
         "/work/halld/kscheuer/my_build/halld_sim/src/libraries",
         "/work/halld/kscheuer/my_build/halld_sim/Linux_Alma9-x86_64-gcc11.5.0/include",
         "${default}",
