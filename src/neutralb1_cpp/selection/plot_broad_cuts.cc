@@ -93,8 +93,7 @@ void plot_broad_cuts(
         0.1,
         cuts,
         input_mc_files,
-        bggen
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetMinimum(1);
     h->SetXTitle("Unused Shower Energy (GeV)");
@@ -117,8 +116,7 @@ void plot_broad_cuts(
         1.0,
         cuts,
         input_mc_files,
-        bggen        
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Number of Unused Tracks");
     h->SetYTitle(TString::Format("Combos / %.0f", bin_width));
@@ -140,9 +138,8 @@ void plot_broad_cuts(
         78.8,
         cuts,
         input_mc_files,
-        bggen
-        );
-    
+        bggen);
+
     bin_width = get_bin_width(h);
     h->SetXTitle("Production Vertex Z (cm)");
     h->SetYTitle(TString::Format("Combos / %.3f cm", bin_width));
@@ -164,8 +161,7 @@ void plot_broad_cuts(
         0.05,
         cuts,
         input_mc_files,
-        bggen
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetMinimum(1);
     h->SetXTitle("Missing Mass^{2} (GeV^{2})");
@@ -188,8 +184,7 @@ void plot_broad_cuts(
         8.8,
         cuts,
         input_mc_files,
-        bggen
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Beam Energy (GeV)");
     h->SetYTitle(TString::Format("Combos / %.3f GeV", bin_width));
@@ -211,8 +206,7 @@ void plot_broad_cuts(
         5.0,
         cuts,
         input_mc_files,
-        bggen
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Chi^{2} / NDF");
     h->SetYTitle(TString::Format("Combos / %.3f", bin_width));
@@ -234,29 +228,29 @@ void plot_broad_cuts(
         1.0,
         cuts,
         input_mc_files,
-        bggen
-        );
+        bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("-t (GeV^{2})");
     h->SetYTitle(TString::Format("Combos / %.3f GeV^{2}", bin_width));
     c->Update();
     c->SaveAs("t.pdf");
-    c->Clear();    
+    c->Clear();
 
     // =================== Shower Quality  ===================
     // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
     TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
-    c_shower->Divide(2, 2);    
+    c_shower->Divide(2, 2);
 
     // Array of shower quality variables and their descriptions
     TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
-    TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})", 
+    TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
                                "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
 
-    for (int i = 0; i < 4; i++) {
-        c_shower->cd(i + 1);        
-        gPad->SetLogy(); 
-        
+    for (int i = 0; i < 4; i++)
+    {
+        c_shower->cd(i + 1);
+        gPad->SetLogy();
+
         // For shower quality, we exclude the shQuality cut to see the full range
         TString filtered_cuts = cuts;
         filtered_cuts.ReplaceAll(",shQuality", "");
@@ -275,22 +269,24 @@ void plot_broad_cuts(
         h_sq_data->Draw("HIST");
 
         // Create a copy for the selection region fill
-        TH1F *h_sq_selection = (TH1F*)h_sq_data->Clone(TString::Format("h_sq_selection_%d", i));
+        TH1F *h_sq_selection = (TH1F *)h_sq_data->Clone(TString::Format("h_sq_selection_%d", i));
         h_sq_selection->SetFillColor(kGreen);
         h_sq_selection->SetFillStyle(3002);
         h_sq_selection->SetLineWidth(0);
-        
+
         // Zero out bins outside the selection region (>0.5)
-        for (int j = 1; j <= h_sq_selection->GetNbinsX(); ++j) {
+        for (int j = 1; j <= h_sq_selection->GetNbinsX(); ++j)
+        {
             double bin_center = h_sq_selection->GetBinCenter(j);
-            if (bin_center < 0.5) {            
-                h_sq_selection->SetBinContent(j, 1e-10); // small value for log scale      
+            if (bin_center < 0.5)
+            {
+                h_sq_selection->SetBinContent(j, 1e-10); // small value for log scale
             }
         }
-        
+
         // Draw the selection region fill
         h_sq_selection->Draw("HIST SAME");
-        
+
         // Redraw the data histogram on top
         h_sq_data->Draw("HIST SAME");
 
@@ -333,23 +329,22 @@ void plot_broad_cuts(
         }
 
         h_sq_data->SetMaximum(max_val * 1.1); // add some headroom
-        
+
         bin_width = get_bin_width(h_sq_data);
-        h_sq_data->SetXTitle(TString::Format("%s Quality", photon_names[i].Data())); 
+        h_sq_data->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
         h_sq_data->SetYTitle(TString::Format("Combos / %.3f", bin_width)); // TODO: per what unit?
 
         h_sq_data->SetMinimum(1);
-        
+
         // Adjust margins for the grid layout
         gPad->SetLeftMargin(0.15);
         gPad->SetBottomMargin(0.15);
         gPad->SetTopMargin(0.1);
         gPad->SetRightMargin(0.05);
-    }    
+    }
     c_shower->Update();
     c_shower->SaveAs("Shower_Quality.pdf");
     c_shower->Clear();
-
 
     if (dump_cache)
         FSHistogram::dumpHistogramCache();
@@ -389,8 +384,7 @@ TH1F *plot_variable(
     const double cut_upper_bound,
     const TString cuts,
     const TString input_mc_files = "",
-    bool bggen = false
-    )
+    bool bggen = false)
 {
     // remove the cut on this variable so we can see full range in histogram
     TString filtered_cuts = cuts;
@@ -417,25 +411,27 @@ TH1F *plot_variable(
     h_data->Draw("HIST");
 
     // Create a copy of the histogram for the selection region fill
-    TH1F *h_selection = (TH1F*)h_data->Clone("h_selection");
+    TH1F *h_selection = (TH1F *)h_data->Clone("h_selection");
     h_selection->SetFillColor(kGreen);
     h_selection->SetFillStyle(3002);
     h_selection->SetLineWidth(0); // No line for the fill histogram
 
     // Zero out bins outside the selection region
-    for (int i = 1; i <= h_selection->GetNbinsX(); ++i) {
+    for (int i = 1; i <= h_selection->GetNbinsX(); ++i)
+    {
         double bin_center = h_selection->GetBinCenter(i);
-        if (bin_center < cut_lower_bound || bin_center > cut_upper_bound) {       
+        if (bin_center < cut_lower_bound || bin_center > cut_upper_bound)
+        {
             if (isLogY)
                 h_selection->SetBinContent(i, 1e-10); // small value for log scale
-            else     
-                h_selection->SetBinContent(i, 0);            
+            else
+                h_selection->SetBinContent(i, 0);
         }
     }
-    
+
     // Draw the selection region fill
     h_selection->Draw("HIST SAME");
-    
+
     // Redraw the data histogram on top
     h_data->Draw("HIST SAME");
 
