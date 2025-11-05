@@ -37,6 +37,7 @@
 
 #include "load_broad_cuts.cc"
 #include "neutralb1/fit_utils.h"
+#include "fsroot_setup.cc"
 
 TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
@@ -58,16 +59,7 @@ void plot_combos(
     input_data_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_030568.root";
     input_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace_2017_01_ver03/tree_pi0pi0pippim__B4_FSROOT_030568.root";
 
-    if (FSModeCollection::modeVector().size() != 0)
-        return;
-
-    if (read_cache)
-        FSHistogram::readHistogramCache();
-
-    // https://github.com/JeffersonLab/hd_utilities/blob/master/FlattenForFSRoot/Documentation/GlueXFSRootFormat.pdf
-    // unused numbers in front dropped, so this reads as 1 proton,
-    // then 1 pi+, 1 pi-, 2 pi0s
-    FSModeCollection::addModeInfo("100_112")->addCategory(CATEGORY);
+    setup(read_cache, dump_cache);
 
     // load our broad cuts
     TString cuts = load_broad_cuts();
