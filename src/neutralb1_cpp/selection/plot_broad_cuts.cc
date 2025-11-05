@@ -65,7 +65,7 @@ void plot_broad_cuts(
     // TODO: unclear if available for chi2
     // FSTree::addFriendTree();
 
-    setup(read_cache, dump_cache);
+    setup(read_cache);
 
     // load our broad cuts
     TString cuts = load_broad_cuts();
