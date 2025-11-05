@@ -36,9 +36,9 @@ void skim_best_chi2()
     // a loose chi2 cut here to produce a skimmed tree that can then be ranked properly.
 
     FSCut::defineCut("chi2", "Chi2DOF<20");
-    TString output_data = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot_skimmed_trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_data.root";
-    TString output_signal_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot_skimmed_trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.1_mc.root";
-    TString output_phasespace_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot_skimmed_trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.root";
+    TString output_data = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_data.root";
+    TString output_signal_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.1_mc.root";
+    TString output_phasespace_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.root";
 
     // Now skim the trees and save to new files
     FSModeTree::skimTree(
