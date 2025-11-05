@@ -8,7 +8,13 @@
 #include "FSMode/FSModeCollection.h"
 #include "FSBasic/FSHistogram.h"
 
-void setup(bool read_cache = false, bool dump_cache = false)
+
+/**
+ * @brief FSRoot setup function to define modes and categories
+ * 
+ * @param read_cache whether to read histogram cache 
+ */
+void setup(bool read_cache = false)
 {
     TString NT("ntFSGlueX_MODECODE");
     TString CATEGORY("pi0pi0pippim");
