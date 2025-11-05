@@ -6,6 +6,9 @@
  * This file creates plots of several variables with broad cuts to select the physical
  * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
  * events is not yet done here, and so no combinatorics are studied yet.
+ * 
+ * TODO: SKIM the trees first, and create the chi2 trees, THEN do these cuts. Think 
+ * about what skim cuts I may want to do...
  */
 
 #include <iostream>
@@ -22,6 +25,7 @@
 #include "FSMode/FSModeHistogram.h"
 
 #include "load_broad_cuts.cc"
+#include "neutralb1/fit_utils.h"
 
 TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
@@ -50,8 +54,8 @@ void plot_broad_cuts(
     TString input_data_files;
     TString input_mc_files;
 
-    input_data_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_030568.root";
-    input_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace_2017_01_ver03/tree_pi0pi0pippim__B4_FSROOT_030568.root";
+    input_data_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_03*.root";
+    input_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace_2017_01_ver03/tree_pi0pi0pippim__B4_FSROOT_03*.root";
 
     // gROOT->ProcessLine(".L glueXstyle.C");
     // gROOT->ProcessLine("gluex_style();");
@@ -119,7 +123,7 @@ void plot_broad_cuts(
         bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Number of Unused Tracks");
-    h->SetYTitle(TString::Format("Combos / %.0f", bin_width));
+    h->SetYTitle(TString::Format("Combos / Track", bin_width));
     c->Update();
     c->SaveAs("Number_Unused_Tracks.pdf");
     c->Clear();
@@ -495,9 +499,4 @@ TH1F *plot_variable(
     h_data->SetMaximum(max_val * 1.1); // add some headroom
 
     return h_data;
-}
-
-double get_bin_width(TH1F *h)
-{
-    return (h->GetXaxis()->GetXmax() - h->GetXaxis()->GetXmin()) / h->GetNbinsX();
 }

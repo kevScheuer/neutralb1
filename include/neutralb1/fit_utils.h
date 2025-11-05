@@ -9,6 +9,7 @@
 # define FIT_UTILS_H
 
 #include "IUAmpTools/FitResults.h"
+#include "TH1.h"
 
 /**
  * @brief Calculate the parity of the omega pi0 system
@@ -65,5 +66,16 @@ double calculate_intensity(const FitResults &results, bool acceptance_corrected 
  * @return int The maximum J value found in the fit results.
  */
 int find_max_J(const FitResults &results);
+
+/**
+ * @brief Get the bin width of a 1D histogram
+ * 
+ * @param[in] h Pointer to the histogram
+ * @return double The bin width of the histogram
+ */
+double get_bin_width(TH1F *h)
+{
+    return (h->GetXaxis()->GetXmax() - h->GetXaxis()->GetXmin()) / h->GetNbinsX();
+}
 
 #endif // FIT_UTILS_H
