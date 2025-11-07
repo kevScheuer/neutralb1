@@ -24,6 +24,6 @@ export PATH="$PROJECT_ROOT/build/release/bin:$PATH"
 # add paths for c++ / ROOT to search for libraries and include files
 # useful for compiling and linking outside of the project / makefile method
 export LIBRARY_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${LIBRARY_PATH}
-export CPLUS_INCLUDE_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/src/libraries:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/include:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${CPLUS_INCLUDE_PATH}
+export CPLUS_INCLUDE_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/src/libraries:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/include:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:${PROJECT_ROOT}/include:${CPLUS_INCLUDE_PATH}
 export LD_LIBRARY_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/src/libraries:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/include:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:$FSROOT:${LD_LIBRARY_PATH}
 export DYLD_LIBRARY_PATH=${ROOTSYS}/lib:${AMPTOOLS}/lib:${HALLD_SIM_HOME}/src/libraries:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/include:${HALLD_SIM_HOME}/Linux_Alma9-x86_64-gcc11.5.0/lib:$FSROOT:${DYLD_LIBRARY_PATH}
