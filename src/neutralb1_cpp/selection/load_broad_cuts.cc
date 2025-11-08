@@ -26,8 +26,7 @@ TString load_broad_cuts()
     cut_map["z"] = "ProdVz>=51.2&&ProdVz<=78.8";                       // 
     cut_map["MM2"] = "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.05"; // remove events with large missing mass2
     cut_map["eBeam"] = "(EnPB>8.2&&EnPB<8.8)";                         // coherent peak region for PWA
-    cut_map["chi2"] = "Chi2DOF<5";                                     // kinematic fit quality cut
-    // cut_map["chi2rank"]       = "Chi2Rank==1";
+    cut_map["chi2"] = "Chi2DOF<5";                                     // kinematic fit quality cut    
     cut_map["t"] = "abs(-1*MASS2([proton],-GLUEXTARGET))<1.0";                                       // define the momentum transfer with the proton at the lower vertex
     cut_map["shQuality"] = "ShQualityP4a>0.5&&ShQualityP4b>0.5&&ShQualityP5a>0.5&&ShQualityP5b>0.5"; // Ask Justin
 
@@ -35,6 +34,12 @@ TString load_broad_cuts()
     {
         FSCut::defineCut(it->first, it->second);
     }
+
+    // Add the accidental subtraction sideband cut. Use 1/8 weight since there are 8 
+    // out of time RF buckets in the data.
+    // Don't add to returned cuts TString since it needs separate calls for signal and
+    // sideband regions
+    FSCut::defineCut("rf", "OR(abs(RFDeltaT)<2.0)", "abs(RFDeltaT)>2.0", 0.125);
 
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
     {

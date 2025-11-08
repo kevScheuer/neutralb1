@@ -7,8 +7,6 @@
  * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
  * events is not yet done here, and so no combinatorics are studied yet.
  * 
- * TODO: SKIM the trees first, and create the chi2 trees, THEN do these cuts. Think 
- * about what skim cuts I may want to do...
  */
 
 #include <iostream>
@@ -17,6 +15,7 @@
 #include "TCanvas.h"
 #include "TH1.h"
 #include "TLegend.h"
+#include "TColor.h"
 
 #include "FSBasic/FSHistogram.h"
 #include "FSBasic/FSCut.h"
@@ -55,15 +54,12 @@ void plot_broad_cuts(
     TString input_data_files;
     TString input_mc_files;
 
-    input_data_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_03*.root";
-    input_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace_2017_01_ver03/tree_pi0pi0pippim__B4_FSROOT_03*.root";
+    input_data_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_data.root";
+    input_mc_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_ver03.1_mc.root";
 
     // gROOT->ProcessLine(".L glueXstyle.C");
     // gROOT->ProcessLine("gluex_style();");
     // gStyle->SetOptStat(0); // force stats box off
-
-    // TODO: unclear if available for chi2
-    // FSTree::addFriendTree();
 
     setup(read_cache);
 
@@ -73,6 +69,61 @@ void plot_broad_cuts(
     TCanvas *c = new TCanvas("c", "c", 800, 600);
     double bin_width;
 
+    // =================== Accidental Subtraction ===================
+    // Before we look at any other cuts let's look at the accidental subtraction itself
+    // to see how well it performs. All other cuts will have it applied
+    c->cd();
+    gPad->SetLogy(0);
+    TH1F *h_acc_data = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(400,-20.0,20.0)",
+        "");
+    TH1F *h_acc_subtracted = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(400,-20.0,20.0)",
+        "CUTSBWT(rf)*(-1.0)");
+    TH1F *h_acc_signal = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(40,-2.0,2.0)",
+        "CUTWT(rf)");
+    h_acc_data->SetLineColor(kGray);
+    h_acc_data->SetLineWidth(2);
+
+    h_acc_signal->SetLineWidth(0);
+    h_acc_signal->SetFillColor(kGreen+1);
+    h_acc_signal->SetFillStyle(3001);
+
+    h_acc_subtracted->SetLineWidth(0);
+    h_acc_subtracted->SetFillColor(kRed+2);
+    h_acc_subtracted->SetFillStyle(3002);
+
+    h_acc_data->Draw("HIST");
+    h_acc_subtracted->Draw("HIST SAME");
+    h_acc_signal->Draw("HIST SAME");        
+
+    TLegend *legend_acc = new TLegend(0.65, 0.65, 0.88, 0.88);
+    legend_acc->AddEntry(h_acc_data, "Original Data", "l");
+    legend_acc->AddEntry(h_acc_signal, "In-Time Signal Region", "f");
+    legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
+    legend_acc->Draw();
+
+    h_acc_data->SetXTitle("RF #DeltaT (ns)");
+    h_acc_data->SetMinimum(h_acc_subtracted->GetMinimum()*1.1);
+    bin_width = get_bin_width(h_acc_data);
+    h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
+    c->Update();
+    c->SaveAs("Accidental_Subtraction.pdf");
+    c->Clear();
+    
     // =================== Unused Shower Energy ===================
     c->cd();
     gPad->SetLogy(1);
@@ -114,7 +165,7 @@ void plot_broad_cuts(
         bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Number of Unused Tracks");
-    h->SetYTitle(TString::Format("Combos / Track", bin_width));
+    h->SetYTitle("Combos / Track");
     c->Update();
     c->SaveAs("Number_Unused_Tracks.pdf");
     c->Clear();
@@ -172,9 +223,9 @@ void plot_broad_cuts(
         input_data_files,
         "eBeam",
         "EnPB",
-        "125",
-        "5",
-        "12",
+        "100",
+        "8.0",
+        "9.0",
         8.2,
         8.8,
         cuts,
@@ -196,7 +247,7 @@ void plot_broad_cuts(
         "Chi2DOF",
         "40",
         "0.0",
-        "20.0",
+        "8.0",
         0.0,
         5.0,
         cuts,
@@ -230,6 +281,9 @@ void plot_broad_cuts(
     c->Update();
     c->SaveAs("t.pdf");
     c->Clear();
+
+    // TODO: Consider adding the recoil proton momentum cut
+    // https://halldweb.jlab.org/DocDB/0049/004924/002/TaskForce_ProtonFiducialVertex.pdf
 
     // =================== Shower Quality  ===================
     // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
@@ -300,10 +354,10 @@ void plot_broad_cuts(
             double scale = h_sq_data->Integral() / h_sq_mc->Integral();
             h_sq_mc->Scale(scale);
 
-            TLegend *legend = new TLegend(0.55, 0.65, 0.78, 0.88);
+            TLegend *legend = new TLegend(0.15, 0.15, 0.38, 0.38);
             legend->AddEntry(h_sq_data, "Data", "l");
             legend->AddEntry(h_sq_mc, TString::Format("MC (scale=%.3f)", scale), "p");
-            legend->AddEntry(h_sq_selection, "Selection Region", "f");
+            legend->AddEntry(h_sq_selection, "Selection", "f");
             legend->Draw();
 
             // draw MC on top as blue points with error bars
@@ -317,9 +371,9 @@ void plot_broad_cuts(
         else
         {
             // Create legend even when no MC data
-            TLegend *legend = new TLegend(0.65, 0.65, 0.88, 0.88);
+            TLegend *legend = new TLegend(0.15, 0.15, 0.38, 0.38);
             legend->AddEntry(h_sq_data, "Data", "l");
-            legend->AddEntry(h_sq_selection, "Selection Region", "f");
+            legend->AddEntry(h_sq_selection, "Selection", "f");
             legend->Draw();
         }
 
@@ -327,7 +381,7 @@ void plot_broad_cuts(
 
         bin_width = get_bin_width(h_sq_data);
         h_sq_data->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
-        h_sq_data->SetYTitle(TString::Format("Combos / %.3f", bin_width)); // TODO: per what unit?
+        h_sq_data->SetYTitle(TString::Format("Combos / %.3f", bin_width));
 
         h_sq_data->SetMinimum(1);
 
@@ -467,7 +521,7 @@ TH1F *plot_variable(
         TLegend *legend = new TLegend(l_x1, l_y1, l_x2, l_y2);
         legend->AddEntry(h_data, "Data", "l");
         legend->AddEntry(h_mc, TString::Format("MC (scale=%.3f)", scale), "p");
-        legend->AddEntry(h_selection, "Selection Region", "f");
+        legend->AddEntry(h_selection, "Selection", "f");
         legend->Draw();
 
         // draw MC on top as blue points with error bars
@@ -483,7 +537,7 @@ TH1F *plot_variable(
         // Create legend even when no MC data
         TLegend *legend = new TLegend(l_x1, l_y1, l_x2, l_y2);
         legend->AddEntry(h_data, "Data", "l");
-        legend->AddEntry(h_selection, "Selection Region", "f");
+        legend->AddEntry(h_selection, "Selection", "f");
         legend->Draw();
     }
 
