@@ -22,23 +22,24 @@
 TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
 
-void skim_best_chi2()
+void skim_best_chi2(int period)
 {
-    TString input_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim*.root";
+    TString input_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_0%i*.root", period);
     // signal includes thrown and reconstructed
-    TString signal_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_massDepFit_201*ver03.1/tree_pi0pi0pippim*.root";
-    TString phasespace_mc_files = "/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace*ver03/tree_pi0pi0pippim*.root";
+    TString signal_mc_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_massDepFit_201*ver03.1/tree_pi0pi0pippim__B4_FSROOT_0%i*.root", period);
+    TString phasespace_mc_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace*ver03/tree_pi0pi0pippim__B4_FSROOT_0%i*.root", period);
 
     setup(false);
 
     // Following this document https://halldweb.jlab.org/DocDB/0065/006572/003/RankingMethods_in_FSRoot.pdf
-    // only a few cuts commute with the chi2 ranking method. We will thus only implement
-    // a loose chi2 cut here to produce a skimmed tree that can then be ranked properly.
+    // only a few cuts commute with the chi2 ranking method.     
+    FSCut::defineCut("chi2", "Chi2DOF<8.0");
+    FSCut::defineCut("eBeam", "(EnPB>8.2&&EnPB<8.8)");
+    TString skim_cuts = "chi2,eBeam";
 
-    FSCut::defineCut("chi2", "Chi2DOF<20");
-    TString output_data = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_data.root";
-    TString output_signal_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.1_mc.root";
-    TString output_phasespace_mc = "/w/halld-scshelf2101/kscheuer/neutralb1/data/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_allPeriods_ver03.root";
+    TString output_data = TString::Format("/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_0%i_data.root", period);
+    TString output_signal_mc = TString::Format("/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_0%i_ver03.1_mc.root", period);
+    TString output_phasespace_mc = TString::Format("/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/general/tree_pi0pi0pippim__B4_GENERAL_SKIM_0%i_ver03.root", period);
 
     // Now skim the trees and save to new files
     FSModeTree::skimTree(
@@ -46,19 +47,19 @@ void skim_best_chi2()
         NT,
         CATEGORY,
         output_data,
-        "CUT(chi2)");
+        TString::Format("CUT(%s)", skim_cuts.Data()));
     FSModeTree::skimTree(
         signal_mc_files,
         NT,
         CATEGORY,
         output_signal_mc,
-        "CUT(chi2)");
+        TString::Format("CUT(%s)", skim_cuts.Data()));
     FSModeTree::skimTree(
         phasespace_mc_files,
         NT,
         CATEGORY,
         output_phasespace_mc,
-        "CUT(chi2)");
+        TString::Format("CUT(%s)", skim_cuts.Data()));
 
     // Following the doc from above, we'll group by run, event, and beam energy to
     // create chi2 ranked trees
