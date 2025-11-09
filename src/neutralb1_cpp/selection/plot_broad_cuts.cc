@@ -33,7 +33,9 @@ TString CATEGORY("pi0pi0pippim");
 
 // Forward declarations
 TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
+TCanvas* setup_canvas(bool logy = false);
 TH1F *plot_variable(
+    TCanvas *c,
     const TString input_data_files,
     const TString cut_variable,
     const TString tree_variable,
@@ -43,6 +45,7 @@ TH1F *plot_variable(
     const double cut_lower_bound,
     const double cut_upper_bound,
     const std::map<TString, Int_t> &cut_color_map,
+    const TString scale_choice,
     const TString input_mc_files,
     bool bggen);
 
@@ -65,16 +68,13 @@ void plot_broad_cuts(
     setup(read_cache);
 
     // load our broad cuts
-    std::map<TString, Int_t> cut_color_map = load_broad_cuts();
-
-    TCanvas *c = new TCanvas("c", "c", 800, 600);
+    std::map<TString, Int_t> cut_color_map = load_broad_cuts();    
     double bin_width;
 
     // =================== Accidental Subtraction ===================
     // Before we look at any other cuts let's look at the accidental subtraction itself
     // to see how well it performs. All other cuts will have it applied
-    c->cd();
-    gPad->SetLogy(0);
+    TCanvas *c_rf = new TCanvas("c_rf", "Accidental Subtraction", 800, 600);    
     TH1F *h_acc_data = FSModeHistogram::getTH1F(
         input_data_files,
         NT,
@@ -104,7 +104,7 @@ void plot_broad_cuts(
     h_acc_signal->SetFillStyle(3001);
 
     h_acc_subtracted->SetLineWidth(0);
-    h_acc_subtracted->SetFillColor(kRed+2);
+    h_acc_subtracted->SetFillColor(TColor::GetColor("#c849a9"));
     h_acc_subtracted->SetFillStyle(3002);
 
     h_acc_data->Draw("HIST");
@@ -121,15 +121,16 @@ void plot_broad_cuts(
     h_acc_data->SetMinimum(h_acc_subtracted->GetMinimum()*1.1);
     bin_width = get_bin_width(h_acc_data);
     h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
-    c->Update();
-    c->SaveAs("Accidental_Subtraction.pdf");
-    c->Clear();
-    
+    c_rf->Update();
+    c_rf->SaveAs("Accidental_Subtraction.pdf");    
+    delete c_rf;
+
+    TCanvas *c;
     // =================== Unused Shower Energy ===================
-    c->cd();
-    gPad->SetLogy(1);
+    c = setup_canvas(true);
     TH1F *h;
     h = plot_variable(
+        c,
         input_data_files,
         "unusedE",
         "EnUnusedSh",
@@ -139,20 +140,20 @@ void plot_broad_cuts(
         0.0,
         0.1,
         cut_color_map,
+        "max",
         input_mc_files,
         bggen);
-    bin_width = get_bin_width(h);
-    h->SetMinimum(1);
+    bin_width = get_bin_width(h);    
     h->SetXTitle("Unused Shower Energy (GeV)");
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     c->Update();
-    c->SaveAs("Unused_Shower_Energy.pdf");
-    c->Clear();
+    c->SaveAs("Unused_Shower_Energy.pdf");    
+    delete c;
 
     // =================== Number Unused Tracks ===================
-    c->cd();
-    gPad->SetLogy(0);
+    c = setup_canvas(false);    
     h = plot_variable(
+        c,
         input_data_files,
         "unusedTracks",
         "NumUnusedTracks",
@@ -162,6 +163,7 @@ void plot_broad_cuts(
         0.0,
         1.0,
         cut_color_map,
+        "max",
         input_mc_files,
         bggen);
     bin_width = get_bin_width(h);
@@ -169,12 +171,12 @@ void plot_broad_cuts(
     h->SetYTitle("Events / Track");
     c->Update();
     c->SaveAs("Number_Unused_Tracks.pdf");
-    c->Clear();
+    delete c;
 
     // =================== Production Vertex ===================
-    c->cd();
-    gPad->SetLogy(0);
+    c = setup_canvas(false);
     h = plot_variable(
+        c,
         input_data_files,
         "z",
         "ProdVz",
@@ -184,6 +186,7 @@ void plot_broad_cuts(
         51.2,
         78.8,
         cut_color_map,
+        "integral",
         input_mc_files,
         bggen);
 
@@ -191,13 +194,13 @@ void plot_broad_cuts(
     h->SetXTitle("Production Vertex Z (cm)");
     h->SetYTitle(TString::Format("Events / %.3f cm", bin_width));
     c->Update();
-    c->SaveAs("Production_Vertex_Z.pdf");
-    c->Clear();
+    c->SaveAs("Production_Vertex_Z.pdf");    
+    delete c;
 
     // =================== Missing Mass^2 ===================
-    c->cd();
-    gPad->SetLogy(1);
+    c = setup_canvas(true);
     h = plot_variable(
+        c,
         input_data_files,
         "MM2",
         "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)",
@@ -207,20 +210,20 @@ void plot_broad_cuts(
         -0.05,
         0.05,
         cut_color_map,
+        "max",
         input_mc_files,
         bggen);
-    bin_width = get_bin_width(h);
-    h->SetMinimum(1);
+    bin_width = get_bin_width(h);    
     h->SetXTitle("Missing Mass^{2} (GeV^{2})");
     h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
     c->Update();
-    c->SaveAs("MM2.pdf");
-    c->Clear();
+    c->SaveAs("MM2.pdf");    
+    delete c;
 
     // =================== Beam Energy ===================
-    c->cd();
-    gPad->SetLogy(0);
+    c = setup_canvas(false);
     h = plot_variable(
+        c,
         input_data_files,
         "eBeam",
         "EnPB",
@@ -230,19 +233,20 @@ void plot_broad_cuts(
         8.2,
         8.8,
         cut_color_map,
+        "integral",
         input_mc_files,
         bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("Beam Energy (GeV)");
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     c->Update();
-    c->SaveAs("Beam_Energy.pdf");
-    c->Clear();
+    c->SaveAs("Beam_Energy.pdf");    
+    delete c;
 
     //=================== Chi2 / NDF ===================
-    c->cd();
-    gPad->SetLogy(0);
+    c = setup_canvas(false);
     h = plot_variable(
+        c,
         input_data_files,
         "chi2",
         "Chi2DOF",
@@ -252,19 +256,20 @@ void plot_broad_cuts(
         0.0,
         5.0,
         cut_color_map,
+        "max",
         input_mc_files,
         bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("#chi^{2} / NDF");
     h->SetYTitle(TString::Format("Events / %.3f", bin_width));
     c->Update();
-    c->SaveAs("Chi2.pdf");
-    c->Clear();
+    c->SaveAs("Chi2.pdf");   
+    delete c; 
 
     // =================== four momentum transfer -t ===================
-    c->cd();
-    gPad->SetLogy(0);
+    c = setup_canvas(false);
     h = plot_variable(
+        c,
         input_data_files,
         "t",
         "abs(-1*MASS2([proton],-GLUEXTARGET))",
@@ -274,14 +279,15 @@ void plot_broad_cuts(
         0.0,
         1.0,
         cut_color_map,
+        "max",
         input_mc_files,
         bggen);
     bin_width = get_bin_width(h);
     h->SetXTitle("-t (GeV^{2})");
     h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
     c->Update();
-    c->SaveAs("t.pdf");
-    c->Clear();
+    c->SaveAs("t.pdf");   
+    delete c; 
 
     // TODO: Consider adding the recoil proton momentum cut
     // https://halldweb.jlab.org/DocDB/0049/004924/002/TaskForce_ProtonFiducialVertex.pdf
@@ -412,6 +418,7 @@ void plot_broad_cuts(
  * a Monte Carlo histogram is also drawn on top for comparison. This function must
  * be run AFTER load_broad_cuts() to ensure cuts are defined.
  *
+ * @param[in] c pointer to TCanvas to draw on
  * @param[in] input_data_files data files to plot from
  * @param[in] cut_variable name of variable to exclude from cuts string
  * @param[in] tree_variable tree variable name in the ROOT file
@@ -421,11 +428,13 @@ void plot_broad_cuts(
  * @param[in] cut_lower_bound lower boundary for the selection region visualization
  * @param[in] cut_upper_bound upper boundary for the selection region visualization
  * @param[in] cut_color_map map of cut names to colors
+ * @param[in] scale_choice method to scale MC to data ("integral" or "max")
  * @param[in] input_mc_files Monte Carlo data files
  * @param[in] bggen whether to include background generation
  * @return TH1F* pointer to the created histogram
  */
 TH1F *plot_variable(
+    TCanvas *c,
     const TString input_data_files,
     const TString cut_variable,
     const TString tree_variable,
@@ -435,12 +444,15 @@ TH1F *plot_variable(
     const double cut_lower_bound,
     const double cut_upper_bound,
     const std::map<TString, Int_t> &cut_color_map,
+    const TString scale_choice,
     const TString input_mc_files = "",
     bool bggen = false)
 {    
     // create histograms in format: file name, tree name, category, variable, bins and
     // bounds, then cuts. Our cuts are already loaded, so just their names are enough 
     // for FSCut to find them
+
+    c->cd(2); // draw operations in the bottom pad
 
     // first, plot the data without any cuts applied
     TH1F* h_og = FSModeHistogram::getTH1F(
@@ -456,13 +468,12 @@ TH1F *plot_variable(
     h_og->SetLineColor(kGray);
     h_og->SetLineWidth(1);
     h_og->Draw("HIST");
-
-    // TODO: Legend will be huge. Probably best to create a thin canvas above the plot
-    // that has a long legend only. Need to pass canvas to function.
-    // TLegend *legend = new TLegend(l_x1, l_y1, l_x2, l_y2);    
-    // legend->AddEntry(h_og, "Original Data", "l");
-    // legend->AddEntry(h_mc, TString::Format("MC (scale=%.3f)", scale), "p");
-    // legend->AddEntry(h_selection, "Selection", "f");
+    
+    TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);    
+    legend->SetNColumns(6);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+    legend->AddEntry(h_og, "Original Data", "l");    
 
     // apply the special rf cut first
     TH1F* h_rf = FSModeHistogram::getTH1F(
@@ -473,9 +484,10 @@ TH1F *plot_variable(
         TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
         "CUTWT(rf)");
     h_rf->SetMinimum(isLogY ? 1 : 0);
-    h_rf->SetLineColor(kRed+2);
+    h_rf->SetLineColor(TColor::GetColor("#c849a9"));
     h_rf->SetLineWidth(1);
     h_rf->Draw("HIST SAME");
+    legend->AddEntry(h_rf, "RF", "l");
 
     // now iterate through our cuts and apply them one by one, except the one we are plotting    
     TString cuts_so_far = "";
@@ -495,14 +507,14 @@ TH1F *plot_variable(
             CATEGORY,
             tree_variable,
             TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-            TString::Format("CUT(%s)", cuts_so_far.Data())
+            TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data())
             );
         h_next->SetMinimum(isLogY ? 1 : 0); // set minimum again after fixing zeros
         h_next->SetLineColor(it->second);
         h_next->SetLineWidth(1);     
 
-        h_next->Draw("HIST SAME");      
-        // TODO: add to legend
+        h_next->Draw("HIST SAME");     
+        legend->AddEntry(h_next, cut_name, "l");        
     }
 
     // Create a copy of the final histogram for the selection region fill
@@ -526,60 +538,53 @@ TH1F *plot_variable(
 
     // Draw the selection region fill
     h_selection->Draw("HIST SAME");
-
-    // for the legend, upper right hand corner works well EXCEPT for production vertex
-    float l_x1, l_x2, l_y1, l_y2;
-    if (cut_variable == "z")
+    legend->AddEntry(h_selection, "Selection", "f");
+    
+    if (input_mc_files != "")
     {
-        // move legend to upper left corner
-        l_x1 = 0.15;
-        l_x2 = 0.38;
-        l_y1 = 0.65;
-        l_y2 = 0.88;
+        TH1F *h_mc = FSModeHistogram::getTH1F(
+            input_mc_files,
+            NT,
+            CATEGORY,
+            tree_variable,
+            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+            TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
+
+        double scale;
+        TString legend_scale;
+        if (scale_choice == "integral")
+        {
+            // scale MC to data using their integrals
+            scale = h_next->Integral() / h_mc->Integral();
+            h_mc->Scale(scale);
+            legend_scale = TString::Format("MC (scale_{integral}=%.3f)", scale);
+        }
+        else if (scale_choice == "max")
+        {
+            // scale MC to data using their maximum bin content
+            scale = h_next->GetMaximum() / h_mc->GetMaximum();
+            h_mc->Scale(scale);
+            legend_scale = TString::Format("MC (scale_{max}=%.3f)", scale);
+        }
+        else
+        {
+            std::cerr << "Unknown scale choice: " << scale_choice << ". No scaling applied." << std::endl;
+        }
+        legend->AddEntry(h_mc, legend_scale, "p");
+
+        // draw MC on top as blue points with error bars
+        h_mc->SetMarkerStyle(24);
+        h_mc->SetMarkerColor(kBlack);
+        h_mc->SetLineColor(kBlack);
+        h_mc->Draw("E0 SAME");        
     }
-    else
-    {
-        // default upper right corner
-        l_x1 = 0.65;
-        l_x2 = 0.88;
-        l_y1 = 0.65;
-        l_y2 = 0.88;
-    }
-
-    // if (input_mc_files != "")
-    // {
-    //     TH1F *h_mc = FSModeHistogram::getTH1F(
-    //         input_mc_files,
-    //         NT,
-    //         CATEGORY,
-    //         tree_variable,
-    //         TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-    //         TString::Format("CUT(%s)", filtered_cuts.Data()));
-    //     // scale MC to data using their integrals
-    //     double scale = h_data->Integral() / h_mc->Integral();
-    //     h_mc->Scale(scale);
-
-        
-    //     legend->Draw();
-
-    //     // draw MC on top as blue points with error bars
-    //     h_mc->SetMarkerStyle(24);
-    //     h_mc->SetMarkerColor(kBlue);
-    //     h_mc->SetLineColor(kBlue);
-    //     h_mc->Draw("E1 SAME");
-
-    //     max_val = std::max(h_data->GetMaximum(), h_mc->GetMaximum());
-    // }
-    // else
-    // {
-    //     // Create legend even when no MC data
-    //     TLegend *legend = new TLegend(l_x1, l_y1, l_x2, l_y2);
-    //     legend->AddEntry(h_data, "Data", "l");
-    //     legend->AddEntry(h_selection, "Selection", "f");
-    //     legend->Draw();
-    // }
 
     h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
+    h_og->SetTitle("");
+
+    // finally, draw legend on first pad
+    c->cd(1);
+    legend->Draw();
 
     return h_og;
 }
@@ -601,4 +606,19 @@ TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = 
         result += it->first;
     }
     return result;
+}
+
+TCanvas* setup_canvas(bool logy = false)
+{
+    TCanvas *c = new TCanvas("c", "c", 800, 600);
+    c->Divide(1, 2, 0, 0); 
+    // Make top pad slim for legend, bottom for plot
+    c->cd(1);
+    gPad->SetPad(0, 0.93, 0.95, 0.98); 
+    c->cd(2);
+    gPad->SetPad(0, 0, 0.95, 0.91); 
+    if (logy)
+        gPad->SetLogy(1);
+    c->SetRightMargin(0.05);
+    return c;
 }
