@@ -101,11 +101,11 @@ void plot_broad_cuts(
 
     h_acc_signal->SetLineWidth(0);
     h_acc_signal->SetFillColor(kGreen+1);
-    h_acc_signal->SetFillStyle(3001);
+    h_acc_signal->SetFillStyle(1001);
 
     h_acc_subtracted->SetLineWidth(0);
     h_acc_subtracted->SetFillColor(TColor::GetColor("#c849a9"));
-    h_acc_subtracted->SetFillStyle(3002);
+    h_acc_subtracted->SetFillStyle(1001);
 
     h_acc_data->Draw("HIST");
     h_acc_subtracted->Draw("HIST SAME");
@@ -151,15 +151,15 @@ void plot_broad_cuts(
     delete c;
 
     // =================== Number Unused Tracks ===================
-    c = setup_canvas(false);    
+    c = setup_canvas(true); 
     h = plot_variable(
         c,
         input_data_files,
         "unusedTracks",
         "NumUnusedTracks",
-        "10",
+        "6",
         "0.0",
-        "10.0",
+        "6.0",
         0.0,
         1.0,
         cut_color_map,
@@ -174,7 +174,7 @@ void plot_broad_cuts(
     delete c;
 
     // =================== Production Vertex ===================
-    c = setup_canvas(false);
+    c = setup_canvas(true);
     h = plot_variable(
         c,
         input_data_files,
@@ -221,7 +221,7 @@ void plot_broad_cuts(
     delete c;
 
     // =================== Beam Energy ===================
-    c = setup_canvas(false);
+    c = setup_canvas(true);
     h = plot_variable(
         c,
         input_data_files,
@@ -244,7 +244,7 @@ void plot_broad_cuts(
     delete c;
 
     //=================== Chi2 / NDF ===================
-    c = setup_canvas(false);
+    c = setup_canvas(true);
     h = plot_variable(
         c,
         input_data_files,
@@ -267,7 +267,7 @@ void plot_broad_cuts(
     delete c; 
 
     // =================== four momentum transfer -t ===================
-    c = setup_canvas(false);
+    c = setup_canvas(true);
     h = plot_variable(
         c,
         input_data_files,
@@ -289,120 +289,164 @@ void plot_broad_cuts(
     c->SaveAs("t.pdf");   
     delete c; 
 
-    // TODO: Consider adding the recoil proton momentum cut
-    // https://halldweb.jlab.org/DocDB/0049/004924/002/TaskForce_ProtonFiducialVertex.pdf
+    // // TODO: Consider adding the recoil proton momentum cut
+    // // https://halldweb.jlab.org/DocDB/0049/004924/002/TaskForce_ProtonFiducialVertex.pdf
 
-    // // =================== Shower Quality  ===================
-    // // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
-    // TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
-    // c_shower->Divide(2, 2);
+    // =================== Shower Quality  ===================
+    // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
+    TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
+    c_shower->Divide(1, 2, 0, 0);
 
-    // // Array of shower quality variables and their descriptions
-    // TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
-    // TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
-    //                            "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
+    // Set up the legend pad at the top
+    c_shower->cd(1);
+    gPad->SetPad(0, 0.85, 1.0, 1.0);  // Top 15% for legend
 
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     c_shower->cd(i + 1);
-    //     gPad->SetLogy();
+    // Set up the main plotting area
+    c_shower->cd(2);
+    gPad->SetPad(0, 0, 1.0, 0.85);    // Bottom 85% for plots
+    gPad->Divide(2, 2, 0.02, 0.02);   // Divide into 2x2 grid with small margins
 
-    //     // For shower quality, we exclude the shQuality cut to see the full range
-    //     std::map<TString, Int_t> filtered_cuts = cut_color_map;
-    //     filtered_cuts.erase("shQuality");
-    //     // Join all keys of filtered_cuts into a comma separated TString
-    //     TString cut_string = join_keys(filtered_cuts);
+    TLegend *common_legend = new TLegend(0.05, 0.1, 0.95, 0.9);    
+    common_legend->SetNColumns(5);
+    common_legend->SetBorderSize(0);
+    common_legend->SetFillStyle(0);
 
-    //     // Create histogram for this shower quality variable
-    //     TH1F *h_sq_data = FSModeHistogram::getTH1F(
-    //         input_data_files,
-    //         NT,
-    //         CATEGORY,
-    //         shower_vars[i],
-    //         "(100,0.0,1.0)",
-    //         TString::Format("CUT(%s)", cut_string.Data()));
-    //     h_sq_data->SetLineColor(kBlack);
-    //     h_sq_data->SetLineWidth(2);
-    //     h_sq_data->SetMinimum(1); // avoid log(0)
-    //     h_sq_data->Draw("HIST");
+    // Array of shower quality variables and their descriptions
+    TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
+    TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
+                               "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
 
-    //     // Create a copy for the selection region fill
-    //     TH1F *h_sq_selection = (TH1F *)h_sq_data->Clone(TString::Format("h_sq_selection_%d", i));
-    //     h_sq_selection->SetFillColor(kGreen);
-    //     h_sq_selection->SetFillStyle(3002);
-    //     h_sq_selection->SetLineWidth(0);
+    for (int i = 0; i < 4; i++)
+    {
+        c_shower->cd(2);
+        gPad->cd(i+1);
+        gPad->SetLogy(1);
 
-    //     // Zero out bins outside the selection region (>0.5)
-    //     for (int j = 1; j <= h_sq_selection->GetNbinsX(); ++j)
-    //     {
-    //         double bin_center = h_sq_selection->GetBinCenter(j);
-    //         if (bin_center < 0.5)
-    //         {
-    //             h_sq_selection->SetBinContent(j, 1); // small value for log scale
-    //         }
-    //     }
+        TH1F* h_og = FSModeHistogram::getTH1F(
+            input_data_files,
+            NT,
+            CATEGORY,
+            shower_vars[i],
+            "(100,0.0,1.0)",
+            "");
+            
+        h_og->SetMinimum(1); 
+        h_og->SetLineColor(kGray);
+        h_og->SetLineWidth(1);
+        h_og->Draw("HIST");
+        
+        if (i==0)
+            common_legend->AddEntry(h_og, "Original Data", "l");
+        
+        // apply the special rf cut first
+        TH1F* h_rf = FSModeHistogram::getTH1F(
+            input_data_files,
+            NT,
+            CATEGORY,
+            shower_vars[i],
+            "(100,0.0,1.0)",
+            "CUTWT(rf)");
+        h_rf->SetMinimum(1);
+        h_rf->SetLineColor(TColor::GetColor("#c849a9"));
+        h_rf->SetLineWidth(1);
+        h_rf->Draw("HIST SAME");
 
-    //     // Draw the selection region fill
-    //     h_sq_selection->Draw("HIST SAME");
+        if (i==0)
+            common_legend->AddEntry(h_rf, "RF", "l");
 
-    //     // Redraw the data histogram on top
-    //     h_sq_data->Draw("HIST SAME");
+        // now iterate through our cuts and apply them one by one, except the one we are plotting    
+        TString cuts_so_far = "";
+        TH1F* h_next = nullptr;
+        for (map<TString, Int_t>::const_iterator it = cut_color_map.begin();
+            it != cut_color_map.end(); ++it)
+        {
+            TString cut_name = it->first;        
+            if (cut_name == "shQuality")
+                continue; // skip the cut we are plotting
+            cuts_so_far += (cuts_so_far.IsNull() ? "" : ",") + cut_name;        
 
-    //     double max_val = h_sq_data->GetMaximum();
+            // apply this cut
+            h_next = FSModeHistogram::getTH1F(
+                input_data_files,
+                NT,
+                CATEGORY,
+                shower_vars[i],
+                "(100,0.0,1.0)",
+                TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data())
+                );
+            h_next->SetMinimum(1); // set minimum again after fixing zeros
+            h_next->SetLineColor(it->second);
+            h_next->SetLineWidth(1);
 
-    //     if (input_mc_files != "")
-    //     {
-    //         TH1F *h_sq_mc = FSModeHistogram::getTH1F(
-    //             input_mc_files,
-    //             NT,
-    //             CATEGORY,
-    //             shower_vars[i],
-    //             "(50,0.0,1.0)",
-    //             TString::Format("CUT(%s)", filtered_cuts.Data()));
-    //         // scale MC to data using their integrals
-    //         double scale = h_sq_data->Integral() / h_sq_mc->Integral();
-    //         h_sq_mc->Scale(scale);
+            h_next->Draw("HIST SAME");  
+            if (i==0)   
+                common_legend->AddEntry(h_next, cut_name, "l");        
+        }
 
-    //         TLegend *legend = new TLegend(0.15, 0.15, 0.38, 0.38);
-    //         legend->AddEntry(h_sq_data, "Data", "l");
-    //         legend->AddEntry(h_sq_mc, TString::Format("MC (scale=%.3f)", scale), "p");
-    //         legend->AddEntry(h_sq_selection, "Selection", "f");
-    //         legend->Draw();
+        // Create a copy of the final histogram for the selection region fill
+        TH1F *h_selection = (TH1F *)h_next->Clone("h_selection");
+        h_selection->SetFillColor(kGreen+1);
+        h_selection->SetFillStyle(1001);
+        h_selection->SetLineWidth(0); // No line for the fill histogram
 
-    //         // draw MC on top as blue points with error bars
-    //         h_sq_mc->SetMarkerStyle(24);
-    //         h_sq_mc->SetMarkerColor(kBlue);
-    //         h_sq_mc->SetLineColor(kBlue);
-    //         h_sq_mc->Draw("E1 SAME");
+        // Zero out bins outside the selection region
+        for (int j = 1; j <= h_selection->GetNbinsX(); ++j)
+        {
+            double bin_center = h_selection->GetBinCenter(j);
+            if (bin_center < 0.5 || bin_center > 1.0)
+            {                
+                h_selection->SetBinContent(j, 1); // small value for log scale
+            }
+        }
 
-    //         max_val = std::max(h_sq_data->GetMaximum(), h_sq_mc->GetMaximum());
-    //     }
-    //     else
-    //     {
-    //         // Create legend even when no MC data
-    //         TLegend *legend = new TLegend(0.15, 0.15, 0.38, 0.38);
-    //         legend->AddEntry(h_sq_data, "Data", "l");
-    //         legend->AddEntry(h_sq_selection, "Selection", "f");
-    //         legend->Draw();
-    //     }
+        // Draw the selection region fill
+        h_selection->Draw("HIST SAME");
+        if (i==0)
+            common_legend->AddEntry(h_selection, "Selection", "f");
+        
+        if (input_mc_files != "")
+        {
+            TH1F *h_mc = FSModeHistogram::getTH1F(
+                input_mc_files,
+                NT,
+                CATEGORY,
+                shower_vars[i],
+                "(100,0.0,1.0)",
+                TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
 
-    //     h_sq_data->SetMaximum(max_val * 1.1); // add some headroom
+            double scale;            
+            // scale MC to data using their maximum bin content
+            scale = h_next->GetMaximum() / h_mc->GetMaximum();
+            h_mc->Scale(scale);
+            TString legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
+            if (i==0)
+                common_legend->AddEntry(h_mc, legend_scale, "p");
 
-    //     bin_width = get_bin_width(h_sq_data);
-    //     h_sq_data->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
-    //     h_sq_data->SetYTitle(TString::Format("Combos / %.3f", bin_width));
+            // draw MC on top as blue points with error bars
+            h_mc->SetMarkerStyle(24);
+            h_mc->SetMarkerColor(kBlack);
+            h_mc->SetLineColor(kBlack);
+            h_mc->Draw("E0 SAME");        
+        }
 
-    //     h_sq_data->SetMinimum(1);
+        h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
+        h_og->SetTitle("");        
+        bin_width = get_bin_width(h_og);
+        h_og->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
+        h_og->SetYTitle(TString::Format("Events / %.3f", bin_width));
 
-    //     // Adjust margins for the grid layout
-    //     gPad->SetLeftMargin(0.15);
-    //     gPad->SetBottomMargin(0.15);
-    //     gPad->SetTopMargin(0.1);
-    //     gPad->SetRightMargin(0.05);
-    // }
-    // c_shower->Update();
-    // c_shower->SaveAs("Shower_Quality.pdf");
-    // c_shower->Clear();
+        // Adjust margins for the grid layout
+        gPad->SetLeftMargin(0.15);
+        gPad->SetBottomMargin(0.15);
+        gPad->SetTopMargin(0.1);
+        gPad->SetRightMargin(0.05);
+    }
+    c_shower->cd(1);
+    common_legend->Draw();
+
+    c_shower->Update();
+    c_shower->SaveAs("Shower_Quality.pdf");
+    c_shower->Clear();
 
     if (dump_cache)
         FSHistogram::dumpHistogramCache();
@@ -448,6 +492,17 @@ TH1F *plot_variable(
     const TString input_mc_files = "",
     bool bggen = false)
 {    
+    std::map<TString, TString> cut_to_legend = {
+        {"unusedE", "Unused Shower Energy"},
+        {"unusedTracks", "Unused Charged Tracks"},
+        {"z", "Production Vertex"},
+        {"MM2", "Missing Mass^{2}"},
+        {"eBeam", "Beam Energy"},
+        {"chi2", "#chi^{2} / NDF"},
+        {"t", "-t"},
+        {"shQuality", "Shower Quality"}
+    };
+
     // create histograms in format: file name, tree name, category, variable, bins and
     // bounds, then cuts. Our cuts are already loaded, so just their names are enough 
     // for FSCut to find them
@@ -470,7 +525,7 @@ TH1F *plot_variable(
     h_og->Draw("HIST");
     
     TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);    
-    legend->SetNColumns(6);
+    legend->SetNColumns(5);
     legend->SetBorderSize(0);
     legend->SetFillStyle(0);
     legend->AddEntry(h_og, "Original Data", "l");    
@@ -487,7 +542,7 @@ TH1F *plot_variable(
     h_rf->SetLineColor(TColor::GetColor("#c849a9"));
     h_rf->SetLineWidth(1);
     h_rf->Draw("HIST SAME");
-    legend->AddEntry(h_rf, "RF", "l");
+    legend->AddEntry(h_rf, "RF Accidentals", "l");
 
     // now iterate through our cuts and apply them one by one, except the one we are plotting    
     TString cuts_so_far = "";
@@ -514,13 +569,13 @@ TH1F *plot_variable(
         h_next->SetLineWidth(1);     
 
         h_next->Draw("HIST SAME");     
-        legend->AddEntry(h_next, cut_name, "l");        
+        legend->AddEntry(h_next, cut_to_legend[cut_name], "l");        
     }
 
     // Create a copy of the final histogram for the selection region fill
     TH1F *h_selection = (TH1F *)h_next->Clone("h_selection");
     h_selection->SetFillColor(kGreen+1);
-    h_selection->SetFillStyle(3001);
+    h_selection->SetFillStyle(1001);
     h_selection->SetLineWidth(0); // No line for the fill histogram
 
     // Zero out bins outside the selection region
@@ -557,14 +612,14 @@ TH1F *plot_variable(
             // scale MC to data using their integrals
             scale = h_next->Integral() / h_mc->Integral();
             h_mc->Scale(scale);
-            legend_scale = TString::Format("MC (scale_{integral}=%.3f)", scale);
+            legend_scale = TString::Format("MC (integral scaling=%.3f)", scale);
         }
         else if (scale_choice == "max")
         {
             // scale MC to data using their maximum bin content
             scale = h_next->GetMaximum() / h_mc->GetMaximum();
             h_mc->Scale(scale);
-            legend_scale = TString::Format("MC (scale_{max}=%.3f)", scale);
+            legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
         }
         else
         {
@@ -614,11 +669,14 @@ TCanvas* setup_canvas(bool logy = false)
     c->Divide(1, 2, 0, 0); 
     // Make top pad slim for legend, bottom for plot
     c->cd(1);
-    gPad->SetPad(0, 0.93, 0.95, 0.98); 
+    gPad->SetPad(0, 0.93, 0.9, 0.98);
     c->cd(2);
-    gPad->SetPad(0, 0, 0.95, 0.91); 
+    gPad->SetPad(0, 0, 0.9, 0.91); 
     if (logy)
         gPad->SetLogy(1);
-    c->SetRightMargin(0.05);
+    gPad->SetRightMargin(0.05);
+    gPad->SetTopMargin(0.05);
+    c->SetRightMargin(0.02);
+    c->SetTopMargin(0.02);
     return c;
 }
