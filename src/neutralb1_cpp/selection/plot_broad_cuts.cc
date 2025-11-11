@@ -41,7 +41,6 @@ std::map<TString, TString> CUT_TO_LEGEND = {
     {"shQuality", "Shower Quality"}};
 
 // Forward declarations
-TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
 TCanvas *setup_canvas(bool logy = false);
 TH1F *plot_variable(
     TCanvas *c,
@@ -802,25 +801,6 @@ TH1F *plot_variable(
     legend->Draw();
 
     return h_og;
-}
-
-/**
- * @brief Join the keys of a color map into a single TString separated by a delimiter
- *
- * @param m map of cut TStrings to color integers
- * @param delimiter delimiter to separate keys, default is ","
- * @return TString joined keys
- */
-TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",")
-{
-    TString result;
-    for (auto it = m.begin(); it != m.end(); ++it)
-    {
-        if (it != m.begin())
-            result += delimiter;
-        result += it->first;
-    }
-    return result;
 }
 
 TCanvas *setup_canvas(bool logy = false)
