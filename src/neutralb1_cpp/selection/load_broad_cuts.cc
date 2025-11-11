@@ -41,6 +41,10 @@ std::map<TString, Int_t> load_broad_cuts()
     // sideband regions
     FSCut::defineCut("rf", "OR(abs(RFDeltaT)<2.0)", "abs(RFDeltaT)>2.0", 0.125);
 
+    // Define a cut for just the signal region, this will be the "original data" to 
+    // compare successive cuts to
+    FSCut::defineCut("rfSignal", "(abs(RFDeltaT)<2.0)");
+
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
     {
         cuts += it->first;

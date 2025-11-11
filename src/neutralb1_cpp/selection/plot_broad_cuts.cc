@@ -447,7 +447,8 @@ void plot_broad_cuts(
             CATEGORY,
             shower_vars[i],
             "(100,0.0,1.0)",
-            "");
+             "CUT(rfSignal)"
+        );
             
         h_og->SetMinimum(1); 
         h_og->SetLineColor(kGray);
@@ -579,7 +580,8 @@ void plot_broad_cuts(
             CATEGORY,
             shower_vars[i],
             "(100,0.0,1.0)",
-            "");
+             "CUT(rfSignal)"
+        );
             
         h_og->SetMinimum(1); 
         h_og->SetLineColor(kGray);
@@ -725,7 +727,8 @@ TH1F *plot_variable(
         CATEGORY,
         tree_variable,
         TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-        "");
+        "CUT(rfSignal)"
+    );
     
     bool isLogY = gPad->GetLogy();
     h_og->SetMinimum(isLogY ? 1 : 0); 
