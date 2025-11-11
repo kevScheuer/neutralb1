@@ -153,8 +153,7 @@ void plot_broad_cuts(
     c->SaveAs("Unused_Shower_Energy.pdf");
     delete c;
 
-    c = setup_canvas(true);
-    TH1F *h;
+    c = setup_canvas(true);    
     h = plot_variable(
         c,
         input_mc_files,
@@ -542,7 +541,7 @@ void plot_broad_cuts(
     // ==== MC Shower Quality ====
     delete c_shower;
     delete common_legend;
-    TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
+    c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
     c_shower->Divide(1, 2, 0, 0);
 
     // Set up the legend pad at the top
@@ -554,15 +553,10 @@ void plot_broad_cuts(
     gPad->SetPad(0, 0, 1.0, 0.92);
     gPad->Divide(2, 2, 0.01, 0.01); // Divide into 2x2 grid with small margins
 
-    TLegend *common_legend = new TLegend(0.05, 0.1, 0.95, 0.9);
+    common_legend = new TLegend(0.05, 0.1, 0.95, 0.9);
     common_legend->SetNColumns(5);
     common_legend->SetBorderSize(0);
     common_legend->SetFillStyle(0);
-
-    // Array of shower quality variables and their descriptions
-    TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
-    TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
-                               "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
 
     for (int i = 0; i < 4; i++)
     {
