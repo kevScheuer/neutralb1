@@ -92,16 +92,110 @@ void compare_sideband_methods()
     h_individual_vector[1]->Draw("HIST SAME");
     h_individual_vector[2]->Draw("HIST SAME");
 
+    // draw lines for standard 2d window used in Amy's tutorial
+    double standard_signal_low = 0.760;
+    double standard_signal_high = 0.805;
+    double standard_sideband_low_low = 0.690;
+    double standard_sideband_low_high = 0.735;
+    double standard_sideband_high_low = 0.830;
+    double standard_sideband_high_high = 0.875;
+
+    double max = h_individual_vector[0]->GetMaximum()*1.1;
+    TLine *line_standard_signal_low = new TLine(standard_signal_low, 0, standard_signal_low, max);
+    TLine *line_standard_signal_high = new TLine(standard_signal_high, 0, standard_signal_high, max);
+    TLine *line_standard_sideband_low_low = new TLine(standard_sideband_low_low, 0, standard_sideband_low_low, max);
+    TLine *line_standard_sideband_low_high = new TLine(standard_sideband_low_high, 0, standard_sideband_low_high, max);
+    TLine *line_standard_sideband_high_low = new TLine(standard_sideband_high_low, 0, standard_sideband_high_low, max);
+    TLine *line_standard_sideband_high_high = new TLine(standard_sideband_high_high, 0, standard_sideband_high_high, max);
+    line_standard_signal_low->SetLineColor(kBlack);
+    line_standard_signal_low->SetLineWidth(1);
+    line_standard_signal_high->SetLineColor(kBlack);
+    line_standard_signal_high->SetLineWidth(1);
+    line_standard_sideband_low_low->SetLineColor(kBlack);
+    line_standard_sideband_low_low->SetLineWidth(1);
+    line_standard_sideband_low_low->SetLineStyle(9);
+    line_standard_sideband_low_high->SetLineColor(kBlack);
+    line_standard_sideband_low_high->SetLineWidth(1);
+    line_standard_sideband_low_high->SetLineStyle(9);
+    line_standard_sideband_high_low->SetLineColor(kBlack);
+    line_standard_sideband_high_low->SetLineWidth(1);
+    line_standard_sideband_high_low->SetLineStyle(9);
+    line_standard_sideband_high_high->SetLineColor(kBlack);
+    line_standard_sideband_high_high->SetLineWidth(1);
+    line_standard_sideband_high_high->SetLineStyle(9);
+    line_standard_signal_low->Draw("SAME");
+    line_standard_signal_high->Draw("SAME");
+    line_standard_sideband_low_low->Draw("SAME");
+    line_standard_sideband_low_high->Draw("SAME");
+    line_standard_sideband_high_low->Draw("SAME");
+    line_standard_sideband_high_high->Draw("SAME");
+
+    // draw lines for adjusted 2d window to be more comparable to our regions
+    double signal_low = OMEGA_MASS - SIGNAL_WIDTH/2;
+    double signal_high = OMEGA_MASS + SIGNAL_WIDTH/2;
+    double sideband_low_center = OMEGA_MASS - SIDEBAND_GAP - SIGNAL_WIDTH*0.5;
+    double sideband_low_low = sideband_low_center - SIGNAL_WIDTH;
+    double sideband_low_high = sideband_low_center + SIGNAL_WIDTH;
+    double sideband_high_center = OMEGA_MASS + SIDEBAND_GAP + SIGNAL_WIDTH*0.5;
+    double sideband_high_low = sideband_high_center - SIGNAL_WIDTH;
+    double sideband_high_high = sideband_high_center + SIGNAL_WIDTH;
+
+    
+    TLine *line_signal_low = new TLine(signal_low, 0, signal_low, max);
+    TLine *line_signal_high = new TLine(signal_high, 0, signal_high, max);
+    TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, max);
+    TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, max);
+    TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, max);
+    TLine *line_sideband_high_high = new TLine(sideband_high_high, 0, sideband_high_high, max);
+    line_signal_low->SetLineColor(kYellow-1);
+    line_signal_low->SetLineWidth(1);
+    line_signal_high->SetLineColor(kYellow-1);
+    line_signal_high->SetLineWidth(1);
+    line_sideband_low_low->SetLineColor(kYellow-1);
+    line_sideband_low_low->SetLineWidth(1);
+    line_sideband_low_low->SetLineStyle(9);
+    line_sideband_low_high->SetLineColor(kYellow-1);
+    line_sideband_low_high->SetLineWidth(1);
+    line_sideband_low_high->SetLineStyle(9);
+    line_sideband_high_low->SetLineColor(kYellow-1);
+    line_sideband_high_low->SetLineWidth(1);
+    line_sideband_high_low->SetLineStyle(9);
+    line_sideband_high_high->SetLineColor(kYellow-1);
+    line_sideband_high_high->SetLineWidth(1);
+    line_sideband_high_high->SetLineStyle(9);
+    line_signal_low->Draw("SAME");
+    line_signal_high->Draw("SAME");
+    line_sideband_low_low->Draw("SAME");
+    line_sideband_low_high->Draw("SAME");
+    line_sideband_high_low->Draw("SAME");
+    line_sideband_high_high->Draw("SAME");
+
+    // Finally, the legend
+    TLegend *legend_omega = new TLegend(0.55,0.65,0.85,0.85);
+    legend_omega->SetBorderSize(0);
+    legend_omega->AddEntry(h_individual_vector[0],"Data", "l");
+    legend_omega->AddEntry(h_individual_vector[1],"#omega Signal Region", "f");
+    legend_omega->AddEntry(h_individual_vector[2],"#omega Sideband Regions", "f");
+    legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
+    legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
+    legend_omega->AddEntry(line_standard_signal_low, "Standard 2D Signal", "l");
+    legend_omega->AddEntry(line_standard_sideband_low_low, "Standard 2D Sidebands", "l");
+    legend_omega->Draw();
+
     c->SaveAs("sideband_individual_omega_mass.pdf");
     c->Clear();
 
-    // plot 2d sideband method result with cosmetic changes
+    // plot standard 2d sideband method result
     h_2d_vector[0]->SetLineColor(kBlack);
     h_2d_vector[0]->SetLineWidth(2);
     h_2d_vector[0]->SetXTitle("#omega#pi^{0} Inv. Mass (GeV)");
     double bin_width_2d = get_bin_width(h_2d_vector[0]);
     h_2d_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_2d));
     h_2d_vector[0]->SetTitle("");
+
+    // plot 2d sideband with adjusted windows to match my selection regions
+    h_2d_vector[1]->SetLineColor(kYellow-1);
+    h_2d_vector[1]->SetLineWidth(1);
 
     // plot data with cosmetic changes
     h_individual_vector[3]->SetLineColor(kGray);
@@ -118,12 +212,23 @@ void compare_sideband_methods()
     h_individual_vector[6]->SetFillColorAlpha(kRed-2, 0.35);
 
     h_2d_vector[0]->Draw("HIST");
+    h_2d_vector[1]->Draw("HIST SAME");
     h_individual_vector[3]->Draw("HIST SAME");
     h_individual_vector[4]->Draw("HIST SAME");
     h_individual_vector[5]->Draw("HIST SAME");
     h_individual_vector[6]->Draw("HIST SAME");
     h_2d_vector[0]->SetMinimum(h_individual_vector[6]->GetMinimum() * 1.2);
     h_2d_vector[0]->SetMaximum(h_individual_vector[3]->GetMaximum() * 1.2);
+
+    TLegend *legend = new TLegend(0.55,0.65,0.85,0.85);
+    legend->SetBorderSize(0);
+    legend->AddEntry(h_2d_vector[0],"Standard 2D SB", "l");
+    legend->AddEntry(h_2d_vector[1],"Adjusted 2D SB", "l");
+    legend->AddEntry(h_individual_vector[3],"Data (no SB)", "l");
+    legend->AddEntry(h_individual_vector[4],"#omega Signal", "l");
+    legend->AddEntry(h_individual_vector[5],"Signal - Sidebands", "l");
+    legend->AddEntry(h_individual_vector[6],"#omega Sidebands", "f");
+    legend->Draw();
 
     c->SaveAs("sideband.pdf");
     
@@ -145,12 +250,10 @@ std::vector<TH1F *> sideband_2d(
         friendTreeContents.push_back(pair<TString,TString>("M235","MASS(2,3,5)"));
         FSTree::createFriendTree(input_files,"ntFSGlueX_100_112","M3PI",friendTreeContents);    
     }
-    FSTree::addFriendTree("M3PI");
+    FSTree::addFriendTree("M3PI");    
 
-    // below cuts are modified to match our selection windows
-
-    // TODO: make another hist with these windows shifted to my analysis windows
-
+    
+    // ____Amy's 2D sideband subtraction method____
     // cuts for the signal region
     TString SIG4("(M234>0.760&&M234<0.805)");
     TString SIG5("(M235>0.760&&M235<0.805)");
@@ -176,15 +279,49 @@ std::vector<TH1F *> sideband_2d(
         "(100,1.0,2.0)",
         TString::Format("%s*CUT(%s)*CUTWT(rf)", OMEGAWT.Data(), cuts.Data()) 
     );
-    return std::vector<TH1F *>{h_omega_pi0_mass};
+
+    // ____the same process, but now adjustd to my analysis windows____
+    SIG4 = "(M234>0.757&&M234<0.809)";
+    SIG5 = "(M235>0.757&&M235<0.809)";
+    SIG4orSIG5 = "(("+SIG4+")||("+SIG5+"))";
+
+    // cuts for the sideband regions
+
+    // for this next part, I'll refer to the full width of the omega as being
+    // +/- 3 sigma from the peak (so full width = 6 sigma). In terms of the constants,
+    // this means OMEGA_MASS +/- SIGNAL_WIDTH
+    
+    // my analysis covers the 9 sigma - 12 sigma sidebands (each sideband is 1/2 full
+    // omega width) and the 2D method sidebands are 6 sigma wide (each one covers full
+    // omega width). I'll make the new regions 10.5 sigma +/- 3 sigma. That way the     
+    // way the widths are the same and I can keep the weighting scheme, while
+    // covering a comparable region
+    SB4 = "(((M234>0.666&&M234<0.718)||(M234>0.848&&M234<0.900))&&!("+SIG4+")&&!("+SIG5+"))";
+    SB5 = "(((M235>0.666&&M235<0.718)||(M235>0.848&&M235<0.900))&&!("+SIG4+")&&!("+SIG5+"))";
+    SB4andSB5 = "(("+SB4+")&&("+SB5+"))";
+    SB4orSB5 =  "(("+SB4+")||("+SB5+"))";
+    SB4xorSB5 = "((("+SB4+")||("+SB5+"))&&!("+SB4andSB5+"))";
+
+    // event weights
+    OMEGAWT ="(1.00*("+SIG4orSIG5+")-0.50*("+SB4xorSB5+")-1.25*("+SB4andSB5+"))";
+
+    TH1F* h_omega_pi0_mass_adjusted = FSModeHistogram::getTH1F(
+        input_files,
+        NT,
+        CATEGORY,
+        "MASS(2,3,4,5)",
+        "(100,1.0,2.0)",
+        TString::Format("%s*CUT(%s)*CUTWT(rf)", OMEGAWT.Data(), cuts.Data()) 
+    );
+
+    return std::vector<TH1F *>{h_omega_pi0_mass, h_omega_pi0_mass_adjusted};
 }
 
 std::vector<TH1F *> sideband_individual(
     std::map<TString, Int_t> &cut_color_map, 
     TString input_files)
 {
-    TString cuts = join_keys(cut_color_map);    
-    // TODO: make sure cutwt() is properly used
+    TString cuts = join_keys(cut_color_map);        
 
     // Our particles are given in the order
     //   0       1          2             3              4              5
