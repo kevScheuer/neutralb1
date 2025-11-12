@@ -174,7 +174,7 @@ std::vector<TH1F *> sideband_2d(
         CATEGORY,
         "MASS(2,3,4,5)",
         "(100,1.0,2.0)",
-        TString::Format("%s*CUT(%s)", OMEGAWT.Data(), cuts.Data()) 
+        TString::Format("%s*CUT(%s)*CUTWT(rf)", OMEGAWT.Data(), cuts.Data()) 
     );
     return std::vector<TH1F *>{h_omega_pi0_mass};
 }
@@ -183,9 +183,7 @@ std::vector<TH1F *> sideband_individual(
     std::map<TString, Int_t> &cut_color_map, 
     TString input_files)
 {
-    TString cuts = join_keys(cut_color_map);
-    cuts += ",rf"; // will add RF cut to all plots too
-    // TODO: move rf to a cutwt() cut
+    TString cuts = join_keys(cut_color_map);    
     // TODO: make sure cutwt() is properly used
 
     // Our particles are given in the order
@@ -260,7 +258,7 @@ std::vector<TH1F *> sideband_individual(
             CATEGORY,
             data_omega_mass,
             "(100,0.6,1.0)",
-            TString::Format("CUT(%s)", cuts.Data()) 
+            TString::Format("CUT(%s)*CUTWT(rf)", cuts.Data()) 
         );
         h_omega_mass_sig[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
@@ -268,7 +266,7 @@ std::vector<TH1F *> sideband_individual(
             CATEGORY,
             data_omega_mass,
             "(100,0.6,1.0)",
-            TString::Format("CUT(%s)*CUTWT(omega_sb_subtraction)", cuts.Data()) 
+            TString::Format("CUT(%s,omega_sb_subtraction)*CUTWT(rf)", cuts.Data()) 
         );
         h_omega_mass_sb[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
@@ -276,7 +274,7 @@ std::vector<TH1F *> sideband_individual(
             CATEGORY,
             data_omega_mass,
             "(100,0.6,1.0)",
-            TString::Format("CUT(%s)*CUTSBWT(omega_sb_subtraction)", cuts.Data()) 
+            TString::Format("CUT(%s)*CUTSB(omega_sb_subtraction)*CUTWT(rf)", cuts.Data()) 
         );
 
         // ==== omega pi0 mass ====
@@ -308,23 +306,23 @@ std::vector<TH1F *> sideband_individual(
             CATEGORY,
             omega_pi0_mass,
             "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,%s)", cuts.Data())
+            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTWT(rf)", cuts.Data())
         );
-        h_omega_pi0_mass_result[perm_number -1] = FSModeHistogram::getTH1F(
+        h_omega_pi0_mass_sig[perm_number -1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
             CATEGORY,
             omega_pi0_mass,
             "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,omega_sb_subtraction,%s)", cuts.Data())
+            TString::Format("CUT(omega_pi0_mass_cut,omega_sb_subtraction,%s)*CUTWT(rf)", cuts.Data())
         );
-        h_omega_pi0_mass_sig[perm_number - 1] = FSModeHistogram::getTH1F(
+        h_omega_pi0_mass_result[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
             CATEGORY,
             omega_pi0_mass,
             "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTWT(omega_sb_subtraction)", cuts.Data())
+            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTWT(omega_sb_subtraction,rf)", cuts.Data())
         );
         h_omega_pi0_mass_sb[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
@@ -332,7 +330,7 @@ std::vector<TH1F *> sideband_individual(
             CATEGORY,
             omega_pi0_mass,
             "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTSBWT(omega_sb_subtraction)*(-1.0)", cuts.Data())
+            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTSB(omega_sb_subtraction)*CUTWT(rf)*(-1.0)", cuts.Data())
         );
     } // end loop over permutations
 
@@ -357,8 +355,8 @@ std::vector<TH1F *> sideband_individual(
         h_omega_mass_sig_total,
         h_omega_mass_sb_total,
         h_omega_pi0_mass_total,
-        h_omega_pi0_mass_result_total,
         h_omega_pi0_mass_sig_total,
+        h_omega_pi0_mass_result_total,
         h_omega_pi0_mass_sb_total
     };
 }
