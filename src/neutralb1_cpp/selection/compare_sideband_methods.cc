@@ -1,6 +1,6 @@
 /**
  * @file compare_sideband_methods.cc
- * @author Kevin Scheuer
+ * @author Kevin Scheuer, Amy Schertz
  * @brief Compare different sideband subtraction methods for omega pi0
  * 
  * A priori, there is no way to know which pi0 came from the omega, and which is the
@@ -12,6 +12,10 @@
  * or we can simply sideband subtract each pi0 pi+ pi- combo independently. This file
  * compares these 2 methods to see how they affect the final omega pi0 mass
  * distribution.
+ * 
+ * Authorship is also credited to Amy Schertz, as the 2d sideband code is directly
+ * taken from her FSRoot tutorial for this channel:
+ * https://github.com/JeffersonLab/gluex_workshops/blob/master/tutorial_2025/session2d/plots.C
  */
 
 
@@ -39,21 +43,19 @@ TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
 
 // we make these TStrings for the FSCut definitions
-float OMEGA_MASS = 0.783; // PDG omega mass in GeV
-float SIGNAL_WIDTH = 0.03; // exactly 3 sigma of PDG omega width
-float SIDEBAND_GAP = 0.08;  // 9 sigma distance from signal region
+float OMEGA_MASS = 0.7826; // PDG omega mass in GeV
+float SIGNAL_WIDTH = 0.00868 * 3; // exactly 3 sigma of PDG omega width
+float SIDEBAND_GAP = SIGNAL_WIDTH * 3;  // 9 sigma distance from signal region
 
 // Forward declarations
 TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
 std::vector<TH1F *> sideband_individual(
     std::map<TString, Int_t> &cut_color_map, 
     TString input_files);
-// std::vector<TH1F *> sideband_2d(
-//     std::map<TString, Int_t> &cut_color_map, 
-//     TString input_files);
-
-// TODO: should have a function for each method which takes in input files (data or MC)
-// and returns the omega pi0 mass histogram after sideband subtraction
+std::vector<TH1F *> sideband_2d(
+    std::map<TString, Int_t> &cut_color_map, 
+    TString input_files,
+    bool create_friends = false);
 
 
 void compare_sideband_methods()
@@ -65,31 +67,27 @@ void compare_sideband_methods()
 
     std::vector<TH1F *> h_2d_vector;
     std::vector<TH1F *> h_individual_vector;
-    // h_2d_vector = sideband_2d(cut_color_map, input_data_files);
+    h_2d_vector = sideband_2d(cut_color_map, input_data_files);
     h_individual_vector = sideband_individual(cut_color_map, input_data_files);
 
     // Plotting
     TCanvas *c = new TCanvas("c", "Sideband Subtraction Methods", 800, 600);
 
-    // TODO: plot both together, including the omega mass, but for now just see if 
-    // individual method works
-
     // plot omega mass, highglighting signal and sideband regions
-    h_individual_vector[0]->SetLineColor(kBlack);
+    h_individual_vector[0]->SetLineColor(kGray);
     h_individual_vector[0]->SetLineWidth(2);
     h_individual_vector[0]->SetXTitle("#omega Inv. Mass (GeV)");
     double bin_width_omega = get_bin_width(h_individual_vector[0]);
     h_individual_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_omega));
     h_individual_vector[0]->SetTitle("");
 
-    h_individual_vector[1]->SetLineColor(kGreen);
+    h_individual_vector[1]->SetLineColor(kBlue);
     h_individual_vector[1]->SetLineWidth(0);
-    h_individual_vector[1]->SetFillColorAlpha(kGreen, 0.35);
+    h_individual_vector[1]->SetFillColorAlpha(kBlue, 0.35);
 
-    h_individual_vector[2]->SetLineColor(kRed);
+    h_individual_vector[2]->SetLineColor(kRed-2);
     h_individual_vector[2]->SetLineWidth(0);
-    h_individual_vector[2]->SetFillColorAlpha(kRed, 0.35);
-
+    h_individual_vector[2]->SetFillColorAlpha(kRed-2, 0.35);
     h_individual_vector[0]->Draw("HIST");
     h_individual_vector[1]->Draw("HIST SAME");
     h_individual_vector[2]->Draw("HIST SAME");
@@ -97,44 +95,89 @@ void compare_sideband_methods()
     c->SaveAs("sideband_individual_omega_mass.pdf");
     c->Clear();
 
+    // plot 2d sideband method result with cosmetic changes
+    h_2d_vector[0]->SetLineColor(kBlack);
+    h_2d_vector[0]->SetLineWidth(2);
+    h_2d_vector[0]->SetXTitle("#omega#pi^{0} Inv. Mass (GeV)");
+    double bin_width_2d = get_bin_width(h_2d_vector[0]);
+    h_2d_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_2d));
+    h_2d_vector[0]->SetTitle("");
+
     // plot data with cosmetic changes
     h_individual_vector[3]->SetLineColor(kGray);
     h_individual_vector[3]->SetLineWidth(2);
-    h_individual_vector[3]->SetXTitle("#omega#pi^{0} Inv. Mass (GeV)");
-    double bin_width = get_bin_width(h_individual_vector[3]);
-    h_individual_vector[3]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    h_individual_vector[3]->SetTitle("");
 
-    h_individual_vector[4]->SetLineColor(kBlack);
-    h_individual_vector[4]->SetLineWidth(2);    
+    h_individual_vector[4]->SetLineColor(kBlue);
+    h_individual_vector[4]->SetLineWidth(1);    
 
     // add signal and sideband histograms
-    h_individual_vector[5]->SetLineColor(kGreen);
-    h_individual_vector[5]->SetLineWidth(1);
-    h_individual_vector[5]->SetFillColorAlpha(kGreen, 0.35);
-    h_individual_vector[6]->SetLineColor(kRed);
+    h_individual_vector[5]->SetLineColor(kViolet);
+    h_individual_vector[5]->SetLineWidth(1);    
+    h_individual_vector[6]->SetLineColor(kRed-2);
     h_individual_vector[6]->SetLineWidth(1);
-    h_individual_vector[6]->SetFillColorAlpha(kRed, 0.35);
+    h_individual_vector[6]->SetFillColorAlpha(kRed-2, 0.35);
 
-    h_individual_vector[3]->Draw("HIST");
+    h_2d_vector[0]->Draw("HIST");
+    h_individual_vector[3]->Draw("HIST SAME");
     h_individual_vector[4]->Draw("HIST SAME");
     h_individual_vector[5]->Draw("HIST SAME");
     h_individual_vector[6]->Draw("HIST SAME");
-    h_individual_vector[3]->SetMinimum(h_individual_vector[6]->GetMinimum() * 1.2);    
+    h_2d_vector[0]->SetMinimum(h_individual_vector[6]->GetMinimum() * 1.2);
+    h_2d_vector[0]->SetMaximum(h_individual_vector[3]->GetMaximum() * 1.2);
 
-    c->SaveAs("sideband_individual_method.pdf");
+    c->SaveAs("sideband.pdf");
     
 }
 
 
-// std::vector<TH1F *> sideband_2d(
-//     std::map<TString, Int_t> &cut_color_map, 
-//     TString input_files)
-// {
-//     TString cuts = join_keys(cut_color_map);
+std::vector<TH1F *> sideband_2d(
+    std::map<TString, Int_t> &cut_color_map, 
+    TString input_files,
+    bool create_friends = false)
+{
+    TString cuts = join_keys(cut_color_map);
+    cuts += ",rf"; // will add RF cut to all plots too
 
+    if (create_friends)
+    {
+        vector<pair<TString,TString> > friendTreeContents;
+        friendTreeContents.push_back(pair<TString,TString>("M234","MASS(2,3,4)"));
+        friendTreeContents.push_back(pair<TString,TString>("M235","MASS(2,3,5)"));
+        FSTree::createFriendTree(input_files,"ntFSGlueX_100_112","M3PI",friendTreeContents);    
+    }
+    FSTree::addFriendTree("M3PI");
 
-// }
+    // below cuts are modified to match our selection windows
+
+    // TODO: make another hist with these windows shifted to my analysis windows
+
+    // cuts for the signal region
+    TString SIG4("(M234>0.760&&M234<0.805)");
+    TString SIG5("(M235>0.760&&M235<0.805)");
+    TString SIG4orSIG5(  "(("+SIG4+")||("+SIG5+"))");
+
+    // cuts for the sideband regions
+    TString SB4("(((M234>0.690&&M234<0.735)||"
+                "(M234>0.830&&M234<0.875))&&!("+SIG4+")&&!("+SIG5+"))");
+    TString SB5("(((M235>0.690&&M235<0.735)||"
+                "(M235>0.830&&M235<0.875))&&!("+SIG4+")&&!("+SIG5+"))");
+    TString SB4andSB5( "(("+SB4+")&&("+SB5+"))");
+    TString SB4orSB5(  "(("+SB4+")||("+SB5+"))");
+    TString SB4xorSB5("((("+SB4+")||("+SB5+"))&&!("+SB4andSB5+"))");
+
+    // event weights
+    TString OMEGAWT("(1.00*("+SIG4orSIG5+")-0.50*("+SB4xorSB5+")-1.25*("+SB4andSB5+"))");    
+
+    TH1F* h_omega_pi0_mass = FSModeHistogram::getTH1F(
+        input_files,
+        NT,
+        CATEGORY,
+        "MASS(2,3,4,5)",
+        "(100,1.0,2.0)",
+        TString::Format("%s*CUT(%s)", OMEGAWT.Data(), cuts.Data()) 
+    );
+    return std::vector<TH1F *>{h_omega_pi0_mass};
+}
 
 std::vector<TH1F *> sideband_individual(
     std::map<TString, Int_t> &cut_color_map, 
@@ -142,6 +185,8 @@ std::vector<TH1F *> sideband_individual(
 {
     TString cuts = join_keys(cut_color_map);
     cuts += ",rf"; // will add RF cut to all plots too
+    // TODO: move rf to a cutwt() cut
+    // TODO: make sure cutwt() is properly used
 
     // Our particles are given in the order
     //   0       1          2             3              4              5
