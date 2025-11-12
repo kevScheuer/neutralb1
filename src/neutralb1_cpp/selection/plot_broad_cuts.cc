@@ -808,7 +808,7 @@ TCanvas *setup_canvas(bool logy = false)
     c->Divide(1, 2, 0, 0);
     // Make top pad slim for legend, bottom for plot
     c->cd(1);
-    gPad->SetPad(0, 0.93, 0.9, 0.98);
+    gPad->SetPad(0, 0.93, 0.9, 0.95);
     gPad->SetTopMargin(0.05);
     c->cd(2);
     gPad->SetPad(0, 0, 0.98, 0.93);
