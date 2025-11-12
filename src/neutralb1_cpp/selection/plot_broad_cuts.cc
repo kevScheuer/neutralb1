@@ -93,7 +93,7 @@ void plot_broad_cuts(
         CATEGORY,
         "RFDeltaT",
         "(400,-20.0,20.0)",
-        "CUTSBWT(rf)*(-1.0)");
+        "CUTSBWT(rf)");
     TH1F *h_acc_signal = FSModeHistogram::getTH1F(
         input_data_files,
         NT,
@@ -122,8 +122,7 @@ void plot_broad_cuts(
     legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
     legend_acc->Draw();
 
-    h_acc_data->SetXTitle("RF #DeltaT (ns)");
-    h_acc_data->SetMinimum(h_acc_subtracted->GetMinimum() * 1.1);
+    h_acc_data->SetXTitle("RF #DeltaT (ns)");    
     bin_width = get_bin_width(h_acc_data);
     h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
     c_rf->Update();
@@ -810,6 +809,7 @@ TCanvas *setup_canvas(bool logy = false)
     // Make top pad slim for legend, bottom for plot
     c->cd(1);
     gPad->SetPad(0, 0.93, 0.9, 0.98);
+    gPad->SetTopMargin(0.05);
     c->cd(2);
     gPad->SetPad(0, 0, 0.98, 0.93);
     if (logy)
