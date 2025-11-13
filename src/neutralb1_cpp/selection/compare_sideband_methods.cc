@@ -27,6 +27,7 @@
 #include "TH1.h"
 #include "TLegend.h"
 #include "TColor.h"
+#include "TLine.h"
 
 #include "FSBasic/FSHistogram.h"
 #include "FSBasic/FSCut.h"
