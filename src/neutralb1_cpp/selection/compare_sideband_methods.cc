@@ -56,17 +56,24 @@ std::vector<TH1F *> sideband_2d(
     TString input_files,
     bool create_friends = false);
 
-void compare_sideband_methods()
+void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
 {
-    TString input_data_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_data.root";
-    TString input_mc_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_ver03.1_mc.root";
+    TString input_files;
+    if (mc)
+    {
+        input_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_ver03.1_mc.root";
+    }
+    else
+    {
+        input_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_data.root";
+    }        
     setup(false);
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
 
     std::vector<TH1F *> h_2d_vector;
     std::vector<TH1F *> h_individual_vector;
-    h_2d_vector = sideband_2d(cut_color_map, input_data_files);
-    h_individual_vector = sideband_individual(cut_color_map, input_data_files);
+    h_2d_vector = sideband_2d(cut_color_map, input_files, create_friend_trees);
+    h_individual_vector = sideband_individual(cut_color_map, input_files);
 
     // Plotting
     TCanvas *c = new TCanvas("c", "Sideband Subtraction Methods", 800, 600);
@@ -180,7 +187,8 @@ void compare_sideband_methods()
     legend_omega->AddEntry(line_standard_sideband_low_low, "Standard 2D Sidebands", "l");
     legend_omega->Draw();
 
-    c->SaveAs("sideband_omega_mass.pdf");
+    TString output_suffix = mc ? "_mc" : "_data";
+    c->SaveAs("sideband_omega_mass" + output_suffix + ".pdf");
     c->Clear();
 
     // plot standard 2d sideband method result
@@ -228,7 +236,7 @@ void compare_sideband_methods()
     legend->AddEntry(h_individual_vector[5], "Simple Result", "l");
     legend->Draw();
 
-    c->SaveAs("sideband.pdf");
+    c->SaveAs("sideband" + output_suffix + ".pdf");
 }
 
 std::vector<TH1F *> sideband_2d(
