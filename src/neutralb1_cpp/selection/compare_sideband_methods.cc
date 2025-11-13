@@ -76,7 +76,7 @@ void compare_sideband_methods()
     // plot omega mass, highglighting signal and sideband regions
     h_individual_vector[0]->SetLineColor(kGray);
     h_individual_vector[0]->SetLineWidth(2);
-    h_individual_vector[0]->SetXTitle("#omega Inv. Mass (GeV)");
+    h_individual_vector[0]->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} Inv. Mass (GeV)");
     double bin_width_omega = get_bin_width(h_individual_vector[0]);
     h_individual_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_omega));
     h_individual_vector[0]->SetTitle("");
@@ -100,7 +100,8 @@ void compare_sideband_methods()
     double standard_sideband_high_low = 0.830;
     double standard_sideband_high_high = 0.875;
 
-    double max = h_individual_vector[0]->GetMaximum()*1.1;
+    double max = h_individual_vector[0]->GetMaximum();
+    double short_max = max * 0.8;
     TLine *line_standard_signal_low = new TLine(standard_signal_low, 0, standard_signal_low, max);
     TLine *line_standard_signal_high = new TLine(standard_signal_high, 0, standard_signal_high, max);
     TLine *line_standard_sideband_low_low = new TLine(standard_sideband_low_low, 0, standard_sideband_low_low, max);
@@ -131,8 +132,8 @@ void compare_sideband_methods()
     line_standard_sideband_high_high->Draw("SAME");
 
     // draw lines for adjusted 2d window to be more comparable to our regions
-    double signal_low = OMEGA_MASS - SIGNAL_WIDTH/2;
-    double signal_high = OMEGA_MASS + SIGNAL_WIDTH/2;
+    double signal_low = OMEGA_MASS - SIGNAL_WIDTH;
+    double signal_high = OMEGA_MASS + SIGNAL_WIDTH;
     double sideband_low_center = OMEGA_MASS - SIDEBAND_GAP - SIGNAL_WIDTH*0.5;
     double sideband_low_low = sideband_low_center - SIGNAL_WIDTH;
     double sideband_low_high = sideband_low_center + SIGNAL_WIDTH;
@@ -141,12 +142,12 @@ void compare_sideband_methods()
     double sideband_high_high = sideband_high_center + SIGNAL_WIDTH;
 
     
-    TLine *line_signal_low = new TLine(signal_low, 0, signal_low, max);
-    TLine *line_signal_high = new TLine(signal_high, 0, signal_high, max);
-    TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, max);
-    TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, max);
-    TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, max);
-    TLine *line_sideband_high_high = new TLine(sideband_high_high, 0, sideband_high_high, max);
+    TLine *line_signal_low = new TLine(signal_low, 0, signal_low, short_max);
+    TLine *line_signal_high = new TLine(signal_high, 0, signal_high, short_max);
+    TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, short_max);
+    TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, short_max);
+    TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, short_max);
+    TLine *line_sideband_high_high = new TLine(sideband_high_high, 0, sideband_high_high, short_max);
     line_signal_low->SetLineColor(kYellow-1);
     line_signal_low->SetLineWidth(1);
     line_signal_high->SetLineColor(kYellow-1);
@@ -171,24 +172,24 @@ void compare_sideband_methods()
     line_sideband_high_high->Draw("SAME");
 
     // Finally, the legend
-    TLegend *legend_omega = new TLegend(0.55,0.65,0.85,0.85);
-    legend_omega->SetBorderSize(0);
+    TLegend *legend_omega = new TLegend(0.65,0.75,0.95,0.95);
+    legend_omega->SetBorderSize(1);
     legend_omega->AddEntry(h_individual_vector[0],"Data", "l");
-    legend_omega->AddEntry(h_individual_vector[1],"#omega Signal Region", "f");
-    legend_omega->AddEntry(h_individual_vector[2],"#omega Sideband Regions", "f");
+    legend_omega->AddEntry(h_individual_vector[1],"Signal", "f");
+    legend_omega->AddEntry(h_individual_vector[2],"Sidebands", "f");
     legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
     legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
     legend_omega->AddEntry(line_standard_signal_low, "Standard 2D Signal", "l");
     legend_omega->AddEntry(line_standard_sideband_low_low, "Standard 2D Sidebands", "l");
     legend_omega->Draw();
 
-    c->SaveAs("sideband_individual_omega_mass.pdf");
+    c->SaveAs("sideband_omega_mass.pdf");
     c->Clear();
 
     // plot standard 2d sideband method result
     h_2d_vector[0]->SetLineColor(kBlack);
     h_2d_vector[0]->SetLineWidth(2);
-    h_2d_vector[0]->SetXTitle("#omega#pi^{0} Inv. Mass (GeV)");
+    h_2d_vector[0]->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{1}#pi^{0}_{2} Inv. Mass (GeV)");
     double bin_width_2d = get_bin_width(h_2d_vector[0]);
     h_2d_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_2d));
     h_2d_vector[0]->SetTitle("");
@@ -220,14 +221,14 @@ void compare_sideband_methods()
     h_2d_vector[0]->SetMinimum(h_individual_vector[6]->GetMinimum() * 1.2);
     h_2d_vector[0]->SetMaximum(h_individual_vector[3]->GetMaximum() * 1.2);
 
-    TLegend *legend = new TLegend(0.55,0.65,0.85,0.85);
+    TLegend *legend = new TLegend(0.65,0.75,0.95,0.95);
     legend->SetBorderSize(0);
-    legend->AddEntry(h_2d_vector[0],"Standard 2D SB", "l");
-    legend->AddEntry(h_2d_vector[1],"Adjusted 2D SB", "l");
     legend->AddEntry(h_individual_vector[3],"Data (no SB)", "l");
-    legend->AddEntry(h_individual_vector[4],"#omega Signal", "l");
-    legend->AddEntry(h_individual_vector[5],"Signal - Sidebands", "l");
-    legend->AddEntry(h_individual_vector[6],"#omega Sidebands", "f");
+    legend->AddEntry(h_2d_vector[0],"Standard 2D Result", "l");
+    legend->AddEntry(h_2d_vector[1],"Adjusted 2D Result", "l");    
+    legend->AddEntry(h_individual_vector[4],"Simple Signal", "l");    
+    legend->AddEntry(h_individual_vector[6],"Simple Sidebands", "f");
+    legend->AddEntry(h_individual_vector[5],"Simple Result", "l");
     legend->Draw();
 
     c->SaveAs("sideband.pdf");
