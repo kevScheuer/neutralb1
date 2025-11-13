@@ -93,14 +93,14 @@ void plot_broad_cuts(
         CATEGORY,
         "RFDeltaT",
         "(400,-20.0,20.0)",
-        "CUTSBWT(rf)");
+        "CUTSB(rf)");
     TH1F *h_acc_signal = FSModeHistogram::getTH1F(
         input_data_files,
         NT,
         CATEGORY,
         "RFDeltaT",
         "(40,-2.0,2.0)",
-        "CUTWT(rf)");
+        "CUT(rf)");
     h_acc_data->SetLineColor(kGray);
     h_acc_data->SetLineWidth(2);
 
