@@ -268,3 +268,15 @@ int find_max_J(const FitResults &results)
 
     return max_J;
 }
+
+TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter)
+{
+    TString result;
+    for (auto it = m.begin(); it != m.end(); ++it)
+    {
+        if (it != m.begin())
+            result += delimiter;
+        result += it->first;
+    }
+    return result;
+}

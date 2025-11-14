@@ -78,4 +78,13 @@ double get_bin_width(TH1F *h)
     return (h->GetXaxis()->GetXmax() - h->GetXaxis()->GetXmin()) / h->GetNbinsX();
 }
 
+/**
+ * @brief Join the keys of a color map into a single TString separated by a delimiter
+ *
+ * @param m map of cut TStrings to color integers
+ * @param delimiter delimiter to separate keys, default is ","
+ * @return TString joined keys
+ */
+TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
+
 #endif // FIT_UTILS_H
