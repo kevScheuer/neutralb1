@@ -54,3 +54,4 @@ notebooks/deprecated/
 # other
 *.so
 **/DSelector_omegapi_all_*
+scripts/quick_job.sh

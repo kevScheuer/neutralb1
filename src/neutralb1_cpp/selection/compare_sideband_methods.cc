@@ -232,9 +232,9 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     legend->AddEntry(h_individual_vector[3], "Data (no SB)", "l");
     legend->AddEntry(h_2d_vector[0], "Standard 2D Result", "l");
     legend->AddEntry(h_2d_vector[1], "Adjusted 2D Result", "l");
-    legend->AddEntry(h_individual_vector[4], "Simple Signal", "l");
-    legend->AddEntry(h_individual_vector[6], "Simple Sidebands", "f");
-    legend->AddEntry(h_individual_vector[5], "Simple Result", "l");
+    legend->AddEntry(h_individual_vector[4], "Norwegian Signal", "l");
+    legend->AddEntry(h_individual_vector[6], "Norwegian Sidebands", "f");
+    legend->AddEntry(h_individual_vector[5], "Norwegian Result", "l");
     legend->Draw();
 
     c->SaveAs("sideband" + output_suffix + ".pdf");
