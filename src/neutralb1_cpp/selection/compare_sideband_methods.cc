@@ -50,7 +50,6 @@ float SIGNAL_WIDTH = 0.00868 * 3;      // exactly 3 sigma of PDG omega width
 float SIDEBAND_GAP = SIGNAL_WIDTH * 3; // 9 sigma distance from signal region
 
 // Forward declarations
-TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
 std::vector<TH1F *> sideband_individual(
     std::map<TString, Int_t> &cut_color_map,
     TString input_files);
