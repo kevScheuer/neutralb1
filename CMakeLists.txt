@@ -134,27 +134,47 @@ file(GLOB_RECURSE UTILS_SOURCES "${SRC_DIR}/utils/*.cc")
 # Remove shell scripts and ROOT macros from executable list
 list(FILTER BATCH_SOURCES EXCLUDE REGEX "\\.(sh|C)$")
 
-# Create a static library from utility, analysis sources
+# Create both static and shared libraries from utility, analysis sources
 if(UTILS_SOURCES OR ANALYSIS_SOURCES)
-    add_library(neutralb1_core STATIC
+    # Static library
+    add_library(neutralb1_core_static STATIC
         ${UTILS_SOURCES} 
         ${ANALYSIS_SOURCES}        
     )
     
-    # Link ROOT libraries to the core library
+    # Shared library
+    add_library(neutralb1_core SHARED
+        ${UTILS_SOURCES} 
+        ${ANALYSIS_SOURCES}        
+    )
+    
+    # Configure static library
+    target_link_libraries(neutralb1_core_static 
+        ${ROOT_LIBRARIES}
+    )
+    
+    # Add environment-specific libraries for static library
+    if(DEFINED ENV{AMPTOOLS})
+        target_link_libraries(neutralb1_core_static AmpTools AMPTOOLS_AMPS)
+    endif()
+    
+    # Apply ROOT compile flags to static library
+    if(ROOT_CFLAGS_LIST)
+        target_compile_options(neutralb1_core_static PRIVATE ${ROOT_CFLAGS_LIST})
+    endif()
+    
+    # Configure shared library (without AmpTools to avoid -fPIC issues)
     target_link_libraries(neutralb1_core 
         ${ROOT_LIBRARIES}
     )
     
-    # Add environment-specific libraries if available
-    if(DEFINED ENV{AMPTOOLS})
-        target_link_libraries(neutralb1_core AmpTools AMPTOOLS_AMPS)
-    endif()
-    
-    # Apply ROOT compile flags
+    # Apply ROOT compile flags to shared library
     if(ROOT_CFLAGS_LIST)
         target_compile_options(neutralb1_core PRIVATE ${ROOT_CFLAGS_LIST})
     endif()
+    
+    # Set output name for static library to avoid naming conflicts
+    set_target_properties(neutralb1_core_static PROPERTIES OUTPUT_NAME neutralb1_core)
 endif()
 
 # Create executables from batch sources
@@ -165,8 +185,10 @@ foreach(BATCH_SOURCE ${BATCH_SOURCES})
     # Create executable
     add_executable(${BATCH_NAME} ${BATCH_SOURCE})
     
-    # Link with core library and ROOT
-    if(TARGET neutralb1_core)
+    # Link with core library and ROOT (prefer static for executables)
+    if(TARGET neutralb1_core_static)
+        target_link_libraries(${BATCH_NAME} neutralb1_core_static)
+    elseif(TARGET neutralb1_core)
         target_link_libraries(${BATCH_NAME} neutralb1_core)
     endif()
     
@@ -190,11 +212,16 @@ if(SKBUILD)
     # When building with scikit-build-core, install to wheel
     message(STATUS "Building with scikit-build-core for ${CMAKE_BUILD_TYPE}")
     
-    # Install the core library
+    # Install both libraries
     if(TARGET neutralb1_core)
         install(TARGETS neutralb1_core
             LIBRARY DESTINATION neutralb1
             RUNTIME DESTINATION neutralb1
+        )
+    endif()
+    if(TARGET neutralb1_core_static)
+        install(TARGETS neutralb1_core_static
+            ARCHIVE DESTINATION neutralb1
         )
     endif()
     
@@ -218,6 +245,11 @@ else()
     if(TARGET neutralb1_core)
         install(TARGETS neutralb1_core
             LIBRARY DESTINATION lib
+            ARCHIVE DESTINATION lib
+        )
+    endif()
+    if(TARGET neutralb1_core_static)
+        install(TARGETS neutralb1_core_static
             ARCHIVE DESTINATION lib
         )
     endif()
