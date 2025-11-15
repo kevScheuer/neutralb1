@@ -73,7 +73,7 @@ int find_max_J(const FitResults &results);
  * @param[in] h Pointer to the histogram
  * @return double The bin width of the histogram
  */
-double get_bin_width(TH1F *h)
+inline double get_bin_width(TH1F *h)
 {
     return (h->GetXaxis()->GetXmax() - h->GetXaxis()->GetXmin()) / h->GetNbinsX();
 }
