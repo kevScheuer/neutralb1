@@ -16,6 +16,8 @@
  * Authorship is also credited to Amy Schertz, as the 2d sideband code is directly
  * taken from her FSRoot tutorial for this channel:
  * https://github.com/JeffersonLab/gluex_workshops/blob/master/tutorial_2025/session2d/plots.C
+ * 
+ * TODO: Rename "standard" to "historical" throughout the code/comments
  */
 
 #include <iostream>
