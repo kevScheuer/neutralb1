@@ -129,18 +129,16 @@ endif()
 # Collect source files
 file(GLOB_RECURSE BATCH_SOURCES "${SRC_DIR}/batch/*.cc")
 file(GLOB_RECURSE ANALYSIS_SOURCES "${SRC_DIR}/analysis/*.cc")
-file(GLOB_RECURSE SELECTION_SOURCES "${SRC_DIR}/selection/*.cc")
 file(GLOB_RECURSE UTILS_SOURCES "${SRC_DIR}/utils/*.cc")
 
 # Remove shell scripts and ROOT macros from executable list
 list(FILTER BATCH_SOURCES EXCLUDE REGEX "\\.(sh|C)$")
 
-# Create a static library from utility, analysis, and selection code
-if(UTILS_SOURCES OR ANALYSIS_SOURCES OR SELECTION_SOURCES)
+# Create a static library from utility, analysis sources
+if(UTILS_SOURCES OR ANALYSIS_SOURCES)
     add_library(neutralb1_core STATIC
         ${UTILS_SOURCES} 
-        ${ANALYSIS_SOURCES} 
-        ${SELECTION_SOURCES}
+        ${ANALYSIS_SOURCES}        
     )
     
     # Link ROOT libraries to the core library
@@ -249,7 +247,6 @@ add_custom_target(info
     COMMAND ${CMAKE_COMMAND} -E echo "Source files found:"
     COMMAND ${CMAKE_COMMAND} -E echo "  Batch: ${BATCH_SOURCES}"
     COMMAND ${CMAKE_COMMAND} -E echo "  Analysis: ${ANALYSIS_SOURCES}"
-    COMMAND ${CMAKE_COMMAND} -E echo "  Selection: ${SELECTION_SOURCES}"
     COMMAND ${CMAKE_COMMAND} -E echo "  Utils: ${UTILS_SOURCES}"
     COMMAND ${CMAKE_COMMAND} -E echo "Compiler: ${CMAKE_CXX_COMPILER}"
     COMMAND ${CMAKE_COMMAND} -E echo "Flags: ${CMAKE_CXX_FLAGS}"
