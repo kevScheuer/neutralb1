@@ -43,8 +43,10 @@ std::vector<TH1F *> create_omega_histograms(
 
 std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega_histograms(
     std::map<std::pair<float, float>, std::vector<TH1F *>> omega_hist_map);
-    
-Double_t lin_voigt(Double_t *x, Double_t *par);
+
+Double_t voigt(Double_t *x, Double_t *par);
+Double_t linear(Double_t *x, Double_t *par);
+Double_t omega_fit(Double_t *x, Double_t *par);
 
 void omega_fits(int period, bool mc = false)
 {
@@ -100,10 +102,9 @@ void omega_fits(int period, bool mc = false)
     return;
 }
 
-
 /**
  * @brief Create omega mass histograms in bins of omega-pi0 mass for a given t bin
- * 
+ *
  * @param NT FSRoot tree name
  * @param CATEGORY FSRoot category name
  * @param cuts Pre-defined selection cuts to apply
@@ -163,6 +164,7 @@ std::vector<TH1F *> create_omega_histograms(
         h_omega_mass_1->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
         double bin_width = get_bin_width(h_omega_mass_1);
         h_omega_mass_1->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+        h_omega_mass_1->SetStats(false);
 
         omega_histograms.push_back(h_omega_mass_1);
         break; // TODO: remove break after testing
@@ -172,14 +174,14 @@ std::vector<TH1F *> create_omega_histograms(
 
 /**
  * @brief Fit and plot omega histograms for each t bin
- * 
+ *
  * @param omega_hist_map Map of t bin ranges to omega mass histograms
  * @return std::map<std::pair<float, float>, std::vector<TFitResultPtr>> Map of t bin ranges to fit results
  */
 std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega_histograms(
     std::map<std::pair<float, float>, std::vector<TH1F *>> omega_hist_map)
 {
-
+    gStyle->SetOptFit(0111); // show reduced chi2, errors, and values of fit params
     // for storing fit parameters
     std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_params_map;
 
@@ -205,44 +207,95 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
 
             int pad_index = i + 1; // pads are 1-indexed
             c1->cd(pad_index);
-            h_omega_mass->Draw("E0");
 
             // fit the histogram with a voigtian
-            TF1 *voigt_fit = new TF1("lin_voigt", lin_voigt, 0.6, 1.0);
+            TF1 *voigt_fit = new TF1("omega_fit", omega_fit, 0.6, 1.0, 5);
+            voigt_fit->SetLineColor(kMagenta);
 
             voigt_fit->SetParNames(""
-                                   "Bkg offset",
-                                   "Bkg slope",
+                                   "b",
+                                   "m",
                                    "M_{#omega}",
                                    "#sigma_{resolution}",
                                    "#Gamma_{#omega}");
 
             // initial parameter guesses
-            voigt_fit->SetParameter(0, h_omega_mass->GetMinimum()); // background constant
-            voigt_fit->SetParameter(1, 1.0);                        // positive background slope
-            voigt_fit->SetParameter(2, 0.782);                      // omega mass
-            voigt_fit->SetParLimits(2, 0.770, 0.790);               // limit mass to reasonable range
-            voigt_fit->SetParameter(3, 0.010);                      // sigma (Gaussian width)
-            voigt_fit->SetParameter(4, 0.00868);                    // gamma
+            voigt_fit->SetParameters(           // linear background + voigtian
+                h_omega_mass->GetBinContent(1), // background constant
+                0.0,                            // background slope
+                0.782,                          // omega mass
+                0.010,                          // sigma (Gaussian width)
+                0.00868);                       // gamma (omega decay width)
 
-            TFitResultPtr r = h_omega_mass->Fit(voigt_fit, "Q");
-            fit_params_vector.push_back(r);
+            // parameter limits
+            // widths should be positive and no wider than 100 MeV. The omega mass
+            // should be reasonably near the PDG one
+            double end_difference = abs(
+                h_omega_mass->GetBinContent(1) - h_omega_mass->GetBinContent(h_omega_mass->GetNbinsX()));
+            voigt_fit->SetParLimits(0, 0.0, h_omega_mass->GetMaximum()); // background constant
+            voigt_fit->SetParLimits(1, -end_difference, end_difference); // background slope
+            voigt_fit->SetParLimits(2, 0.75, 0.85);                      // omega mass
+            voigt_fit->SetParLimits(3, 0.0, 0.1);                        // sigma
+            voigt_fit->FixParameter(4, 0.00868);                         // gamma fixed to PDG value for now
 
-            h_omega_mass->GetFunction("lin_voigt")->Draw("SAME");
+            h_omega_mass->Fit(voigt_fit, "V", "ep");
+
+            // get background and signal by themselves
+            TF1 *background = new TF1("background", linear, 0.6, 1.0, 2);
+            background->SetLineColor(kRed);
+            TF1 *signal = new TF1("signal", voigt, 0.6, 1.0, 3);
+            signal->SetLineColor(kBlue);
+            double par[5];
+
+            voigt_fit->GetParameters(par); // fill array with result parameters
+            background->SetParameters(par);
+            background->Draw("SAME");
+            signal->SetParameters(&par[2]); // signal parameters start at index 2
+            signal->Draw("SAME");
 
             // clean up
             delete voigt_fit;
+            delete background;
+            delete signal;
         } // end loop over mass bins
 
-        fit_params_map[std::make_pair(t_bin_low_edge, t_bin_high_edge)] = fit_params_vector;
         c1->SaveAs(TString::Format(
-            "omega_fits_%.3f_%.3f.pdf", 
-            t_bin_low_edge, t_bin_high_edge
-        ).Data());
+                       "omega_fits_%.3f_%.3f.pdf",
+                       t_bin_low_edge, t_bin_high_edge)
+                       .Data());
         delete c1;
     } // end loop over t bin to omega histograms map
 
     return fit_params_map;
+}
+
+/**
+ * @brief Voigtian function for fitting omega mass peaks
+ *
+ * @param x Pointer to the array of x values (omega mass)
+ * @param par Pointer to the array of parameters:
+ *            par[0] = Voigtian peak position (mass)
+ *            par[1] = Voigtian Gaussian width (sigma)
+ *            par[2] = Voigtian Lorentzian width (gamma)
+ * @return Double_t The value of the function at x
+ */
+Double_t voigt(Double_t *x, Double_t *par)
+{
+    return TMath::Voigt(x[0] - par[0], par[1], par[2]);
+}
+
+/**
+ * @brief Linear function for fitting background
+ *
+ * @param x Pointer to the array of x values (omega mass)
+ * @param par Pointer to the array of parameters:
+ *            par[0] = background constant offset
+ *            par[1] = background slope
+ * @return Double_t The value of the function at x
+ */
+Double_t linear(Double_t *x, Double_t *par)
+{
+    return par[0] + par[1] * x[0];
 }
 
 /**
@@ -257,10 +310,7 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
  *            par[4] = Voigtian Lorentzian width (gamma)
  * @return Double_t The value of the function at x
  */
-Double_t lin_voigt(Double_t *x, Double_t *par)
+Double_t omega_fit(Double_t *x, Double_t *par)
 {
-    Double_t background = par[0] + par[1] * x[0];
-    Double_t voigtian = TMath::Voigt(x[0], par[4], par[3]);
-
-    return background + voigtian;
+    return linear(x, par) + voigt(x, &par[2]);
 }
