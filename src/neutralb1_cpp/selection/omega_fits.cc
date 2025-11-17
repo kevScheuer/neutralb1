@@ -209,20 +209,25 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
             c1->cd(pad_index);
 
             // fit the histogram with a voigtian
-            TF1 *voigt_fit = new TF1("omega_fit", omega_fit, 0.6, 1.0, 5);
+            TF1 *voigt_fit = new TF1("omega_fit", omega_fit, 0.6, 1.0, 6);
             voigt_fit->SetLineColor(kMagenta);
 
             voigt_fit->SetParNames(""
                                    "b",
                                    "m",
+                                   "A",
                                    "M_{#omega}",
                                    "#sigma_{resolution}",
                                    "#Gamma_{#omega}");
 
             // initial parameter guesses
+            double end_difference = h_omega_mass->GetBinContent(1) 
+                - h_omega_mass->GetBinContent(h_omega_mass->GetNbinsX());
+
             voigt_fit->SetParameters(           // linear background + voigtian
                 h_omega_mass->GetBinContent(1), // background constant
-                0.0,                            // background slope
+                end_difference,                 // background slope
+                h_omega_mass->GetMaximum(),     // voigt amplitude
                 0.782,                          // omega mass
                 0.010,                          // sigma (Gaussian width)
                 0.00868);                       // gamma (omega decay width)
@@ -230,22 +235,21 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
             // parameter limits
             // widths should be positive and no wider than 100 MeV. The omega mass
             // should be reasonably near the PDG one
-            double end_difference = abs(
-                h_omega_mass->GetBinContent(1) - h_omega_mass->GetBinContent(h_omega_mass->GetNbinsX()));
             voigt_fit->SetParLimits(0, 0.0, h_omega_mass->GetMaximum()); // background constant
-            voigt_fit->SetParLimits(1, -end_difference, end_difference); // background slope
-            voigt_fit->SetParLimits(2, 0.75, 0.85);                      // omega mass
-            voigt_fit->SetParLimits(3, 0.0, 0.1);                        // sigma
-            voigt_fit->FixParameter(4, 0.00868);                         // gamma fixed to PDG value for now
+            voigt_fit->SetParLimits(1, -abs(end_difference*10), abs(end_difference*10)); // background slope
+            voigt_fit->SetParLimits(2, 0.0, h_omega_mass->GetMaximum()*2); // amplitude
+            voigt_fit->SetParLimits(3, 0.7, 0.9);                        // omega mass
+            voigt_fit->SetParLimits(4, 0.0, 0.3);                        // sigma
+            voigt_fit->FixParameter(5, 0.00868);                         // gamma fixed to PDG value for now
 
             h_omega_mass->Fit(voigt_fit, "V", "ep");
 
             // get background and signal by themselves
             TF1 *background = new TF1("background", linear, 0.6, 1.0, 2);
             background->SetLineColor(kRed);
-            TF1 *signal = new TF1("signal", voigt, 0.6, 1.0, 3);
+            TF1 *signal = new TF1("signal", voigt, 0.6, 1.0, 4);
             signal->SetLineColor(kBlue);
-            double par[5];
+            double par[6];
 
             voigt_fit->GetParameters(par); // fill array with result parameters
             background->SetParameters(par);
@@ -274,14 +278,15 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
  *
  * @param x Pointer to the array of x values (omega mass)
  * @param par Pointer to the array of parameters:
- *            par[0] = Voigtian peak position (mass)
- *            par[1] = Voigtian Gaussian width (sigma)
- *            par[2] = Voigtian Lorentzian width (gamma)
+ *            par[0] = Voigtian peak amplitude
+ *            par[1] = Voigtian peak position (mass)
+ *            par[2] = Voigtian Gaussian width (sigma)
+ *            par[3] = Voigtian Lorentzian width (gamma)
  * @return Double_t The value of the function at x
  */
 Double_t voigt(Double_t *x, Double_t *par)
 {
-    return TMath::Voigt(x[0] - par[0], par[1], par[2]);
+    return par[0] * TMath::Voigt(x[0] - par[1], par[2], par[3]);
 }
 
 /**
@@ -305,9 +310,10 @@ Double_t linear(Double_t *x, Double_t *par)
  * @param par Pointer to the array of parameters:
  *            par[0] = background constant offset
  *            par[1] = background slope
- *            par[2] = Voigtian peak position (mass)
- *            par[3] = Voigtian Gaussian width (sigma)
- *            par[4] = Voigtian Lorentzian width (gamma)
+ *            par[2] = Voigtian peak amplitude 
+ *            par[3] = Voigtian peak position (mass)
+ *            par[4] = Voigtian Gaussian width (sigma)
+ *            par[5] = Voigtian Lorentzian width (gamma)
  * @return Double_t The value of the function at x
  */
 Double_t omega_fit(Double_t *x, Double_t *par)
