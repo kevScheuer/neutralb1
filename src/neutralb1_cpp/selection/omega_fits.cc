@@ -46,7 +46,8 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
 
 Double_t voigt(Double_t *x, Double_t *par);
 Double_t linear(Double_t *x, Double_t *par);
-Double_t omega_fit(Double_t *x, Double_t *par);
+Double_t lin_omega_fit(Double_t *x, Double_t *par);
+Double_t cubic_omega_fit(Double_t *x, Double_t *par);
 
 void omega_fits(int period, bool mc = false)
 {
@@ -164,10 +165,10 @@ std::vector<TH1F *> create_omega_histograms(
         h_omega_mass_1->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
         double bin_width = get_bin_width(h_omega_mass_1);
         h_omega_mass_1->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-        h_omega_mass_1->SetStats(false);
+        h_omega_mass_1->SetStats(true);
 
         omega_histograms.push_back(h_omega_mass_1);
-        break; // TODO: remove break after testing
+        // break;
     }
     return omega_histograms;
 }
@@ -181,7 +182,9 @@ std::vector<TH1F *> create_omega_histograms(
 std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega_histograms(
     std::map<std::pair<float, float>, std::vector<TH1F *>> omega_hist_map)
 {
+    gStyle->SetOptStat(0);
     gStyle->SetOptFit(0111); // show reduced chi2, errors, and values of fit params
+
     // for storing fit parameters
     std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_params_map;
 
@@ -208,25 +211,29 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
             int pad_index = i + 1; // pads are 1-indexed
             c1->cd(pad_index);
 
-            // fit the histogram with a voigtian
-            TF1 *voigt_fit = new TF1("omega_fit", omega_fit, 0.6, 1.0, 6);
+            // fit the histogram
+            TF1 *voigt_fit = new TF1("omega_fit", cubic_omega_fit, 0.6, 1.0, 8);
             voigt_fit->SetLineColor(kMagenta);
+            voigt_fit->SetLineWidth(1);
 
             voigt_fit->SetParNames(""
-                                   "b",
-                                   "m",
+                                   "const",
+                                   "lin",
+                                   "quad",
+                                   "cubic",
                                    "A",
                                    "M_{#omega}",
-                                   "#sigma_{resolution}",
+                                   "#sigma",
                                    "#Gamma_{#omega}");
 
             // initial parameter guesses
-            double end_difference = h_omega_mass->GetBinContent(1) 
-                - h_omega_mass->GetBinContent(h_omega_mass->GetNbinsX());
+            double end_difference = h_omega_mass->GetBinContent(h_omega_mass->GetNbinsX()) - h_omega_mass->GetBinContent(1);
 
-            voigt_fit->SetParameters(           // linear background + voigtian
+            voigt_fit->SetParameters(           // cubic background + voigtian
                 h_omega_mass->GetBinContent(1), // background constant
                 end_difference,                 // background slope
+                0.0,                            // background quadratic coeff
+                0.0,                            // background cubic coeff
                 h_omega_mass->GetMaximum(),     // voigt amplitude
                 0.782,                          // omega mass
                 0.010,                          // sigma (Gaussian width)
@@ -235,20 +242,22 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
             // parameter limits
             // widths should be positive and no wider than 100 MeV. The omega mass
             // should be reasonably near the PDG one
-            voigt_fit->SetParLimits(0, 0.0, h_omega_mass->GetMaximum()); // background constant
-            voigt_fit->SetParLimits(1, -abs(end_difference*10), abs(end_difference*10)); // background slope
-            voigt_fit->SetParLimits(2, 0.0, h_omega_mass->GetMaximum()*2); // amplitude
-            voigt_fit->SetParLimits(3, 0.7, 0.9);                        // omega mass
-            voigt_fit->SetParLimits(4, 0.0, 0.3);                        // sigma
-            voigt_fit->FixParameter(5, 0.00868);                         // gamma fixed to PDG value for now
+            voigt_fit->SetParLimits(4, 0.0, h_omega_mass->GetMaximum() * 2); // amplitude
+            voigt_fit->SetParLimits(5, 0.7, 0.9);                            // omega mass
+            voigt_fit->SetParLimits(6, 0.0, 0.5);                            // sigma
+            voigt_fit->FixParameter(7, 0.00868);                             // gamma fixed to PDG value for now
 
-            h_omega_mass->Fit(voigt_fit, "V", "ep");
+            h_omega_mass->Fit(voigt_fit, "V", "e");
+            h_omega_mass->Draw("E");
+            voigt_fit->Draw("SAME");
 
             // get background and signal by themselves
             TF1 *background = new TF1("background", linear, 0.6, 1.0, 2);
             background->SetLineColor(kRed);
+            background->SetLineWidth(1);
             TF1 *signal = new TF1("signal", voigt, 0.6, 1.0, 4);
             signal->SetLineColor(kBlue);
+            signal->SetLineWidth(1);
             double par[6];
 
             voigt_fit->GetParameters(par); // fill array with result parameters
@@ -256,11 +265,6 @@ std::map<std::pair<float, float>, std::vector<TFitResultPtr>> fit_and_plot_omega
             background->Draw("SAME");
             signal->SetParameters(&par[2]); // signal parameters start at index 2
             signal->Draw("SAME");
-
-            // clean up
-            delete voigt_fit;
-            delete background;
-            delete signal;
         } // end loop over mass bins
 
         c1->SaveAs(TString::Format(
@@ -304,19 +308,55 @@ Double_t linear(Double_t *x, Double_t *par)
 }
 
 /**
+ * @brief Cubic function for fitting background
+ *
+ * @param x Pointer to the array of x values (omega mass)
+ * @param par Pointer to the array of parameters:
+ *            par[0] = background constant offset
+ *            par[1] = background linear coefficient
+ *            par[2] = background quadratic coefficient
+ *            par[3] = background cubic coefficient
+ * @return Double_t The value of the function at x
+ */
+Double_t cubic(Double_t *x, Double_t *par)
+{
+    return par[0] + par[1] * x[0] + par[2] * x[0] * x[0] + par[3] * x[0] * x[0] * x[0];
+}
+
+/**
  * @brief Linear background plus Voigtian function for fitting omega mass peaks
  *
  * @param x Pointer to the array of x values (omega mass)
  * @param par Pointer to the array of parameters:
  *            par[0] = background constant offset
  *            par[1] = background slope
- *            par[2] = Voigtian peak amplitude 
+ *            par[2] = Voigtian peak amplitude
  *            par[3] = Voigtian peak position (mass)
  *            par[4] = Voigtian Gaussian width (sigma)
  *            par[5] = Voigtian Lorentzian width (gamma)
  * @return Double_t The value of the function at x
  */
-Double_t omega_fit(Double_t *x, Double_t *par)
+Double_t lin_omega_fit(Double_t *x, Double_t *par)
 {
     return linear(x, par) + voigt(x, &par[2]);
+}
+
+/**
+ * @brief Cubic background plus Voigtian function for fitting omega mass peaks
+ *
+ * @param x Pointer to the array of x values (omega mass)
+ * @param par Pointer to the array of parameters:
+ *            par[0] = background constant offset
+ *            par[1] = background linear coefficient
+ *            par[2] = background quadratic coefficient
+ *            par[3] = background cubic coefficient
+ *            par[4] = Voigtian peak amplitude
+ *            par[5] = Voigtian peak position (mass)
+ *            par[6] = Voigtian Gaussian width (sigma)
+ *            par[7] = Voigtian Lorentzian width (gamma)
+ * @return Double_t The value of the function at x
+ */
+Double_t cubic_omega_fit(Double_t *x, Double_t *par)
+{
+    return cubic(x, par) + voigt(x, &par[4]);
 }
