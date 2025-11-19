@@ -101,7 +101,6 @@ void omega_fits(int period, bool mc = false)
             t_bin_high_edge);
 
         t_to_omega_hist_map[std::make_pair(t_bin_low_edge, t_bin_high_edge)] = omega_hist_map;
-        break;
     }
 
     std::map<std::pair<float, float>, std::map<double, std::vector<double>>>
@@ -179,7 +178,6 @@ std::map<double, TH1F *> create_omega_histograms(
         h_omega_mass_1->SetStats(true);
 
         omega_hist_map[mass_bin_center] = h_omega_mass_1;
-        // break;
     }
     FSHistogram::dumpHistogramCache();
     return omega_hist_map;
@@ -401,6 +399,7 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
     TPad *pad1 = new TPad("pad1", "Upper pad", 0, 0.4, 1, 1); // Upper pad for mass (~0.7 GeV)
     TPad *pad2 = new TPad("pad2", "Lower pad", 0, 0, 1, 0.4);  // Lower pad for sigma (~0.01 GeV)
     
+    // TODO: this bottom and top margin may need some space so we can draw the // break pad?
     pad1->SetBottomMargin(0.0);
     pad1->SetTopMargin(0.1);
     pad2->SetTopMargin(0.0);
@@ -496,7 +495,7 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         }
 
         // Create legend for upper pad
-        TLegend *legend1 = new TLegend(0.55, 0.1, 0.8, 0.5);
+        TLegend *legend1 = new TLegend(0.65, 0.1, 0.9, 0.5);
         legend1->SetHeader("t-bins (GeV^{2})", "C");
         for (size_t i = 0; i < mass_graphs.size(); ++i) {
             legend1->AddEntry(mass_graphs[i], legend_labels[i].Data(), "lp");
