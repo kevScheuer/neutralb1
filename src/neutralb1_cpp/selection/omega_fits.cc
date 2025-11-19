@@ -21,9 +21,7 @@
 #include "TLegend.h"
 #include "TColor.h"
 #include "TMath.h"
-#include "TGraph.h"
-#include "TPad.h"
-#include "TLine.h"
+#include "TGraphErrors.h"
 
 #include "FSBasic/FSHistogram.h"
 #include "FSBasic/FSCut.h"
@@ -133,6 +131,21 @@ std::map<double, TH1F *> create_omega_histograms(
     double t_bin_low_edge,
     double t_bin_high_edge)
 {
+    // first we need to replace the t cut with the one for this bin
+    TString t_var = "abs(-1*MASS2([proton],-GLUEXTARGET))";
+    TString t_cut_str = TString::Format(
+        "%s<%f&&%s>%f",
+        t_var.Data(), t_bin_high_edge, 
+        t_var.Data(), t_bin_low_edge);
+    FSCut::defineCut("t_bin_cut", t_cut_str);
+    if (cuts.Contains("t,"))
+        cuts.ReplaceAll("t,", "t_bin_cut,");
+    else if (cuts.Contains(",t"))
+        cuts.ReplaceAll(",t", ",t_bin_cut");
+    else
+        throw std::runtime_error("[omega_fits::create_omega_histograms] Warning: t cut not found in cuts string!");        
+    
+
     // Reminder, particles are ordered as:
     //   0       1          2             3              4              5
     // [beam] [proton] [pi+ (omega)] [pi- (omega)] [pi0 (omega)] [pi0 (bachelor)]
@@ -251,7 +264,7 @@ std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_and
                 0.0,                            // background quadratic coeff
                 0.0,                            // background cubic coeff
                 h_omega_mass->GetMaximum(),     // voigt amplitude
-                0.782,                          // omega mass
+                0.78266,                          // omega mass
                 0.010,                          // sigma (Gaussian width)
                 0.00868);                       // gamma (omega decay width)
 
@@ -259,7 +272,7 @@ std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_and
             // widths should be positive and no wider than 100 MeV. The omega mass
             // should be reasonably near the PDG one
             omega_fit->SetParLimits(4, 0.0, h_omega_mass->GetMaximum() * 2); // amplitude
-            omega_fit->SetParLimits(5, 0.7, 0.9);                            // omega mass
+            omega_fit->FixParameter(5, 0.78266);                            // omega mass
             omega_fit->SetParLimits(6, 0.0, 0.5);                            // sigma
             omega_fit->FixParameter(7, 0.00868);                             // gamma fixed to PDG value for now
 
@@ -284,12 +297,12 @@ std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_and
 
             // store voigtian fit parameters
             // (ignore the amplitude term, only want mass and widths)
-            fit_params_map[std::make_pair(t_bin_low_edge, t_bin_high_edge)][bin_center] = {par[5], par[6], par[7]}; // mass, sigma, gamma
-
+            fit_params_map[std::make_pair(t_bin_low_edge, t_bin_high_edge)][bin_center] = {par[6], omega_fit->GetParError(6)}; // sigma, sigma_err
         } // end loop over mass bins
 
         TString mc_tag = mc ? "_mc" : "";
 
+        c1->SetTitle(TString::Format("Omega Fits for %.1f < |t| < %.1f GeV^{2}", t_bin_low_edge, t_bin_high_edge));
         c1->SaveAs(TString::Format(
                        "omega_fits%s_%.3f_%.3f.pdf",
                        mc_tag.Data(), t_bin_low_edge, t_bin_high_edge)
@@ -390,30 +403,16 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
     gStyle->SetOptStat(0);
     gStyle->SetLegendBorderSize(0);
 
-    // Create canvas with two pads for broken y-axis
-    TCanvas *c1 = new TCanvas("fit_params_canvas", "Fit Parameters vs Mass Bin Center", 800, 600);
+    // Create canvas
+    TCanvas *c1 = new TCanvas("fit_params_canvas", "Omega Resolution vs Mass Bin Center", 800, 600);
     c1->SetFillColor(0);
     c1->SetBorderMode(0);
 
-    // Create two pads for broken axis
-    TPad *pad1 = new TPad("pad1", "Upper pad", 0, 0.4, 1, 1); // Upper pad for mass (~0.7 GeV)
-    TPad *pad2 = new TPad("pad2", "Lower pad", 0, 0, 1, 0.4);  // Lower pad for sigma (~0.01 GeV)
-    
-    // TODO: this bottom and top margin may need some space so we can draw the // break pad?
-    pad1->SetBottomMargin(0.0);
-    pad1->SetTopMargin(0.1);
-    pad2->SetTopMargin(0.0);
-    pad2->SetBottomMargin(0.3);
-    
-    pad1->Draw();
-    pad2->Draw();
-
-    // Define colors and line styles for different t-bins    
+    // Define colors and marker styles for different t-bins    
     int colors[4] = {kOrange-6, kGreen+1, kCyan+1, kViolet-8};
-    int line_styles[4] = {1, 2, 3, 4};
+    int marker_styles[4] = {20, 21, 22, 23}; // circle, square, triangle, diamond
 
-    std::vector<TGraph*> mass_graphs;
-    std::vector<TGraph*> sigma_graphs;
+    std::vector<TGraphErrors*> sigma_graphs;
     std::vector<TString> legend_labels;
 
     int t_bin_index = 0;
@@ -427,9 +426,8 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         float t_bin_high_edge = map_iter->first.second;
         std::map<double, std::vector<double>> mass_to_fit_map = map_iter->second;
 
-        // Create graphs for mass and sigma parameters
-        TGraph* mass_graph = new TGraph();
-        TGraph* sigma_graph = new TGraph();
+        // Create graph with error bars for sigma parameter
+        TGraphErrors* sigma_graph = new TGraphErrors();
 
         int point_index = 0;
         for (std::map<double, std::vector<double>>::const_iterator mass_bin_iter = mass_to_fit_map.begin();
@@ -437,35 +435,24 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
              ++mass_bin_iter)
         {
             double mass_bin_center = mass_bin_iter->first;
-            std::vector<double> fit_params = mass_bin_iter->second; // {mass, sigma, gamma}
+            std::vector<double> fit_params = mass_bin_iter->second; // {sigma, sigma_err}
 
             if (fit_params.size() >= 2) {
-                mass_graph->SetPoint(point_index, mass_bin_center, fit_params[0]);  // mass parameter
-                sigma_graph->SetPoint(point_index, mass_bin_center, fit_params[1]); // sigma parameter
+                sigma_graph->SetPoint(point_index, mass_bin_center, fit_params[0]); // sigma parameter
+                sigma_graph->SetPointError(point_index, 0, fit_params[1]); // sigma error
                 point_index++;
             }
         }
 
         // Set graph properties
-        // TODO: consider removing lines and doing markerstyles, and adding error to fit param vector
         int color = colors[t_bin_index];
-        int line_style = line_styles[t_bin_index];
+        int marker_style = marker_styles[t_bin_index];
 
-        mass_graph->SetLineColor(color);
-        mass_graph->SetMarkerColor(color);
-        mass_graph->SetLineStyle(line_style);
-        mass_graph->SetLineWidth(2);
-        mass_graph->SetMarkerStyle(20);
-        mass_graph->SetMarkerSize(0.8);
-
-        sigma_graph->SetLineColor(color);
         sigma_graph->SetMarkerColor(color);
-        sigma_graph->SetLineStyle(line_style);
-        sigma_graph->SetLineWidth(2);
-        sigma_graph->SetMarkerStyle(20);
-        sigma_graph->SetMarkerSize(0.8);
+        sigma_graph->SetMarkerStyle(marker_style);
+        sigma_graph->SetMarkerSize(1.0);
+        sigma_graph->SetLineColor(color);
 
-        mass_graphs.push_back(mass_graph);
         sigma_graphs.push_back(sigma_graph);
 
         // Create legend label        
@@ -478,75 +465,35 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         t_bin_index++;
     }
 
-    // Draw mass parameters in upper pad
-    pad1->cd();
-    if (!mass_graphs.empty()) {
-        mass_graphs[0]->Draw("ALP");
-        mass_graphs[0]->GetXaxis()->SetLabelSize(0);
-        mass_graphs[0]->GetXaxis()->SetTickLength(0);
-        mass_graphs[0]->GetYaxis()->SetTitle("Mass Parameter (GeV)");
-        mass_graphs[0]->GetYaxis()->SetTitleSize(0.06);
-        mass_graphs[0]->GetYaxis()->SetLabelSize(0.05);
-        mass_graphs[0]->GetYaxis()->SetTitleOffset(0.8);
-        mass_graphs[0]->SetTitle("Omega Fit Parameters vs Mass Bin Center");
-
-        for (size_t i = 1; i < mass_graphs.size(); ++i) {
-            mass_graphs[i]->Draw("LP SAME");
-        }
-
-        // Create legend for upper pad
-        TLegend *legend1 = new TLegend(0.65, 0.1, 0.9, 0.5);
-        legend1->SetHeader("t-bins (GeV^{2})", "C");
-        for (size_t i = 0; i < mass_graphs.size(); ++i) {
-            legend1->AddEntry(mass_graphs[i], legend_labels[i].Data(), "lp");
-        }
-        legend1->Draw();
-    }
-
-    // Draw sigma parameters in lower pad
-    pad2->cd();
+    // Draw sigma parameters
     if (!sigma_graphs.empty()) {
-        sigma_graphs[0]->Draw("ALP");
-        sigma_graphs[0]->GetXaxis()->SetTitle("Mass Bin Center (GeV)");
-        sigma_graphs[0]->GetXaxis()->SetTitleSize(0.08);
-        sigma_graphs[0]->GetXaxis()->SetLabelSize(0.07);
-        sigma_graphs[0]->GetXaxis()->SetTitleOffset(0.8);
-        sigma_graphs[0]->GetYaxis()->SetTitle("Sigma Parameter (GeV)");
-        sigma_graphs[0]->GetYaxis()->SetTitleSize(0.08);
-        sigma_graphs[0]->GetYaxis()->SetLabelSize(0.07);
-        sigma_graphs[0]->GetYaxis()->SetTitleOffset(0.6);
+        sigma_graphs[0]->SetMinimum(0);
+        sigma_graphs[0]->Draw("AP");        
+        sigma_graphs[0]->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
+        sigma_graphs[0]->GetXaxis()->SetTitleSize(0.045);
+        sigma_graphs[0]->GetXaxis()->SetLabelSize(0.04);
+        sigma_graphs[0]->GetYaxis()->SetTitle("Gaussian #sigma (GeV)");
+        sigma_graphs[0]->GetYaxis()->SetTitleSize(0.045);
+        sigma_graphs[0]->GetYaxis()->SetLabelSize(0.04);
 
         for (size_t i = 1; i < sigma_graphs.size(); ++i) {
-            sigma_graphs[i]->Draw("LP SAME");
+            sigma_graphs[i]->Draw("P SAME");
         }
+
+        // Create legend
+        TLegend *legend = new TLegend(0.65, 0.65, 0.9, 0.9);
+        legend->SetHeader("-t bins (GeV^{2})", "C");
+        for (size_t i = 0; i < sigma_graphs.size(); ++i) {
+            legend->AddEntry(sigma_graphs[i], legend_labels[i].Data(), "p");
+        }
+        legend->Draw();
     }
-
-    // Add break lines to indicate axis break
-    pad1->cd();
-    TLine *break_line1 = new TLine(0.02, 0.02, 0.08, 0.08);
-    TLine *break_line2 = new TLine(0.02, 0.08, 0.08, 0.02);
-    break_line1->SetLineWidth(2);
-    break_line2->SetLineWidth(2);
-    break_line1->SetNDC();
-    break_line2->SetNDC();
-    break_line1->Draw();
-    break_line2->Draw();
-
-    pad2->cd();
-    TLine *break_line3 = new TLine(0.02, 0.92, 0.08, 0.98);
-    TLine *break_line4 = new TLine(0.02, 0.98, 0.08, 0.92);
-    break_line3->SetLineWidth(2);
-    break_line4->SetLineWidth(2);
-    break_line3->SetNDC();
-    break_line4->SetNDC();
-    break_line3->Draw();
-    break_line4->Draw();
 
     // Save the plot
     TString mc_tag = mc ? "_mc" : "";
     c1->SaveAs(TString::Format("omega_fit_parameters%s.pdf", mc_tag.Data()).Data());    
 
-    // Clean up (optional, depending on ROOT memory management preferences)
+    // Clean up
     delete c1;
 
     return;
