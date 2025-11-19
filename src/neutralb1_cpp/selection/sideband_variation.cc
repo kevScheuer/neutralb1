@@ -169,8 +169,11 @@ void  plot_sideband_variation(
 
     for (int i=0; i<sideband_starts.size(); ++i)
     {        
-        double sideband_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
-        double sideband_high_edge = sideband_low_edge + sideband_full_width;
+        double sideband_right_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
+        double sideband_right_high_edge = sideband_right_low_edge + sideband_full_width;
+
+        double sideband_left_low_edge = omega_mass - sideband_starts[i] * omega_stdev - sideband_full_width;
+        double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
 
         // ==== Draw lines for each sideband region ====
         
@@ -180,33 +183,48 @@ void  plot_sideband_variation(
         
         // Create horizontal lines for the sideband region
         double line_y = -line_spacing - (i * line_spacing);
-        TArrow *sideband_line = new TArrow(
-            sideband_low_edge, 
+        TArrow *sideband_right_line = new TArrow(
+            sideband_right_low_edge, 
             line_y, 
-            sideband_high_edge, 
+            sideband_right_high_edge, 
             line_y, 
-            0.05, 
+            0.01, 
             "<|>");
-        sideband_line->SetLineColor(sideband_colors[i]);
-        sideband_line->SetLineWidth(2);
+        sideband_right_line->SetLineColor(sideband_colors[i]);
+        sideband_right_line->SetLineWidth(2);
+        sideband_right_line->SetFillStyle(1001);
+        sideband_right_line->SetFillColor(sideband_colors[i]);
         
-        h_omega_mass_1->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
-        double bin_width = get_bin_width(h_omega_mass_1);
-        h_omega_mass_1->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-        
+        TArrow *sideband_left_line = new TArrow(
+            sideband_left_low_edge, 
+            line_y, 
+            sideband_left_high_edge, 
+            line_y, 
+            0.01, 
+            "<|>");
+        sideband_left_line->SetLineColor(sideband_colors[i]);
+        sideband_left_line->SetLineWidth(2);
+        sideband_left_line->SetFillStyle(1001);
+        sideband_left_line->SetFillColor(sideband_colors[i]);
+                
         // Draw everything
         if (i == 0) {
+            h_omega_mass_1->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
+            double bin_width = get_bin_width(h_omega_mass_1);
+            h_omega_mass_1->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+            h_omega_mass_1->SetTitle("");
             h_omega_mass_1->Draw("HIST");
             h_signal->Draw("HIST SAME");
             zero_line->Draw("SAME");
         }
-        sideband_line->Draw("SAME");
+        sideband_right_line->Draw();
+        sideband_left_line->Draw();
     }
     FSHistogram::dumpHistogramCache();
 
 
     c->SaveAs(TString::Format("sideband_variation_%d%s.pdf",
         period,
-        mc ? "mc" : "data"
+        mc ? "_mc" : "_data"
     ));
 }
