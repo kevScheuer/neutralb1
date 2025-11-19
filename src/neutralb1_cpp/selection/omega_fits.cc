@@ -101,7 +101,7 @@ void omega_fits(int period, bool mc = false)
             t_bin_high_edge);
 
         t_to_omega_hist_map[std::make_pair(t_bin_low_edge, t_bin_high_edge)] = omega_hist_map;
-        break; // TODO: remove break after testing
+        break;
     }
 
     std::map<std::pair<float, float>, std::map<double, std::vector<double>>>
