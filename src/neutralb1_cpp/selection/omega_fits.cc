@@ -156,8 +156,13 @@ std::map<double, TH1F *> create_omega_histograms(
     TString data_omega_mass_2 = "MASS(2,3,5)";
 
     std::map<double, TH1F *> omega_hist_map;
-    for (float mass_bin_low = 1.0; mass_bin_low < 2.0; mass_bin_low += omega_pi0_bin_width)
+    
+    // Calculate number of bins to avoid floating point accumulation errors
+    int n_bins = static_cast<int>((2.0 - 1.0) / omega_pi0_bin_width);
+    
+    for (int i = 0; i < n_bins; ++i)
     {
+        float mass_bin_low = 1.0 + i * omega_pi0_bin_width;
         float mass_bin_high = mass_bin_low + omega_pi0_bin_width;
         double mass_bin_center = mass_bin_low + omega_pi0_bin_width / 2.0;
         TH1F *h_omega_mass_1 = FSModeHistogram::getTH1F(
@@ -405,12 +410,10 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
 
     // Create canvas
     TCanvas *c1 = new TCanvas("fit_params_canvas", "Omega Resolution vs Mass Bin Center", 800, 600);
-    c1->SetFillColor(0);
-    c1->SetBorderMode(0);
 
     // Define colors and marker styles for different t-bins    
     int colors[4] = {kOrange-6, kGreen+1, kCyan+1, kViolet-8};
-    int marker_styles[4] = {20, 21, 22, 23}; // circle, square, triangle, diamond
+    int marker_styles[4] = {20, 21, 33, 34}; // circle, square, diamond, plus
 
     std::vector<TGraphErrors*> sigma_graphs;
     std::vector<TString> legend_labels;
@@ -473,6 +476,7 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         sigma_graphs[0]->GetXaxis()->SetTitleSize(0.045);
         sigma_graphs[0]->GetXaxis()->SetLabelSize(0.04);
         sigma_graphs[0]->GetYaxis()->SetTitle("Gaussian #sigma (GeV)");
+        sigma_graphs[0]->GetYaxis()->SetTitleOffset(1.5);
         sigma_graphs[0]->GetYaxis()->SetTitleSize(0.045);
         sigma_graphs[0]->GetYaxis()->SetLabelSize(0.04);
 
@@ -481,8 +485,8 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         }
 
         // Create legend
-        TLegend *legend = new TLegend(0.65, 0.65, 0.9, 0.9);
-        legend->SetHeader("-t bins (GeV^{2})", "C");
+        TLegend *legend = new TLegend(0.25, 0.25, 0.45, 0.45);
+        legend->SetHeader("-t bins (GeV^{2})", "L");
         for (size_t i = 0; i < sigma_graphs.size(); ++i) {
             legend->AddEntry(sigma_graphs[i], legend_labels[i].Data(), "p");
         }
