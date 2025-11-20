@@ -22,6 +22,7 @@
 #include "TColor.h"
 #include "TMath.h"
 #include "TGraphErrors.h"
+#include "TPaveText.h"
 
 #include "FSBasic/FSHistogram.h"
 #include "FSBasic/FSCut.h"
@@ -56,6 +57,9 @@ Double_t cubic(Double_t *x, Double_t *par);
 Double_t lin_omega_fit(Double_t *x, Double_t *par);
 Double_t cubic_omega_fit(Double_t *x, Double_t *par);
 
+double mean(std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_params_map);
+double std_dev(std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_params_map, double mean);
+
 void omega_fits(int period, bool mc = false)
 {
     TString input_files;
@@ -89,6 +93,9 @@ void omega_fits(int period, bool mc = false)
     {
         double t_bin_low_edge = t_bin_edges[i];
         double t_bin_high_edge = t_bin_edges[i + 1];
+        std::cout << "Creating omega histograms for "
+                  << t_bin_low_edge << " < |t| < " << t_bin_high_edge << " GeV^2"
+                  << std::endl;
         std::map<double, TH1F *> omega_hist_map = create_omega_histograms(
             NT,
             CATEGORY,
@@ -485,13 +492,25 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
         }
 
         // Create legend
-        TLegend *legend = new TLegend(0.25, 0.25, 0.45, 0.45);
+        TLegend *legend = new TLegend(0.20, 0.20, 0.40, 0.40);
         legend->SetHeader("-t bins (GeV^{2})", "L");
         for (size_t i = 0; i < sigma_graphs.size(); ++i) {
             legend->AddEntry(sigma_graphs[i], legend_labels[i].Data(), "p");
         }
         legend->Draw();
     }
+
+    // obtain mean and sample stdev across all t and mass bins
+    double mean_sigma = mean(fit_params_map);
+    double stddev_sigma = std_dev(fit_params_map, mean_sigma);
+
+    TPaveText *stats_text = new TPaveText(0.5, 0.2, 0.85, 0.28, "NDC");
+    stats_text->SetFillColor(0);
+    stats_text->SetTextAlign(12);
+    stats_text->SetTextSize(0.04);
+    stats_text->AddText(TString::Format("Mean #sigma = %.4f GeV", mean_sigma));
+    stats_text->AddText(TString::Format("StdDev #sigma = %.4f GeV", stddev_sigma));
+    stats_text->Draw();
 
     // Save the plot
     TString mc_tag = mc ? "_mc" : "";
@@ -501,4 +520,51 @@ void plot_fit_parameters(std::map<std::pair<float, float>, std::map<double, std:
     delete c1;
 
     return;
+}
+
+
+double mean(std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_params_map) {
+    double sum = 0.0;
+    int count = 0;
+
+    for (std::map<std::pair<float, float>, std::map<double, std::vector<double>>>::const_iterator map_iter = fit_params_map.begin();
+         map_iter != fit_params_map.end();
+         ++map_iter)
+    {
+        std::map<double, std::vector<double>> mass_to_fit_map = map_iter->second;
+
+        for (std::map<double, std::vector<double>>::const_iterator mass_bin_iter = mass_to_fit_map.begin();
+             mass_bin_iter != mass_to_fit_map.end();
+             ++mass_bin_iter)
+        {
+            std::vector<double> fit_params = mass_bin_iter->second; // {sigma, sigma_err}
+            sum += fit_params[0];
+            count++;
+        }
+    }
+    return (count > 0) ? (sum / count) : 0.0;
+}
+
+double std_dev(std::map<std::pair<float, float>, std::map<double, std::vector<double>>> fit_params_map, double mean) {
+    double sum_sq_diff = 0.0;
+    int count = 0;
+
+    for (std::map<std::pair<float, float>, std::map<double, std::vector<double>>>::const_iterator map_iter = fit_params_map.begin();
+         map_iter != fit_params_map.end();
+         ++map_iter)
+    {
+        std::map<double, std::vector<double>> mass_to_fit_map = map_iter->second;
+
+        for (std::map<double, std::vector<double>>::const_iterator mass_bin_iter = mass_to_fit_map.begin();
+             mass_bin_iter != mass_to_fit_map.end();
+             ++mass_bin_iter)
+        {
+            std::vector<double> fit_params = mass_bin_iter->second; // {sigma, sigma_err}
+            
+            double diff = fit_params[0] - mean;
+            sum_sq_diff += diff * diff;
+            count++;
+        }
+    }
+    return (count > 1) ? sqrt(sum_sq_diff / (count - 1)) : 0.0;
 }
