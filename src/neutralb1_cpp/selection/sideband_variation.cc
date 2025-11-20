@@ -1,8 +1,8 @@
 /**
  * @file sideband_variation.cc
- * @author Kevin Scheuer    
+ * @author Kevin Scheuer
  * @brief Plot omega pi0 mass distributions with different sideband widths
- * 
+ *
  * Utilize the norwegian method of sideband subtraction to plot the omega pi0 mass
  * distribution using different sideband widths to see how it affects the final
  * distribution.
@@ -40,7 +40,15 @@ void plot_sideband_variation(
     std::vector<int> sideband_starts,
     int period,
     bool mc);
-
+TH1F *get_omega_mass(
+    TString input_files,
+    TString NT,
+    TString CATEGORY,
+    TString cuts);
+TH1F *get_signal_region(
+    TH1F *h_omega,
+    double omega_mass,
+    double signal_half_width);
 
 void sideband_variation(int period, bool mc = false)
 {
@@ -66,7 +74,7 @@ void sideband_variation(int period, bool mc = false)
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
     TString cuts = join_keys(cut_color_map);
 
-    // our signal stdev will be the Voigtian FWHM / 2sqrt(2ln2), using the voigtian 
+    // our signal stdev will be the Voigtian FWHM / 2sqrt(2ln2), using the voigtian
     // fit results from previous studies
     double omega_stdev = 0.020;
     double signal_half_width = omega_stdev * 3; // 3 sigma on each side
@@ -92,8 +100,7 @@ void sideband_variation(int period, bool mc = false)
     return;
 }
 
-
-void  plot_sideband_variation(
+void plot_sideband_variation(
     TString NT,
     TString CATEGORY,
     TString cuts,
@@ -103,14 +110,85 @@ void  plot_sideband_variation(
     double sideband_full_width,
     std::vector<int> sideband_starts,
     int period,
-    bool mc) 
-{        
-    const double omega_mass = 0.78266; // PDG omega mass in GeV    
+    bool mc)
+{
+    const double omega_mass = 0.78266; // PDG omega mass in GeV
     std::vector<int> sideband_colors = {
-        kRed+3, kRed+2, kRed+1, kRed
-    };
+        kRed + 3, kRed + 2, kRed + 1, kRed};
     TCanvas *c = new TCanvas("c", "c", 800, 600);
 
+    TH1F *h_omega = get_omega_mass(input_files, NT, CATEGORY, cuts);            // full omega mass histogram
+    TH1F *h_signal = get_signal_region(h_omega, omega_mass, signal_half_width); // highlight signal region
+
+    // draw a horizontal line at 0
+    TLine *zero_line = new TLine(h_omega->GetXaxis()->GetXmin(), 0, h_omega->GetXaxis()->GetXmax(), 0);
+    zero_line->SetLineColor(kBlack);
+    zero_line->SetLineWidth(1);
+
+    double line_spacing = h_omega->GetMaximum() * 0.03; // 3% of max height spacing between lines
+    for (int i = 0; i < sideband_starts.size(); ++i)
+    {
+        double sideband_right_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
+        double sideband_right_high_edge = sideband_right_low_edge + sideband_full_width;
+
+        double sideband_left_low_edge = omega_mass - sideband_starts[i] * omega_stdev - sideband_full_width;
+        double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
+
+        // ==== Draw lines for each sideband region ====
+
+        // Set histogram minimum to accommodate the horizontal lines below zero
+        double new_min = -(6 * line_spacing);
+        h_omega->SetMinimum(new_min);
+
+        // Create horizontal lines for the sideband region
+        double line_y = -line_spacing - (i * line_spacing);
+        TArrow *sideband_right_line = new TArrow(
+            sideband_right_low_edge,
+            line_y,
+            sideband_right_high_edge,
+            line_y,
+            0.01,
+            "<|>");
+        sideband_right_line->SetLineColor(sideband_colors[i]);
+        sideband_right_line->SetLineWidth(2);
+        sideband_right_line->SetFillStyle(1001);
+        sideband_right_line->SetFillColor(sideband_colors[i]);
+
+        TArrow *sideband_left_line = new TArrow(
+            sideband_left_low_edge,
+            line_y,
+            sideband_left_high_edge,
+            line_y,
+            0.01,
+            "<|>");
+        sideband_left_line->SetLineColor(sideband_colors[i]);
+        sideband_left_line->SetLineWidth(2);
+        sideband_left_line->SetFillStyle(1001);
+        sideband_left_line->SetFillColor(sideband_colors[i]);
+
+        // Draw everything
+        if (i == 0)
+        {
+            h_omega->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
+            double bin_width = get_bin_width(h_omega);
+            h_omega->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+            h_omega->SetTitle("");
+            h_omega->Draw("HIST");
+            h_signal->Draw("HIST SAME");
+            zero_line->Draw("SAME");
+        }
+        sideband_right_line->Draw();
+        sideband_left_line->Draw();
+    }
+    FSHistogram::dumpHistogramCache();
+
+    c->SaveAs(TString::Format("sideband_variation_%d%s.pdf",
+                              period,
+                              mc ? "_mc" : "_data"));
+}
+
+TH1F *get_omega_mass(TString input_files, TString NT, TString CATEGORY, TString cuts)
+{
     // Our particles are given in the order
     //   0       1          2             3              4              5
     // [beam] [proton] [pi+ (omega)] [pi- (omega)] [pi0 (omega)] [pi0 (bachelor)]
@@ -119,8 +197,7 @@ void  plot_sideband_variation(
     TString data_omega_mass_1 = "MASS(2,3,4)";
     TString data_omega_mass_2 = "MASS(2,3,5)";
 
-    // ==== Draw omega histogram for both combinations ====
-     TH1F *h_omega_mass_1 = FSModeHistogram::getTH1F(
+    TH1F *h_omega_mass_1 = FSModeHistogram::getTH1F(
         input_files,
         NT,
         CATEGORY,
@@ -138,12 +215,19 @@ void  plot_sideband_variation(
         TString::Format(
             "CUT(%s)&&CUTWT(rf)",
             cuts.Data()));
-        
+
     // add both permutations together
     h_omega_mass_1->Add(h_omega_mass_2);
 
-    // ==== Highlight the signal region ====
-    TH1F* h_signal = (TH1F *)h_omega_mass_1->Clone("h_signal");
+    return h_omega_mass_1;
+}
+
+TH1F *get_signal_region(
+    TH1F *h_omega,
+    double omega_mass,
+    double signal_half_width)
+{
+    TH1F *h_signal = (TH1F *)h_omega->Clone("h_signal");
     h_signal->SetFillColorAlpha(kGreen + 1, 0.5);
     h_signal->SetFillStyle(1001);
     h_signal->SetLineWidth(0); // No line for the fill histogram
@@ -159,72 +243,5 @@ void  plot_sideband_variation(
             h_signal->SetBinContent(j, 0);
         }
     }
-
-    // draw a horizontal line at 0
-    TLine *zero_line = new TLine(h_omega_mass_1->GetXaxis()->GetXmin(), 0, h_omega_mass_1->GetXaxis()->GetXmax(), 0);
-    zero_line->SetLineColor(kBlack);
-    zero_line->SetLineWidth(1);    
-    
-    double line_spacing = h_omega_mass_1->GetMaximum() * 0.03; // 3% of max height spacing between lines    
-
-    for (int i=0; i<sideband_starts.size(); ++i)
-    {        
-        double sideband_right_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
-        double sideband_right_high_edge = sideband_right_low_edge + sideband_full_width;
-
-        double sideband_left_low_edge = omega_mass - sideband_starts[i] * omega_stdev - sideband_full_width;
-        double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
-
-        // ==== Draw lines for each sideband region ====
-        
-        // Set histogram minimum to accommodate the horizontal lines below zero        
-        double new_min = -(6 * line_spacing);
-        h_omega_mass_1->SetMinimum(new_min);
-        
-        // Create horizontal lines for the sideband region
-        double line_y = -line_spacing - (i * line_spacing);
-        TArrow *sideband_right_line = new TArrow(
-            sideband_right_low_edge, 
-            line_y, 
-            sideband_right_high_edge, 
-            line_y, 
-            0.01, 
-            "<|>");
-        sideband_right_line->SetLineColor(sideband_colors[i]);
-        sideband_right_line->SetLineWidth(2);
-        sideband_right_line->SetFillStyle(1001);
-        sideband_right_line->SetFillColor(sideband_colors[i]);
-        
-        TArrow *sideband_left_line = new TArrow(
-            sideband_left_low_edge, 
-            line_y, 
-            sideband_left_high_edge, 
-            line_y, 
-            0.01, 
-            "<|>");
-        sideband_left_line->SetLineColor(sideband_colors[i]);
-        sideband_left_line->SetLineWidth(2);
-        sideband_left_line->SetFillStyle(1001);
-        sideband_left_line->SetFillColor(sideband_colors[i]);
-                
-        // Draw everything
-        if (i == 0) {
-            h_omega_mass_1->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} inv. mass (GeV)");
-            double bin_width = get_bin_width(h_omega_mass_1);
-            h_omega_mass_1->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-            h_omega_mass_1->SetTitle("");
-            h_omega_mass_1->Draw("HIST");
-            h_signal->Draw("HIST SAME");
-            zero_line->Draw("SAME");
-        }
-        sideband_right_line->Draw();
-        sideband_left_line->Draw();
-    }
-    FSHistogram::dumpHistogramCache();
-
-
-    c->SaveAs(TString::Format("sideband_variation_%d%s.pdf",
-        period,
-        mc ? "_mc" : "_data"
-    ));
+    return h_signal;
 }
