@@ -88,8 +88,7 @@ void sideband_variation(int period, bool mc = false)
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
     TString cuts = join_keys(cut_color_map);
 
-    // our signal stdev will be the Voigtian FWHM / 2sqrt(2ln2), using the voigtian
-    // fit results from previous studies
+    // our signal stdev will use the voigtian fit results from previous studies
     double omega_stdev = 0.020;
     double signal_half_width = omega_stdev * 3; // 3 sigma on each side
 
@@ -275,7 +274,7 @@ TH1F *get_signal_region(
         double bin_center = h_signal->GetBinCenter(j);
         if (bin_center < signal_low_edge || bin_center > signal_high_edge)
         {
-            h_signal->SetBinContent(j, 1); // set to 1 for log scale
+            h_signal->SetBinContent(j, 0);
         }
     }
     return h_signal;
@@ -301,8 +300,7 @@ void plot_omega_pi0_sideband_variations(
     bool mc)
 {
     const double omega_mass = 0.78266; // PDG omega mass in GeV
-    TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);
-    gPad->SetLogy(1);
+    TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);    
     std::vector<int> sideband_colors = {
         kRed + 3, kRed + 2, kRed + 1, kRed};
 
@@ -390,7 +388,7 @@ void plot_omega_pi0_sideband_variations(
             "(100, 1.0, 2.0)",
             TString::Format(
                 "CUT(%s)*CUTWT(rf)*CUTWT(selection)",
-                cuts.Data()));
+                cuts.Data()));        
         h_sideband_subtracted->SetLineWidth(1);
         h_sideband_subtracted->SetLineColor(sideband_colors[&edges - &sideband_edges[0]]);
         sideband_subtracted_histograms.push_back(h_sideband_subtracted);
@@ -420,6 +418,5 @@ void plot_omega_pi0_sideband_variations(
     c->SaveAs(TString::Format("omega_pi0_sideband_variation_%d%s.pdf",
                               period,
                               mc ? "_mc" : "_data"));
-    // NOTE: for now the negative sideband highlights are not drawn to reduce clutter,
-    // and because we are using log scale so negatives can't be plotted
+    // NOTE: for now the negative sideband highlights are not drawn to reduce clutter    
 }
