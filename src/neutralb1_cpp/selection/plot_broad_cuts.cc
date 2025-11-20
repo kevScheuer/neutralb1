@@ -7,6 +7,9 @@
  * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
  * events is not yet done here, and so no combinatorics are studied yet.
  *
+ * TODO: reincorprate the direct MC comparison, by adding the sideband subtraction 
+ * to all the cuts. Have it be done last in the list of cuts (make sure to use * not &&)
+ * This way the signal MC is directly comparable.
  */
 
 #include <iostream>
@@ -55,8 +58,7 @@ TH1F *plot_variable(
     const std::map<TString, Int_t> &cut_color_map);
 
 void plot_broad_cuts(
-    bool mc = true,
-    bool bggen = false,
+    bool mc = true,    
     bool read_cache = false,
     bool dump_cache = false)
 {
@@ -405,6 +407,31 @@ void plot_broad_cuts(
     c->Update();
     c->SaveAs("t_MC.pdf");
     delete c;
+
+    // =================== Omega Pi0 Mass ===================
+    c = setup_canvas(true);
+    h = plot_variable(
+        c,
+        input_data_files,
+        "",
+        "MASS(2,3,4,5)",
+        "100",
+        "1.0",
+        "2.0",
+        1.0,
+        2.0,
+        cut_color_map);
+    bin_width = get_bin_width(h);
+    h->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
+    h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    c->Update();
+    c->SaveAs("Omega_Pi0_Mass.pdf");
+    delete c;
+
+    // =================== pi01 momenta ===================
+    // TODO: once we figure out how to get these momenta properly, plot them
+
+    // =================== pi02 momenta ===================
 
     // =================== Shower Quality  ===================
     // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
