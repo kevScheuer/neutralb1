@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "TH1.h"
@@ -29,7 +30,8 @@
 #include "fsroot_setup.cc"
 
 // forward declarations
-void plot_sideband_variation(
+std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>>
+plot_sideband_variation(
     TString NT,
     TString CATEGORY,
     TString cuts,
@@ -40,6 +42,15 @@ void plot_sideband_variation(
     std::vector<int> sideband_starts,
     int period,
     bool mc);
+void plot_omega_pi0_sideband_variations(
+    TString NT,
+    TString CATEGORY,
+    TString cuts,
+    TString input_files,
+    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges,
+    double signal_half_width,
+    int period,
+    bool mc);
 TH1F *get_omega_mass(
     TString input_files,
     TString NT,
@@ -47,6 +58,9 @@ TH1F *get_omega_mass(
     TString cuts);
 TH1F *get_signal_region(
     TH1F *h_omega,
+    double omega_mass,
+    double signal_half_width);
+std::pair<double, double> get_signal_edges(
     double omega_mass,
     double signal_half_width);
 
@@ -85,22 +99,34 @@ void sideband_variation(int period, bool mc = false)
     double sideband_full_width = signal_half_width;
     std::vector<int> sideband_starts = {3, 4, 5, 6}; // in units of omega_stdev
 
-    plot_sideband_variation(
+    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges =
+        plot_sideband_variation(
+            NT,
+            CATEGORY,
+            cuts,
+            input_files,
+            omega_stdev,
+            signal_half_width,
+            sideband_full_width,
+            sideband_starts,
+            period,
+            mc);
+
+    plot_omega_pi0_sideband_variations(
         NT,
         CATEGORY,
         cuts,
         input_files,
-        omega_stdev,
+        sideband_edges,
         signal_half_width,
-        sideband_full_width,
-        sideband_starts,
         period,
         mc);
 
     return;
 }
 
-void plot_sideband_variation(
+std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>>
+plot_sideband_variation(
     TString NT,
     TString CATEGORY,
     TString cuts,
@@ -126,6 +152,9 @@ void plot_sideband_variation(
     zero_line->SetLineWidth(1);
 
     double line_spacing = h_omega->GetMaximum() * 0.03; // 3% of max height spacing between lines
+
+    // vector to store left/right sideband pair, and their pairs of low/high edges
+    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges;
     for (int i = 0; i < sideband_starts.size(); ++i)
     {
         double sideband_right_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
@@ -133,6 +162,10 @@ void plot_sideband_variation(
 
         double sideband_left_low_edge = omega_mass - sideband_starts[i] * omega_stdev - sideband_full_width;
         double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
+
+        sideband_edges.push_back(
+            {{sideband_left_low_edge, sideband_left_high_edge},
+             {sideband_right_low_edge, sideband_right_high_edge}});
 
         // ==== Draw lines for each sideband region ====
 
@@ -185,6 +218,8 @@ void plot_sideband_variation(
     c->SaveAs(TString::Format("sideband_variation_%d%s.pdf",
                               period,
                               mc ? "_mc" : "_data"));
+
+    return sideband_edges;
 }
 
 TH1F *get_omega_mass(TString input_files, TString NT, TString CATEGORY, TString cuts)
@@ -233,8 +268,8 @@ TH1F *get_signal_region(
     h_signal->SetLineWidth(0); // No line for the fill histogram
 
     // Zero out bins outside the selection region
-    double signal_low_edge = omega_mass - signal_half_width;
-    double signal_high_edge = omega_mass + signal_half_width;
+    double signal_low_edge, signal_high_edge;
+    std::tie(signal_low_edge, signal_high_edge) = get_signal_edges(omega_mass, signal_half_width);
     for (int j = 1; j <= h_signal->GetNbinsX(); ++j)
     {
         double bin_center = h_signal->GetBinCenter(j);
@@ -244,4 +279,41 @@ TH1F *get_signal_region(
         }
     }
     return h_signal;
+}
+
+std::pair<double, double> get_signal_edges(
+    double omega_mass,
+    double signal_half_width)
+{
+    double signal_low_edge = omega_mass - signal_half_width;
+    double signal_high_edge = omega_mass + signal_half_width;
+    return {signal_low_edge, signal_high_edge};
+}
+
+void plot_omega_pi0_sideband_variations(
+    TString NT,
+    TString CATEGORY,
+    TString cuts,
+    TString input_files,
+    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges,
+    double signal_half_width,
+    int period,
+    bool mc)
+{
+    const double omega_mass = 0.78266; // PDG omega mass in GeV
+    TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);
+
+    // first lets get the omega pi0 mass distribution after all cuts, but no omega selections
+    TH1F *h_omega_pi0 = FSModeHistogram::getTH1F(
+        input_files,
+        NT,
+        CATEGORY,
+        "MASS(2,3,4,5)",
+        "(100, 1.0, 2.0)",
+        TString::Format(
+            "CUT(%s)&&CUTWT(rf)",
+            cuts.Data()));
+
+    double signal_low_edge, signal_high_edge;
+    std::tie(signal_low_edge, signal_high_edge) = get_signal_edges(omega_mass, signal_half_width);
 }
