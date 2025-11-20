@@ -14,6 +14,7 @@ This directory contains the event selection scripts that gives us the flat trees
 * Almost every script utilizes `fsroot_setup.cc` to establish common tree names, categories, mode info, etc.
 * `report_integrals.cc` will report the number of combos leftover after each cut
 * `omega_fits.cc` fits the $3\pi$ spectrum with a voigt profile for the signal, and some polynomial for the background in data and MC. The fits are done in bins of $M_{\omega\pi^0}$ and $-t$ and plotted individually, along with the resulting gaussian width parameter from the Voigt function.
+* `sideband_variation.cc` studies what effects the sideband locations has on the final $\omega\pi^0$ mass spectra.
 * `compare_sideband_methods.cc` studies how the $\omega\pi^0$ distribution (after broad cuts have been applied) is affected by the 2 options of sideband subtraction below
   * Subtracting via the very complicated 2D sideband method with a variety of weights for different regions
   * Simply sideband subtracting each individual $\pi^0_i\pi^+\pi^-$ combo independently.

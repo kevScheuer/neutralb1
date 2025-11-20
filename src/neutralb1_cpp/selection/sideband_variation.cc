@@ -36,7 +36,7 @@ plot_sideband_variation(
     TString CATEGORY,
     TString cuts,
     TString input_files,
-    double omega_stdev,
+    double signal_stdev,
     double signal_half_width,
     double sideband_full_width,
     std::vector<int> sideband_starts,
@@ -88,15 +88,19 @@ void sideband_variation(int period, bool mc = false)
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
     TString cuts = join_keys(cut_color_map);
 
-    // our signal stdev will use the voigtian fit results from previous studies
-    double omega_stdev = 0.020;
-    double signal_half_width = omega_stdev * 3; // 3 sigma on each side
+    // to define signal and sideband points, we'll use the signal width from the 
+    // fits to data in omega_fits.cc. Then to establish sideband regions, we'll
+    // use multiples of the signal region standard deviation (assuming 6 sigma
+    // covers the full width)
+    double signal_full_width = 0.060; // TODO: from data fit results  
+    double signal_half_width = signal_full_width / 2;
+    double signal_stdev = signal_full_width / 6;
 
     // setup the sideband locations to study. Remember that each sideband is 1/2 as wide
     // as the entire signal region. So the sideband regions will cover from
     // N*sigma to (N+3)*sigma
     double sideband_full_width = signal_half_width;
-    std::vector<int> sideband_starts = {3, 4, 5, 6}; // in units of omega_stdev
+    std::vector<int> sideband_starts = {3, 4, 5, 6}; // in units of signal_stdev
 
     std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges =
         plot_sideband_variation(
@@ -104,7 +108,7 @@ void sideband_variation(int period, bool mc = false)
             CATEGORY,
             cuts,
             input_files,
-            omega_stdev,
+            signal_stdev,
             signal_half_width,
             sideband_full_width,
             sideband_starts,
@@ -130,7 +134,7 @@ plot_sideband_variation(
     TString CATEGORY,
     TString cuts,
     TString input_files,
-    double omega_stdev,
+    double signal_stdev,
     double signal_half_width,
     double sideband_full_width,
     std::vector<int> sideband_starts,
@@ -156,10 +160,10 @@ plot_sideband_variation(
     std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> sideband_edges;
     for (int i = 0; i < sideband_starts.size(); ++i)
     {
-        double sideband_right_low_edge = omega_mass + sideband_starts[i] * omega_stdev;
+        double sideband_right_low_edge = omega_mass + sideband_starts[i] * signal_stdev;
         double sideband_right_high_edge = sideband_right_low_edge + sideband_full_width;
 
-        double sideband_left_low_edge = omega_mass - sideband_starts[i] * omega_stdev - sideband_full_width;
+        double sideband_left_low_edge = omega_mass - sideband_starts[i] * signal_stdev - sideband_full_width;
         double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
 
         sideband_edges.push_back(
