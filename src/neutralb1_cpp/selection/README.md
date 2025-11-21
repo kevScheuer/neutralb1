@@ -3,7 +3,7 @@ This directory contains the event selection scripts that gives us the flat trees
 
 # Analysis Steps
 1. This analysis uses the *hybrid method*, and so we can begin by only selecting the best $\chi^2 / NDF$ for each beam photon in each event. This will massively reduce our file sizes and simplify the process for the rest of the analysis. This is done in [`skim_best_chi2.cc`](./skim_best_chi2.cc), along with a very loose cut on $\chi^2/ndf$ and the selection of the coherent peak $8.2<E_\gamma<8.8$ GeV region, to reduce the file size further.
-2. Then we want to see how our general cuts on the physics of interest will affect our distributions. Run `plot_broad_cuts.cc` to view these effects for each variable being cut, for data and signal MC separately.
+2. Then we want to see how our general cuts on the physics of interest will affect our distributions. Run `plot_cuts.cc` to view these effects for each variable being cut, for data and signal MC separately.
     a. Use the `load_broad_cuts` function to load and apply the predefined broad cuts to your dataset. This is separated so as to remain consistent between plotting scripts, and avoid mistakes of one cut being edited but not the other.
     b. These broad cuts only select the final $\pi^0\pi^0\pi^+\pi^-p'$ final state.
 4. Once we are happy with the broad cuts, we can move on to selecting the $\omega$ signal from our final state. To do this we will produce new friend trees of FILL HERE LATER

@@ -60,7 +60,7 @@ TH1F *plot_variable(
     const TString input_mc_files = ""
 );
 
-void plot_broad_cuts(
+void plot_cuts(
     bool mc = true,    
     bool read_cache = false,
     bool dump_cache = false)
