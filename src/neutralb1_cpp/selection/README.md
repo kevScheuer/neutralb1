@@ -18,3 +18,4 @@ This directory contains the event selection scripts that gives us the flat trees
 * `compare_sideband_methods.cc` studies how the $\omega\pi^0$ distribution (after broad cuts have been applied) is affected by the 2 options of sideband subtraction below
   * Subtracting via the very complicated 2D sideband method with a variety of weights for different regions
   * Simply sideband subtracting each individual $\pi^0_i\pi^+\pi^-$ combo independently.
+* `van_hove_analysis.cc` studies where the baryon systems show up in the different momentum regions, and how cuts on the momenta can influence the angular distributions
