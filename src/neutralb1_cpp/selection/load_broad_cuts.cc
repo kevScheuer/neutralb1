@@ -6,6 +6,10 @@
  * To keep cuts consistent across different selection and plotting scripts, this file
  * defines a function to load the broad cuts used in the pi0pi0pi+pi- final state
  * selection.
+ * 
+ * TODO: the sideband subtraction actually just consists of adding the doubled 
+ * histograms together. So possibly in another script we should load "friend cuts"
+ * that define selections on signal and sideband branches separately.
  */
 
 #include <map>
@@ -17,8 +21,6 @@
 
 std::map<TString, Int_t> load_broad_cuts()
 {
-    TString cuts;
-
     std::map<TString, TString> cut_map;
 
     // All values in map below must use FSRoot defined branch names in the trees
@@ -33,15 +35,6 @@ std::map<TString, Int_t> load_broad_cuts()
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
     {
         FSCut::defineCut(it->first, it->second);
-    }
-
-    for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
-    {
-        cuts += it->first;
-        if (std::next(it) != cut_map.end())
-        {
-            cuts += ",";
-        }
     }
 
     // Load the accidental subtraction sideband cut. Use 1/8 weight since there are 8
