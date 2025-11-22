@@ -240,7 +240,7 @@ TH1F *get_omega_mass(TString input_files, TString NT, TString CATEGORY, TString 
         NT,
         CATEGORY,
         data_omega_mass_1,
-        "(100, 0.6, 1.0)",
+        "(100, 0.4, 1.200)",
         TString::Format(
             "CUT(%s)&&CUTWT(rf)",
             cuts.Data()));
@@ -249,7 +249,7 @@ TH1F *get_omega_mass(TString input_files, TString NT, TString CATEGORY, TString 
         NT,
         CATEGORY,
         data_omega_mass_2,
-        "(100, 0.6, 1.0)",
+        "(100, 0.3, 1.200)",
         TString::Format(
             "CUT(%s)&&CUTWT(rf)",
             cuts.Data()));
