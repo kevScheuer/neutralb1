@@ -92,7 +92,7 @@ void sideband_variation(int period, bool mc = false)
     // fits to data in omega_fits.cc. Then to establish sideband regions, we'll
     // use multiples of the signal region standard deviation (assuming 6 sigma
     // covers the full width)
-    double signal_full_width = 0.060; // TODO: from data fit results  
+    double signal_full_width = 0.168;
     double signal_half_width = signal_full_width / 2;
     double signal_stdev = signal_full_width / 6;
 
