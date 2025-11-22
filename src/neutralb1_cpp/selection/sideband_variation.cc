@@ -166,6 +166,9 @@ plot_sideband_variation(
         double sideband_left_low_edge = omega_mass - sideband_starts[i] * signal_stdev - sideband_full_width;
         double sideband_left_high_edge = sideband_left_low_edge + sideband_full_width;
 
+        std::cout << "Sideband " << i << ": Left [" << sideband_left_low_edge << ", " << sideband_left_high_edge
+                  << "], Right [" << sideband_right_low_edge << ", " << sideband_right_high_edge << "]" << std::endl;
+
         sideband_edges.push_back(
             {{sideband_left_low_edge, sideband_left_high_edge},
              {sideband_right_low_edge, sideband_right_high_edge}});
