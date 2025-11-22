@@ -35,16 +35,6 @@ std::map<TString, Int_t> load_broad_cuts()
         FSCut::defineCut(it->first, it->second);
     }
 
-    // Add the accidental subtraction sideband cut. Use 1/8 weight since there are 8
-    // out of time RF buckets in the data.
-    // Don't add to returned cuts TString since it needs separate calls for signal and
-    // sideband regions
-    FSCut::defineCut("rf", "OR(abs(RFDeltaT)<2.0)", "abs(RFDeltaT)>2.0", 0.125);
-
-    // Define a cut for just the signal region, this will be the "original data" to
-    // compare successive cuts to
-    FSCut::defineCut("rfSignal", "(abs(RFDeltaT)<2.0)");
-
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
     {
         cuts += it->first;
@@ -53,6 +43,16 @@ std::map<TString, Int_t> load_broad_cuts()
             cuts += ",";
         }
     }
+
+    // Load the accidental subtraction sideband cut. Use 1/8 weight since there are 8
+    // out of time RF buckets in the data.
+    // Don't add to returned cuts TString since it needs separate calls for signal and
+    // sideband regions
+    FSCut::defineCut("rf", "OR(abs(RFDeltaT)<2.0)", "abs(RFDeltaT)>2.0", 0.125);
+
+    // Define a cut for just the signal region, this will be the "original data" to
+    // compare successive cuts to
+    FSCut::defineCut("rfSignal", "(abs(RFDeltaT)<2.0)");
 
     // setup a consistent mapping between each cut and a TColor for plotting
     // mimics the 10 color scheme from
