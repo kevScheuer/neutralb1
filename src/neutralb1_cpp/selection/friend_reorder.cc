@@ -28,7 +28,7 @@ TString CATEGORY("pi0pi0pippim");
 
 double OMEGA_MASS = 0.7826;             // PDG omega mass in GeV
 double SIGNAL_HALF_WIDTH = 0.084;      
-double SIDEBAND_GAP = SIGNAL_HALF_WIDTH; // TODO: from sideband_variation.cc
+double SIDEBAND_GAP = SIGNAL_HALF_WIDTH;
 
 
 void friend_reorder(int period, bool mc=false)
@@ -120,7 +120,7 @@ void friend_reorder(int period, bool mc=false)
             "abs(%s-%f)<%f",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_HALF_WIDTH*2.0
+            SIGNAL_HALF_WIDTH
         );
         TString sideband_region_cut = TString::Format(
             "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
@@ -130,7 +130,7 @@ void friend_reorder(int period, bool mc=false)
             data_omega_mass.Data(),
             OMEGA_MASS,
             SIDEBAND_GAP,
-            SIGNAL_HALF_WIDTH*2.0
+            SIGNAL_HALF_WIDTH
         );
         FSCut::defineCut(
             "omega_sb_subtraction",
