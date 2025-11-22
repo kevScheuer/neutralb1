@@ -7,7 +7,7 @@
  * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
  * events is not yet done here, and so no combinatorics are studied yet.
  *
- * TODO: reincorprate the direct MC comparison, by adding the sideband subtraction 
+ * TODO: reincorprate the direct MC comparison, by adding the sideband subtraction
  * to all the cuts. Have it be done last in the list of cuts (make sure to use * not &&)
  * This way the signal MC is directly comparable.
  */
@@ -57,11 +57,10 @@ TH1F *plot_variable(
     const double cut_upper_bound,
     const std::map<TString, Int_t> &cut_color_map,
     const TString scale_choice = "",
-    const TString input_mc_files = ""
-);
+    const TString input_mc_files = "");
 
 void plot_cuts(
-    bool mc = true,    
+    bool mc = true,
     bool read_cache = false,
     bool dump_cache = false)
 {
@@ -128,7 +127,7 @@ void plot_cuts(
     legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
     legend_acc->Draw();
 
-    h_acc_data->SetXTitle("RF #DeltaT (ns)");    
+    h_acc_data->SetXTitle("RF #DeltaT (ns)");
     bin_width = get_bin_width(h_acc_data);
     h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
     c_rf->Update();
@@ -151,8 +150,7 @@ void plot_cuts(
         0.1,
         cut_color_map,
         "max",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("Unused Shower Energy (GeV)");
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
@@ -174,8 +172,7 @@ void plot_cuts(
         1.0,
         cut_color_map,
         "max",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("Number of Unused Tracks");
     h->SetYTitle("Events / Track");
@@ -197,8 +194,7 @@ void plot_cuts(
         78.8,
         cut_color_map,
         "integral",
-        input_mc_files
-    );
+        input_mc_files);
 
     bin_width = get_bin_width(h);
     h->SetXTitle("Production Vertex Z (cm)");
@@ -221,8 +217,7 @@ void plot_cuts(
         0.05,
         cut_color_map,
         "max",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("Missing Mass^{2} (GeV^{2})");
     h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
@@ -244,8 +239,7 @@ void plot_cuts(
         8.8,
         cut_color_map,
         "integral",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("Beam Energy (GeV)");
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
@@ -267,8 +261,7 @@ void plot_cuts(
         5.0,
         cut_color_map,
         "max",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("#chi^{2} / NDF");
     h->SetYTitle(TString::Format("Events / %.3f", bin_width));
@@ -290,8 +283,7 @@ void plot_cuts(
         1.0,
         cut_color_map,
         "max",
-        input_mc_files
-    );
+        input_mc_files);
     bin_width = get_bin_width(h);
     h->SetXTitle("-t (GeV^{2})");
     h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
@@ -337,14 +329,13 @@ void plot_cuts(
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     c->Update();
     c->SaveAs("Omega_Pi0_Mass.pdf");
-    delete c;    
+    delete c;
 
     // =================== pi01 momenta ===================
     // TODO: once we figure out how to get these momenta properly, plot them
 
     // =================== pi02 momenta ===================
 
-    // TODO: reincorporate MC into plots when sideband subtraction added
     // =================== Shower Quality  ===================
     // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
     TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
@@ -466,19 +457,19 @@ void plot_cuts(
                 "(100,0.0,1.0)",
                 TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
 
-            double scale;            
+            double scale;
             // scale MC to data using their maximum bin content
             scale = h_next->GetMaximum() / h_mc->GetMaximum();
             h_mc->Scale(scale);
             TString legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
-            if (i==0)
+            if (i == 0)
                 common_legend->AddEntry(h_mc, legend_scale, "p");
 
             // draw MC on top as blue points with error bars
             h_mc->SetMarkerStyle(24);
             h_mc->SetMarkerColor(kBlack);
             h_mc->SetLineColor(kBlack);
-            h_mc->Draw("E0 SAME");        
+            h_mc->Draw("E0 SAME");
         }
 
         h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
@@ -540,8 +531,7 @@ TH1F *plot_variable(
     const double cut_upper_bound,
     const std::map<TString, Int_t> &cut_color_map,
     const TString scale_choice = "",
-    const TString input_mc_files = ""
-)
+    const TString input_mc_files = "")
 {
     // create histograms in format: file name, tree name, category, variable, bins and
     // bounds, then cuts. Our cuts are already loaded, so just their names are enough
@@ -670,7 +660,7 @@ TH1F *plot_variable(
         h_mc->SetMarkerStyle(24);
         h_mc->SetMarkerColor(kBlack);
         h_mc->SetLineColor(kBlack);
-        h_mc->Draw("E0 SAME");        
+        h_mc->Draw("E0 SAME");
     }
 
     // finalize some cosmetics
