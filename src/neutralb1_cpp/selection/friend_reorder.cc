@@ -27,8 +27,8 @@ TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
 
 double OMEGA_MASS = 0.7826;             // PDG omega mass in GeV
-double SIGNAL_WIDTH = 0.00868 * 3;      // exactly 3 sigma of PDG omega width
-double SIDEBAND_GAP = SIGNAL_WIDTH * 3; // 9 sigma distance from signal region
+double SIGNAL_HALF_WIDTH = 0.084;      
+double SIDEBAND_GAP = SIGNAL_HALF_WIDTH; // TODO: from sideband_variation.cc
 
 
 void friend_reorder(int period, bool mc=false)
@@ -120,7 +120,7 @@ void friend_reorder(int period, bool mc=false)
             "abs(%s-%f)<%f",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_WIDTH
+            SIGNAL_HALF_WIDTH*2.0
         );
         TString sideband_region_cut = TString::Format(
             "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
@@ -130,7 +130,7 @@ void friend_reorder(int period, bool mc=false)
             data_omega_mass.Data(),
             OMEGA_MASS,
             SIDEBAND_GAP,
-            SIGNAL_WIDTH
+            SIGNAL_HALF_WIDTH*2.0
         );
         FSCut::defineCut(
             "omega_sb_subtraction",
