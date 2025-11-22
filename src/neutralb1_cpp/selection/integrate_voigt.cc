@@ -57,10 +57,10 @@ void integrate_voigt()
     function->FixParameter(1, sigma);
     function->FixParameter(2, omega_gamma);
 
-    // integrate from mass (- delta to mass) to  (+ delta) until we reach 99% of area
-    const double target_area = 0.95;
+    // integrate from mass (- delta to mass) to  (+ delta) until we reach a % of area
+    const double target_area = 0.9545;
     const double step_size = 0.001; // step 1 MeV at a time
-    const double start = 0.025; // begin integration 25 MeV from peak
+    const double start = 0.010; // begin integration 10 MeV from peak
     
     double lower_result, upper_result;
 
