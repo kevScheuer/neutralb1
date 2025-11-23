@@ -6,8 +6,8 @@
  * To keep cuts consistent across different selection and plotting scripts, this file
  * defines a function to load the broad cuts used in the pi0pi0pi+pi- final state
  * selection.
- * 
- * TODO: the sideband subtraction actually just consists of adding the doubled 
+ *
+ * TODO: the sideband subtraction actually just consists of adding the doubled
  * histograms together. So possibly in another script we should load "friend cuts"
  * that define selections on signal and sideband branches separately.
  */
@@ -29,7 +29,7 @@ std::map<TString, Int_t> load_broad_cuts()
     cut_map["z"] = "ProdVz>=51.2&&ProdVz<=78.8";                                                     // avoid interactions with walls of target
     cut_map["MM2"] = "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.05";                               // remove events with large missing mass2
     cut_map["chi2"] = "Chi2DOF<5";                                                                   // kinematic fit quality cut
-    cut_map["t"] = "abs(-1*MASS2([proton],-GLUEXTARGET))<1.0";                                       // define the momentum transfer with the proton at the lower vertex
+    cut_map["t"] = "abs(-1*MASS2(1,-GLUEXTARGET))<1.0";                                              // define the momentum transfer with the proton at the lower vertex
     cut_map["shQuality"] = "ShQualityP4a>0.5&&ShQualityP4b>0.5&&ShQualityP5a>0.5&&ShQualityP5b>0.5"; // classifier probability that showers are from neutral particles
 
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)
@@ -41,7 +41,7 @@ std::map<TString, Int_t> load_broad_cuts()
     // out of time RF buckets in the data.
     // Don't add to returned cuts TString since it needs separate calls for signal and
     // sideband regions
-    FSCut::defineCut("rf", "OR(abs(RFDeltaT)<2.0)", "abs(RFDeltaT)>2.0", 0.125);
+    FSCut::defineCut("rf", "abs(RFDeltaT)<2.0", "abs(RFDeltaT)>2.0", 0.125);
 
     // Define a cut for just the signal region, this will be the "original data" to
     // compare successive cuts to
