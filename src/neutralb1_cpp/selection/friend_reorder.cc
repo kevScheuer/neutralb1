@@ -2,17 +2,19 @@
  * @file skim_reorder.cc
  * @author Kevin Scheuer
  * @brief Apply broad cuts and tag the omega and bachelor pi0's, create friend trees
- * 
+ *
  * @note Run this code once to create friend trees, then use the friend trees
  *       in subsequent analyses to have the correct pi0 assignments.
  */
 
 #include <iostream>
 #include <map>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "TString.h"
+#include "TSystem.h"
 
 #include "FSBasic/FSCut.h"
 #include "FSBasic/FSTree.h"
@@ -21,17 +23,12 @@
 #include "neutralb1/fit_utils.h"
 #include "fsroot_setup.cc"
 
-
 // CONSTANTS
-TString NT("ntFSGlueX_MODECODE");
-TString CATEGORY("pi0pi0pippim");
-
-double OMEGA_MASS = 0.7826;             // PDG omega mass in GeV
-double SIGNAL_HALF_WIDTH = 0.084;      
+double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
+double SIGNAL_HALF_WIDTH = 0.084;
 double SIDEBAND_GAP = SIGNAL_HALF_WIDTH;
 
-
-void friend_reorder(int period, bool mc=false)
+void friend_reorder(int period, bool mc = false)
 {
     TString input_files;
     if (mc)
@@ -40,8 +37,7 @@ void friend_reorder(int period, bool mc=false)
             "/lustre24/expphy/volatile/halld/home/kscheuer/"
             "FSRoot-skimmed-trees/best-chi2/"
             "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
-            period
-        );
+            period);
     }
     else
     {
@@ -49,12 +45,12 @@ void friend_reorder(int period, bool mc=false)
             "/lustre24/expphy/volatile/halld/home/kscheuer/"
             "FSRoot-skimmed-trees/best-chi2/"
             "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
-            period
-        );
-    }   
-    setup(false);
-    std::map<TString, Int_t> cut_color_map = load_broad_cuts();
+            period);
+    }
 
+    TString NT, CATEGORY;
+    std::tie(NT, CATEGORY) = setup(false);
+    std::map<TString, Int_t> cut_color_map = load_broad_cuts();
 
     // Our particle orders determine what decay they are from
     //   0       1          2             3              4              5
@@ -71,8 +67,7 @@ void friend_reorder(int period, bool mc=false)
     //   0       1            2               3            4             5
     // [beam] [proton] [pi0 (bachelor)] [pi0 (omega)] [pi+ (omega)] [pi- (omega)]
     std::map<int, TString> fs_index_to_amptools_map = {
-        {0, "B"}, {1, "1"}, {5, "2"}, {4, "3"}, {2, "4"}, {3, "5"}
-    };
+        {0, "B"}, {1, "1"}, {5, "2"}, {4, "3"}, {2, "4"}, {3, "5"}};
 
     std::vector<TString> p4_components = {"EnP", "PxP", "PyP", "PzP"};
 
@@ -88,12 +83,12 @@ void friend_reorder(int period, bool mc=false)
 
         // create the 4-momenta branches. We want to pair the amptools-ordered string
         // to the fsroot-ordered string for this permutation
-        for(int i=0; i<perm_particles.size(); i++)
+        for (int i = 0; i < perm_particles.size(); i++)
         {
             TString fs_particle = perm_particles[i];
             TString amptools_particle = fs_index_to_amptools_map[i];
 
-            for(const TString comp : p4_components)
+            for (const TString comp : p4_components)
             {
                 TString amptools_branch_name = comp + amptools_particle;
                 TString fs_branch_name = comp + fs_particle;
@@ -114,14 +109,12 @@ void friend_reorder(int period, bool mc=false)
             "MASS(%s,%s,%s)",
             perm_particles[pi_plus].Data(),
             perm_particles[pi_minus].Data(),
-            perm_particles[pi0_omega].Data()
-        );
+            perm_particles[pi0_omega].Data());
         TString signal_region_cut = TString::Format(
             "abs(%s-%f)<%f",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_HALF_WIDTH
-        );
+            SIGNAL_HALF_WIDTH);
         TString sideband_region_cut = TString::Format(
             "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
             data_omega_mass.Data(),
@@ -130,14 +123,12 @@ void friend_reorder(int period, bool mc=false)
             data_omega_mass.Data(),
             OMEGA_MASS,
             SIDEBAND_GAP,
-            SIGNAL_HALF_WIDTH
-        );
+            SIGNAL_HALF_WIDTH);
         FSCut::defineCut(
             "omega_sb_subtraction",
             signal_region_cut,
             sideband_region_cut,
-            1.0
-        );
+            1.0);
 
         // define a cut for the omega pi mass region of interest
         TString omega_pi0_mass = TString::Format(
@@ -145,8 +136,7 @@ void friend_reorder(int period, bool mc=false)
             perm_particles[pi_plus].Data(),
             perm_particles[pi_minus].Data(),
             perm_particles[pi0_omega].Data(),
-            perm_particles[pi0_bachelor].Data()
-        );
+            perm_particles[pi0_bachelor].Data());
         TString omega_pi0_mass_cut = TString::Format(
             "%s>%f&&%s<%f",
             omega_pi0_mass.Data(),
@@ -157,20 +147,18 @@ void friend_reorder(int period, bool mc=false)
         FSCut::defineCut("omega_pi0_mass_cut", omega_pi0_mass_cut);
 
         // Now we can create the branches for the signal and sideband regions. We'll
-        // also make a "cut" branch where RF+broad cuts are applied, along with some 
+        // also make a "cut" branch where RF+broad cuts are applied, along with some
         // other useful distributions we'll want to bin in or study for our PWA
         branches.push_back(std::make_pair(
-            "cut", TString::Format("CUT(%s,omega_pi0_mass_cut)*CUTWT(rf)", join_keys(cut_color_map).Data())
-        ));
+            "cut", TString::Format("CUT(%s,omega_pi0_mass_cut)*CUTWT(rf)", join_keys(cut_color_map).Data())));
         branches.push_back(std::make_pair("signal", "CUT(omega_sb_subtraction)"));
         branches.push_back(std::make_pair("sideband", "CUTSB(omega_sb_subtraction)"));
         branches.push_back(std::make_pair("t", "-1*MASS2(1,-GLUEXTARGET)"));
         branches.push_back(std::make_pair("M4Pi", omega_pi0_mass));
         branches.push_back(std::make_pair("MRecoilPi", TString::Format(
-            "MASS(%s,%s)",            
-            perm_particles[proton].Data(),
-            perm_particles[pi0_bachelor].Data()
-        )));
+                                                           "MASS(%s,%s)",
+                                                           perm_particles[proton].Data(),
+                                                           perm_particles[pi0_bachelor].Data())));
 
         // finally create the friend tree for this permutation with these branches
         TString friend_tree_name = TString::Format("permutation_%d", p);
