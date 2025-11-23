@@ -1,19 +1,14 @@
 /**
  * @file plot_broad_cuts.cc
  * @author Kevin Scheuer
- * @brief First step to select broad cuts in pi0pi0pi+pi- final state
+ * @brief View effects of all cuts on tree variables
  *
- * This file creates plots of several variables with broad cuts to select the physical
- * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
- * events is not yet done here, and so no combinatorics are studied yet.
+ * This file creates plots of several variables to select the physical
+ * region of interest for a pi0pi0pi+pi- final state.
  *
  * TODO: Have the main plotter function add the 2 permutation hists properly.
  * Then return the hist and the legend, that way the canvas can be set to log AFTER the 
- * hist is made and the minimum is set, to avoid dumb log issues.
- * 
- * reincorprate the direct MC comparison, by adding the sideband subtraction
- * to all the cuts. Have it be done last in the list of cuts (make sure to use * not &&)
- * This way the signal MC is directly comparable.
+ * hist is made and the minimum is set, to avoid dumb log issues. 
  */
 
 #include <iostream>
@@ -37,7 +32,7 @@
 #include "neutralb1/fit_utils.h"
 #include "fsroot_setup.cc"
 
-
+// CONSTANT MAPS
 std::map<TString, TString> CUT_TO_LEGEND = {
     {"unusedE", "Unused Shower Energy"},
     {"unusedTracks", "Unused Charged Tracks"},
@@ -47,6 +42,10 @@ std::map<TString, TString> CUT_TO_LEGEND = {
     {"chi2", "#chi^{2} / NDF"},
     {"t", "-t"},
     {"shQuality", "Shower Quality"}};
+std::map<int, TString> PERIOD_TO_LABEL = {
+    {3, "S2017"},
+    {4, "S2018"},
+    {5, "F2018"}};
 
 // Forward declarations
 TCanvas *setup_canvas(bool logy = false);
@@ -159,6 +158,8 @@ void plot_cuts(
     c = setup_canvas(true);
     
     // TODO: all of this stuff below is almost the same, just not the x and y naming
+    //  put it into one big "plot" function for ease of use 
+    // TODO: make sure MC matches exactly, to see no added cuts are made
     std::tie(histograms, legend) = get_iterated_histograms(
         input_data_files,
         NT,
@@ -214,7 +215,7 @@ void plot_cuts(
     c->cd(1);
     legend->Draw();        
     c->Update();
-    c->SaveAs("Unused_Shower_Energy.pdf");
+    c->SaveAs(TString::Format("%s_Unused_Shower_Energy.pdf", PERIOD_TO_LABEL[period]));
     delete c;
 
     // // =================== Number Unused Tracks ===================
