@@ -160,6 +160,10 @@ void friend_reorder(int period, bool mc = false)
                                                            perm_particles[proton].Data(),
                                                            perm_particles[pi0_bachelor].Data())));
 
+        for (auto pair : branches)
+        {
+            std::cout << "Branch: " << pair.first << " -> " << pair.second << std::endl;
+        }
         // finally create the friend tree for this permutation with these branches
         TString friend_tree_name = TString::Format("permutation_%d", p);
         FSTree::createFriendTree(input_files, NT, friend_tree_name, branches);
