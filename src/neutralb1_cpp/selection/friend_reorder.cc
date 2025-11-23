@@ -146,19 +146,56 @@ void friend_reorder(int period, bool mc = false)
         );
         FSCut::defineCut("omega_pi0_mass_cut", omega_pi0_mass_cut);
 
+        // setup all the other branches we want to have in the friend tree
+        std::map<TString, TString> var_to_branch;
+        var_to_branch["M4Pi"] = omega_pi0_mass;
+        var_to_branch["unusedE"] = "EnUnusedSh";
+        var_to_branch["unusedTracks"] = "NumUnusedTracks";
+        var_to_branch["z"] = "ProdVz";
+        var_to_branch["MM2"] = "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)";
+        var_to_branch["chi2"] = "Chi2DOF";
+        var_to_branch["t"] = "-1*MASS2(1,-GLUEXTARGET)";
+        var_to_branch["MRecoilPi"] = TString::Format(
+            "MASS(%s,%s)",
+            perm_particles[proton].Data(),
+            perm_particles[pi0_bachelor].Data());
+        // shower quality variables need to be remapped to match AmpTools indexing
+        var_to_branch[
+            TString::Format(
+                "shQualityP%sa", 
+                fs_index_to_amptools_map[pi0_omega].Data()
+            )] = TString::Format("ShQualityP%sa", perm_particles[pi0_omega].Data());
+        var_to_branch[
+            TString::Format(
+                "shQualityP%sb", 
+                fs_index_to_amptools_map[pi0_omega].Data()
+            )] = TString::Format("ShQualityP%sb", perm_particles[pi0_omega].Data());
+        var_to_branch[
+            TString::Format(
+                "shQualityP%sa", 
+                fs_index_to_amptools_map[pi0_bachelor].Data()
+            )] = TString::Format("ShQualityP%sa", perm_particles[pi0_bachelor].Data());
+        var_to_branch[
+            TString::Format(
+                "shQualityP%sb", 
+                fs_index_to_amptools_map[pi0_bachelor].Data()
+            )] = TString::Format("ShQualityP%sb", perm_particles[pi0_bachelor].Data());
+
+
         // Now we can create the branches for the signal and sideband regions. We'll
-        // also make a "cut" branch where RF+broad cuts are applied, along with some
-        // other useful distributions we'll want to bin in or study for our PWA
+        // also make a "cut" branch where RF+broad cuts are applied
         branches.push_back(std::make_pair(
-            "cut", TString::Format("CUT(%s,omega_pi0_mass_cut)*CUTWT(rf)", join_keys(cut_color_map).Data())));
+            "cut", TString::Format(
+                "CUT(%s,omega_pi0_mass_cut)*CUTWT(rf)", 
+                join_keys(cut_color_map).Data())));
         branches.push_back(std::make_pair("signal", "CUT(omega_sb_subtraction)"));
-        branches.push_back(std::make_pair("sideband", "CUTSB(omega_sb_subtraction)"));
-        branches.push_back(std::make_pair("t", "-1*MASS2(1,-GLUEXTARGET)"));
-        branches.push_back(std::make_pair("M4Pi", omega_pi0_mass));
-        branches.push_back(std::make_pair("MRecoilPi", TString::Format(
-                                                           "MASS(%s,%s)",
-                                                           perm_particles[proton].Data(),
-                                                           perm_particles[pi0_bachelor].Data())));
+        branches.push_back(std::make_pair("sideband", "CUTSB(omega_sb_subtraction)"));    
+        for (std::map<TString, TString>::const_iterator var_it = var_to_branch.begin();
+             var_it != var_to_branch.end(); ++var_it)
+        {
+            branches.push_back(std::make_pair(var_it->first, var_it->second));
+        }    
+
 
         for (auto pair : branches)
         {
