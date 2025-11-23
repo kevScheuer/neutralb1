@@ -11,6 +11,13 @@
 
 const int load_friend_cuts()
 {
+    FSTree::addFriendTree("cut");
+    FSTree::addFriendTree("signal");
+    FSTree::addFriendTree("sideband");
+    FSTree::addFriendTree("t");
+    FSTree::addFriendTree("M4Pi");
+    FSTree::addFriendTree("MRecoilPi");
+
     FSCut::defineCut("cut", "cut==1");
     FSCut::defineCut("signal", "signal==1");
     FSCut::defineCut("sideband", "sideband==1");
