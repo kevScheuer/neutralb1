@@ -7,9 +7,6 @@
  * defines a function to load the broad cuts used in the pi0pi0pi+pi- final state
  * selection.
  *
- * TODO: the sideband subtraction actually just consists of adding the doubled
- * histograms together. So possibly in another script we should load "friend cuts"
- * that define selections on signal and sideband branches separately.
  */
 
 #include <map>

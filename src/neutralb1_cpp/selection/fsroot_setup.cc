@@ -31,7 +31,7 @@ std::pair<TString, TString> setup(bool read_cache = false)
     // unused numbers in front dropped, so this reads as 1 proton,
     // then 1 pi+, 1 pi-, 2 pi0s
     FSModeCollection::addModeInfo("100_112")->addCategory(CATEGORY);
-    TString NT = "ntFSGlueX_100_112"; // TODO: not yet confirmed if this breaks modecode histograms
+    TString NT = "ntFSGlueX_100_112";
 
     return std::make_pair(NT, CATEGORY);
 }
