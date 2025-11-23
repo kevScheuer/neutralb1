@@ -7,13 +7,18 @@
  * region of interest for a pi0pi0pi+pi- final state. Selection of omega signal
  * events is not yet done here, and so no combinatorics are studied yet.
  *
- * TODO: reincorprate the direct MC comparison, by adding the sideband subtraction
+ * TODO: Have the main plotter function add the 2 permutation hists properly.
+ * Then return the hist and the legend, that way the canvas can be set to log AFTER the 
+ * hist is made and the minimum is set, to avoid dumb log issues.
+ * 
+ * reincorprate the direct MC comparison, by adding the sideband subtraction
  * to all the cuts. Have it be done last in the list of cuts (make sure to use * not &&)
  * This way the signal MC is directly comparable.
  */
 
 #include <iostream>
 #include <map>
+#include <tuple>
 
 #include "TString.h"
 #include "TCanvas.h"
@@ -28,11 +33,11 @@
 #include "FSMode/FSModeHistogram.h"
 
 #include "load_broad_cuts.cc"
+#include "load_friend_cuts.cc"
 #include "neutralb1/fit_utils.h"
 #include "fsroot_setup.cc"
 
-TString NT("ntFSGlueX_MODECODE");
-TString CATEGORY("pi0pi0pippim");
+
 std::map<TString, TString> CUT_TO_LEGEND = {
     {"unusedE", "Unused Shower Energy"},
     {"unusedTracks", "Unused Charged Tracks"},
@@ -45,6 +50,7 @@ std::map<TString, TString> CUT_TO_LEGEND = {
 
 // Forward declarations
 TCanvas *setup_canvas(bool logy = false);
+void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY);
 TH1F *plot_variable(
     TCanvas *c,
     const TString input_data_files,
@@ -60,84 +66,50 @@ TH1F *plot_variable(
     const TString input_mc_files = "");
 
 void plot_cuts(
-    bool mc = true,
+    const int period,
+    bool mc = true,    
     bool read_cache = false,
     bool dump_cache = false)
 {
     TString input_data_files;
     TString input_mc_files = "";
 
-    input_data_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_data.root";
+    TString input_files;
+    
+    input_data_files = TString::Format(
+        "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/best-chi2/"
+        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+        period);
     if (mc)
-        input_mc_files = "/lustre24/expphy/volatile/halld/home/kscheuer/FSRoot-skimmed-trees/best-chi2/tree_pi0pi0pippim__B4_bestChi2_SKIM_03_ver03.1_mc.root";
+    {
+        input_files = TString::Format(
+            "/lustre24/expphy/volatile/halld/home/kscheuer/"
+            "FSRoot-skimmed-trees/best-chi2/"
+            "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
+            period);
+    }
 
-    // gROOT->ProcessLine(".L glueXstyle.C");
-    // gROOT->ProcessLine("gluex_style();");
-    // gStyle->SetOptStat(0); // force stats box off
+    TString NT, CATEGORY;
+    std::tie(NT, CATEGORY) = setup(read_cache);
 
-    setup(read_cache);
-
-    // load our broad cuts
+    // load our cuts
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
+    int n_permutations = load_friend_cuts();
     double bin_width;
 
     // =================== Accidental Subtraction ===================
     // Before we look at any other cuts let's look at the accidental subtraction itself
     // to see how well it performs. All other cuts will have it applied
-    TCanvas *c_rf = new TCanvas("c_rf", "Accidental Subtraction", 800, 600);
-    TH1F *h_acc_data = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(400,-20.0,20.0)",
-        "");
-    TH1F *h_acc_subtracted = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(400,-20.0,20.0)",
-        "CUTSB(rf)");
-    TH1F *h_acc_signal = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(40,-2.0,2.0)",
-        "CUT(rf)");
-    h_acc_data->SetLineColor(kGray);
-    h_acc_data->SetLineWidth(2);
+    plot_accidentals(input_data_files, NT, CATEGORY);
 
-    h_acc_signal->SetLineWidth(0);
-    h_acc_signal->SetFillColorAlpha(kGreen + 1, 0.5);
-    h_acc_signal->SetFillStyle(1001);
-
-    h_acc_subtracted->SetLineWidth(0);
-    h_acc_subtracted->SetFillColorAlpha(TColor::GetColor("#c849a9"), 0.5);
-    h_acc_subtracted->SetFillStyle(1001);
-
-    h_acc_data->Draw("HIST");
-    h_acc_subtracted->Draw("HIST SAME");
-    h_acc_signal->Draw("HIST SAME");
-
-    TLegend *legend_acc = new TLegend(0.65, 0.65, 0.88, 0.88);
-    legend_acc->AddEntry(h_acc_data, "Original Data", "l");
-    legend_acc->AddEntry(h_acc_signal, "In-Time Signal Region", "f");
-    legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
-    legend_acc->Draw();
-
-    h_acc_data->SetXTitle("RF #DeltaT (ns)");
-    bin_width = get_bin_width(h_acc_data);
-    h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
-    c_rf->Update();
-    c_rf->SaveAs("Accidental_Subtraction.pdf");
-    delete c_rf;
-
+    // create pointers for all upcoming plots
     TCanvas *c;
+    TH1F *h;
+    TLegend *legend;
     // =================== Unused Shower Energy ===================
     c = setup_canvas(true);
-    TH1F *h;
+    
     h = plot_variable(
         c,
         input_data_files,
@@ -496,6 +468,59 @@ void plot_cuts(
 
     return;
 }
+
+void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY)
+{
+    TCanvas *c_rf = new TCanvas("c_rf", "Accidental Subtraction", 800, 600);
+    TH1F *h_acc_data = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(400,-20.0,20.0)",
+        "");
+    TH1F *h_acc_subtracted = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(400,-20.0,20.0)",
+        "CUTSB(rf)");
+    TH1F *h_acc_signal = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        "RFDeltaT",
+        "(40,-2.0,2.0)",
+        "CUT(rf)");
+    h_acc_data->SetLineColor(kGray);
+    h_acc_data->SetLineWidth(2);
+
+    h_acc_signal->SetLineWidth(0);
+    h_acc_signal->SetFillColorAlpha(kGreen + 1, 0.5);
+    h_acc_signal->SetFillStyle(1001);
+
+    h_acc_subtracted->SetLineWidth(0);
+    h_acc_subtracted->SetFillColorAlpha(TColor::GetColor("#c849a9"), 0.5);
+    h_acc_subtracted->SetFillStyle(1001);
+
+    h_acc_data->Draw("HIST");
+    h_acc_subtracted->Draw("HIST SAME");
+    h_acc_signal->Draw("HIST SAME");
+
+    TLegend *legend_acc = new TLegend(0.65, 0.65, 0.88, 0.88);
+    legend_acc->AddEntry(h_acc_data, "Original Data", "l");
+    legend_acc->AddEntry(h_acc_signal, "In-Time Signal Region", "f");
+    legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
+    legend_acc->Draw();
+
+    h_acc_data->SetXTitle("RF #DeltaT (ns)");
+    double bin_width = get_bin_width(h_acc_data);
+    h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
+    c_rf->Update();
+    c_rf->SaveAs("Accidental_Subtraction.pdf");    
+}
+
 
 /**
  * @brief Plot a variable with all other broad cuts applied
