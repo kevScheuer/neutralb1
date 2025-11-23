@@ -148,6 +148,7 @@ void friend_reorder(int period, bool mc = false)
 
         // setup all the other branches we want to have in the friend tree
         std::map<TString, TString> var_to_branch;
+        var_to_branch["rf"] = "RFDeltaT";
         var_to_branch["M4Pi"] = omega_pi0_mass;
         var_to_branch["unusedE"] = "EnUnusedSh";
         var_to_branch["unusedTracks"] = "NumUnusedTracks";
