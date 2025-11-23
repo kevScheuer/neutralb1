@@ -51,8 +51,7 @@ std::map<TString, TString> CUT_TO_LEGEND = {
 // Forward declarations
 TCanvas *setup_canvas(bool logy = false);
 void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY);
-TH1F *plot_variable(
-    TCanvas *c,
+std::pair<TH1F*, TLegend*> plot_variable(
     const TString input_data_files,
     const TString cut_variable,
     const TString tree_variable,
@@ -110,8 +109,7 @@ void plot_cuts(
     // =================== Unused Shower Energy ===================
     c = setup_canvas(true);
     
-    h = plot_variable(
-        c,
+    std::tie(h, legend) = plot_variable(
         input_data_files,
         "unusedE",
         "EnUnusedSh",
@@ -126,342 +124,346 @@ void plot_cuts(
     bin_width = get_bin_width(h);
     h->SetXTitle("Unused Shower Energy (GeV)");
     h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    c->cd(1);
+    legend->Draw();    
+    c->cd(2);
+    h->Draw();    
     c->Update();
     c->SaveAs("Unused_Shower_Energy.pdf");
     delete c;
 
-    // =================== Number Unused Tracks ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "unusedTracks",
-        "NumUnusedTracks",
-        "6",
-        "0.0",
-        "6.0",
-        0.0,
-        1.0,
-        cut_color_map,
-        "max",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Number of Unused Tracks");
-    h->SetYTitle("Events / Track");
-    c->Update();
-    c->SaveAs("Number_Unused_Tracks.pdf");
-    delete c;
+    // // =================== Number Unused Tracks ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "unusedTracks",
+    //     "NumUnusedTracks",
+    //     "6",
+    //     "0.0",
+    //     "6.0",
+    //     0.0,
+    //     1.0,
+    //     cut_color_map,
+    //     "max",
+    //     input_mc_files);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("Number of Unused Tracks");
+    // h->SetYTitle("Events / Track");
+    // c->Update();
+    // c->SaveAs("Number_Unused_Tracks.pdf");
+    // delete c;
 
-    // =================== Production Vertex ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "z",
-        "ProdVz",
-        "100",
-        "0.0",
-        "100.0",
-        51.2,
-        78.8,
-        cut_color_map,
-        "integral",
-        input_mc_files);
+    // // =================== Production Vertex ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "z",
+    //     "ProdVz",
+    //     "100",
+    //     "0.0",
+    //     "100.0",
+    //     51.2,
+    //     78.8,
+    //     cut_color_map,
+    //     "integral",
+    //     input_mc_files);
 
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Production Vertex Z (cm)");
-    h->SetYTitle(TString::Format("Events / %.3f cm", bin_width));
-    c->Update();
-    c->SaveAs("Production_Vertex_Z.pdf");
-    delete c;
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("Production Vertex Z (cm)");
+    // h->SetYTitle(TString::Format("Events / %.3f cm", bin_width));
+    // c->Update();
+    // c->SaveAs("Production_Vertex_Z.pdf");
+    // delete c;
 
-    // =================== Missing Mass^2 ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "MM2",
-        "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)",
-        "100",
-        "-0.1",
-        " 0.1",
-        -0.05,
-        0.05,
-        cut_color_map,
-        "max",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Missing Mass^{2} (GeV^{2})");
-    h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    c->Update();
-    c->SaveAs("MM2.pdf");
-    delete c;
+    // // =================== Missing Mass^2 ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "MM2",
+    //     "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)",
+    //     "100",
+    //     "-0.1",
+    //     " 0.1",
+    //     -0.05,
+    //     0.05,
+    //     cut_color_map,
+    //     "max",
+    //     input_mc_files);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("Missing Mass^{2} (GeV^{2})");
+    // h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
+    // c->Update();
+    // c->SaveAs("MM2.pdf");
+    // delete c;
 
-    // =================== Beam Energy ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "eBeam",
-        "EnPB",
-        "100",
-        "8.0",
-        "9.0",
-        8.2,
-        8.8,
-        cut_color_map,
-        "integral",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Beam Energy (GeV)");
-    h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    c->Update();
-    c->SaveAs("Beam_Energy.pdf");
-    delete c;
+    // // =================== Beam Energy ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "eBeam",
+    //     "EnPB",
+    //     "100",
+    //     "8.0",
+    //     "9.0",
+    //     8.2,
+    //     8.8,
+    //     cut_color_map,
+    //     "integral",
+    //     input_mc_files);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("Beam Energy (GeV)");
+    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    // c->Update();
+    // c->SaveAs("Beam_Energy.pdf");
+    // delete c;
 
-    //=================== Chi2 / NDF ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "chi2",
-        "Chi2DOF",
-        "40",
-        "0.0",
-        "8.0",
-        0.0,
-        5.0,
-        cut_color_map,
-        "max",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("#chi^{2} / NDF");
-    h->SetYTitle(TString::Format("Events / %.3f", bin_width));
-    c->Update();
-    c->SaveAs("Chi2.pdf");
-    delete c;
+    // //=================== Chi2 / NDF ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "chi2",
+    //     "Chi2DOF",
+    //     "40",
+    //     "0.0",
+    //     "8.0",
+    //     0.0,
+    //     5.0,
+    //     cut_color_map,
+    //     "max",
+    //     input_mc_files);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("#chi^{2} / NDF");
+    // h->SetYTitle(TString::Format("Events / %.3f", bin_width));
+    // c->Update();
+    // c->SaveAs("Chi2.pdf");
+    // delete c;
 
-    // =================== four momentum transfer -t ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "t",
-        "abs(-1*MASS2([proton],-GLUEXTARGET))",
-        "100",
-        "0.0",
-        "2.5",
-        0.0,
-        1.0,
-        cut_color_map,
-        "max",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("-t (GeV^{2})");
-    h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    c->Update();
-    c->SaveAs("t.pdf");
-    delete c;
+    // // =================== four momentum transfer -t ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "t",
+    //     "abs(-1*MASS2([proton],-GLUEXTARGET))",
+    //     "100",
+    //     "0.0",
+    //     "2.5",
+    //     0.0,
+    //     1.0,
+    //     cut_color_map,
+    //     "max",
+    //     input_mc_files);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("-t (GeV^{2})");
+    // h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
+    // c->Update();
+    // c->SaveAs("t.pdf");
+    // delete c;
 
-    // =================== Missing Energy  ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "",
-        "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)",
-        "100",
-        "-3.0",
-        "2.0",
-        -3.0,
-        3.0,
-        cut_color_map);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Missing Energy (GeV)");
-    h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    c->Update();
-    c->SaveAs("Missing_Energy.pdf");
-    delete c;
+    // // =================== Missing Energy  ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "",
+    //     "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)",
+    //     "100",
+    //     "-3.0",
+    //     "2.0",
+    //     -3.0,
+    //     3.0,
+    //     cut_color_map);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("Missing Energy (GeV)");
+    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    // c->Update();
+    // c->SaveAs("Missing_Energy.pdf");
+    // delete c;
 
-    // =================== Omega Pi0 Mass ===================
-    c = setup_canvas(true);
-    h = plot_variable(
-        c,
-        input_data_files,
-        "",
-        "MASS(2,3,4,5)",
-        "100",
-        "1.0",
-        "2.0",
-        1.0,
-        2.0,
-        cut_color_map);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
-    h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    c->Update();
-    c->SaveAs("Omega_Pi0_Mass.pdf");
-    delete c;
+    // // =================== Omega Pi0 Mass ===================
+    // c = setup_canvas(true);
+    // h = plot_variable(
+    //     c,
+    //     input_data_files,
+    //     "",
+    //     "MASS(2,3,4,5)",
+    //     "100",
+    //     "1.0",
+    //     "2.0",
+    //     1.0,
+    //     2.0,
+    //     cut_color_map);
+    // bin_width = get_bin_width(h);
+    // h->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
+    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    // c->Update();
+    // c->SaveAs("Omega_Pi0_Mass.pdf");
+    // delete c;
 
-    // =================== pi01 momenta ===================
-    // TODO: once we figure out how to get these momenta properly, plot them
+    // // =================== pi01 momenta ===================
+    // // TODO: once we figure out how to get these momenta properly, plot them
 
-    // =================== pi02 momenta ===================
+    // // =================== pi02 momenta ===================
 
-    // =================== Shower Quality  ===================
-    // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
-    TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
-    c_shower->Divide(1, 2, 0, 0);
+    // // =================== Shower Quality  ===================
+    // // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
+    // TCanvas *c_shower = new TCanvas("c_shower", "Shower Quality", 1200, 900);
+    // c_shower->Divide(1, 2, 0, 0);
 
-    // Set up the legend pad at the top
-    c_shower->cd(1);
-    gPad->SetPad(0, 0.93, 0.9, 0.98);
+    // // Set up the legend pad at the top
+    // c_shower->cd(1);
+    // gPad->SetPad(0, 0.93, 0.9, 0.98);
 
-    // Set up the main plotting area
-    c_shower->cd(2);
-    gPad->SetPad(0, 0, 1.0, 0.92);
-    gPad->Divide(2, 2, 0.01, 0.01); // Divide into 2x2 grid with small margins
+    // // Set up the main plotting area
+    // c_shower->cd(2);
+    // gPad->SetPad(0, 0, 1.0, 0.92);
+    // gPad->Divide(2, 2, 0.01, 0.01); // Divide into 2x2 grid with small margins
 
-    TLegend *common_legend = new TLegend(0.05, 0.1, 0.95, 0.9);
-    common_legend->SetNColumns(5);
-    common_legend->SetBorderSize(0);
-    common_legend->SetFillStyle(0);
+    // TLegend *common_legend = new TLegend(0.05, 0.1, 0.95, 0.9);
+    // common_legend->SetNColumns(5);
+    // common_legend->SetBorderSize(0);
+    // common_legend->SetFillStyle(0);
 
-    // Array of shower quality variables and their descriptions
-    TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
-    TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
-                               "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
+    // // Array of shower quality variables and their descriptions
+    // TString shower_vars[4] = {"ShQualityP4a", "ShQualityP4b", "ShQualityP5a", "ShQualityP5b"};
+    // TString photon_names[4] = {"Photon 1 (#pi^{0}_{1})", "Photon 2 (#pi^{0}_{1})",
+    //                            "Photon 3 (#pi^{0}_{2})", "Photon 4 (#pi^{0}_{2})"};
 
-    for (int i = 0; i < 4; i++)
-    {
-        c_shower->cd(2);
-        gPad->cd(i + 1);
-        gPad->SetLogy(1);
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     c_shower->cd(2);
+    //     gPad->cd(i + 1);
+    //     gPad->SetLogy(1);
 
-        TH1F *h_og = FSModeHistogram::getTH1F(
-            input_data_files,
-            NT,
-            CATEGORY,
-            shower_vars[i],
-            "(100,0.0,1.0)",
-            "CUT(rfSignal)");
+    //     TH1F *h_og = FSModeHistogram::getTH1F(
+    //         input_data_files,
+    //         NT,
+    //         CATEGORY,
+    //         shower_vars[i],
+    //         "(100,0.0,1.0)",
+    //         "CUT(rfSignal)");
 
-        h_og->SetMinimum(1);
-        h_og->SetLineColor(kGray);
-        h_og->SetLineWidth(1);
-        h_og->Draw("HIST");
+    //     h_og->SetMinimum(1);
+    //     h_og->SetLineColor(kGray);
+    //     h_og->SetLineWidth(1);
+    //     h_og->Draw("HIST");
 
-        if (i == 0)
-            common_legend->AddEntry(h_og, "Original Data", "l");
+    //     if (i == 0)
+    //         common_legend->AddEntry(h_og, "Original Data", "l");
 
-        // apply the special rf cut first
-        TH1F *h_rf = FSModeHistogram::getTH1F(
-            input_data_files,
-            NT,
-            CATEGORY,
-            shower_vars[i],
-            "(100,0.0,1.0)",
-            "CUTWT(rf)");
-        h_rf->SetMinimum(1);
-        h_rf->SetLineColor(TColor::GetColor("#c849a9"));
-        h_rf->SetLineWidth(1);
-        h_rf->Draw("HIST SAME");
+    //     // apply the special rf cut first
+    //     TH1F *h_rf = FSModeHistogram::getTH1F(
+    //         input_data_files,
+    //         NT,
+    //         CATEGORY,
+    //         shower_vars[i],
+    //         "(100,0.0,1.0)",
+    //         "CUTWT(rf)");
+    //     h_rf->SetMinimum(1);
+    //     h_rf->SetLineColor(TColor::GetColor("#c849a9"));
+    //     h_rf->SetLineWidth(1);
+    //     h_rf->Draw("HIST SAME");
 
-        if (i == 0)
-            common_legend->AddEntry(h_rf, "RF", "l");
+    //     if (i == 0)
+    //         common_legend->AddEntry(h_rf, "RF", "l");
 
-        // now iterate through our cuts and apply them one by one, except the one we are plotting
-        TString cuts_so_far = "";
-        TH1F *h_next = nullptr;
-        for (map<TString, Int_t>::const_iterator it = cut_color_map.begin();
-             it != cut_color_map.end(); ++it)
-        {
-            TString cut_name = it->first;
-            if (cut_name == "shQuality")
-                continue; // skip the cut we are plotting
-            cuts_so_far += (cuts_so_far.IsNull() ? "" : ",") + cut_name;
+    //     // now iterate through our cuts and apply them one by one, except the one we are plotting
+    //     TString cuts_so_far = "";
+    //     TH1F *h_next = nullptr;
+    //     for (map<TString, Int_t>::const_iterator it = cut_color_map.begin();
+    //          it != cut_color_map.end(); ++it)
+    //     {
+    //         TString cut_name = it->first;
+    //         if (cut_name == "shQuality")
+    //             continue; // skip the cut we are plotting
+    //         cuts_so_far += (cuts_so_far.IsNull() ? "" : ",") + cut_name;
 
-            // apply this cut
-            h_next = FSModeHistogram::getTH1F(
-                input_data_files,
-                NT,
-                CATEGORY,
-                shower_vars[i],
-                "(100,0.0,1.0)",
-                TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
-            h_next->SetMinimum(1); // set minimum again after fixing zeros
-            h_next->SetLineColor(it->second);
-            h_next->SetLineWidth(1);
+    //         // apply this cut
+    //         h_next = FSModeHistogram::getTH1F(
+    //             input_data_files,
+    //             NT,
+    //             CATEGORY,
+    //             shower_vars[i],
+    //             "(100,0.0,1.0)",
+    //             TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
+    //         h_next->SetMinimum(1); // set minimum again after fixing zeros
+    //         h_next->SetLineColor(it->second);
+    //         h_next->SetLineWidth(1);
 
-            h_next->Draw("HIST SAME");
-            if (i == 0)
-                common_legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
-        }
+    //         h_next->Draw("HIST SAME");
+    //         if (i == 0)
+    //             common_legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
+    //     }
 
-        // Create a copy of the final histogram for the selection region fill
-        TH1F *h_selection = (TH1F *)h_next->Clone("h_selection");
-        h_selection->SetFillColorAlpha(kGreen + 1, 0.5);
-        h_selection->SetFillStyle(1001);
-        h_selection->SetLineWidth(0); // No line for the fill histogram
+    //     // Create a copy of the final histogram for the selection region fill
+    //     TH1F *h_selection = (TH1F *)h_next->Clone("h_selection");
+    //     h_selection->SetFillColorAlpha(kGreen + 1, 0.5);
+    //     h_selection->SetFillStyle(1001);
+    //     h_selection->SetLineWidth(0); // No line for the fill histogram
 
-        // Zero out bins outside the selection region
-        for (int j = 1; j <= h_selection->GetNbinsX(); ++j)
-        {
-            double bin_center = h_selection->GetBinCenter(j);
-            if (bin_center < 0.5 || bin_center > 1.0)
-            {
-                h_selection->SetBinContent(j, 1); // small value for log scale
-            }
-        }
+    //     // Zero out bins outside the selection region
+    //     for (int j = 1; j <= h_selection->GetNbinsX(); ++j)
+    //     {
+    //         double bin_center = h_selection->GetBinCenter(j);
+    //         if (bin_center < 0.5 || bin_center > 1.0)
+    //         {
+    //             h_selection->SetBinContent(j, 1); // small value for log scale
+    //         }
+    //     }
 
-        // Draw the selection region fill
-        h_selection->Draw("HIST SAME");
-        if (i == 0)
-            common_legend->AddEntry(h_selection, "Selection", "f");
+    //     // Draw the selection region fill
+    //     h_selection->Draw("HIST SAME");
+    //     if (i == 0)
+    //         common_legend->AddEntry(h_selection, "Selection", "f");
 
-        if (input_mc_files != "")
-        {
-            TH1F *h_mc = FSModeHistogram::getTH1F(
-                input_mc_files,
-                NT,
-                CATEGORY,
-                shower_vars[i],
-                "(100,0.0,1.0)",
-                TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
+    //     if (input_mc_files != "")
+    //     {
+    //         TH1F *h_mc = FSModeHistogram::getTH1F(
+    //             input_mc_files,
+    //             NT,
+    //             CATEGORY,
+    //             shower_vars[i],
+    //             "(100,0.0,1.0)",
+    //             TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
 
-            double scale;
-            // scale MC to data using their maximum bin content
-            scale = h_next->GetMaximum() / h_mc->GetMaximum();
-            h_mc->Scale(scale);
-            TString legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
-            if (i == 0)
-                common_legend->AddEntry(h_mc, legend_scale, "p");
+    //         double scale;
+    //         // scale MC to data using their maximum bin content
+    //         scale = h_next->GetMaximum() / h_mc->GetMaximum();
+    //         h_mc->Scale(scale);
+    //         TString legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
+    //         if (i == 0)
+    //             common_legend->AddEntry(h_mc, legend_scale, "p");
 
-            // draw MC on top as blue points with error bars
-            h_mc->SetMarkerStyle(24);
-            h_mc->SetMarkerColor(kBlack);
-            h_mc->SetLineColor(kBlack);
-            h_mc->Draw("E0 SAME");
-        }
+    //         // draw MC on top as blue points with error bars
+    //         h_mc->SetMarkerStyle(24);
+    //         h_mc->SetMarkerColor(kBlack);
+    //         h_mc->SetLineColor(kBlack);
+    //         h_mc->Draw("E0 SAME");
+    //     }
 
-        h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
-        h_og->SetTitle("");
-        bin_width = get_bin_width(h_og);
-        h_og->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
-        h_og->SetYTitle(TString::Format("Events / %.3f", bin_width));
+    //     h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
+    //     h_og->SetTitle("");
+    //     bin_width = get_bin_width(h_og);
+    //     h_og->SetXTitle(TString::Format("%s Quality", photon_names[i].Data()));
+    //     h_og->SetYTitle(TString::Format("Events / %.3f", bin_width));
 
-        // Adjust margins for the grid layout
-        gPad->SetLeftMargin(0.15);
-        gPad->SetBottomMargin(0.15);
-        gPad->SetTopMargin(0.1);
-        gPad->SetRightMargin(0.05);
-    }
-    c_shower->cd(1);
-    common_legend->Draw();
+    //     // Adjust margins for the grid layout
+    //     gPad->SetLeftMargin(0.15);
+    //     gPad->SetBottomMargin(0.15);
+    //     gPad->SetTopMargin(0.1);
+    //     gPad->SetRightMargin(0.05);
+    // }
+    // c_shower->cd(1);
+    // common_legend->Draw();
 
-    c_shower->Update();
-    c_shower->SaveAs("Shower_Quality.pdf");
-    c_shower->Clear();
+    // c_shower->Update();
+    // c_shower->SaveAs("Shower_Quality.pdf");
+    // c_shower->Clear();
 
     if (dump_cache)
         FSHistogram::dumpHistogramCache();
@@ -530,7 +532,6 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
  * a Monte Carlo histogram is also drawn on top for comparison. This function must
  * be run AFTER load_broad_cuts() to ensure cuts are defined.
  *
- * @param[in] c pointer to TCanvas to draw on
  * @param[in] input_data_files data files to plot from
  * @param[in] cut_variable name of variable to exclude from cuts string
  * @param[in] tree_variable tree variable name in the ROOT file
@@ -544,8 +545,7 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
  * @param[in] input_mc_files Monte Carlo data files
  * @return TH1F* pointer to the created histogram
  */
-TH1F *plot_variable(
-    TCanvas *c,
+std::pair<TH1F*, TLegend*> plot_variable(
     const TString input_data_files,
     const TString cut_variable,
     const TString tree_variable,
@@ -561,8 +561,6 @@ TH1F *plot_variable(
     // create histograms in format: file name, tree name, category, variable, bins and
     // bounds, then cuts. Our cuts are already loaded, so just their names are enough
     // for FSCut to find them
-
-    c->cd(2); // draw operations in the bottom pad
 
     // first, plot the data without any cuts applied
     TH1F *h_og = FSModeHistogram::getTH1F(
@@ -692,11 +690,7 @@ TH1F *plot_variable(
     h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
     h_og->SetTitle("");
 
-    // finally, draw legend on first pad
-    c->cd(1);
-    legend->Draw();
-
-    return h_og;
+    return std::make_pair(h_og, legend);
 }
 
 TCanvas *setup_canvas(bool logy = false)
