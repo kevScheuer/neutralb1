@@ -42,15 +42,37 @@ std::map<TString, TString> CUT_TO_LEGEND = {
     {"chi2", "#chi^{2} / NDF"},
     {"t", "-t"},
     {"shQuality", "Shower Quality"}};
-std::map<int, TString> PERIOD_TO_LABEL = {
+std::map<const int, TString> PERIOD_TO_LABEL = {
     {3, "S2017"},
     {4, "S2018"},
     {5, "F2018"}};
 
 // Forward declarations
 TCanvas *setup_canvas(bool logy = false);
-void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY);
-std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
+void plot_accidentals(
+    TString input_data_files, 
+    const TString NT, 
+    const TString CATEGORY, 
+    int period);
+void plot(
+    TCanvas *c,
+    const TString input_data_files,
+    const TString input_mc_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const double cut_lower_bound,
+    const double cut_upper_bound,
+    std::map<TString, Int_t> &cut_color_map,
+    const TString x_title,
+    const TString y_units,
+    const TString scale_choice
+);
+std::vector<TH1F*> get_iterated_histograms(
     const TString input_data_files,
     const TString NT,
     const TString CATEGORY,
@@ -61,7 +83,8 @@ std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
     const TString upper_bound,
     const double cut_lower_bound,
     const double cut_upper_bound,
-    const std::map<TString, Int_t> &cut_color_map
+    const std::map<TString, Int_t> &cut_color_map,
+    TLegend *legend
 );
 TH1F* get_og_histogram(
     const TString input_data_files,
@@ -147,21 +170,16 @@ void plot_cuts(
     // =================== Accidental Subtraction ===================
     // Before we look at any other cuts let's look at the accidental subtraction itself
     // to see how well it performs. All other cuts will have it applied
-    plot_accidentals(input_data_files, NT, CATEGORY);
+    plot_accidentals(input_data_files, NT, CATEGORY, period);
 
     // create pointers for all upcoming plots
-    TCanvas *c;
-    std::vector<TH1F*> histograms;
-    TH1F* mc_hist;
-    TLegend *legend;
+    TCanvas *c;    
     // =================== Unused Shower Energy ===================
     c = setup_canvas(true);
-    
-    // TODO: all of this stuff below is almost the same, just not the x and y naming
-    //  put it into one big "plot" function for ease of use 
-    // TODO: make sure MC matches exactly, to see no added cuts are made
-    std::tie(histograms, legend) = get_iterated_histograms(
+    plot(
+        c,
         input_data_files,
+        input_mc_files,
         NT,
         CATEGORY,
         "unusedE",
@@ -171,51 +189,14 @@ void plot_cuts(
         "1.0",
         0.0,
         0.1,
-        cut_color_map
-    );
-    c->cd(2);
-    for(int i=0; i<histograms.size(); i++) {
-        if (gPad->GetLogy()) {
-            histograms[i]->SetMinimum(1);
-        } 
-        else {
-            histograms[i]->SetMinimum(0);
-        }
-        if(i==0) {            
-            histograms[i]->SetXTitle("Unused Shower Energy (GeV)");
-            bin_width = get_bin_width(histograms[i]);
-            histograms[i]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-            histograms[i]->Draw("HIST");
-        } else {
-            histograms[i]->Draw("HIST SAME");
-        }
-    }
-    mc_hist = get_mc_histogram(
-        input_mc_files,
-        NT,
-        CATEGORY,
-        "unusedE",
-        "EnUnusedSh",
-        "100",
-        "0.0",
-        "1.0",
         cut_color_map,
-        histograms.back(),
-        "max",
-        legend
+        "Unused Shower Energy (GeV)",
+        "GeV",
+        "max"
     );
-    if (gPad->GetLogy()) {
-        mc_hist->SetMinimum(1);
-    } 
-    else {
-        mc_hist->SetMinimum(0);
-    }
-    mc_hist->Draw("E0 SAME");    
-
-    c->cd(1);
-    legend->Draw();        
-    c->Update();
-    c->SaveAs(TString::Format("%s_Unused_Shower_Energy.pdf", PERIOD_TO_LABEL[period]));
+    c->SaveAs(TString::Format(
+        "%s_Unused_Shower_Energy.pdf", 
+        PERIOD_TO_LABEL.at(period).Data()));
     delete c;
 
     // // =================== Number Unused Tracks ===================
@@ -562,8 +543,19 @@ void plot_cuts(
 
     return;
 }
-
-void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY)
+/**
+ * @brief Plot the rf accidentals and their weights
+ * 
+ * @param input_data_files data files to plot from
+ * @param NT name of the tree in the ROOT file
+ * @param CATEGORY category name in the ROOT file
+ * @param period data taking period
+ */
+void plot_accidentals(
+    TString input_data_files, 
+    const TString NT, 
+    const TString CATEGORY, 
+    int period)
 {
     TCanvas *c_rf = new TCanvas("c_rf", "Accidental Subtraction", 800, 600);
     TH1F *h_acc_data = FSModeHistogram::getTH1F(
@@ -612,7 +604,119 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
     double bin_width = get_bin_width(h_acc_data);
     h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
     c_rf->Update();
-    c_rf->SaveAs("Accidental_Subtraction.pdf");    
+    c_rf->SaveAs(TString::Format(
+        "%s_Accidental_Subtraction.pdf", 
+        PERIOD_TO_LABEL.at(period).Data()));    
+}
+
+
+/**
+ * @brief Plot the variable with iterative cuts applied
+ * 
+ * @param c TCanvas to plot on
+ * @param input_data_files data files to plot from
+ * @param input_mc_files Monte Carlo files to plot from
+ * @param NT name of the tree in the ROOT file
+ * @param CATEGORY category name in the ROOT file
+ * @param cut_variable name of variable to exclude from cuts string
+ * @param tree_variable tree variable name in the ROOT file
+ * @param bins binning specification for the histogram
+ * @param lower_bound lower bound of the histogram range
+ * @param upper_bound upper bound of the histogram range
+ * @param cut_lower_bound lower bound for the cut on the variable
+ * @param cut_upper_bound upper bound for the cut on the variable
+ * @param cut_color_map map of cut names to colors
+ * @param x_title x-axis title for the histogram
+ * @param y_units units for the y-axis
+ * @param scale_choice MC scaling option for the histogram
+ */
+void plot(
+    TCanvas *c,
+    const TString input_data_files,
+    const TString input_mc_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const double cut_lower_bound,
+    const double cut_upper_bound,
+    std::map<TString, Int_t> &cut_color_map,
+    const TString x_title,
+    const TString y_units,
+    const TString scale_choice
+)
+{    
+    std::vector<TH1F*> histograms; // will contain all data histograms to be plotted
+    TH1F* mc_hist; // for the monte carlo histogram with all cuts applied
+    double bin_width;
+
+    TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);
+    legend->SetNColumns(5);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+
+    histograms = get_iterated_histograms(
+        input_data_files,
+        NT,
+        CATEGORY,
+        cut_variable,
+        tree_variable,
+        bins,
+        lower_bound,
+        upper_bound,
+        cut_lower_bound,
+        cut_upper_bound,
+        cut_color_map,
+        legend
+    );
+
+    c->cd(2); // histograms are on second pad
+    for(int i=0; i<histograms.size(); i++) { // first plot data histograms with iterative cuts
+        if (gPad->GetLogy()) {
+            histograms[i]->SetMinimum(1);
+        } 
+        else {
+            histograms[i]->SetMinimum(0);
+        }
+        if(i==0) { // first histogram (og) gets all the cosmetic changes
+            histograms[i]->SetXTitle(x_title);
+            bin_width = get_bin_width(histograms[i]);
+            histograms[i]->SetYTitle(TString::Format("Events / %.3f %s", bin_width, y_units.Data()));
+            histograms[i]->Draw("HIST");
+        } else {
+            histograms[i]->Draw("HIST SAME");
+        }
+    }
+    // next plot the monte carlo hist
+    mc_hist = get_mc_histogram(
+        input_mc_files,
+        NT,
+        CATEGORY,
+        cut_variable,
+        tree_variable,
+        bins,
+        lower_bound,
+        upper_bound,
+        cut_color_map,
+        histograms.back(),
+        scale_choice,
+        legend
+    );
+    if (gPad->GetLogy()) {
+        mc_hist->SetMinimum(1);
+    } 
+    else {
+        mc_hist->SetMinimum(0);
+    }
+    mc_hist->Draw("E0 SAME");    
+
+    c->cd(1);
+    legend->Draw();        
+    c->Update();
+    return;
 }
 
 
@@ -629,10 +733,11 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
  * @param[in] upper_bound histogram upper bound
  * @param[in] cut_lower_bound lower boundary for the selection region visualization
  * @param[in] cut_upper_bound upper boundary for the selection region visualization
- * @param[in] cut_color_map map of cut names to colors
- * @return 
+ * @param[in] cut_color_map map of cut names to colors\
+ * @param[out] legend legend for all histograms
+ * @return vector of histograms, each with a new cut applied
  */
-std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
+std::vector<TH1F*> get_iterated_histograms(
     const TString input_data_files,
     const TString NT,
     const TString CATEGORY,
@@ -643,16 +748,11 @@ std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
     const TString upper_bound,
     const double cut_lower_bound,
     const double cut_upper_bound,
-    const std::map<TString, Int_t> &cut_color_map
+    const std::map<TString, Int_t> &cut_color_map,
+    TLegend *legend
 )
 {
     std::vector<TH1F*> histograms;
-
-    // setup legend for all histograms and fill as we go
-    TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);
-    legend->SetNColumns(5);
-    legend->SetBorderSize(0);
-    legend->SetFillStyle(0);
 
     // first, plot the data without any cuts applied
     TH1F *h_og = get_og_histogram(
@@ -713,7 +813,7 @@ std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
     legend->AddEntry(h_selection, "Selection", "f");
     histograms.push_back(h_selection);
 
-    return std::make_pair(histograms, legend);
+    return histograms;
 }
 
 TCanvas *setup_canvas(bool logy = false)
