@@ -121,16 +121,23 @@ TH1F* get_selection_histogram(
     const double cut_lower_bound,
     const double cut_upper_bound
 );
+TH1F* get_sideband_histogram(
+    const TString input_data_files,
+    const TString NT,    
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound    
+);
 TH1F* get_mc_histogram(
     const TString input_mc_files,
     const TString NT,
     const TString CATEGORY,
     const TString cut_variable,
-    const TString tree_variable,
     const TString bins,
     const TString lower_bound,
     const TString upper_bound,
-    const std::map<TString, Int_t> &cut_color_map,
     TH1F* h_data,
     const TString scale_choice,
     TLegend *legend
@@ -146,25 +153,22 @@ void plot_cuts(
 
     TString input_files;
     
-    // input_data_files = TString::Format(
-    //     "/lustre24/expphy/volatile/halld/home/kscheuer/"
-    //     "FSRoot-skimmed-trees/best-chi2/"
-    //     "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
-    //     period);
+    input_data_files = TString::Format(
+        "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/best-chi2/"
+        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+        period);
     input_mc_files = TString::Format(
         "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
         "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
         period);
-    input_data_files = input_mc_files; // TODO: for testing purposes
     
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(read_cache);
 
-    // load our cuts
+    // load our broad cuts for the chi2 trees
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
-    int n_permutations = load_friend_cuts();
-
     double bin_width;
 
     // =================== Accidental Subtraction ===================
@@ -672,11 +676,10 @@ void plot(
     TH1F* mc_hist; // for the monte carlo histogram with all cuts applied
     double bin_width;
 
-    TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);
+    TLegend *legend = new TLegend(0.15, 0.0, 0.93, 1.0);
     legend->SetNColumns(5);
     legend->SetBorderSize(0);
     legend->SetFillStyle(0);
-    legend->SetTextSize(2.0);
 
     histograms = get_iterated_histograms(
         input_data_files,
@@ -716,11 +719,9 @@ void plot(
         NT,
         CATEGORY,
         cut_variable,
-        tree_variable,
         bins,
         lower_bound,
         upper_bound,
-        cut_color_map,
         histograms.back(),
         scale_choice,
         legend
@@ -819,14 +820,22 @@ std::vector<TH1F*> get_iterated_histograms(
         h_iter_cuts.begin(),
         h_iter_cuts.end()
     );
-    
-    // TODO: here is where sideband cut will be specially applied by adding the sideband
-    // histogram to the signal histogram. It doesn't need the cut map since the friend
-    // tree cuts is already setup to do that.
+
+    TH1F* h_sideband = get_sideband_histogram(
+        input_data_files,
+        NT,
+        CATEGORY,
+        cut_variable,        
+        bins,
+        lower_bound,
+        upper_bound
+    );
+    legend->AddEntry(h_sideband, "Sideband Subtracted", "l");
+    histograms.push_back(h_sideband);
     
     // Create a copy of the final histogram for the selection region fill
     TH1F* h_selection = get_selection_histogram(
-        h_iter_cuts.back(), // TODO: change to sideband result later
+        h_sideband,
         cut_lower_bound,
         cut_upper_bound
     );
@@ -842,16 +851,15 @@ TCanvas *setup_canvas(bool logy = false)
     c->Divide(1, 2, 0, 0);
     // Make top pad slim for legend, bottom for plot
     c->cd(1);
-    gPad->SetPad(0, 0.93, 0.9, 0.95);
-    gPad->SetTopMargin(0.05);
+    gPad->SetPad(0, 0.93, 0.98, 1.0);
+    gPad->SetTopMargin(0.2);
     c->cd(2);
     gPad->SetPad(0, 0, 0.98, 0.93);
     if (logy)
         gPad->SetLogy(1);
     gPad->SetRightMargin(0.05);
-    gPad->SetTopMargin(0.05);
+    gPad->SetTopMargin(0.01);
     c->SetRightMargin(0.02);
-    c->SetTopMargin(0.02);
     return c;
 }
 
@@ -1009,20 +1017,93 @@ TH1F* get_selection_histogram(
 }
 
 /**
+ * @brief Get the sideband subtracted histogram for our cut variable
+ * 
+ * The friend trees require a lot of special handling. We've made them such that the 
+ * cut variables are named the same as the branches. We also have cuts on those 
+ * branches, which match the cut names for the broad cuts but with a "P" i.e. "chi2"
+ * cut is "Pchi2" for the friend trees. This function will add the two friend tree
+ * permutations and subtract their sidebands, to properly perform this sideband
+ * subtraction.
+ * 
+ * @param input_files base data file name
+ * @param NT tree name
+ * @param CATEGORY category name
+ * @param cut_variable variable we want to observe
+ * @param bins histogram bins
+ * @param lower_bound histogram lower bound
+ * @param upper_bound histogram upper bound 
+ * @return TH1F* sideband subtracted histogram
+ */
+TH1F* get_sideband_histogram(
+    const TString input_files,
+    const TString NT,    
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound
+)
+{
+    // load in the friend tree cuts, which uses our specialized branches we created
+    // in each file. Remove the cut we want to observe
+    std::map<TString, Int_t> friend_cut_map = load_friend_cuts();    
+    friend_cut_map.erase(TString::Format("P%s", cut_variable.Data()));
+    TString cuts = join_keys(friend_cut_map);
+
+    // for the omega mass, we have to use the AmpTools style indexing of the particles
+    TString new_cut_var = cut_variable;
+    if (cut_variable == "MASS(2,3,4)") {
+        new_cut_var = "MASS(3,4,5)"; 
+    }
+    
+    // now fill a histogram for each pi0 permutations signal and sidebands
+    TH1F *h_signal[2];
+    TH1F *h_sideband[2];
+
+    for(int i=1; i<3; i++) {
+        TString input_file = TString::Format("%s.permutation_%d", input_files.Data(), i);
+        TString tree_name = TString::Format("%s_permutation_%d", NT.Data(), i);        
+        h_signal[i-1] = FSModeHistogram::getTH1F(
+            input_file,
+            tree_name,
+            CATEGORY,
+            new_cut_var, // the friend tree branch names are conveniently named the same as the cut variable
+            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+            TString::Format("CUT(%s,signal)*CUTWT(Prf)", cuts.Data())
+        );
+
+        h_sideband[i-1] = FSModeHistogram::getTH1F(
+            input_file,
+            tree_name,
+            CATEGORY,
+            new_cut_var,
+            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+            TString::Format("CUT(%s,sideband)*CUTWT(Prf)", cuts.Data())
+        );
+    }
+    h_signal[0]->Add(h_signal[1]); // add the two permutations together
+    h_signal[0]->Add(h_sideband[0], -1); // subtract sideband permutation 1
+    h_signal[0]->Add(h_sideband[1], -1); // subtract sideband permutation 2
+
+    h_signal[0]->SetLineColor(TColor::GetColor("#bd1f01"));
+    h_signal[0]->SetLineWidth(1);    
+    
+    return h_signal[0];
+}
+
+/**
  * @brief Get the signal mc histogram object
  * 
  * @param[in] input_mc_files files to get MC from
  * @param[in] NT tree name
  * @param[in] CATEGORY category name
- * @param[in] cut_variable cut variable name to exclude from cuts string
- * @param[in] tree_variable tree variable name in the ROOT file
+ * @param[in] cut_variable cut variable name to exclude from cuts string 
  * @param[in] bins histogram bins
  * @param[in] lower_bound histogram lower bound
- * @param[in] upper_bound histogram upper bound
- * @param[in] cut_color_map map of cut names to colors
+ * @param[in] upper_bound histogram upper bound 
  * @param[in] h_data final data histogram to scale MC to
- * @param[in] scale_choice scaling method ("integral" or "max")
- * @param legend legend object to add entries to
+ * @param[in] scale_choice scaling method ("integral" or "max") 
  * @return TH1F* scaled MC histogram
  */
 TH1F* get_mc_histogram(
@@ -1030,28 +1111,23 @@ TH1F* get_mc_histogram(
     const TString NT,
     const TString CATEGORY,
     const TString cut_variable,
-    const TString tree_variable,
     const TString bins,
     const TString lower_bound,
     const TString upper_bound,
-    const std::map<TString, Int_t> &cut_color_map,
     TH1F* h_data,
     const TString scale_choice,
     TLegend *legend
 )
 {
-    // remove the cut we are plotting from the cuts to apply to MC
-    std::map<TString, Int_t> map_copy = cut_color_map;
-    map_copy.erase(cut_variable);
-    TString cuts = join_keys(map_copy);
-
-    TH1F *h_mc = FSModeHistogram::getTH1F(
+    TH1F *h_mc = get_sideband_histogram(
         input_mc_files,
         NT,
         CATEGORY,
-        tree_variable,
-        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-        TString::Format("CUT(%s)*CUTWT(rf)", cuts.Data()));
+        cut_variable,
+        bins,
+        lower_bound,
+        upper_bound
+    );
 
     double scale;
     TString legend_scale;
@@ -1079,6 +1155,5 @@ TH1F* get_mc_histogram(
     h_mc->SetMarkerStyle(24);
     h_mc->SetMarkerColor(kBlack);
     h_mc->SetLineWidth(0);
-    h_mc->Draw("E0 SAME");
     return h_mc;
 }
