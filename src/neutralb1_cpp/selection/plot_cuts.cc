@@ -201,9 +201,12 @@ void plot_cuts(
 
     // // =================== Number Unused Tracks ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "unusedTracks",
     //     "NumUnusedTracks",
     //     "6",
@@ -212,20 +215,23 @@ void plot_cuts(
     //     0.0,
     //     1.0,
     //     cut_color_map,
-    //     "max",
-    //     input_mc_files);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("Number of Unused Tracks");
-    // h->SetYTitle("Events / Track");
-    // c->Update();
-    // c->SaveAs("Number_Unused_Tracks.pdf");
+    //     "Number of Unused Tracks",
+    //     "Track",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format(
+    //     "%s_Number_Unused_Tracks.pdf", 
+    //     PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Production Vertex ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "z",
     //     "ProdVz",
     //     "100",
@@ -234,21 +240,23 @@ void plot_cuts(
     //     51.2,
     //     78.8,
     //     cut_color_map,
-    //     "integral",
-    //     input_mc_files);
-
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("Production Vertex Z (cm)");
-    // h->SetYTitle(TString::Format("Events / %.3f cm", bin_width));
-    // c->Update();
-    // c->SaveAs("Production_Vertex_Z.pdf");
+    //     "Production Vertex Z (cm)",
+    //     "cm",
+    //     "integral"
+    // );    
+    // c->SaveAs(TString::Format(
+    //     "%s_Production_Vertex_Z.pdf", 
+    //     PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Missing Mass^2 ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "MM2",
     //     "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)",
     //     "100",
@@ -257,20 +265,21 @@ void plot_cuts(
     //     -0.05,
     //     0.05,
     //     cut_color_map,
-    //     "max",
-    //     input_mc_files);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("Missing Mass^{2} (GeV^{2})");
-    // h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    // c->Update();
-    // c->SaveAs("MM2.pdf");
+    //     "Missing Mass^{2} (GeV^{2})",
+    //     "GeV^{2}",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format("%s_MM2.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Beam Energy ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "eBeam",
     //     "EnPB",
     //     "100",
@@ -279,20 +288,21 @@ void plot_cuts(
     //     8.2,
     //     8.8,
     //     cut_color_map,
-    //     "integral",
-    //     input_mc_files);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("Beam Energy (GeV)");
-    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    // c->Update();
-    // c->SaveAs("Beam_Energy.pdf");
+    //     "Beam Energy (GeV)",
+    //     "GeV",
+    //     "integral"
+    // );
+    // c->SaveAs(TString::Format("%s_Beam_Energy.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // //=================== Chi2 / NDF ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "chi2",
     //     "Chi2DOF",
     //     "40",
@@ -301,20 +311,21 @@ void plot_cuts(
     //     0.0,
     //     5.0,
     //     cut_color_map,
-    //     "max",
-    //     input_mc_files);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("#chi^{2} / NDF");
-    // h->SetYTitle(TString::Format("Events / %.3f", bin_width));
-    // c->Update();
-    // c->SaveAs("Chi2.pdf");
+    //     "#chi^{2} / NDF",
+    //     "",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format("%s_Chi2.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== four momentum transfer -t ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "t",
     //     "abs(-1*MASS2([proton],-GLUEXTARGET))",
     //     "100",
@@ -323,43 +334,49 @@ void plot_cuts(
     //     0.0,
     //     1.0,
     //     cut_color_map,
-    //     "max",
-    //     input_mc_files);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("-t (GeV^{2})");
-    // h->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    // c->Update();
-    // c->SaveAs("t.pdf");
+    //     "-t (GeV^{2})",
+    //     "GeV^{2}",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format("%s_t.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Missing Energy  ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "",
     //     "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)",
     //     "100",
     //     "-3.0",
-    //     "2.0",
+    //     "3.0",
     //     -3.0,
     //     3.0,
-    //     cut_color_map);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("Missing Energy (GeV)");
-    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    // c->Update();
-    // c->SaveAs("Missing_Energy.pdf");
+    //     cut_color_map,
+    //     "Missing Energy (GeV)",
+    //     "GeV",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format(
+    //     "%s_Missing_Energy.pdf", 
+    //     PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Omega Mass ===================
-    // TODO: add this
+    // c = setup_canvas(true);    
 
     // // =================== Omega Pi0 Mass ===================
     // c = setup_canvas(true);
-    // h = plot_variable(
+    // plot(
     //     c,
     //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
     //     "",
     //     "MASS(2,3,4,5)",
     //     "100",
@@ -367,12 +384,13 @@ void plot_cuts(
     //     "2.0",
     //     1.0,
     //     2.0,
-    //     cut_color_map);
-    // bin_width = get_bin_width(h);
-    // h->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
-    // h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    // c->Update();
-    // c->SaveAs("Omega_Pi0_Mass.pdf");
+    //     cut_color_map,
+    //     "#omega#pi^{0} inv. mass (GeV)",
+    //     "GeV",
+    //     "integral"
+    // );
+    // c->SaveAs(TString::Format(
+    //     "%s_Omega_Pi0_Mass.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
     // // =================== Proton Bachelor Mass ===================
@@ -600,6 +618,7 @@ void plot_accidentals(
     legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
     legend_acc->Draw();
 
+    h_acc_data->SetTitle("");
     h_acc_data->SetXTitle("RF #DeltaT (ns)");
     double bin_width = get_bin_width(h_acc_data);
     h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
@@ -657,6 +676,7 @@ void plot(
     legend->SetNColumns(5);
     legend->SetBorderSize(0);
     legend->SetFillStyle(0);
+    legend->SetTextSize(2.0);
 
     histograms = get_iterated_histograms(
         input_data_files,
@@ -1021,10 +1041,9 @@ TH1F* get_mc_histogram(
 )
 {
     // remove the cut we are plotting from the cuts to apply to MC
-    TString cuts = join_keys(cut_color_map);
-    cuts.ReplaceAll(cut_variable, ""); // remove the cut we are plotting
-    cuts.ReplaceAll(",,", ","); // clean up any double commas
-    cuts = cuts.Strip(TString::kBoth, ','); // remove leading/trailing commas
+    std::map<TString, Int_t> map_copy = cut_color_map;
+    map_copy.erase(cut_variable);
+    TString cuts = join_keys(map_copy);
 
     TH1F *h_mc = FSModeHistogram::getTH1F(
         input_mc_files,
@@ -1032,7 +1051,7 @@ TH1F* get_mc_histogram(
         CATEGORY,
         tree_variable,
         TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-        TString::Format("CUT(%s)", cuts.Data()));
+        TString::Format("CUT(%s)*CUTWT(rf)", cuts.Data()));
 
     double scale;
     TString legend_scale;
@@ -1059,7 +1078,7 @@ TH1F* get_mc_histogram(
     // draw MC on top as black empty points with error bars
     h_mc->SetMarkerStyle(24);
     h_mc->SetMarkerColor(kBlack);
-    h_mc->SetLineColor(kBlack);
+    h_mc->SetLineWidth(0);
     h_mc->Draw("E0 SAME");
     return h_mc;
 }
