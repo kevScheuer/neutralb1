@@ -51,8 +51,10 @@ std::map<TString, TString> CUT_TO_LEGEND = {
 // Forward declarations
 TCanvas *setup_canvas(bool logy = false);
 void plot_accidentals(TString input_data_files, const TString NT, const TString CATEGORY);
-std::pair<TH1F*, TLegend*> plot_variable(
+std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
     const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
     const TString cut_variable,
     const TString tree_variable,
     const TString bins,
@@ -60,13 +62,60 @@ std::pair<TH1F*, TLegend*> plot_variable(
     const TString upper_bound,
     const double cut_lower_bound,
     const double cut_upper_bound,
+    const std::map<TString, Int_t> &cut_color_map
+);
+TH1F* get_og_histogram(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound
+);
+TH1F* get_rf_histogram(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound
+);
+std::vector<TH1F*> get_histograms_with_cuts(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const TString cut_variable,
     const std::map<TString, Int_t> &cut_color_map,
-    const TString scale_choice = "",
-    const TString input_mc_files = "");
+    TLegend *legend
+);
+TH1F* get_selection_histogram(
+    TH1F* h_source,
+    const double cut_lower_bound,
+    const double cut_upper_bound
+);
+TH1F* get_mc_histogram(
+    const TString input_mc_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const std::map<TString, Int_t> &cut_color_map,
+    TH1F* h_data,
+    const TString scale_choice,
+    TLegend *legend
+);
 
 void plot_cuts(
-    const int period,
-    bool mc = true,    
+    const int period,    
     bool read_cache = false,
     bool dump_cache = false)
 {
@@ -75,26 +124,25 @@ void plot_cuts(
 
     TString input_files;
     
-    input_data_files = TString::Format(
+    // input_data_files = TString::Format(
+    //     "/lustre24/expphy/volatile/halld/home/kscheuer/"
+    //     "FSRoot-skimmed-trees/best-chi2/"
+    //     "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+    //     period);
+    input_mc_files = TString::Format(
         "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
-        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
         period);
-    if (mc)
-    {
-        input_files = TString::Format(
-            "/lustre24/expphy/volatile/halld/home/kscheuer/"
-            "FSRoot-skimmed-trees/best-chi2/"
-            "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
-            period);
-    }
-
+    input_data_files = input_mc_files; // TODO: for testing purposes
+    
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(read_cache);
 
     // load our cuts
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
     int n_permutations = load_friend_cuts();
+
     double bin_width;
 
     // =================== Accidental Subtraction ===================
@@ -104,13 +152,17 @@ void plot_cuts(
 
     // create pointers for all upcoming plots
     TCanvas *c;
-    TH1F *h;
+    std::vector<TH1F*> histograms;
+    TH1F* mc_hist;
     TLegend *legend;
     // =================== Unused Shower Energy ===================
     c = setup_canvas(true);
     
-    std::tie(h, legend) = plot_variable(
+    // TODO: all of this stuff below is almost the same, just not the x and y naming
+    std::tie(histograms, legend) = get_iterated_histograms(
         input_data_files,
+        NT,
+        CATEGORY,
         "unusedE",
         "EnUnusedSh",
         "100",
@@ -118,16 +170,49 @@ void plot_cuts(
         "1.0",
         0.0,
         0.1,
-        cut_color_map,
-        "max",
-        input_mc_files);
-    bin_width = get_bin_width(h);
-    h->SetXTitle("Unused Shower Energy (GeV)");
-    h->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    c->cd(1);
-    legend->Draw();    
+        cut_color_map
+    );
     c->cd(2);
-    h->Draw();    
+    for(int i=0; i<histograms.size(); i++) {
+        if (gPad->GetLogy()) {
+            histograms[i]->SetMinimum(1);
+        } 
+        else {
+            histograms[i]->SetMinimum(0);
+        }
+        if(i==0) {            
+            histograms[i]->SetXTitle("Unused Shower Energy (GeV)");
+            bin_width = get_bin_width(histograms[i]);
+            histograms[i]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+            histograms[i]->Draw("HIST");
+        } else {
+            histograms[i]->Draw("HIST SAME");
+        }
+    }
+    mc_hist = get_mc_histogram(
+        input_mc_files,
+        NT,
+        CATEGORY,
+        "unusedE",
+        "EnUnusedSh",
+        "100",
+        "0.0",
+        "1.0",
+        cut_color_map,
+        histograms.back(),
+        "max",
+        legend
+    );
+    if (gPad->GetLogy()) {
+        mc_hist->SetMinimum(1);
+    } 
+    else {
+        mc_hist->SetMinimum(0);
+    }
+    mc_hist->Draw("E0 SAME");    
+
+    c->cd(1);
+    legend->Draw();        
     c->Update();
     c->SaveAs("Unused_Shower_Energy.pdf");
     delete c;
@@ -285,6 +370,9 @@ void plot_cuts(
     // c->SaveAs("Missing_Energy.pdf");
     // delete c;
 
+    // // =================== Omega Mass ===================
+    // TODO: add this
+
     // // =================== Omega Pi0 Mass ===================
     // c = setup_canvas(true);
     // h = plot_variable(
@@ -304,6 +392,9 @@ void plot_cuts(
     // c->Update();
     // c->SaveAs("Omega_Pi0_Mass.pdf");
     // delete c;
+
+    // // =================== Proton Bachelor Mass ===================
+    // TODO: fill in
 
     // // =================== pi01 momenta ===================
     // // TODO: once we figure out how to get these momenta properly, plot them
@@ -525,14 +616,11 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
 
 
 /**
- * @brief Plot a variable with all other broad cuts applied
- *
- * This function creates a TCanvas containing a histogram of the specified variable,
- * applying the given broad cuts, except the one being plotted. If mc is true,
- * a Monte Carlo histogram is also drawn on top for comparison. This function must
- * be run AFTER load_broad_cuts() to ensure cuts are defined.
+ * @brief Get histogram of one variable, with all other cuts iteravely applied
  *
  * @param[in] input_data_files data files to plot from
+ * @param[in] NT name of the tree in the ROOT file
+ * @param[in] CATEGORY category name in the ROOT file
  * @param[in] cut_variable name of variable to exclude from cuts string
  * @param[in] tree_variable tree variable name in the ROOT file
  * @param[in] bins histogram bins
@@ -541,12 +629,12 @@ void plot_accidentals(TString input_data_files, const TString NT, const TString 
  * @param[in] cut_lower_bound lower boundary for the selection region visualization
  * @param[in] cut_upper_bound upper boundary for the selection region visualization
  * @param[in] cut_color_map map of cut names to colors
- * @param[in] scale_choice method to scale MC to data ("integral" or "max")
- * @param[in] input_mc_files Monte Carlo data files
- * @return TH1F* pointer to the created histogram
+ * @return 
  */
-std::pair<TH1F*, TLegend*> plot_variable(
+std::pair<std::vector<TH1F*>, TLegend*> get_iterated_histograms(
     const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
     const TString cut_variable,
     const TString tree_variable,
     const TString bins,
@@ -554,143 +642,77 @@ std::pair<TH1F*, TLegend*> plot_variable(
     const TString upper_bound,
     const double cut_lower_bound,
     const double cut_upper_bound,
-    const std::map<TString, Int_t> &cut_color_map,
-    const TString scale_choice = "",
-    const TString input_mc_files = "")
+    const std::map<TString, Int_t> &cut_color_map
+)
 {
-    // create histograms in format: file name, tree name, category, variable, bins and
-    // bounds, then cuts. Our cuts are already loaded, so just their names are enough
-    // for FSCut to find them
+    std::vector<TH1F*> histograms;
 
-    // first, plot the data without any cuts applied
-    TH1F *h_og = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        tree_variable,
-        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-        "CUT(rfSignal)");
-
-    bool isLogY = gPad->GetLogy();
-    h_og->SetMinimum(isLogY ? 1 : 0);
-    h_og->SetLineColor(kGray);
-    h_og->SetLineWidth(1);
-    h_og->Draw("HIST");
-
+    // setup legend for all histograms and fill as we go
     TLegend *legend = new TLegend(0.15, 0.02, 1.0, 1.0);
     legend->SetNColumns(5);
     legend->SetBorderSize(0);
     legend->SetFillStyle(0);
-    legend->AddEntry(h_og, "Original Data", "l");
 
-    // apply the special rf cut first
-    TH1F *h_rf = FSModeHistogram::getTH1F(
+    // first, plot the data without any cuts applied
+    TH1F *h_og = get_og_histogram(
         input_data_files,
         NT,
         CATEGORY,
         tree_variable,
-        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-        "CUTWT(rf)");
-    h_rf->SetMinimum(isLogY ? 1 : 0);
-    h_rf->SetLineColor(TColor::GetColor("#c849a9"));
-    h_rf->SetLineWidth(1);
-    h_rf->Draw("HIST SAME");
+        bins,
+        lower_bound,
+        upper_bound
+    );
+    legend->AddEntry(h_og, "Original Data", "l");
+    histograms.push_back(h_og);
+
+    // apply the special rf cut as our first cut
+    TH1F *h_rf = get_rf_histogram(
+        input_data_files,
+        NT,
+        CATEGORY,
+        tree_variable,
+        bins,
+        lower_bound,
+        upper_bound
+    );
     legend->AddEntry(h_rf, "RF Accidentals", "l");
+    histograms.push_back(h_rf);
 
-    // now iterate through our cuts and apply them one by one, except the one we are plotting
-    TString cuts_so_far = "";
-    TH1F *h_next = nullptr;
-    for (map<TString, Int_t>::const_iterator it = cut_color_map.begin();
-         it != cut_color_map.end(); ++it)
-    {
-        TString cut_name = it->first;
-        if (cut_name == cut_variable)
-            continue; // skip the cut we are plotting
-        cuts_so_far += (cuts_so_far.IsNull() ? "" : ",") + cut_name;
-
-        // apply this cut
-        h_next = FSModeHistogram::getTH1F(
-            input_data_files,
-            NT,
-            CATEGORY,
-            tree_variable,
-            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-            TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
-        h_next->SetMinimum(isLogY ? 1 : 0); // set minimum again after fixing zeros
-        h_next->SetLineColor(it->second);
-        h_next->SetLineWidth(1);
-
-        h_next->Draw("HIST SAME");
-        legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
-    }
-
+    // now iterate through our cuts and apply them one by one, excluding the one we 
+    // are plotting. Note the legend is added to within the function
+    std::vector<TH1F*> h_iter_cuts = get_histograms_with_cuts(
+        input_data_files,
+        NT,
+        CATEGORY,
+        tree_variable,
+        bins,
+        lower_bound,
+        upper_bound,
+        cut_variable,
+        cut_color_map,
+        legend
+    );
+    histograms.insert(
+        histograms.end(),
+        h_iter_cuts.begin(),
+        h_iter_cuts.end()
+    );
+    
+    // TODO: here is where sideband cut will be specially applied by adding the sideband
+    // histogram to the signal histogram. It doesn't need the cut map since the friend
+    // tree cuts is already setup to do that.
+    
     // Create a copy of the final histogram for the selection region fill
-    TH1F *h_selection = (TH1F *)h_next->Clone("h_selection");
-    h_selection->SetFillColorAlpha(kGreen + 1, 0.5);
-    h_selection->SetFillStyle(1001);
-    h_selection->SetLineWidth(0); // No line for the fill histogram
-
-    // Zero out bins outside the selection region
-    for (int i = 1; i <= h_selection->GetNbinsX(); ++i)
-    {
-        double bin_center = h_selection->GetBinCenter(i);
-        if (bin_center < cut_lower_bound || bin_center > cut_upper_bound)
-        {
-            if (isLogY)
-                h_selection->SetBinContent(i, 1); // small value for log scale
-            else
-                h_selection->SetBinContent(i, 0);
-        }
-    }
-
-    // Draw the selection region fill
-    h_selection->Draw("HIST SAME");
+    TH1F* h_selection = get_selection_histogram(
+        h_iter_cuts.back(), // TODO: change to sideband result later
+        cut_lower_bound,
+        cut_upper_bound
+    );
     legend->AddEntry(h_selection, "Selection", "f");
+    histograms.push_back(h_selection);
 
-    if (input_mc_files != "")
-    {
-        TH1F *h_mc = FSModeHistogram::getTH1F(
-            input_mc_files,
-            NT,
-            CATEGORY,
-            tree_variable,
-            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
-            TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));
-
-        double scale;
-        TString legend_scale;
-        if (scale_choice == "integral")
-        {
-            // scale MC to data using their integrals
-            scale = h_next->Integral() / h_mc->Integral();
-            h_mc->Scale(scale);
-            legend_scale = TString::Format("MC (integral scaling=%.3f)", scale);
-        }
-        else if (scale_choice == "max")
-        {
-            // scale MC to data using their maximum bin content
-            scale = h_next->GetMaximum() / h_mc->GetMaximum();
-            h_mc->Scale(scale);
-            legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
-        }
-        else
-        {
-            std::cerr << "Unknown scale choice: " << scale_choice << ". No scaling applied." << std::endl;
-        }
-        legend->AddEntry(h_mc, legend_scale, "p");
-
-        // draw MC on top as black empty points with error bars
-        h_mc->SetMarkerStyle(24);
-        h_mc->SetMarkerColor(kBlack);
-        h_mc->SetLineColor(kBlack);
-        h_mc->Draw("E0 SAME");
-    }
-
-    // finalize some cosmetics
-    h_og->SetMaximum(h_og->GetMaximum() * 1.1); // add some headroom
-    h_og->SetTitle("");
-
-    return std::make_pair(h_og, legend);
+    return std::make_pair(histograms, legend);
 }
 
 TCanvas *setup_canvas(bool logy = false)
@@ -710,4 +732,233 @@ TCanvas *setup_canvas(bool logy = false)
     c->SetRightMargin(0.02);
     c->SetTopMargin(0.02);
     return c;
+}
+
+/**
+ * @brief Get the histogram for data with no cuts applied
+ * 
+ * One cut is made, but it simply selects the prompt RF peak, where signal lies.
+ * 
+ * @param[in] input_data_files data files to plot from
+ * @param[in] cut_variable name of variable to exclude from cuts string
+ * @param[in] tree_variable tree variable name in the ROOT file
+ * @param[in] bins histogram bins
+ * @param[in] lower_bound histogram lower bound
+ * @param[in] upper_bound histogram upper bound
+ * @return TH1F* histogram with no cuts applied
+ */
+TH1F* get_og_histogram(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound
+)
+{
+    TH1F *h_og = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        tree_variable,
+        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+        "CUT(rfSignal)");
+
+    h_og->SetLineColor(kGray);
+    h_og->SetLineWidth(1);
+    h_og->SetTitle(""); // this will be the first plotted histogram, so remove title
+
+    return h_og;
+}
+
+/**
+ * @brief Get the histogram for data with only the RF accidentals cut applied
+ * 
+ * @param[in] input_data_files data files to plot from
+ * @param[in] NT tree name
+ * @param[in] CATEGORY category name
+ * @param[in] tree_variable tree variable name in the ROOT file
+ * @param[in] bins histogram bins
+ * @param[in] lower_bound histogram lower bound
+ * @param[in] upper_bound histogram upper bound
+ * @return TH1F* histogram with only RF accidentals cut applied
+ */
+TH1F* get_rf_histogram(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound
+)
+{
+    TH1F *h_rf = FSModeHistogram::getTH1F(
+        input_data_files,
+        NT,
+        CATEGORY,
+        tree_variable,
+        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+        "CUTWT(rf)");
+    h_rf->SetLineColor(TColor::GetColor("#c849a9"));
+    h_rf->SetLineWidth(1);
+    return h_rf;    
+}
+
+
+/**
+ * @brief Get the set of histograms with each cut iteratively applied
+ * 
+ * @param[in] input_data_files data files to plot from
+ * @param[in] NT tree name
+ * @param[in] CATEGORY category name
+ * @param[in] tree_variable tree variable name in the ROOT file
+ * @param[in] bins histogram bins
+ * @param[in] lower_bound histogram lower bound
+ * @param[in] upper_bound histogram upper bound
+ * @param[in] cut_variable cut variable name to exclude from cuts string
+ * @param[in] cut_color_map map of cut names to colors
+ * @param[in] legend legend object to add entries to
+ * @return std::vector<TH1F*> vector of histograms with cuts applied
+ */
+std::vector<TH1F*> get_histograms_with_cuts(
+    const TString input_data_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const TString cut_variable,
+    const std::map<TString, Int_t> &cut_color_map,
+    TLegend *legend
+)
+{
+    std::vector<TH1F*> histograms;
+    TString cuts_so_far = "";
+    TH1F *h_next = nullptr;
+
+    for (map<TString, Int_t>::const_iterator it = cut_color_map.begin();
+         it != cut_color_map.end(); ++it)
+    {
+        TString cut_name = it->first;
+        if (cut_name == cut_variable)
+            continue; // skip the cut we are plotting
+        cuts_so_far += (cuts_so_far.IsNull() ? "" : ",") + cut_name;
+
+        // apply this cut
+        h_next = FSModeHistogram::getTH1F(
+            input_data_files,
+            NT,
+            CATEGORY,
+            tree_variable,
+            TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+            TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));        
+        h_next->SetLineColor(it->second);
+        h_next->SetLineWidth(1);        
+        legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
+        histograms.push_back(h_next);
+    }
+
+    return histograms;
+}
+
+TH1F* get_selection_histogram(
+    TH1F* h_source,
+    const double cut_lower_bound,
+    const double cut_upper_bound)
+{
+    TH1F *h_selection = (TH1F *)h_source->Clone("h_selection");
+    h_selection->SetFillColorAlpha(kGreen + 1, 0.5);
+    h_selection->SetFillStyle(1001);
+    h_selection->SetLineWidth(0); // No line for the fill histogram
+
+    // Zero out bins outside the selection region
+    for (int i = 1; i <= h_selection->GetNbinsX(); ++i)
+    {
+        double bin_center = h_selection->GetBinCenter(i);
+        if (bin_center < cut_lower_bound || bin_center > cut_upper_bound)
+        {
+            h_selection->SetBinContent(i, 1); // small value for log scale
+        }
+    }
+
+    return h_selection;
+}
+
+/**
+ * @brief Get the signal mc histogram object
+ * 
+ * @param[in] input_mc_files files to get MC from
+ * @param[in] NT tree name
+ * @param[in] CATEGORY category name
+ * @param[in] cut_variable cut variable name to exclude from cuts string
+ * @param[in] tree_variable tree variable name in the ROOT file
+ * @param[in] bins histogram bins
+ * @param[in] lower_bound histogram lower bound
+ * @param[in] upper_bound histogram upper bound
+ * @param[in] cut_color_map map of cut names to colors
+ * @param[in] h_data final data histogram to scale MC to
+ * @param[in] scale_choice scaling method ("integral" or "max")
+ * @param legend legend object to add entries to
+ * @return TH1F* scaled MC histogram
+ */
+TH1F* get_mc_histogram(
+    const TString input_mc_files,
+    const TString NT,
+    const TString CATEGORY,
+    const TString cut_variable,
+    const TString tree_variable,
+    const TString bins,
+    const TString lower_bound,
+    const TString upper_bound,
+    const std::map<TString, Int_t> &cut_color_map,
+    TH1F* h_data,
+    const TString scale_choice,
+    TLegend *legend
+)
+{
+    // remove the cut we are plotting from the cuts to apply to MC
+    TString cuts = join_keys(cut_color_map);
+    cuts.ReplaceAll(cut_variable, ""); // remove the cut we are plotting
+    cuts.ReplaceAll(",,", ","); // clean up any double commas
+    cuts = cuts.Strip(TString::kBoth, ','); // remove leading/trailing commas
+
+    TH1F *h_mc = FSModeHistogram::getTH1F(
+        input_mc_files,
+        NT,
+        CATEGORY,
+        tree_variable,
+        TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
+        TString::Format("CUT(%s)", cuts.Data()));
+
+    double scale;
+    TString legend_scale;
+    if (scale_choice == "integral")
+    {
+        // scale MC to data using their integrals
+        scale = h_data->Integral() / h_mc->Integral();
+        h_mc->Scale(scale);
+        legend_scale = TString::Format("MC (integral scaling=%.3f)", scale);
+    }
+    else if (scale_choice == "max")
+    {
+        // scale MC to data using their maximum bin content
+        scale = h_data->GetMaximum() / h_mc->GetMaximum();
+        h_mc->Scale(scale);
+        legend_scale = TString::Format("MC (max scaling=%.3f)", scale);
+    }
+    else
+    {
+        std::cerr << "Unknown scale choice: " << scale_choice << ". No scaling applied." << std::endl;
+    }
+    legend->AddEntry(h_mc, legend_scale, "p");
+
+    // draw MC on top as black empty points with error bars
+    h_mc->SetMarkerStyle(24);
+    h_mc->SetMarkerColor(kBlack);
+    h_mc->SetLineColor(kBlack);
+    h_mc->Draw("E0 SAME");
+    return h_mc;
 }
