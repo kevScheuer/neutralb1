@@ -6,9 +6,6 @@
  * This file creates plots of several variables to select the physical
  * region of interest for a pi0pi0pi+pi- final state.
  *
- * TODO: Have the main plotter function add the 2 permutation hists properly.
- * Then return the hist and the legend, that way the canvas can be set to log AFTER the 
- * hist is made and the minimum is set, to avoid dumb log issues. 
  */
 
 #include <iostream>
@@ -114,7 +111,8 @@ std::vector<TH1F*> get_histograms_with_cuts(
     const TString upper_bound,
     const TString cut_variable,
     const std::map<TString, Int_t> &cut_color_map,
-    TLegend *legend
+    TLegend *legend,
+    bool fill_legend = true
 );
 TH1F* get_selection_histogram(
     TH1F* h_source,
@@ -153,16 +151,17 @@ void plot_cuts(
 
     TString input_files;
     
-    input_data_files = TString::Format(
-        "/lustre24/expphy/volatile/halld/home/kscheuer/"
-        "FSRoot-skimmed-trees/best-chi2/"
-        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
-        period);
+    // input_data_files = TString::Format(
+    //     "/lustre24/expphy/volatile/halld/home/kscheuer/"
+    //     "FSRoot-skimmed-trees/best-chi2/"
+    //     "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+    //     period);
     input_mc_files = TString::Format(
         "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
         "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
         period);
+    input_data_files = input_mc_files; // TODO: for testing
     
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(read_cache);
@@ -178,30 +177,30 @@ void plot_cuts(
 
     // create pointers for all upcoming plots
     TCanvas *c;    
-    // =================== Unused Shower Energy ===================
-    c = setup_canvas(true);
-    plot(
-        c,
-        input_data_files,
-        input_mc_files,
-        NT,
-        CATEGORY,
-        "unusedE",
-        "EnUnusedSh",
-        "100",
-        "0.0",
-        "1.0",
-        0.0,
-        0.1,
-        cut_color_map,
-        "Unused Shower Energy (GeV)",
-        "GeV",
-        "max"
-    );
-    c->SaveAs(TString::Format(
-        "%s_Unused_Shower_Energy.pdf", 
-        PERIOD_TO_LABEL.at(period).Data()));
-    delete c;
+    // // =================== Unused Shower Energy ===================
+    // c = setup_canvas(true);
+    // plot(
+    //     c,
+    //     input_data_files,
+    //     input_mc_files,
+    //     NT,
+    //     CATEGORY,
+    //     "unusedE",
+    //     "EnUnusedSh",
+    //     "100",
+    //     "0.0",
+    //     "1.0",
+    //     0.0,
+    //     0.1,
+    //     cut_color_map,
+    //     "Unused Shower Energy (GeV)",
+    //     "GeV",
+    //     "max"
+    // );
+    // c->SaveAs(TString::Format(
+    //     "%s_Unused_Shower_Energy.pdf", 
+    //     PERIOD_TO_LABEL.at(period).Data()));
+    // delete c;
 
     // // =================== Number Unused Tracks ===================
     // c = setup_canvas(true);
@@ -345,60 +344,104 @@ void plot_cuts(
     // c->SaveAs(TString::Format("%s_t.pdf", PERIOD_TO_LABEL.at(period).Data()));
     // delete c;
 
-    // // =================== Missing Energy  ===================
-    // c = setup_canvas(true);
-    // plot(
-    //     c,
-    //     input_data_files,
-    //     input_mc_files,
-    //     NT,
-    //     CATEGORY,
-    //     "",
-    //     "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)",
-    //     "100",
-    //     "-3.0",
-    //     "3.0",
-    //     -3.0,
-    //     3.0,
-    //     cut_color_map,
-    //     "Missing Energy (GeV)",
-    //     "GeV",
-    //     "max"
-    // );
-    // c->SaveAs(TString::Format(
-    //     "%s_Missing_Energy.pdf", 
-    //     PERIOD_TO_LABEL.at(period).Data()));
-    // delete c;
+    // =================== Missing Energy  ===================
+    c = setup_canvas(true);
+    plot(
+        c,
+        input_data_files,
+        input_mc_files,
+        NT,
+        CATEGORY,
+        "missingEnergy",
+        "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)",
+        "100",
+        "-3.0",
+        "3.0",
+        -3.0,
+        3.0,
+        cut_color_map,
+        "Missing Energy (GeV)",
+        "GeV",
+        "max"
+    );
+    c->SaveAs(TString::Format(
+        "%s_Missing_Energy.pdf", 
+        PERIOD_TO_LABEL.at(period).Data()));
+    delete c;
 
+    // Some of the next plots have an && in their tree name, which is specially handled
+    // within the functions to plot both permutations
     // // =================== Omega Mass ===================
-    // c = setup_canvas(true);    
+    c = setup_canvas(true);    
+    plot(
+        c,
+        input_data_files,
+        input_mc_files,
+        NT,
+        CATEGORY,
+        "omegaMass",
+        "MASS(2,3,4)&&MASS(2,3,5)",
+        "100",
+        "0.3",
+        "1.8",
+        0.6986,
+        0.8666,
+        cut_color_map,
+        "#omega inv. mass (GeV)",
+        "GeV",
+        "max"
+    );
+    c->SaveAs(TString::Format(
+        "%s_Omega_Mass.pdf", PERIOD_TO_LABEL.at(period).Data()));
+    delete c;
 
-    // // =================== Omega Pi0 Mass ===================
-    // c = setup_canvas(true);
-    // plot(
-    //     c,
-    //     input_data_files,
-    //     input_mc_files,
-    //     NT,
-    //     CATEGORY,
-    //     "",
-    //     "MASS(2,3,4,5)",
-    //     "100",
-    //     "1.0",
-    //     "2.0",
-    //     1.0,
-    //     2.0,
-    //     cut_color_map,
-    //     "#omega#pi^{0} inv. mass (GeV)",
-    //     "GeV",
-    //     "integral"
-    // );
-    // c->SaveAs(TString::Format(
-    //     "%s_Omega_Pi0_Mass.pdf", PERIOD_TO_LABEL.at(period).Data()));
-    // delete c;
+    // =================== Omega Pi0 Mass ===================
+    c = setup_canvas(true);
+    plot(
+        c,
+        input_data_files,
+        input_mc_files,
+        NT,
+        CATEGORY,
+        "omegaPi0Mass",
+        "MASS(2,3,4,5)",
+        "100",
+        "1.0",
+        "2.0",
+        1.0,
+        2.0,
+        cut_color_map,
+        "#omega#pi^{0} inv. mass (GeV)",
+        "GeV",
+        "integral"
+    );
+    c->SaveAs(TString::Format(
+        "%s_Omega_Pi0_Mass.pdf", PERIOD_TO_LABEL.at(period).Data()));
+    delete c;
 
     // // =================== Proton Bachelor Mass ===================
-    // TODO: fill in
+    c = setup_canvas(true);
+    plot(
+        c,
+        input_data_files,
+        input_mc_files,
+        NT,
+        CATEGORY,
+        "protonBachelorMass",
+        "MASS(1,5)&&MASS(1,4)",
+        "400",
+        "1.0",
+        "4.0",
+        1.0,
+        4.0,
+        cut_color_map,
+        "p'#pi^{0}_{bachelor} inv. mass (GeV)",
+        "GeV",
+        "integral"
+    );
+    c->SaveAs(TString::Format(
+        "%s_Proton_Bachelor_Mass.pdf", PERIOD_TO_LABEL.at(period).Data()));
+    delete c;
 
     // // =================== pi01 momenta ===================
     // // TODO: once we figure out how to get these momenta properly, plot them
@@ -732,7 +775,7 @@ void plot(
     else {
         mc_hist->SetMinimum(0);
     }
-    mc_hist->Draw("E0 SAME");    
+    mc_hist->Draw("E0 SAME");
 
     c->cd(1);
     legend->Draw();        
@@ -775,52 +818,108 @@ std::vector<TH1F*> get_iterated_histograms(
 {
     std::vector<TH1F*> histograms;
 
-    // first, plot the data without any cuts applied
-    TH1F *h_og = get_og_histogram(
-        input_data_files,
-        NT,
-        CATEGORY,
-        tree_variable,
-        bins,
-        lower_bound,
-        upper_bound
-    );
-    legend->AddEntry(h_og, "Original Data", "l");
-    histograms.push_back(h_og);
+    // tree variables with "&&" are for cases which need permutations of the same variable
+    // plotted together
+    std::vector<TString> tree_variables_to_process;
+    if (tree_variable.Contains("&&"))
+    {
+        Ssiz_t pos = 0;
+        TString token;
+        TString str = tree_variable;
+        while ((pos = str.Index("&&")) != kNPOS)
+        {
+            token = str(0, pos);
+            tree_variables_to_process.push_back(token);
+            str.Remove(0, pos + 2);
+        }
+        tree_variables_to_process.push_back(str); // last token
+    }
+    else
+    {
+        tree_variables_to_process.push_back(tree_variable);
+    }
+
+    // ==== Get Data with no cuts applied ====    
+    for (TString var : tree_variables_to_process)
+    {
+        TH1F *h_og_part = get_og_histogram(
+            input_data_files,
+            NT,
+            CATEGORY,
+            var,
+            bins,
+            lower_bound,
+            upper_bound
+        );
+        if (histograms.size() == 0)
+        {
+            histograms.push_back(h_og_part);
+        }
+        else
+        {
+            histograms[0]->Add(h_og_part);
+        }
+    }  
+    legend->AddEntry(histograms[0], "Original Data", "l");    
 
     // apply the special rf cut as our first cut
-    TH1F *h_rf = get_rf_histogram(
-        input_data_files,
-        NT,
-        CATEGORY,
-        tree_variable,
-        bins,
-        lower_bound,
-        upper_bound
-    );
-    legend->AddEntry(h_rf, "RF Accidentals", "l");
-    histograms.push_back(h_rf);
+    for (TString var : tree_variables_to_process)
+    {
+        TH1F *h_rf_part = get_rf_histogram(
+            input_data_files,
+            NT,
+            CATEGORY,
+            var,
+            bins,
+            lower_bound,
+            upper_bound
+        );
+        if (histograms.size() == 1)
+        {
+            histograms.push_back(h_rf_part);
+        }
+        else
+        {
+            histograms[1]->Add(h_rf_part);
+        }
+    }
+    legend->AddEntry(histograms[1], "RF Accidentals", "l");
 
     // now iterate through our cuts and apply them one by one, excluding the one we 
     // are plotting. Note the legend is added to within the function
-    std::vector<TH1F*> h_iter_cuts = get_histograms_with_cuts(
-        input_data_files,
-        NT,
-        CATEGORY,
-        tree_variable,
-        bins,
-        lower_bound,
-        upper_bound,
-        cut_variable,
-        cut_color_map,
-        legend
-    );
-    histograms.insert(
-        histograms.end(),
-        h_iter_cuts.begin(),
-        h_iter_cuts.end()
-    );
+    for (size_t tree_iter = 0; tree_iter < tree_variables_to_process.size(); tree_iter++)    
+    {   
+        // this bool will avoid double filling of the legend for multiple permutations
+        bool fill_legend = true ? tree_iter == 0 : false;        
+        std::vector<TH1F*> h_iter_cuts_part = get_histograms_with_cuts(
+            input_data_files,
+            NT,
+            CATEGORY,
+            tree_variables_to_process[tree_iter],
+            bins,
+            lower_bound,
+            upper_bound,
+            cut_variable,
+            cut_color_map,
+            legend,
+            fill_legend
+        );
+        // merge the parts together
+        for (size_t i = 0; i < h_iter_cuts_part.size(); i++)
+        {
+            if (histograms.size() <= i + 2)
+            {
+                histograms.push_back(h_iter_cuts_part[i]);
+            }
+            else
+            {
+                histograms[i + 2]->Add(h_iter_cuts_part[i]);
+            }
+        }
+    }
 
+    // sideband subtract. These don't require multiple permutations since it is built
+    // into the cut
     TH1F* h_sideband = get_sideband_histogram(
         input_data_files,
         NT,
@@ -961,7 +1060,8 @@ std::vector<TH1F*> get_histograms_with_cuts(
     const TString upper_bound,
     const TString cut_variable,
     const std::map<TString, Int_t> &cut_color_map,
-    TLegend *legend
+    TLegend *legend,
+    bool fill_legend = true
 )
 {
     std::vector<TH1F*> histograms;
@@ -985,8 +1085,9 @@ std::vector<TH1F*> get_histograms_with_cuts(
             TString::Format("(%s,%s,%s)", bins.Data(), lower_bound.Data(), upper_bound.Data()),
             TString::Format("CUT(%s)*CUTWT(rf)", cuts_so_far.Data()));        
         h_next->SetLineColor(it->second);
-        h_next->SetLineWidth(1);        
-        legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
+        h_next->SetLineWidth(1);     
+        if (fill_legend)   
+            legend->AddEntry(h_next, CUT_TO_LEGEND[cut_name], "l");
         histograms.push_back(h_next);
     }
 
@@ -1051,10 +1152,17 @@ TH1F* get_sideband_histogram(
     friend_cut_map.erase(TString::Format("P%s", cut_variable.Data()));
     TString cuts = join_keys(friend_cut_map);
 
-    // for the omega mass, we have to use the AmpTools style indexing of the particles
-    TString new_cut_var = cut_variable;
-    if (cut_variable == "MASS(2,3,4)") {
-        new_cut_var = "MASS(3,4,5)"; 
+    // For those cuts with an "&&" in their tree variable name, we can specially handle
+    // them here because the sideband subtraction collapses to one permutation only.
+    TString new_cut_var;
+    std::map<TString,TString> cut_mapping = {
+        {"omegaMass", "MASS(3,4,5)"},
+        {"omegaPi0Mass", "MASS(2,3,4,5)"},
+        {"protonBachelorMass", "MRecoilPi"},
+        {"missingEnergy", "ENERGY(GLUEXTARGET, B) - ENERGY(1, 2, 3, 4, 5)"}    
+    };
+    if(cut_mapping.find(cut_variable) != cut_mapping.end()) {
+        new_cut_var = cut_mapping[cut_variable];
     }
     
     // now fill a histogram for each pi0 permutations signal and sidebands
@@ -1153,7 +1261,7 @@ TH1F* get_mc_histogram(
 
     // draw MC on top as black empty points with error bars
     h_mc->SetMarkerStyle(24);
-    h_mc->SetMarkerColor(kBlack);
-    h_mc->SetLineWidth(0);
+    h_mc->SetMarkerColor(kBlack);   
+    h_mc->SetLineColor(kBlack);     
     return h_mc;
 }
