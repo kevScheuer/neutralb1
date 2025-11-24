@@ -443,6 +443,7 @@ void plot_omega_pi0_sideband_variations(
 
     // plot
     h_omega_pi0[0]->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
+    h_omega_pi0[0]->SetMinimum(0);
     h_omega_pi0[0]->SetLineColor(kBlack);
     double bin_width = get_bin_width(h_omega_pi0[0]);
     h_omega_pi0[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
