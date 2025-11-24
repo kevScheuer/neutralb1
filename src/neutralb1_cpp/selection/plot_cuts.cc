@@ -151,17 +151,16 @@ void plot_cuts(
 
     TString input_files;
     
-    // input_data_files = TString::Format(
-    //     "/lustre24/expphy/volatile/halld/home/kscheuer/"
-    //     "FSRoot-skimmed-trees/best-chi2/"
-    //     "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
-    //     period);
+    input_data_files = TString::Format(
+        "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/best-chi2/"
+        "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_data.root",
+        period);
     input_mc_files = TString::Format(
         "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
         "tree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.1_mc.root",
-        period);
-    input_data_files = input_mc_files; // TODO: for testing
+        period);    
     
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(read_cache);
