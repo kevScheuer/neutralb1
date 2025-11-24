@@ -17,7 +17,6 @@
  * taken from her FSRoot tutorial for this channel:
  * https://github.com/JeffersonLab/gluex_workshops/blob/master/tutorial_2025/session2d/plots.C
  * 
- * TODO: Rename "standard" to "historical" throughout the code/comments
  */
 
 #include <iostream>
@@ -43,6 +42,9 @@
 
 TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
+
+Int_t NORWEGIAN_BLUE = TColor::GetColor("#00205B");
+Int_t NORWEGIAN_RED = TColor::GetColor("#BA0C2F");
 
 // we make these TStrings for the FSCut definitions
 double OMEGA_MASS = 0.78266;             // PDG omega mass in GeV
@@ -92,68 +94,64 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     h_individual_vector[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width_omega));
     h_individual_vector[0]->SetTitle("");
 
-    h_individual_vector[1]->SetLineColor(kBlue);
+    h_individual_vector[1]->SetLineColor(NORWEGIAN_BLUE);
     h_individual_vector[1]->SetLineWidth(0);
-    h_individual_vector[1]->SetFillColorAlpha(kBlue, 0.35);
+    h_individual_vector[1]->SetFillColorAlpha(NORWEGIAN_BLUE, 0.35);
 
-    h_individual_vector[2]->SetLineColor(kRed - 2);
+    h_individual_vector[2]->SetLineColor(NORWEGIAN_RED);
     h_individual_vector[2]->SetLineWidth(0);
-    h_individual_vector[2]->SetFillColorAlpha(kRed - 2, 0.35);
+    h_individual_vector[2]->SetFillColorAlpha(NORWEGIAN_RED, 0.35);
     h_individual_vector[0]->Draw("HIST");
     h_individual_vector[1]->Draw("HIST SAME");
     h_individual_vector[2]->Draw("HIST SAME");
 
-    // draw lines for standard 2d window used in Amy's tutorial
-    double standard_signal_low = 0.760;
-    double standard_signal_high = 0.805;
-    double standard_sideband_low_low = 0.690;
-    double standard_sideband_low_high = 0.735;
-    double standard_sideband_high_low = 0.830;
-    double standard_sideband_high_high = 0.875;
+    // draw lines for historical 2d window used in Amy's tutorial
+    double historical_signal_low = 0.760;
+    double historical_signal_high = 0.805;
+    double historical_sideband_low_low = 0.690;
+    double historical_sideband_low_high = 0.735;
+    double historical_sideband_high_low = 0.830;
+    double historical_sideband_high_high = 0.875;
 
     double max = h_individual_vector[0]->GetMaximum();
     double short_max = max * 0.8;
-    TLine *line_standard_signal_low = new TLine(standard_signal_low, 0, standard_signal_low, max);
-    TLine *line_standard_signal_high = new TLine(standard_signal_high, 0, standard_signal_high, max);
-    TLine *line_standard_sideband_low_low = new TLine(standard_sideband_low_low, 0, standard_sideband_low_low, max);
-    TLine *line_standard_sideband_low_high = new TLine(standard_sideband_low_high, 0, standard_sideband_low_high, max);
-    TLine *line_standard_sideband_high_low = new TLine(standard_sideband_high_low, 0, standard_sideband_high_low, max);
-    TLine *line_standard_sideband_high_high = new TLine(standard_sideband_high_high, 0, standard_sideband_high_high, max);
-    line_standard_signal_low->SetLineColor(kBlack);
-    line_standard_signal_low->SetLineWidth(1);
-    line_standard_signal_high->SetLineColor(kBlack);
-    line_standard_signal_high->SetLineWidth(1);
-    line_standard_sideband_low_low->SetLineColor(kBlack);
-    line_standard_sideband_low_low->SetLineWidth(1);
-    line_standard_sideband_low_low->SetLineStyle(9);
-    line_standard_sideband_low_high->SetLineColor(kBlack);
-    line_standard_sideband_low_high->SetLineWidth(1);
-    line_standard_sideband_low_high->SetLineStyle(9);
-    line_standard_sideband_high_low->SetLineColor(kBlack);
-    line_standard_sideband_high_low->SetLineWidth(1);
-    line_standard_sideband_high_low->SetLineStyle(9);
-    line_standard_sideband_high_high->SetLineColor(kBlack);
-    line_standard_sideband_high_high->SetLineWidth(1);
-    line_standard_sideband_high_high->SetLineStyle(9);
-    line_standard_signal_low->Draw("SAME");
-    line_standard_signal_high->Draw("SAME");
-    line_standard_sideband_low_low->Draw("SAME");
-    line_standard_sideband_low_high->Draw("SAME");
-    line_standard_sideband_high_low->Draw("SAME");
-    line_standard_sideband_high_high->Draw("SAME");
+    TLine *line_historical_signal_low = new TLine(historical_signal_low, 0, historical_signal_low, max);
+    TLine *line_historical_signal_high = new TLine(historical_signal_high, 0, historical_signal_high, max);
+    TLine *line_historical_sideband_low_low = new TLine(historical_sideband_low_low, 0, historical_sideband_low_low, max);
+    TLine *line_historical_sideband_low_high = new TLine(historical_sideband_low_high, 0, historical_sideband_low_high, max);
+    TLine *line_historical_sideband_high_low = new TLine(historical_sideband_high_low, 0, historical_sideband_high_low, max);
+    TLine *line_historical_sideband_high_high = new TLine(historical_sideband_high_high, 0, historical_sideband_high_high, max);
+    line_historical_signal_low->SetLineColor(kBlack);
+    line_historical_signal_low->SetLineWidth(1);
+    line_historical_signal_high->SetLineColor(kBlack);
+    line_historical_signal_high->SetLineWidth(1);
+    line_historical_sideband_low_low->SetLineColor(kBlack);
+    line_historical_sideband_low_low->SetLineWidth(1);
+    line_historical_sideband_low_low->SetLineStyle(9);
+    line_historical_sideband_low_high->SetLineColor(kBlack);
+    line_historical_sideband_low_high->SetLineWidth(1);
+    line_historical_sideband_low_high->SetLineStyle(9);
+    line_historical_sideband_high_low->SetLineColor(kBlack);
+    line_historical_sideband_high_low->SetLineWidth(1);
+    line_historical_sideband_high_low->SetLineStyle(9);
+    line_historical_sideband_high_high->SetLineColor(kBlack);
+    line_historical_sideband_high_high->SetLineWidth(1);
+    line_historical_sideband_high_high->SetLineStyle(9);
+    line_historical_signal_low->Draw("SAME");
+    line_historical_signal_high->Draw("SAME");
+    line_historical_sideband_low_low->Draw("SAME");
+    line_historical_sideband_low_high->Draw("SAME");
+    line_historical_sideband_high_low->Draw("SAME");
+    line_historical_sideband_high_high->Draw("SAME");
 
-    // draw lines for adjusted 2d window to be more comparable to our regions
-    double signal_low = OMEGA_MASS - SIGNAL_WIDTH;
-    double signal_high = OMEGA_MASS + SIGNAL_WIDTH;
-    double sideband_low_center = OMEGA_MASS - SIDEBAND_GAP - SIGNAL_WIDTH * 0.5;
-    double sideband_low_low = sideband_low_center - SIGNAL_WIDTH;
-    double sideband_low_high = sideband_low_center + SIGNAL_WIDTH;
-    double sideband_high_center = OMEGA_MASS + SIDEBAND_GAP + SIGNAL_WIDTH * 0.5;
-    double sideband_high_low = sideband_high_center - SIGNAL_WIDTH;
-    double sideband_high_high = sideband_high_center + SIGNAL_WIDTH;
+    // draw lines for adjusted 2d window to be more comparable to our regions    
+    double sideband_low_low = SIGNAL_LOW - SIGNAL_HALF_WIDTH;
+    double sideband_low_high = SIGNAL_LOW;    
+    double sideband_high_low = SIGNAL_HIGH;
+    double sideband_high_high = SIGNAL_HIGH + SIGNAL_HALF_WIDTH;
 
-    TLine *line_signal_low = new TLine(signal_low, 0, signal_low, short_max);
-    TLine *line_signal_high = new TLine(signal_high, 0, signal_high, short_max);
+    TLine *line_signal_low = new TLine(SIGNAL_LOW, 0, SIGNAL_LOW, short_max);
+    TLine *line_signal_high = new TLine(SIGNAL_HIGH, 0, SIGNAL_HIGH, short_max);
     TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, short_max);
     TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, short_max);
     TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, short_max);
@@ -189,15 +187,15 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     legend_omega->AddEntry(h_individual_vector[2], "Sidebands", "f");
     legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
     legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
-    legend_omega->AddEntry(line_standard_signal_low, "Standard 2D Signal", "l");
-    legend_omega->AddEntry(line_standard_sideband_low_low, "Standard 2D Sidebands", "l");
+    legend_omega->AddEntry(line_historical_signal_low, "Historical 2D Signal", "l");
+    legend_omega->AddEntry(line_historical_sideband_low_low, "Historical 2D Sidebands", "l");
     legend_omega->Draw();
 
     TString output_suffix = mc ? "_mc" : "_data";
     c->SaveAs("sideband_omega_mass" + output_suffix + ".pdf");
     c->Clear();
 
-    // plot standard 2d sideband method result
+    // plot historical 2d sideband method result
     h_2d_vector[0]->SetLineColor(kBlack);
     h_2d_vector[0]->SetLineWidth(2);
     h_2d_vector[0]->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{1}#pi^{0}_{2} Inv. Mass (GeV)");
@@ -213,33 +211,23 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     h_individual_vector[3]->SetLineColor(kGray);
     h_individual_vector[3]->SetLineWidth(2);
 
-    h_individual_vector[4]->SetLineColor(kBlue);
+    // plot norwegian result
+    h_individual_vector[4]->SetLineColor(kMagenta);
     h_individual_vector[4]->SetLineWidth(1);
-
-    // add signal and sideband histograms
-    h_individual_vector[5]->SetLineColor(kViolet);
-    h_individual_vector[5]->SetLineWidth(1);
-    h_individual_vector[6]->SetLineColor(kRed - 2);
-    h_individual_vector[6]->SetLineWidth(1);
-    h_individual_vector[6]->SetFillColorAlpha(kRed - 2, 0.35);
 
     h_2d_vector[0]->Draw("HIST");
     h_2d_vector[1]->Draw("HIST SAME");
     h_individual_vector[3]->Draw("HIST SAME");
     h_individual_vector[4]->Draw("HIST SAME");
-    h_individual_vector[5]->Draw("HIST SAME");
-    h_individual_vector[6]->Draw("HIST SAME");
-    h_2d_vector[0]->SetMinimum(h_individual_vector[6]->GetMinimum() * 1.2);
-    h_2d_vector[0]->SetMaximum(h_individual_vector[3]->GetMaximum() * 1.2);
+    h_2d_vector[0]->SetMinimum(h_individual_vector[4]->GetMinimum() * 1.1);
+    h_2d_vector[0]->SetMaximum(h_individual_vector[3]->GetMaximum() * 1.1);
 
     TLegend *legend = new TLegend(0.65, 0.75, 0.95, 0.95);
     legend->SetBorderSize(0);
     legend->AddEntry(h_individual_vector[3], "Data (no SB)", "l");
-    legend->AddEntry(h_2d_vector[0], "Standard 2D Result", "l");
+    legend->AddEntry(h_2d_vector[0], "Historical 2D Result", "l");
     legend->AddEntry(h_2d_vector[1], "Adjusted 2D Result", "l");
-    legend->AddEntry(h_individual_vector[4], "Norwegian Signal", "l");
-    legend->AddEntry(h_individual_vector[6], "Norwegian Sidebands", "f");
-    legend->AddEntry(h_individual_vector[5], "Norwegian Result", "l");
+    legend->AddEntry(h_individual_vector[4], "Norwegian Result", "l");
     legend->Draw();
 
     c->SaveAs("sideband" + output_suffix + ".pdf");
@@ -363,7 +351,7 @@ std::vector<TH1F *> sideband_individual(
 
     // setup histograms for each permutation
     TH1F *h_omega_mass[2], *h_omega_mass_sig[2], *h_omega_mass_sb[2];
-    TH1F *h_omega_pi0_mass[2], *h_omega_pi0_mass_result[2], *h_omega_pi0_mass_sig[2], *h_omega_pi0_mass_sb[2];
+    TH1F *h_omega_pi0_mass[2], *h_omega_pi0_mass_result[2];
 
     // Begin loop over permutations
     for (std::map<int, std::vector<TString>>::const_iterator perm_it = fs_permutation_to_order_map.begin();
@@ -388,23 +376,22 @@ std::vector<TH1F *> sideband_individual(
             "abs(%s-%f)<%f",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_WIDTH);
-
-        // Instead of using two sidebands centered at +/- SIDEBAND_GAP from the signal
-        // region, we'll use two sidebands in the region
-        // +/- SIDEBAND_GAP to +/- (SIDEBAND_GAP + SIGNAL_WIDTH)
+            SIGNAL_HALF_WIDTH);        
+        
+        // We'll use two sidebands in the region
+        // (OMEGA_MASS +/- SIGNAL_HALF_WIDTH) to 
+        // +/- (OMEGA_MASS +/- SIGNAL_HALF_WIDTH + SIGNAL_HALF_WIDTH)
         // This way, the sideband regions together have the same width as the signal
         // region and we don't have to handle any weighting factors
         TString sideband_region_cut = TString::Format(
             "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIDEBAND_GAP,
+            SIGNAL_HALF_WIDTH,
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIDEBAND_GAP,
-            SIGNAL_WIDTH);
-
+            SIGNAL_HALF_WIDTH,
+            SIGNAL_HALF_WIDTH);
         FSCut::defineCut(
             "omega_sb_subtraction",
             signal_region_cut,
@@ -454,7 +441,7 @@ std::vector<TH1F *> sideband_individual(
             "omega_pi0_mass_cut",
             omega_pi0_mass_cut);
 
-        // full omega pi0 mass distribution with standard cuts and the sideband
+        // full omega pi0 mass distribution with historical cuts and the sideband
         // subtraction applied
         h_omega_pi0_mass[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
@@ -463,13 +450,6 @@ std::vector<TH1F *> sideband_individual(
             omega_pi0_mass,
             "(100,1.0,2.0)",
             TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTWT(rf)", cuts.Data()));
-        h_omega_pi0_mass_sig[perm_number - 1] = FSModeHistogram::getTH1F(
-            input_files,
-            NT,
-            CATEGORY,
-            omega_pi0_mass,
-            "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,omega_sb_subtraction,%s)*CUTWT(rf)", cuts.Data()));
         h_omega_pi0_mass_result[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
@@ -477,13 +457,6 @@ std::vector<TH1F *> sideband_individual(
             omega_pi0_mass,
             "(100,1.0,2.0)",
             TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTWT(omega_sb_subtraction,rf)", cuts.Data()));
-        h_omega_pi0_mass_sb[perm_number - 1] = FSModeHistogram::getTH1F(
-            input_files,
-            NT,
-            CATEGORY,
-            omega_pi0_mass,
-            "(100,1.0,2.0)",
-            TString::Format("CUT(omega_pi0_mass_cut,%s)*CUTSB(omega_sb_subtraction)*CUTWT(rf)*(-1.0)", cuts.Data()));
     } // end loop over permutations
 
     // Now combine the two permutations' histograms
@@ -497,17 +470,11 @@ std::vector<TH1F *> sideband_individual(
     h_omega_pi0_mass_total->Add(h_omega_pi0_mass[1]);
     TH1F *h_omega_pi0_mass_result_total = (TH1F *)h_omega_pi0_mass_result[0]->Clone("h_omega_pi0_mass_result_total");
     h_omega_pi0_mass_result_total->Add(h_omega_pi0_mass_result[1]);
-    TH1F *h_omega_pi0_mass_sig_total = (TH1F *)h_omega_pi0_mass_sig[0]->Clone("h_omega_pi0_mass_sig_total");
-    h_omega_pi0_mass_sig_total->Add(h_omega_pi0_mass_sig[1]);
-    TH1F *h_omega_pi0_mass_sb_total = (TH1F *)h_omega_pi0_mass_sb[0]->Clone("h_omega_pi0_mass_sb_total");
-    h_omega_pi0_mass_sb_total->Add(h_omega_pi0_mass_sb[1]);
 
     return std::vector<TH1F *>{
         h_omega_mass_total,
         h_omega_mass_sig_total,
         h_omega_mass_sb_total,
         h_omega_pi0_mass_total,
-        h_omega_pi0_mass_sig_total,
-        h_omega_pi0_mass_result_total,
-        h_omega_pi0_mass_sb_total};
+        h_omega_pi0_mass_result_total};
 }
