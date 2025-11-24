@@ -288,7 +288,7 @@ TH2F* draw_norwegian_sideband_regions(
     TH2F *h_ax = new TH2F(
         "h_axes", 
         ";M(\\pi^{+}\\pi^{-}\\pi^{0}_{1}) (GeV);M(\\pi^{+}\\pi^{-}\\pi^{0}_{2}) (GeV)", 
-        100, 0.5652, 1.0, 100, 0.5652, 1.0);
+        100, 0.366, 1.2, 100, 0.366, 1.2);
     h_ax->Draw(); 
 
     
@@ -307,48 +307,97 @@ TH2F* draw_norwegian_sideband_regions(
     Int_t norwegian_blue = TColor::GetColor("#00205B");
     Int_t norwegian_red = TColor::GetColor("#BA0C2F");
 
-    // fill sideband regions with solid red
+    // fill sideband regions with fillstyle 3001 red
     TBox *box_sideband_low_x = new TBox(sideband_low_low, min_y, sideband_low_high, max_y);
     box_sideband_low_x->SetFillColor(norwegian_red);
+    box_sideband_low_x->SetFillStyle(3001);
     box_sideband_low_x->SetLineColor(0);
     box_sideband_low_x->Draw("SAME");
 
     TBox *box_sideband_high_x = new TBox(sideband_high_low, min_y, sideband_high_high, max_y);
     box_sideband_high_x->SetFillColor(norwegian_red);
+    box_sideband_high_x->SetFillStyle(3001);
     box_sideband_high_x->SetLineColor(0);
     box_sideband_high_x->Draw("SAME");
 
     TBox *box_sideband_low_y = new TBox(min_x, sideband_low_low, max_x, sideband_low_high);
     box_sideband_low_y->SetFillColor(norwegian_red);
+    box_sideband_low_y->SetFillStyle(3001);
     box_sideband_low_y->SetLineColor(0);
     box_sideband_low_y->Draw("SAME");
 
     TBox *box_sideband_high_y = new TBox(min_x, sideband_high_low, max_x, sideband_high_high);
     box_sideband_high_y->SetFillColor(norwegian_red);
+    box_sideband_high_y->SetFillStyle(3001);
     box_sideband_high_y->SetLineColor(0);
     box_sideband_high_y->Draw("SAME");
 
-    // TODO: fill sideband overlap region with red, but fillstyle of (3001)
+    // Fill all four sideband overlap regions with solid red
+    TBox *box_sideband_overlap_ll = new TBox(sideband_low_low, sideband_low_low, sideband_low_high, sideband_low_high); // lower left
+    box_sideband_overlap_ll->SetFillColor(norwegian_red);
+    box_sideband_overlap_ll->SetLineColor(0);
+    box_sideband_overlap_ll->Draw("SAME");
 
-    // fill signal region with solid blue
+    TBox *box_sideband_overlap_lh = new TBox(sideband_low_low, sideband_high_low, sideband_low_high, sideband_high_high); // lower right
+    box_sideband_overlap_lh->SetFillColor(norwegian_red);
+    box_sideband_overlap_lh->SetLineColor(0);
+    box_sideband_overlap_lh->Draw("SAME");
+
+    TBox *box_sideband_overlap_hl = new TBox(sideband_high_low, sideband_low_low, sideband_high_high, sideband_low_high); // upper left
+    box_sideband_overlap_hl->SetFillColor(norwegian_red);
+    box_sideband_overlap_hl->SetLineColor(0);
+    box_sideband_overlap_hl->Draw("SAME");
+
+    TBox *box_sideband_overlap_hh = new TBox(sideband_high_low, sideband_high_low, sideband_high_high, sideband_high_high); // upper right
+    box_sideband_overlap_hh->SetFillColor(norwegian_red);
+    box_sideband_overlap_hh->SetLineColor(0);
+    box_sideband_overlap_hh->Draw("SAME");
+
+    // fill signal region with solid blue, fillstyle 3008
     TBox *box_signal_x = new TBox(signal_low, min_y, signal_high, max_y);
     box_signal_x->SetFillColor(norwegian_blue);
+    box_signal_x->SetFillStyle(3008);
     box_signal_x->SetLineColor(0);
     box_signal_x->Draw("SAME");
 
     TBox *box_signal_y = new TBox(min_x, signal_low, max_x, signal_high);
     box_signal_y->SetFillColor(norwegian_blue);
+    box_signal_y->SetFillStyle(3008);
     box_signal_y->SetLineColor(0);
     box_signal_y->Draw("SAME");
 
-    // TODO: fill signal overlap region with blue, but fillstyle of (3008)
+    // Fill signal overlap region with solid blue
+    TBox *box_signal_overlap = new TBox(signal_low, signal_low, signal_high, signal_high);
+    box_signal_overlap->SetFillColor(norwegian_blue);
+    box_signal_overlap->SetLineColor(0);
+    box_signal_overlap->Draw("SAME");
 
-    // TODO: fill signal and sideband overlap regions with empty boxes (white solid fill)
+    // Fill signal and sideband overlap regions with empty boxes (white solid fill) in all four corners
+    TBox *box_empty_signal_sideband_ll = new TBox(signal_low, sideband_low_low, signal_high, sideband_low_high); // lower left
+    box_empty_signal_sideband_ll->SetFillColor(kWhite);
+    box_empty_signal_sideband_ll->SetLineColor(kBlack);
+    box_empty_signal_sideband_ll->Draw("SAME");
+
+    TBox *box_empty_signal_sideband_lh = new TBox(signal_low, sideband_high_low, signal_high, sideband_high_high); // lower right
+    box_empty_signal_sideband_lh->SetFillColor(kWhite);
+    box_empty_signal_sideband_lh->SetLineColor(kBlack);
+    box_empty_signal_sideband_lh->Draw("SAME");
+
+    TBox *box_empty_signal_sideband_hl = new TBox(sideband_low_low, signal_low, sideband_low_high, signal_high); // upper left
+    box_empty_signal_sideband_hl->SetFillColor(kWhite);
+    box_empty_signal_sideband_hl->SetLineColor(kBlack);
+    box_empty_signal_sideband_hl->Draw("SAME");
+
+    TBox *box_empty_signal_sideband_hh = new TBox(sideband_high_low, signal_low, sideband_high_high, signal_high); // upper right
+    box_empty_signal_sideband_hh->SetFillColor(kWhite);
+    box_empty_signal_sideband_hh->SetLineColor(kBlack);
+    box_empty_signal_sideband_hh->Draw("SAME");
 
     TLegend *legend = new TLegend(0.75, 0.75, 0.85, 0.85);
     legend->AddEntry(box_sideband_low_x, "-1.0", "f");
     legend->AddEntry(box_signal_x, "+1.0", "f");
-    // TODO: add overlap region entries
+    legend->AddEntry(box_sideband_overlap_ll, "-2.0", "f");
+    legend->AddEntry(box_signal_overlap, "+2.0", "f");
     legend->Draw();
 
     return h_ax;
