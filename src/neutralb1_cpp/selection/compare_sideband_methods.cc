@@ -145,10 +145,10 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     line_historical_sideband_high_high->Draw("SAME");
 
     // draw lines for adjusted 2d window to be more comparable to our regions    
-    double sideband_low_low = SIGNAL_LOW - SIGNAL_HALF_WIDTH;
+    double sideband_low_low = SIGNAL_LOW - SIGNAL_FULL_WIDTH;
     double sideband_low_high = SIGNAL_LOW;    
     double sideband_high_low = SIGNAL_HIGH;
-    double sideband_high_high = SIGNAL_HIGH + SIGNAL_HALF_WIDTH;
+    double sideband_high_high = SIGNAL_HIGH + SIGNAL_FULL_WIDTH;
 
     TLine *line_signal_low = new TLine(SIGNAL_LOW, 0, SIGNAL_LOW, short_max);
     TLine *line_signal_high = new TLine(SIGNAL_HIGH, 0, SIGNAL_HIGH, short_max);
