@@ -20,29 +20,27 @@
 #include "TLegend.h"
 
 TH2F* draw_2d_sideband_regions(
-    double omega_mass,
-    double signal_width, 
-    double sideband_gap
+    double omega_mass
 );
 TH2F* draw_norwegian_sideband_regions(
     double omega_mass,
-    double signal_width,
+    double signal_half_width,
     double sideband_gap
 );
 
 void visualize_2d()
 {
     const double OMEGA_MASS = 0.7826;             // PDG omega mass in GeV
-    const double SIGNAL_WIDTH = 0.00868 * 3;      // exactly 3 sigma of PDG omega width
-    const double SIDEBAND_GAP = SIGNAL_WIDTH * 3; // 9 sigma distance from signal region
+    const double SIGNAL_FULL_WIDTH = 0.168;      // full width of signal region in GeV (6 sigma)
+    const double SIGNAL_HALF_WIDTH = SIGNAL_FULL_WIDTH / 2; // half width of signal region in GeV (3 sigma)
+    const double SIDEBAND_GAP = SIGNAL_HALF_WIDTH; // where the sideband begins (at end of signal)
 
     TCanvas *c = new TCanvas("c", "c", 800, 800);  
     c->SetMargin(0.12, 0.12, 0.12, 0.12);
 
+    // TODO: update regions for both plots, 2d should use historical values
     TH2F *h = draw_2d_sideband_regions(
-        OMEGA_MASS,
-        SIGNAL_WIDTH,
-        SIDEBAND_GAP        
+        OMEGA_MASS
     );
     h->SetStats(0);
     c->SaveAs("2d_sideband_regions.pdf");
@@ -51,7 +49,7 @@ void visualize_2d()
 
     TH2F *h2 = draw_norwegian_sideband_regions(
         OMEGA_MASS,
-        SIGNAL_WIDTH,
+        SIGNAL_HALF_WIDTH,
         SIDEBAND_GAP
     );
     h2->SetStats(0);
@@ -62,9 +60,7 @@ void visualize_2d()
 }
 
 TH2F* draw_2d_sideband_regions(
-    double omega_mass,
-    double signal_width, 
-    double sideband_gap
+    double omega_mass
 )
 {
     // draw axes    
@@ -75,14 +71,14 @@ TH2F* draw_2d_sideband_regions(
     h_axes->Draw(); 
 
     // draw y-axis lines
-    double signal_low = omega_mass - signal_width;
-    double signal_high = omega_mass + signal_width;
-    double sideband_low_center = omega_mass - sideband_gap - signal_width * 0.5;
-    double sideband_low_low = sideband_low_center - signal_width;
-    double sideband_low_high = sideband_low_center + signal_width;
-    double sideband_high_center = omega_mass + sideband_gap + signal_width * 0.5;
-    double sideband_high_low = sideband_high_center - signal_width;
-    double sideband_high_high = sideband_high_center + signal_width;
+
+    // values taken from historical method as implemented in compare_sideband_methods.cc
+    double signal_low = 0.760;
+    double signal_high = 0.805;    
+    double sideband_low_low = 0.690;
+    double sideband_low_high = 0.735;
+    double sideband_high_low = 0.830;
+    double sideband_high_high = 0.875;
 
     double min_y = h_axes->GetYaxis()->GetXmin();
     double max_y = h_axes->GetYaxis()->GetXmax();
@@ -284,7 +280,7 @@ TH2F* draw_2d_sideband_regions(
 
 TH2F* draw_norwegian_sideband_regions(
     double omega_mass,
-    double signal_width,
+    double signal_half_width,
     double sideband_gap
 )
 {
@@ -296,12 +292,12 @@ TH2F* draw_norwegian_sideband_regions(
     h_ax->Draw(); 
 
     
-    double signal_low = omega_mass - signal_width;
-    double signal_high = omega_mass + signal_width;    
+    double signal_low = omega_mass - signal_half_width;
+    double signal_high = omega_mass + signal_half_width;    
     double sideband_low_low = omega_mass - sideband_gap;
-    double sideband_low_high = omega_mass - sideband_gap - signal_width;    
+    double sideband_low_high = omega_mass - sideband_gap - signal_half_width;    
     double sideband_high_low = omega_mass + sideband_gap;
-    double sideband_high_high = omega_mass + sideband_gap + signal_width;
+    double sideband_high_high = omega_mass + sideband_gap + signal_half_width;
 
     double min_y = h_ax->GetYaxis()->GetXmin();
     double max_y = h_ax->GetYaxis()->GetXmax();
@@ -332,6 +328,9 @@ TH2F* draw_norwegian_sideband_regions(
     box_sideband_high_y->SetLineColor(0);
     box_sideband_high_y->Draw("SAME");
 
+    // TODO: fill sideband overlap region with red, but fillstyle of (3001)
+
+    // fill signal region with solid blue
     TBox *box_signal_x = new TBox(signal_low, min_y, signal_high, max_y);
     box_signal_x->SetFillColor(norwegian_blue);
     box_signal_x->SetLineColor(0);
@@ -342,9 +341,14 @@ TH2F* draw_norwegian_sideband_regions(
     box_signal_y->SetLineColor(0);
     box_signal_y->Draw("SAME");
 
+    // TODO: fill signal overlap region with blue, but fillstyle of (3008)
+
+    // TODO: fill signal and sideband overlap regions with empty boxes (white solid fill)
+
     TLegend *legend = new TLegend(0.75, 0.75, 0.85, 0.85);
     legend->AddEntry(box_sideband_low_x, "-1.0", "f");
     legend->AddEntry(box_signal_x, "+1.0", "f");
+    // TODO: add overlap region entries
     legend->Draw();
 
     return h_ax;
