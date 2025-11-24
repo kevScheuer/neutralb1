@@ -183,8 +183,8 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     TLegend *legend_omega = new TLegend(0.65, 0.75, 0.95, 0.95);
     legend_omega->SetBorderSize(1);
     legend_omega->AddEntry(h_individual_vector[0], "Data", "l");
-    legend_omega->AddEntry(h_individual_vector[1], "Signal", "f");
-    legend_omega->AddEntry(h_individual_vector[2], "Sidebands", "f");
+    legend_omega->AddEntry(h_individual_vector[1], "Norwegian Signal", "f");
+    legend_omega->AddEntry(h_individual_vector[2], "Norwegian Sidebands", "f");
     legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
     legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
     legend_omega->AddEntry(line_historical_signal_low, "Historical 2D Signal", "l");
@@ -405,21 +405,21 @@ std::vector<TH1F *> sideband_individual(
             NT,
             CATEGORY,
             data_omega_mass,
-            "(100,0.6,1.0)",
+            "(100,0.5,1.1)",
             TString::Format("CUT(%s)*CUTWT(rf)", cuts.Data()));
         h_omega_mass_sig[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
             CATEGORY,
             data_omega_mass,
-            "(100,0.6,1.0)",
+            "(100,0.5,1.1)",
             TString::Format("CUT(%s,omega_sb_subtraction)*CUTWT(rf)", cuts.Data()));
         h_omega_mass_sb[perm_number - 1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
             CATEGORY,
             data_omega_mass,
-            "(100,0.6,1.0)",
+            "(100,0.5,1.1)",
             TString::Format("CUT(%s)*CUTSB(omega_sb_subtraction)*CUTWT(rf)", cuts.Data()));
 
         // ==== omega pi0 mass ====
