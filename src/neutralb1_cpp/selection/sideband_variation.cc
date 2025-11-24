@@ -84,7 +84,7 @@ void sideband_variation(int period, bool mc = false)
             period);
     }
     TString NT, CATEGORY;
-    std::tie(NT, CATEGORY) = setup(true);
+    std::tie(NT, CATEGORY) = setup(false);
     std::map<TString, Int_t> cut_color_map = load_broad_cuts();
     TString cuts = join_keys(cut_color_map);
 
@@ -245,16 +245,16 @@ TH1F *get_omega_mass(TString input_files, TString NT, TString CATEGORY, TString 
         data_omega_mass_1,
         "(100, 0.4, 1.200)",
         TString::Format(
-            "CUT(%s)&&CUTWT(rf)",
+            "CUT(%s)*CUTWT(rf)",
             cuts.Data()));
     TH1F *h_omega_mass_2 = FSModeHistogram::getTH1F(
         input_files,
         NT,
         CATEGORY,
         data_omega_mass_2,
-        "(100, 0.3, 1.200)",
+        "(100, 0.4, 1.200)",
         TString::Format(
-            "CUT(%s)&&CUTWT(rf)",
+            "CUT(%s)*CUTWT(rf)",
             cuts.Data()));
 
     // add both permutations together
@@ -307,123 +307,161 @@ void plot_omega_pi0_sideband_variations(
     bool mc)
 {
     const double omega_mass = 0.78266; // PDG omega mass in GeV
+
     TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);    
     std::vector<int> sideband_colors = {
         kRed + 3, kRed + 2, kRed + 1, kRed};
 
-    // first lets get the omega pi0 mass distribution after all cuts, but no omega selections
-    TH1F *h_omega_pi0 = FSModeHistogram::getTH1F(
-        input_files,
-        NT,
-        CATEGORY,
-        "MASS(2,3,4,5)",
-        "(100, 1.0, 2.0)",
-        TString::Format(
-            "CUT(%s)*CUTWT(rf)",
-            cuts.Data()));
+    // For accurate comparison, we need to plot both permutations together on the same
+    // omega pi0 plot. We'll copy the method in friend_reorder to have a 1:1 methodology
+    std::map<int, std::vector<TString>> fs_permutation_to_order_map = {
+        {1, {"B", "1", "2", "3", "4", "5"}}, // particle 4 = pi0 from omega
+        {2, {"B", "1", "2", "3", "5", "4"}}  // particle 5 = pi0 from omega
+    };
 
-    h_omega_pi0->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
-    h_omega_pi0->SetLineColor(kBlack);
-    double bin_width = get_bin_width(h_omega_pi0);
-    h_omega_pi0->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    h_omega_pi0->SetTitle("");
+    TH1F *h_omega_pi0[2], *h_signal_highlight[2];
+    std::vector<TH1F *> sideband_subtracted_histograms;    
 
-    double signal_low_edge, signal_high_edge;
-    std::tie(signal_low_edge, signal_high_edge) = get_signal_edges(omega_mass, signal_half_width);
-
-    // next we'll obtain just the signal region histogram for omega pi0
-    TString signal_cut = TString::Format(
-        "((MASS(2,3,4)>%f&&MASS(2,3,4)<%f)||(MASS(2,3,5)>%f&&MASS(2,3,5)<%f))",
-        signal_low_edge,
-        signal_high_edge,
-        signal_low_edge,
-        signal_high_edge);
-    TH1F *h_signal_highlight = FSModeHistogram::getTH1F(
-        input_files,
-        NT,
-        CATEGORY,
-        "MASS(2,3,4,5)",
-        "(100, 1.0, 2.0)",
-        TString::Format(
-            "%s*CUT(%s)*CUTWT(rf)",
-            signal_cut.Data(),
-            cuts.Data()));
-    h_signal_highlight->SetLineWidth(1);
-    h_signal_highlight->SetLineColor(kGreen + 1);    
-
-    // now we can loop over the different sideband selections
-    std::vector<TH1F *> sideband_subtracted_histograms;
-    std::vector<TH1F *> sideband_highlight_histograms;
-    for(const auto& edges : sideband_edges)
+    for (std::map<int, std::vector<TString>>::const_iterator perm_it = fs_permutation_to_order_map.begin();
+         perm_it != fs_permutation_to_order_map.end(); ++perm_it)
     {
-        double sideband_left_low_edge = edges.first.first;
-        double sideband_left_high_edge = edges.first.second;
-        double sideband_right_low_edge = edges.second.first;
-        double sideband_right_high_edge = edges.second.second;
+        int perm = perm_it->first;
+        std::vector<TString> perm_particles = perm_it->second;
 
-        // since the sidebands are defined by the arrows from before, its easier just 
-        // to store those values and use them directly here instead of the simpler 
-        // abs() method.
-        TString low_sb_cut = TString::Format(
-            "(MASS(2,3,4)>%f&&MASS(2,3,4)<%f)||(MASS(2,3,5)>%f&&MASS(2,3,5)<%f)",
-            sideband_left_low_edge,
-            sideband_left_high_edge,
-            sideband_left_low_edge,
-            sideband_left_high_edge);
-        TString high_sb_cut = TString::Format(
-            "(MASS(2,3,4)>%f&&MASS(2,3,4)<%f)||(MASS(2,3,5)>%f&&MASS(2,3,5)<%f)",
-            sideband_right_low_edge,
-            sideband_right_high_edge,
-            sideband_right_low_edge,
-            sideband_right_high_edge);
+        int beam = 0;
+        int proton = 1;
+        int pi_plus = 2;
+        int pi_minus = 3;
+        int pi0_omega = 4;
+        int pi0_bachelor = 5;
 
-        // this reads: "If either 3pi permutation is in the low or high sideband, and 
-        // neither is in the signal region"
-        TString sideband_cut = TString::Format(
-            "(%s||%s)&&(!%s)",
-            low_sb_cut.Data(),
-            high_sb_cut.Data(),
-            signal_cut.Data());
+        TString data_omega_mass = TString::Format(
+            "MASS(%s,%s,%s)",
+            perm_particles[pi_plus].Data(),
+            perm_particles[pi_minus].Data(),
+            perm_particles[pi0_omega].Data());
 
-        FSCut::defineCut("selection", signal_cut, sideband_cut, 1.0);
+        TString data_omega_pi0_mass = TString::Format(
+            "MASS(%s,%s,%s,%s)",            
+            perm_particles[pi_plus].Data(),
+            perm_particles[pi_minus].Data(),
+            perm_particles[pi0_omega].Data(),
+            perm_particles[pi0_bachelor].Data());
 
-        TH1F *h_sideband_subtracted = FSModeHistogram::getTH1F(
+        // get the omega pi0 mass distribution for this permutation, with broad cuts applied
+        h_omega_pi0[perm-1] = FSModeHistogram::getTH1F(
             input_files,
             NT,
             CATEGORY,
-            "MASS(2,3,4,5)",
+            data_omega_pi0_mass,
             "(100, 1.0, 2.0)",
             TString::Format(
-                "CUT(%s)*CUTWT(rf)*CUTWT(selection)",
-                cuts.Data()));        
-        h_sideband_subtracted->SetLineWidth(1);
-        h_sideband_subtracted->SetLineColor(sideband_colors[&edges - &sideband_edges[0]]);
-        sideband_subtracted_histograms.push_back(h_sideband_subtracted);
-
-        TH1F *h_sideband_highlight = FSModeHistogram::getTH1F(
-            input_files,
-            NT,
-            CATEGORY,
-            "MASS(2,3,4,5)",
-            "(100, 1.0, 2.0)",
-            TString::Format(
-                "CUT(%s)*CUTWT(rf)*CUTSB(selection)*(-1)",
+                "CUT(%s)*CUTWT(rf)",
                 cuts.Data()));
-        h_sideband_highlight->SetLineWidth(1);
-        h_sideband_highlight->SetLineColor(sideband_colors[&edges - &sideband_edges[0]]);
-        sideband_highlight_histograms.push_back(h_sideband_highlight);
-    }
+        
+        // define the constant signal region
+        TString signal_region = TString::Format(
+            "abs(%s-%f)<%f",
+            data_omega_mass.Data(),
+            omega_mass,
+            signal_half_width
+        );
 
-    // draw everything
-    h_omega_pi0->Draw("HIST");
-    h_signal_highlight->Draw("HIST SAME");
+        // now loop over each sideband variation
+        for(int sb_iter=0; sb_iter < sideband_edges.size(); ++sb_iter)
+        {
+            double sideband_left_low_edge = sideband_edges[sb_iter].first.first;
+            double sideband_left_high_edge = sideband_edges[sb_iter].first.second;
+            double sideband_right_low_edge = sideband_edges[sb_iter].second.first;
+            double sideband_right_high_edge = sideband_edges[sb_iter].second.second;
+
+            double sideband_gap = sideband_right_low_edge - omega_mass;
+            double sideband_width = sideband_right_high_edge - sideband_right_low_edge;        
+
+            // check that sidebands are symmetric about the omega mass
+            if (std::abs((omega_mass - sideband_left_high_edge) - sideband_gap) > 1e-6)
+            {
+                std::cerr << "Warning: Sideband gap inconsistency detected!" << std::endl;
+            }
+            if (std::abs((sideband_left_high_edge - sideband_left_low_edge) - sideband_width) > 1e-6)
+            {
+                std::cerr << "Warning: Sideband width inconsistency detected!" << std::endl;
+            }
+
+            TString sideband_region_cut = TString::Format(
+                "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
+                data_omega_mass.Data(),
+                omega_mass,
+                sideband_gap,
+                data_omega_mass.Data(),
+                omega_mass,
+                sideband_gap,
+                sideband_width);
+
+            std::cout << "Sideband variation " << sb_iter << ": "
+                      << sideband_region_cut
+                      << std::endl;
+
+            FSCut::defineCut("selection", signal_region, sideband_region_cut, 1.0);
+
+            TH1F *h_sideband_subtracted = FSModeHistogram::getTH1F(
+                input_files,
+                NT,
+                CATEGORY,
+                data_omega_pi0_mass,
+                "(100, 1.0, 2.0)",
+                TString::Format(
+                    "CUT(%s)*CUTWT(rf, selection)",
+                    cuts.Data()));        
+            
+            // add the permutations together
+            if(perm == 1)
+            {
+                sideband_subtracted_histograms.push_back(h_sideband_subtracted);                
+            }
+            else
+            {
+                sideband_subtracted_histograms[sb_iter]->Add(h_sideband_subtracted);
+            }            
+        }
+        // this can be done after FSCut defined because it selects a constant signal 
+        // region
+        h_signal_highlight[perm-1] = FSModeHistogram::getTH1F(
+            input_files,
+            NT,
+            CATEGORY,
+            data_omega_pi0_mass,
+            "(100, 1.0, 2.0)",
+            TString::Format(
+                "CUT(%s,selection)*CUTWT(rf)",                
+                cuts.Data()));
+    } // end loop over permutations
+
+    // add the total and signal histograms together
+    h_omega_pi0[0]->Add(h_omega_pi0[1]);
+    h_signal_highlight[0]->Add(h_signal_highlight[1]);
+
+    // plot
+    h_omega_pi0[0]->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
+    h_omega_pi0[0]->SetLineColor(kBlack);
+    double bin_width = get_bin_width(h_omega_pi0[0]);
+    h_omega_pi0[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    h_omega_pi0[0]->SetTitle("");
+    h_omega_pi0[0]->Draw("HIST");
+
+    h_signal_highlight[0]->SetLineWidth(1);
+    h_signal_highlight[0]->SetLineColor(kGreen + 1);    
+    h_signal_highlight[0]->Draw("HIST SAME");
+
     for (int i = 0; i < sideband_subtracted_histograms.size(); ++i)
     {
+        sideband_subtracted_histograms[i]->SetLineWidth(1);
+        sideband_subtracted_histograms[i]->SetLineColor(sideband_colors[i]);
         sideband_subtracted_histograms[i]->Draw("HIST SAME");
     }
     FSHistogram::dumpHistogramCache();
     c->SaveAs(TString::Format("omega_pi0_sideband_variation_%d%s.pdf",
                               period,
                               mc ? "_mc" : "_data"));
-    // NOTE: for now the negative sideband highlights are not drawn to reduce clutter    
+    return; 
 }
