@@ -45,9 +45,13 @@ TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
 
 // we make these TStrings for the FSCut definitions
-float OMEGA_MASS = 0.7826;             // PDG omega mass in GeV
-float SIGNAL_WIDTH = 0.00868 * 3;      // exactly 3 sigma of PDG omega width
-float SIDEBAND_GAP = SIGNAL_WIDTH * 3; // 9 sigma distance from signal region
+double OMEGA_MASS = 0.78266;             // PDG omega mass in GeV
+double SIGNAL_FULL_WIDTH = 0.168;      // full width of signal region in GeV (6 sigma)
+double SIGNAL_HALF_WIDTH = SIGNAL_FULL_WIDTH / 2; // half width of signal region in GeV (3 sigma)
+double SIGNAL_STDEV = SIGNAL_FULL_WIDTH / 6;      // "standard deviation" of signal region in GeV (1 sigma)
+
+double SIGNAL_HIGH = OMEGA_MASS + SIGNAL_HALF_WIDTH;
+double SIGNAL_LOW = OMEGA_MASS - SIGNAL_HALF_WIDTH;
 
 // Forward declarations
 std::vector<TH1F *> sideband_individual(
@@ -80,7 +84,7 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     // Plotting
     TCanvas *c = new TCanvas("c", "Sideband Subtraction Methods", 800, 600);
 
-    // plot omega mass, highglighting signal and sideband regions
+    // plot omega mass, highlighting signal and sideband regions
     h_individual_vector[0]->SetLineColor(kGray);
     h_individual_vector[0]->SetLineWidth(2);
     h_individual_vector[0]->SetXTitle("#pi^{+}#pi^{-}#pi^{0}_{i} Inv. Mass (GeV)");
@@ -241,13 +245,23 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     c->SaveAs("sideband" + output_suffix + ".pdf");
 }
 
+/**
+ * @brief Perform the historical 2D sideband subtraction method, and adjusted version
+ * 
+ * Adjusted refers to doing the method of the historical version, but adjusting the 
+ * signal and sideband widths/regions to better match the norwegian one
+ * 
+ * @param cut_color_map map of broad cuts to colors
+ * @param input_files files to plot from
+ * @param create_friends whether to create friend trees
+ * @return std::vector<TH1F *> vector of histograms
+ */
 std::vector<TH1F *> sideband_2d(
     std::map<TString, Int_t> &cut_color_map,
     TString input_files,
     bool create_friends = false)
 {
     TString cuts = join_keys(cut_color_map);
-    cuts += ",rf"; // will add RF cut to all plots too
 
     if (create_friends)
     {
@@ -258,7 +272,9 @@ std::vector<TH1F *> sideband_2d(
     }
     FSTree::addFriendTree("M3PI");
 
-    // ____Amy's 2D sideband subtraction method____
+    // ____Historical 2D sideband subtraction method____
+    // copied from Amy Schertz's FSRoot tutorial
+
     // cuts for the signal region
     TString SIG4("(M234>0.760&&M234<0.805)");
     TString SIG5("(M235>0.760&&M235<0.805)");
@@ -287,23 +303,30 @@ std::vector<TH1F *> sideband_2d(
         TString::Format("%s*CUT(%s)*CUTWT(rf)", OMEGAWT.Data(), cuts.Data()));
 
     // ____the same process, but now adjustd to my analysis windows____
-    SIG4 = "(M234>0.757&&M234<0.809)";
-    SIG5 = "(M235>0.757&&M235<0.809)";
+    SIG4 = TString::Format("(M234>%f&&M234<%f)", SIGNAL_LOW, SIGNAL_HIGH);
+    SIG5 = TString::Format("(M235>%f&&M235<%f)", SIGNAL_LOW, SIGNAL_HIGH);
     SIG4orSIG5 = "((" + SIG4 + ")||(" + SIG5 + "))";
 
     // cuts for the sideband regions
 
-    // for this next part, I'll refer to the full width of the omega as being
-    // +/- 3 sigma from the peak (so full width = 6 sigma). In terms of the constants,
-    // this means OMEGA_MASS +/- SIGNAL_WIDTH
+    // my analysis uses sidebands that start at the end of the signal region i.e.
+    // SIGNAL_HIGH to SIGNAL_HIGH + SIGNAL_HALF_WIDTH on the high side
+    // SIGNAL_LOW - SIGNAL_HALF_WIDTH to SIGNAL_LOW on the low side. To better compare
+    // to the 2D method of weighting, I'll double the width of the sideband regions to
+    // match the full width of the signal region
 
-    // my analysis covers the 9 sigma - 12 sigma sidebands (each sideband is 1/2 full
-    // omega width) and the 2D method sidebands are 6 sigma wide (each one covers full
-    // omega width). I'll make the new regions 10.5 sigma +/- 3 sigma. That way the
-    // way the widths are the same and I can keep the weighting scheme, while
-    // covering a comparable region
-    SB4 = "(((M234>0.666&&M234<0.718)||(M234>0.848&&M234<0.900))&&!(" + SIG4 + ")&&!(" + SIG5 + "))";
-    SB5 = "(((M235>0.666&&M235<0.718)||(M235>0.848&&M235<0.900))&&!(" + SIG4 + ")&&!(" + SIG5 + "))";
+    SB4 = TString::Format(
+        "(((M234>%f&&M234<%f)||(M234>%f&&M234<%f))&&!(%s)&&!(%s))",
+        SIGNAL_LOW - SIGNAL_FULL_WIDTH, SIGNAL_LOW,
+        SIGNAL_HIGH, SIGNAL_HIGH + SIGNAL_FULL_WIDTH,
+        SIG4.Data(), SIG5.Data()
+    );
+    SB5 = TString::Format(
+        "(((M235>%f&&M235<%f)||(M235>%f&&M235<%f))&&!(%s)&&!(%s))",
+        SIGNAL_LOW - SIGNAL_FULL_WIDTH, SIGNAL_LOW,
+        SIGNAL_HIGH, SIGNAL_HIGH + SIGNAL_FULL_WIDTH,
+        SIG4.Data(), SIG5.Data()
+    );
     SB4andSB5 = "((" + SB4 + ")&&(" + SB5 + "))";
     SB4orSB5 = "((" + SB4 + ")||(" + SB5 + "))";
     SB4xorSB5 = "(((" + SB4 + ")||(" + SB5 + "))&&!(" + SB4andSB5 + "))";
