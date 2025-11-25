@@ -187,10 +187,10 @@ void friend_reorder(int period, bool mc = false)
         // also make a "cut" branch where RF+broad cuts are applied
         branches.push_back(std::make_pair(
             "cut", TString::Format(
-                "CUT(%s,omega_pi0_mass_cut)*CUTWT(rf)", 
+                "CUT(%s,omega_pi0_mass_cut)", 
                 join_keys(cut_color_map).Data())));
-        branches.push_back(std::make_pair("signal", "CUT(omega_sb_subtraction)"));
-        branches.push_back(std::make_pair("sideband", "CUTSB(omega_sb_subtraction)"));    
+        branches.push_back(std::make_pair("signal", "CUT(rf, omega_sb_subtraction)"));
+        branches.push_back(std::make_pair("sideband", "CUTSBWT(rf, omega_sb_subtraction)"));    
         for (std::map<TString, TString>::const_iterator var_it = var_to_branch.begin();
              var_it != var_to_branch.end(); ++var_it)
         {
