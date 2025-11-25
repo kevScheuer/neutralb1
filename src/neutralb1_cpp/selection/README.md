@@ -9,7 +9,11 @@ This directory contains the event selection scripts that gives us the flat trees
 4. Once you are happy and tuned the cuts to your preference, the trees can be saved with `finalize_amptools_trees.cc`.
 
 # Specialized Scripts
-Almost every script utilizes `fsroot_setup.cc` to establish common tree names, categories, mode info, etc. Below are scripts for specific studies done to motivate the choices made in the primary analysis steps.
+Almost every script utilizes to establish common tree names, categories, mode info, etc. Below are scripts for specific studies done to motivate the choices made in the primary analysis steps.
+
+## Convenient Functions
+* `fsroot_setup.cc` is used by nearly every script to load common parameters and setup the session for FSRoot
+* `load_broad_cuts.cc` defines the FSCuts on RF, chi2, and all other non-sideband cuts. By defining them in one function, every script is ensured to use the same cut regions.
 
 ## Sideband Studies
 * `omega_fits.cc` fits the $3\pi$ spectrum with a voigt profile for the signal, and some polynomial for the background in data and MC. The fits are done in bins of $M_{\omega\pi^0}$ and $-t$ and plotted individually, along with the resulting gaussian width parameter from the Voigt function.
@@ -20,5 +24,6 @@ Almost every script utilizes `fsroot_setup.cc` to establish common tree names, c
   * Simply sideband subtracting each individual $\pi^0_i\pi^+\pi^-$ combo independently.
 
 ## Other
+* `friend_reorder.cc` creates convenient friend trees that establish signal and sideband regions for every event, such that loading the friend tree directly allows one to select them by choosing `signal==1` or `sideband==1`. The friend trees are split by permutation, so both can be added to the same histogram as intended by the norwegian method.
 * `report_integrals.cc` will report the number of combos leftover after each cut
 * `van_hove_analysis.cc` studies where the baryon systems show up in the different momentum regions, and how cuts on the momenta can influence the angular distributions
