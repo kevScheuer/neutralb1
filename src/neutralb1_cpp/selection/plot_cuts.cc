@@ -4,7 +4,9 @@
  * @brief View effects of all cuts on tree variables
  *
  * This file creates plots of several variables to select the physical
- * region of interest for a pi0pi0pi+pi- final state.
+ * region of interest for a pi0pi0pi+pi- final state. In all honesty this has become a
+ * mess, please just contact me (kscheuer) if you need to understand or modify this 
+ * code.
  *
  */
 
@@ -403,7 +405,7 @@ void plot_cuts(
         NT,
         CATEGORY,
         "omegaPi0Mass",
-        "MASS(2,3,4,5)",
+        "MASS(2,3,4,5)&&MASS(2,3,5,4)",
         "100",
         "1.0",
         "2.0",
@@ -1142,6 +1144,7 @@ TH1F* get_sideband_histogram(
     // them here because the sideband subtraction collapses to one permutation only.
     TString new_cut_var = cut_variable;
     std::map<TString,TString> cut_mapping = {
+        {"eBeam", "EnPB"},
         {"omegaMass", "MASS(3,4,5)"},
         {"omegaPi0Mass", "MASS(2,3,4,5)"},
         {"protonBachelorMass", "MRecoilPi"},
