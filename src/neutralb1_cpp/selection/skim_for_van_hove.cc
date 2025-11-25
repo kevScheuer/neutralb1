@@ -18,6 +18,8 @@
 
 #include "FSMode/FSModeTree.h"
 
+#include "fsroot_setup.cc"
+
 
 void skim_for_van_hove(int period)
 {
@@ -52,13 +54,13 @@ void skim_for_van_hove(int period)
         // sideband==1 selects sideband in the omega and rf regions
         FSModeTree::skimTree(
             TString::Format("%s.permutation_%d", input_data_file.Data(), p),
-            TString::Format("%s.permutation_%d", NT.Data(), p),
+            TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_signal", output_base_data.Data(), p),
             "CUT(cut==1,signal==1)");
         FSModeTree::skimTree(
             TString::Format("%s.permutation_%d", input_data_file.Data(), p),
-            TString::Format("%s.permutation_%d", NT.Data(), p),
+            TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_sideband", output_base_data.Data(), p),
             "CUT(cut==1,sideband==1)");
@@ -66,7 +68,7 @@ void skim_for_van_hove(int period)
         TFile *f = TFile::Open(
             TString::Format("%s.permutation_%d_sideband", output_base_data.Data(), p).Data(),
             "UPDATE");
-        TTree *t = (TTree*)f->Get(TString::Format("%s.permutation_%d", NT.Data(), p).Data());
+        TTree *t = (TTree*)f->Get(TString::Format("%s_permutation_%d", NT.Data(), p).Data());
         t->SetName(NT.Data());
         t->Write("",TObject::kOverwrite);
         f->Close();
@@ -74,20 +76,20 @@ void skim_for_van_hove(int period)
         // repeat for mc
         FSModeTree::skimTree(
             TString::Format("%s.permutation_%d", input_mc_file.Data(), p),
-            TString::Format("%s.permutation_%d", NT.Data(), p),
+            TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_signal", output_base_mc.Data(), p),
             "CUT(cut==1,signal==1)");
         FSModeTree::skimTree(
             TString::Format("%s.permutation_%d", input_mc_file.Data(), p),
-            TString::Format("%s.permutation_%d", NT.Data(), p),
+            TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_sideband", output_base_mc.Data(), p),
             "CUT(cut==1,sideband==1)");
         f = TFile::Open(
             TString::Format("%s.permutation_%d_sideband", output_base_mc.Data(), p).Data(),
             "UPDATE");
-        t = (TTree*)f->Get(TString::Format("%s.permutation_%d", NT.Data(), p).Data());
+        t = (TTree*)f->Get(TString::Format("%s_permutation_%d", NT.Data(), p).Data());
         t->SetName(NT.Data());
         t->Write("",TObject::kOverwrite);
         f->Close();
