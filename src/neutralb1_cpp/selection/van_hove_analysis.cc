@@ -186,3 +186,51 @@ void plot_relations(
     return;
 }
 
+void plot_van_hove(
+    TString NT, 
+    TString CATEGORY,    
+    TString input_signal,
+    TString input_sideband,
+    bool mc)
+{
+
+    // Three particle final state (omega, pi_bach, and recoil proton) is fed into 
+    // van hove function
+    TH2F* h_van_hove[2];
+    h_van_hove[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON
+        ),
+        "(100, -4.0, 4.0, 100, -4.0, 4.0)",
+        ""
+    );
+    h_van_hove[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON
+        ),
+        "(100, -4.0, 4.0, 100, -4.0, 4.0)",
+        ""
+    );
+    h_van_hove[0]->Add(h_van_hove[1], -1); // signal - sideband
+    h_van_hove[0]->GetXaxis()->SetTitle("X"); // TODO: figure out titles when researched
+    h_van_hove[0]->GetYaxis()->SetTitle("Y");
+    TCanvas *c_van_hove = new TCanvas("cvanhove", "cvanhove", 600, 800);
+    h_van_hove[0]->Draw("colz");
+    c_van_hove->SaveAs(
+        TString::Format(
+            "van_hove%s.pdf",
+            mc ? "_mc" : "_data"
+        )
+    );
+    
+}
