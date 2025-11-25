@@ -79,13 +79,13 @@ void skim_for_van_hove(int period)
             TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_signal", output_base_mc.Data(), p),
-            "CUT(cut==1,signal==1)");
+            "cut==1&&signal==1");
         FSModeTree::skimTree(
             TString::Format("%s.permutation_%d", input_mc_file.Data(), p),
             TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_sideband", output_base_mc.Data(), p),
-            "CUT(cut==1,sideband==1)");
+            "cut==1&&sideband==1");
         f = TFile::Open(
             TString::Format("%s.permutation_%d_sideband", output_base_mc.Data(), p).Data(),
             "UPDATE");
