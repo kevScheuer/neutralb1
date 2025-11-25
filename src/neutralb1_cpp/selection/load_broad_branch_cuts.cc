@@ -9,7 +9,7 @@
 
 #include "FSBasic/FSCut.h"
 
-std::map<TString, Int_t> load_friend_cuts()
+std::map<TString, Int_t> load_broad_branch_cuts()
 {
     std::map<TString, TString> cut_map;    
 
