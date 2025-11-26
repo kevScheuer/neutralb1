@@ -12,6 +12,9 @@
  * or we can simply sideband subtract each pi0 pi+ pi- combo independently. This file
  * compares these 2 methods to see how they affect the final omega pi0 mass
  * distribution.
+ * 
+ * Note that the "adjusted" 2d method is deprecated, but kept in case it may come in 
+ * handy later
  *
  * Authorship is also credited to Amy Schertz, as the 2d sideband code is directly
  * taken from her FSRoot tutorial for this channel:
@@ -36,9 +39,9 @@
 #include "FSMode/FSModeCollection.h"
 #include "FSMode/FSModeHistogram.h"
 
-#include "load_broad_cuts.cc"
+#include "../load_broad_cuts.cc"
 #include "neutralb1/fit_utils.h"
-#include "fsroot_setup.cc"
+#include "../fsroot_setup.cc"
 
 TString NT("ntFSGlueX_MODECODE");
 TString CATEGORY("pi0pi0pippim");
@@ -48,9 +51,8 @@ Int_t NORWEGIAN_RED = TColor::GetColor("#BA0C2F");
 
 // we make these TStrings for the FSCut definitions
 double OMEGA_MASS = 0.78266;             // PDG omega mass in GeV
-double SIGNAL_FULL_WIDTH = 0.168;      // full width of signal region in GeV (6 sigma)
+double SIGNAL_FULL_WIDTH = 0.056;      // full width of signal region in GeV (6 sigma)
 double SIGNAL_HALF_WIDTH = SIGNAL_FULL_WIDTH / 2; // half width of signal region in GeV (3 sigma)
-double SIGNAL_STDEV = SIGNAL_FULL_WIDTH / 6;      // "standard deviation" of signal region in GeV (1 sigma)
 
 double SIGNAL_HIGH = OMEGA_MASS + SIGNAL_HALF_WIDTH;
 double SIGNAL_LOW = OMEGA_MASS - SIGNAL_HALF_WIDTH;
@@ -144,40 +146,40 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     line_historical_sideband_high_low->Draw("SAME");
     line_historical_sideband_high_high->Draw("SAME");
 
-    // draw lines for adjusted 2d window to be more comparable to our regions    
-    double sideband_low_low = SIGNAL_LOW - SIGNAL_FULL_WIDTH;
-    double sideband_low_high = SIGNAL_LOW;    
-    double sideband_high_low = SIGNAL_HIGH;
-    double sideband_high_high = SIGNAL_HIGH + SIGNAL_FULL_WIDTH;
+    // // draw lines for adjusted 2d window to be more comparable to our regions    
+    // double sideband_low_low = SIGNAL_LOW - SIGNAL_FULL_WIDTH;
+    // double sideband_low_high = SIGNAL_LOW;    
+    // double sideband_high_low = SIGNAL_HIGH;
+    // double sideband_high_high = SIGNAL_HIGH + SIGNAL_FULL_WIDTH;
 
-    TLine *line_signal_low = new TLine(SIGNAL_LOW, 0, SIGNAL_LOW, short_max);
-    TLine *line_signal_high = new TLine(SIGNAL_HIGH, 0, SIGNAL_HIGH, short_max);
-    TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, short_max);
-    TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, short_max);
-    TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, short_max);
-    TLine *line_sideband_high_high = new TLine(sideband_high_high, 0, sideband_high_high, short_max);
-    line_signal_low->SetLineColor(kYellow - 1);
-    line_signal_low->SetLineWidth(1);
-    line_signal_high->SetLineColor(kYellow - 1);
-    line_signal_high->SetLineWidth(1);
-    line_sideband_low_low->SetLineColor(kYellow - 1);
-    line_sideband_low_low->SetLineWidth(1);
-    line_sideband_low_low->SetLineStyle(9);
-    line_sideband_low_high->SetLineColor(kYellow - 1);
-    line_sideband_low_high->SetLineWidth(1);
-    line_sideband_low_high->SetLineStyle(9);
-    line_sideband_high_low->SetLineColor(kYellow - 1);
-    line_sideband_high_low->SetLineWidth(1);
-    line_sideband_high_low->SetLineStyle(9);
-    line_sideband_high_high->SetLineColor(kYellow - 1);
-    line_sideband_high_high->SetLineWidth(1);
-    line_sideband_high_high->SetLineStyle(9);
-    line_signal_low->Draw("SAME");
-    line_signal_high->Draw("SAME");
-    line_sideband_low_low->Draw("SAME");
-    line_sideband_low_high->Draw("SAME");
-    line_sideband_high_low->Draw("SAME");
-    line_sideband_high_high->Draw("SAME");
+    // TLine *line_signal_low = new TLine(SIGNAL_LOW, 0, SIGNAL_LOW, short_max);
+    // TLine *line_signal_high = new TLine(SIGNAL_HIGH, 0, SIGNAL_HIGH, short_max);
+    // TLine *line_sideband_low_low = new TLine(sideband_low_low, 0, sideband_low_low, short_max);
+    // TLine *line_sideband_low_high = new TLine(sideband_low_high, 0, sideband_low_high, short_max);
+    // TLine *line_sideband_high_low = new TLine(sideband_high_low, 0, sideband_high_low, short_max);
+    // TLine *line_sideband_high_high = new TLine(sideband_high_high, 0, sideband_high_high, short_max);
+    // line_signal_low->SetLineColor(kYellow - 1);
+    // line_signal_low->SetLineWidth(1);
+    // line_signal_high->SetLineColor(kYellow - 1);
+    // line_signal_high->SetLineWidth(1);
+    // line_sideband_low_low->SetLineColor(kYellow - 1);
+    // line_sideband_low_low->SetLineWidth(1);
+    // line_sideband_low_low->SetLineStyle(9);
+    // line_sideband_low_high->SetLineColor(kYellow - 1);
+    // line_sideband_low_high->SetLineWidth(1);
+    // line_sideband_low_high->SetLineStyle(9);
+    // line_sideband_high_low->SetLineColor(kYellow - 1);
+    // line_sideband_high_low->SetLineWidth(1);
+    // line_sideband_high_low->SetLineStyle(9);
+    // line_sideband_high_high->SetLineColor(kYellow - 1);
+    // line_sideband_high_high->SetLineWidth(1);
+    // line_sideband_high_high->SetLineStyle(9);
+    // line_signal_low->Draw("SAME");
+    // line_signal_high->Draw("SAME");
+    // line_sideband_low_low->Draw("SAME");
+    // line_sideband_low_high->Draw("SAME");
+    // line_sideband_high_low->Draw("SAME");
+    // line_sideband_high_high->Draw("SAME");
 
     // Finally, the legend
     TLegend *legend_omega = new TLegend(0.65, 0.75, 0.95, 0.95);
@@ -185,8 +187,8 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     legend_omega->AddEntry(h_individual_vector[0], "Data", "l");
     legend_omega->AddEntry(h_individual_vector[1], "Norwegian Signal", "f");
     legend_omega->AddEntry(h_individual_vector[2], "Norwegian Sidebands", "f");
-    legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
-    legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
+    // legend_omega->AddEntry(line_signal_low, "Adjusted 2D Signal", "l");
+    // legend_omega->AddEntry(line_sideband_low_low, "Adjusted 2D Sidebands", "l");
     legend_omega->AddEntry(line_historical_signal_low, "Historical 2D Signal", "l");
     legend_omega->AddEntry(line_historical_sideband_low_low, "Historical 2D Sidebands", "l");
     legend_omega->Draw();
@@ -216,7 +218,7 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     h_individual_vector[4]->SetLineWidth(1);
 
     h_2d_vector[0]->Draw("HIST");
-    h_2d_vector[1]->Draw("HIST SAME");
+    // h_2d_vector[1]->Draw("HIST SAME"); // omit adjusted 2d method drawing
     h_individual_vector[3]->Draw("HIST SAME");
     h_individual_vector[4]->Draw("HIST SAME");
     h_2d_vector[0]->SetMinimum(h_individual_vector[4]->GetMinimum() * 1.1);
@@ -226,7 +228,7 @@ void compare_sideband_methods(bool mc=false, bool create_friend_trees=false)
     legend->SetBorderSize(0);
     legend->AddEntry(h_individual_vector[3], "Data (no SB)", "l");
     legend->AddEntry(h_2d_vector[0], "Historical 2D Result", "l");
-    legend->AddEntry(h_2d_vector[1], "Adjusted 2D Result", "l");
+    // legend->AddEntry(h_2d_vector[1], "Adjusted 2D Result", "l");
     legend->AddEntry(h_individual_vector[4], "Norwegian Result", "l");
     legend->Draw();
 
@@ -291,6 +293,7 @@ std::vector<TH1F *> sideband_2d(
         TString::Format("%s*CUT(%s)*CUTWT(rf)", OMEGAWT.Data(), cuts.Data()));
 
     // ____the same process, but now adjustd to my analysis windows____
+    // NOTE: OLD VALUES NO LONGER IN USE, KEPT IN CASE NEEDED
     SIG4 = TString::Format("(M234>%f&&M234<%f)", SIGNAL_LOW, SIGNAL_HIGH);
     SIG5 = TString::Format("(M235>%f&&M235<%f)", SIGNAL_LOW, SIGNAL_HIGH);
     SIG4orSIG5 = "((" + SIG4 + ")||(" + SIG5 + "))";
@@ -379,18 +382,18 @@ std::vector<TH1F *> sideband_individual(
             SIGNAL_HALF_WIDTH);        
         
         // We'll use two sidebands in the region
-        // (OMEGA_MASS +/- SIGNAL_HALF_WIDTH) to 
-        // +/- (OMEGA_MASS +/- SIGNAL_HALF_WIDTH + SIGNAL_HALF_WIDTH)
+        // (OMEGA_MASS +/- 2*SIGNAL_HALF_WIDTH) to 
+        // +/- (OMEGA_MASS +/- 2*SIGNAL_HALF_WIDTH + SIGNAL_HALF_WIDTH)
         // This way, the sideband regions together have the same width as the signal
         // region and we don't have to handle any weighting factors
         TString sideband_region_cut = TString::Format(
             "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_HALF_WIDTH,
+            2*SIGNAL_HALF_WIDTH,
             data_omega_mass.Data(),
             OMEGA_MASS,
-            SIGNAL_HALF_WIDTH,
+            2*SIGNAL_HALF_WIDTH,
             SIGNAL_HALF_WIDTH);
         FSCut::defineCut(
             "omega_sb_subtraction",
