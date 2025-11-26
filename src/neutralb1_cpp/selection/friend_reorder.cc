@@ -226,11 +226,20 @@ void friend_reorder(int period, bool mc = false)
             "sideband==1"
         );
 
-        // rename the trees to remove the permutation tag
+        // add a key that is just the base tree name so both permutations fill it when
+        // we hadd
         TFile *f = TFile::Open(
-            TString::Format("%s.permutation_%d_sideband", input_files.Data(), p).Data(),
+            TString::Format("%s.permutation_%d_signal", input_files.Data(), p).Data(),
             "UPDATE");
         TTree *t = (TTree*)f->Get(TString::Format("%s_permutation_%d", NT.Data(), p).Data());
+        t->SetName(NT.Data());
+        t->Write("",TObject::kOverwrite);
+        f->Close();
+
+        f = TFile::Open(
+            TString::Format("%s.permutation_%d_sideband", input_files.Data(), p).Data(),
+            "UPDATE");
+        t = (TTree*)f->Get(TString::Format("%s_permutation_%d", NT.Data(), p).Data());
         t->SetName(NT.Data());
         t->Write("",TObject::kOverwrite);
         f->Close();
