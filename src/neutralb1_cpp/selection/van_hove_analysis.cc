@@ -111,7 +111,7 @@ void plot_relations(
         TString::Format(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s", 
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
-        "(100, 1.0, 2.0, 100, -1.0, 1.0)",
+        "(100, 1.0, 2.0, 200, -1.0, 1.0)",
         "cut==1"
     );
     h_corr[1] = FSModeHistogram::getTH2F(
@@ -121,11 +121,10 @@ void plot_relations(
         TString::Format(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s", 
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
-        "(100, 1.0, 2.0, 100, -1.0, 1.0)",
+        "(100, 1.0, 2.0, 200, -1.0, 1.0)",
         "cut==1"
     );
     h_corr[0]->Add(h_corr[1], -1); // signal - sideband
-    
 
     h_corr[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
     h_corr[0]->GetYaxis()->SetTitle("cos #theta_{H}");
@@ -134,6 +133,41 @@ void plot_relations(
     c_corr->SaveAs(
         TString::Format(
             "costhetah_mass_corr%s.pdf",
+            mc ? "_mc" : "_data"
+        )
+    );
+
+    // correlation plot of cos theta against p' pi0 mass
+    TCanvas *c_corr_ppi0 = new TCanvas("ccorr_ppi0", "ccorr_ppi0", 800, 600);
+    TH2F *h_corr_ppi0[2];
+    h_corr_ppi0[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "HELCOSTHETA(%d,%d,%d;%d;%d):MASS(%d,%d)", 
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PROTON, PI0_BACH),
+        "(200, 1.0, 3.0, 200, -1.0, 1.0)",
+        "cut==1");
+    h_corr_ppi0[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "HELCOSTHETA(%d,%d,%d;%d;%d):MASS(%d,%d)", 
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PROTON, PI0_BACH),
+        "(200, 1.0, 3.0, 200, -1.0, 1.0)",
+        "cut==1");
+    h_corr_ppi0[0]->Add(h_corr_ppi0[1], -1); // signal - sideband
+    h_corr_ppi0[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
+    h_corr_ppi0[0]->GetYaxis()->SetTitle("cos #theta_{H}");
+    h_corr_ppi0[0]->SetTitle("");
+    h_corr_ppi0[0]->Draw("colz");
+    c_corr_ppi0->SaveAs(
+        TString::Format(
+            "costhetah_mass_ppi0_corr%s.pdf",
             mc ? "_mc" : "_data"
         )
     );
@@ -149,7 +183,7 @@ void plot_relations(
             "MASS2(%d,%d):MASS2(%d,%d,%d, %d)",             
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
-        "(100, 1.0, 3.0, 100, 1.0, 4.0)",
+        "(300, 1.0, 4.0, 900, 1.0, 9.0)",
         "cut==1"
     );
     h_dalitz[1] = FSModeHistogram::getTH2F(
@@ -160,7 +194,7 @@ void plot_relations(
             "MASS2(%d,%d):MASS2(%d,%d,%d, %d)",             
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
-        "(100, 0.0, 2.0, 100, 0.0, 3.0)",
+        "(300, 1.0, 4.0, 900, 1.0, 9.0)",
         "cut==1"
     );
     h_dalitz[0]->Add(h_dalitz[1], -1); // signal - sideband
