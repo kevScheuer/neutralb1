@@ -44,7 +44,7 @@ void plot_relations(
     TString input_sideband,
     bool mc);
 
-void van_hove_analysis(int period, bool mc = false)
+void van_hove_analysis(bool mc = false)
 {
     gStyle->SetPalette( kBird );
 
@@ -52,32 +52,24 @@ void van_hove_analysis(int period, bool mc = false)
     TString input_sideband;
     if (mc)
     {
-        input_signal = TString::Format(
-            "/lustre24/expphy/volatile/halld/home/kscheuer/"
-            "FSRoot-skimmed-trees/van_hove/"
-            "tree_pi0pi0pippim__B4_vanHove_SKIM_0%d_ver03.1_mc_signal.root",
-            period);
-        input_sideband = TString::Format(
-            "/lustre24/expphy/volatile/halld/home/kscheuer/"
-            "FSRoot-skimmed-trees/van_hove/"
-            "tree_pi0pi0pippim__B4_vanHove_SKIM_0%d_ver03.1_mc_sideband.root",
-            period);
+        input_signal = "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/reordered/"
+        "tree_pi0pi0pippim__B4_reordered_SKIM_allPeriods_ver03.1_mc_signal.root";
+        input_sideband = "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/reordered/"
+        "tree_pi0pi0pippim__B4_reordered_SKIM_allPeriods_ver03.1_mc_sideband.root";
     }
     else
     {
-        input_signal = TString::Format(
-            "/lustre24/expphy/volatile/halld/home/kscheuer/"
-            "FSRoot-skimmed-trees/van_hove/"
-            "tree_pi0pi0pippim__B4_vanHove_SKIM_0%d_data_signal.root",
-            period);
-        input_sideband = TString::Format(
-            "/lustre24/expphy/volatile/halld/home/kscheuer/"
-            "FSRoot-skimmed-trees/van_hove/"
-            "tree_pi0pi0pippim__B4_vanHove_SKIM_0%d_data_sideband.root",
-            period);
+        input_signal = "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/reordered/"
+        "tree_pi0pi0pippim__B4_reordered_SKIM_allPeriods_data_signal.root";
+        input_sideband = "/lustre24/expphy/volatile/halld/home/kscheuer/"
+        "FSRoot-skimmed-trees/reordered/"
+        "tree_pi0pi0pippim__B4_reordered_SKIM_allPeriods_data_sideband.root";
     }
     TString NT, CATEGORY;
-    std::tie(NT, CATEGORY) = setup(true);
+    std::tie(NT, CATEGORY) = setup(false);
 
     plot_relations(NT, CATEGORY, input_signal, input_sideband, mc);    
 
@@ -108,7 +100,7 @@ void plot_relations(
     TString input_sideband,
     bool mc)
 {
-    TCanvas *c_corr = new TCanvas("ccorr", "ccorr", 600, 800);
+    TCanvas *c_corr = new TCanvas("ccorr", "ccorr", 800, 600);
 
     // Under X-> omega pi0 p', we need to input into HELCOSTHETA(omega;pi0;p')
     TH2F *h_corr[2];
@@ -120,7 +112,7 @@ void plot_relations(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s", 
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
         "(100, 1.0, 2.0, 100, -1.0, 1.0)",
-        ""
+        "cut==1"
     );
     h_corr[1] = FSModeHistogram::getTH2F(
         input_sideband,
@@ -130,13 +122,14 @@ void plot_relations(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s", 
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
         "(100, 1.0, 2.0, 100, -1.0, 1.0)",
-        ""
+        "cut==1"
     );
     h_corr[0]->Add(h_corr[1], -1); // signal - sideband
     
 
     h_corr[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
     h_corr[0]->GetYaxis()->SetTitle("cos #theta_{H}");
+    h_corr[0]->SetTitle("");
     h_corr[0]->Draw("colz");
     c_corr->SaveAs(
         TString::Format(
@@ -146,7 +139,7 @@ void plot_relations(
     );
 
     // now dalitz plot of M^2(p' pi0) vs M^2(omega pi0)
-    TCanvas *c_dalitz = new TCanvas("cdalitz", "cdalitz", 600, 800);    
+    TCanvas *c_dalitz = new TCanvas("cdalitz", "cdalitz", 800, 600);    
     TH2F *h_dalitz[2];
     h_dalitz[0] = FSModeHistogram::getTH2F(
         input_signal,
@@ -156,8 +149,8 @@ void plot_relations(
             "MASS2(%d,%d):MASS2(%d,%d,%d, %d)",             
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
-        "(100, 0.0, 2.0, 100, 0.0, 3.0)",
-        ""
+        "(100, 1.0, 3.0, 100, 1.0, 4.0)",
+        "cut==1"
     );
     h_dalitz[1] = FSModeHistogram::getTH2F(
         input_sideband,
@@ -168,11 +161,12 @@ void plot_relations(
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
         "(100, 0.0, 2.0, 100, 0.0, 3.0)",
-        ""
+        "cut==1"
     );
     h_dalitz[0]->Add(h_dalitz[1], -1); // signal - sideband
     h_dalitz[0]->GetXaxis()->SetTitle("M^{2}(#omega #pi^{0}) (GeV^{2})");
     h_dalitz[0]->GetYaxis()->SetTitle("M^{2}(p' #pi^{0}) (GeV^{2})");
+    h_dalitz[0]->SetTitle("");
     h_dalitz[0]->Draw("colz");
     c_dalitz->SaveAs(
         TString::Format(
@@ -181,7 +175,7 @@ void plot_relations(
         )
     );
 
-    FSHistogram::dumpHistogramCache();
+    // FSHistogram::dumpHistogramCache();
 
     return;
 }
@@ -222,9 +216,9 @@ void plot_van_hove(
         ""
     );
     h_van_hove[0]->Add(h_van_hove[1], -1); // signal - sideband
-    h_van_hove[0]->GetXaxis()->SetTitle("X"); // TODO: figure out titles when researched
+    h_van_hove[0]->GetXaxis()->SetTitle("X");
     h_van_hove[0]->GetYaxis()->SetTitle("Y");
-    TCanvas *c_van_hove = new TCanvas("cvanhove", "cvanhove", 600, 800);
+    TCanvas *c_van_hove = new TCanvas("cvanhove", "cvanhove", 800, 600);
     h_van_hove[0]->Draw("colz");
     c_van_hove->SaveAs(
         TString::Format(
