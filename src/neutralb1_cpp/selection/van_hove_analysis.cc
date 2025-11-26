@@ -43,8 +43,18 @@ void plot_relations(
     TString input_signal,
     TString input_sideband,
     bool mc);
+void plot_van_hove(
+    TString NT, 
+    TString CATEGORY,    
+    TString input_signal,
+    TString input_sideband,
+    bool mc);
 
-void van_hove_analysis(bool mc = false)
+void van_hove_analysis(
+    bool mc = false,
+    bool plot_relations_flag = false,
+    bool plot_van_hove_flag = false
+)
 {
     gStyle->SetPalette( kBird );
 
@@ -52,6 +62,7 @@ void van_hove_analysis(bool mc = false)
     TString input_sideband;
     if (mc)
     {
+        std::cout <<"MC" << "\n";
         input_signal = "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/reordered/"
         "tree_pi0pi0pippim__B4_reordered_SKIM_allPeriods_ver03.1_mc_signal.root";
@@ -71,7 +82,10 @@ void van_hove_analysis(bool mc = false)
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(false);
 
-    plot_relations(NT, CATEGORY, input_signal, input_sideband, mc);    
+    if (plot_relations_flag)
+        plot_relations(NT, CATEGORY, input_signal, input_sideband, mc);    
+    if (plot_van_hove_flag)
+        plot_van_hove(NT, CATEGORY, input_signal, input_sideband, mc);
 
     /* TODO: want to follow these steps
         1. DONE. Plot the cos(theta) vs baryon+bachelor mass for data and MC 
@@ -127,7 +141,7 @@ void plot_relations(
     h_corr[0]->Add(h_corr[1], -1); // signal - sideband
 
     h_corr[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
-    h_corr[0]->GetYaxis()->SetTitle("cos #theta_{H}");
+    h_corr[0]->GetYaxis()->SetTitle("cos #theta");
     h_corr[0]->SetTitle("");
     h_corr[0]->Draw("colz");
     c_corr->SaveAs(
@@ -162,7 +176,7 @@ void plot_relations(
         "cut==1");
     h_corr_ppi0[0]->Add(h_corr_ppi0[1], -1); // signal - sideband
     h_corr_ppi0[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
-    h_corr_ppi0[0]->GetYaxis()->SetTitle("cos #theta_{H}");
+    h_corr_ppi0[0]->GetYaxis()->SetTitle("cos #theta");
     h_corr_ppi0[0]->SetTitle("");
     h_corr_ppi0[0]->Draw("colz");
     c_corr_ppi0->SaveAs(
@@ -253,6 +267,7 @@ void plot_van_hove(
     h_van_hove[0]->GetXaxis()->SetTitle("X");
     h_van_hove[0]->GetYaxis()->SetTitle("Y");
     TCanvas *c_van_hove = new TCanvas("cvanhove", "cvanhove", 800, 600);
+    h_van_hove[0]->SetTitle("");
     h_van_hove[0]->Draw("colz");
     c_van_hove->SaveAs(
         TString::Format(
