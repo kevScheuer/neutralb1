@@ -9,11 +9,13 @@
 #include <iostream>
 #include <tuple>
 
+#include "TArrow.h"
 #include "TCanvas.h"
 #include "TMath.h"
 #include "TString.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TLatex.h"
 #include "TStyle.h"
 
 #include "FSBasic/FSHistogram.h"
@@ -225,6 +227,7 @@ void plot_van_hove(
     bool mc)
 {
 
+    // ==== Plot the longitudinal phasespace in Van Hove XY with normal cuts ==== 
     // Three particle final state (omega, pi_bach, and recoil proton) is fed into
     // van hove function
     TH2F *h_van_hove[2];
@@ -249,15 +252,48 @@ void plot_van_hove(
         "(100, -4.0, 4.0, 100, -4.0, 4.0)",
         "");
 
-    TF1 *vHLine1 = new TF1("vhl1", "-1.0*x*TMath::Tan( TMath::Pi() / 3.0 )", -4, 4);
-    TF1 *vHLine2 = new TF1("vhl2", "0*x", -4, 4.1);
-    TF1 *vHLine3 = new TF1("vhl3", "x*TMath::Tan( TMath::Pi() / 3.0 )", -4, 4);
-    vHLine1->SetLineColor(kBlack);
-    vHLine1->SetLineWidth(2);
-    vHLine2->SetLineColor(kBlack);
-    vHLine2->SetLineWidth(2);
-    vHLine3->SetLineColor(kBlack);
-    vHLine3->SetLineWidth(2);
+    // draw lines for van Hove regions
+    TF1 *vHLine_pi0 = new TF1("vhl1", "-1.0*x*TMath::Tan( TMath::Pi() / 3.0 )", -4, 4);
+    TF1 *vHLine_omega = new TF1("vhl2", "0*x", -4, 4.1);
+    TF1 *vHLine_proton = new TF1("vhl3", "x*TMath::Tan( TMath::Pi() / 3.0 )", -4, 4);
+    vHLine_pi0->SetLineColor(kGray+1);
+    vHLine_pi0->SetLineWidth(2);
+    vHLine_omega->SetLineColor(kGray+1);
+    vHLine_omega->SetLineWidth(2);
+    vHLine_proton->SetLineColor(kGray+1);
+    vHLine_proton->SetLineWidth(2);
+
+    // label each region
+    TLatex *omega_label = new TLatex(3.7, 0.2, "#omega");
+    omega_label->SetTextColor(kGray+1);
+    TArrow *arrow_omega = new TArrow(3.5, 0.0, 3.5, 1.0, 0.01, "|>");
+    arrow_omega->SetLineWidth(2);
+    arrow_omega->SetLineColor(kGray+1);
+    arrow_omega->SetFillColor(kGray+1);
+    arrow_omega->SetFillStyle(1001);
+
+    TLatex *baryon_label = new TLatex(-1.5, -3.5, "p'");
+    baryon_label->SetTextColor(kGray+1);
+    TArrow *arrow_baryon = new TArrow(
+        -1.5, vHLine_proton->Eval(-1.5), 
+        -1.1, -3.0, 
+        0.01, "|>");
+    arrow_baryon->SetLineWidth(2);
+    arrow_baryon->SetLineColor(kGray+1);
+    arrow_baryon->SetFillColor(kGray+1);
+    arrow_baryon->SetFillStyle(1001);
+
+    TLatex *bachelor_label = new TLatex(-2.5, 3.2, "#pi^{0}");
+    bachelor_label->SetTextColor(kGray+1);
+    TArrow *arrow_bachelor = new TArrow(
+        -2.0, vHLine_pi0->Eval(-2.0), 
+        -2.4, 2.9, 
+        0.01, "|>");
+    arrow_bachelor->SetLineWidth(2);
+    arrow_bachelor->SetLineColor(kGray+1);
+    arrow_bachelor->SetFillColor(kGray+1);
+    arrow_bachelor->SetFillStyle(1001);
+
 
     h_van_hove[0]->Add(h_van_hove[1], -1); // signal - sideband
     h_van_hove[0]->GetXaxis()->SetTitle("X");
@@ -265,11 +301,20 @@ void plot_van_hove(
     TCanvas *c_van_hove = new TCanvas("cvanhove", "cvanhove", 800, 600);
     h_van_hove[0]->SetTitle("");
     h_van_hove[0]->Draw("colz");
-    vHLine1->Draw("SAME");
-    vHLine2->Draw("SAME");
-    vHLine3->Draw("SAME");
+    vHLine_pi0->Draw("SAME");
+    vHLine_omega->Draw("SAME");
+    vHLine_proton->Draw("SAME");
+    omega_label->Draw();
+    arrow_omega->Draw();
+    baryon_label->Draw();
+    arrow_baryon->Draw();
+    bachelor_label->Draw();
+    arrow_bachelor->Draw();
     c_van_hove->SaveAs(
         TString::Format(
             "van_hove%s.pdf",
             mc ? "_mc" : "_data"));
+
+    // ==== Plot the longitudinal phasespace in Van Hove XY, selecting Delta+ ==== 
+    // TODO: select the Delta+ region in p' pi0 mass and replot van Hove
 }
