@@ -29,7 +29,7 @@
 // CONSTANTS
 double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
 double SIGNAL_HALF_WIDTH = 0.028;
-double SIDEBAND_GAP = SIGNAL_HALF_WIDTH;
+double SIDEBAND_GAP = SIGNAL_HALF_WIDTH*2;
 
 void friend_reorder(int period, bool mc = false)
 {
@@ -157,7 +157,7 @@ void friend_reorder(int period, bool mc = false)
         var_to_branch["unusedTracks"] = "NumUnusedTracks";
         var_to_branch["z"] = "ProdVz";
         var_to_branch["MM2"] = "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)";
-        var_to_branch["MissingE"] = "RENERGY(GLUEXTARGET, B) - RENERGY(1, 2, 3, 4, 5)";
+        var_to_branch["missingE"] = "RENERGY(GLUEXTARGET, B) - RENERGY(1, 2, 3, 4, 5)";
         var_to_branch["chi2"] = "Chi2DOF";
         var_to_branch["t"] = "-1*MASS2(1,-GLUEXTARGET)";
         var_to_branch["MRecoilPi"] = TString::Format(
@@ -215,7 +215,7 @@ void friend_reorder(int period, bool mc = false)
             TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_signal", input_files.Data(), p),
-            "CUT(signal==1)"
+            "signal==1"
         );
         // create a skimmed version of only sideband events
         FSModeTree::skimTree(
@@ -223,7 +223,7 @@ void friend_reorder(int period, bool mc = false)
             TString::Format("%s_permutation_%d", NT.Data(), p),
             CATEGORY,
             TString::Format("%s.permutation_%d_sideband", input_files.Data(), p),
-            "CUT(sideband==1)"
+            "sideband==1"
         );
 
         // rename the trees to remove the permutation tag
@@ -238,7 +238,7 @@ void friend_reorder(int period, bool mc = false)
 
     // hadd the signal skims together
     TString signal_output = input_files;
-    input_files.ReplaceAll(".root", "_signal.root").ReplaceAll("bestChi2_", "reordered_").ReplaceAll("best-chi2", "reordered");
+    signal_output.ReplaceAll(".root", "_signal.root").ReplaceAll("bestChi2_", "reordered_").ReplaceAll("best-chi2", "reordered");
     system(TString::Format(
         "hadd -f %s %s.permutation_1_signal %s.permutation_2_signal",
         signal_output.Data(),
@@ -248,7 +248,7 @@ void friend_reorder(int period, bool mc = false)
 
     // hadd the sideband skims together
     TString sideband_output = input_files;
-    input_files.ReplaceAll(".root", "_sideband.root").ReplaceAll("bestChi2_", "reordered_").ReplaceAll("best-chi2", "reordered");
+    sideband_output.ReplaceAll(".root", "_sideband.root").ReplaceAll("bestChi2_", "reordered_").ReplaceAll("best-chi2", "reordered");
     system(TString::Format(
         "hadd -f %s %s.permutation_1_sideband %s.permutation_2_sideband",
         sideband_output.Data(),
