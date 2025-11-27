@@ -58,12 +58,19 @@ void plot_pi_correlations(
     TString input_sideband, 
     bool mc,
     bool apply_delta_cut = false);
+void plot_pi_cuts(
+    TString NT,
+    TString CATEGORY,
+    TString input_signal,
+    TString input_sideband,
+    bool mc);
 
 void van_hove_analysis(
     bool mc = false,
     bool plot_relations_flag = false,
     bool plot_van_hove_flag = false,
-    bool plot_pi0_corr_flag = false)
+    bool plot_pi0_corr_flag = false,
+    bool plot_pi0_cuts_flag = false)
 {
     gStyle->SetPalette(kBird);
 
@@ -102,11 +109,9 @@ void van_hove_analysis(
         plot_pi_correlations(NT, CATEGORY, input_signal, input_sideband, mc, false);
         plot_pi_correlations(NT, CATEGORY, input_signal, input_sideband, mc, true);
     }
-    /* TODO: want to follow these steps
-        4. Apply cut on resulting bachelor pion momentum
-        5. Observe cut's effect on phasespace angles and the helicity angles and
-            baryon+bachelor system
-    */
+    if (plot_pi0_cuts_flag)
+        plot_pi_cuts(NT, CATEGORY, input_signal, input_sideband, mc);
+
     return;
 }
 
@@ -510,6 +515,23 @@ void plot_pi_correlations(
             "pi0_pz_costheta_corr%s%s.pdf",
             mc ? "_mc" : "_data",
             file_suffix.Data()));
+
+    return;
+}
+
+
+void plot_pi_cuts(
+    TString NT,
+    TString CATEGORY,
+    TString input_signal,
+    TString input_sideband,
+    bool mc)
+{
+    // TODO: plot the different pi0 momenta cuts on:
+    //      cos theta
+    //      omega pi0 mass
+    //      p' pi0 mass
+    // also plot the helcostheta vs helphi 2D distribution
 
     return;
 }
