@@ -8,6 +8,8 @@
 
 #include <iostream>
 #include <tuple>
+#include <map>
+#include <vector>
 
 #include "TArrow.h"
 #include "TCanvas.h"
@@ -155,7 +157,7 @@ void plot_relations(
         "CUT(broad)");
     h_corr[0]->Add(h_corr[1], -1); // signal - sideband
 
-    h_corr[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
+    h_corr[0]->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
     h_corr[0]->GetYaxis()->SetTitle("cos #theta");
     h_corr[0]->SetTitle("");
     h_corr[0]->Draw("colz");
@@ -221,7 +223,7 @@ void plot_relations(
         "(300, 1.0, 4.0, 900, 1.0, 9.0)",
         "CUT(broad)");
     h_dalitz[0]->Add(h_dalitz[1], -1); // signal - sideband
-    h_dalitz[0]->GetXaxis()->SetTitle("M^{2}(#omega #pi^{0}) (GeV^{2})");
+    h_dalitz[0]->GetXaxis()->SetTitle("M^{2}(#omega#pi^{0}) (GeV^{2})");
     h_dalitz[0]->GetYaxis()->SetTitle("M^{2}(p' #pi^{0}) (GeV^{2})");
     h_dalitz[0]->SetTitle("");
     h_dalitz[0]->Draw("colz");
@@ -438,7 +440,7 @@ void plot_pi_correlations(
         "(200, 1.0, 2.0, 200, -0.5, 1.5)",
         cut_string);
     h_pi_corr_omegapi0[0]->Add(h_pi_corr_omegapi0[1], -1); // signal - sideband
-    h_pi_corr_omegapi0[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
+    h_pi_corr_omegapi0[0]->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
     h_pi_corr_omegapi0[0]->GetYaxis()->SetTitle("P_{z}^{CM}(#pi^{0}) (GeV)");
     h_pi_corr_omegapi0[0]->SetTitle("");
     h_pi_corr_omegapi0[0]->Draw("colz");
@@ -527,11 +529,169 @@ void plot_pi_cuts(
     TString input_sideband,
     bool mc)
 {
-    // TODO: plot the different pi0 momenta cuts on:
-    //      cos theta
-    //      omega pi0 mass
-    //      p' pi0 mass
-    // also plot the helcostheta vs helphi 2D distribution
+    // cuts on pi0 momentum to loop over, from least to most restrictive
+    std::map<float, Int_t> pi0_mom_cut_map = {
+        {-1.0, kGray+1}, // effectively no cut
+        {-0.4, kPink-7}, // colors become lighter
+        {-0.3, kPink+4},
+        {-0.2, kPink+3},
+        {-0.1, kPink+2},
+        { 0.0, kPink+1}
+    };
+    
+    // setup containers for each type of histogram
+    std::vector<TH1F*> h_costheta_vec;
+    std::vector<TH1F*> h_omegapi0_mass_vec;
+    std::vector<TH1F*> h_ppi0_mass_vec;
+    std::vector<TH2F*> h_costheta_phi_vec;
+
+    for (std::map<float, Int_t>::iterator it = pi0_mom_cut_map.begin(); it != pi0_mom_cut_map.end(); ++it)
+    {
+        float pi0_cut = it->first;
+        Int_t color = it->second;  
+        
+        // define the cut and put into common string to use for histograms
+        FSCut::defineCut(
+            TString::Format("pi0_%1.1f", pi0_cut),
+            TString::Format(
+                "MOMENTUMZBOOST(%d;%s,%s) > %f",
+                PI0_BACH, BEAM.Data(), TARGET.Data(), pi0_cut)
+        );
+        TString cut_string = TString::Format(
+            "CUT(broad, %s)",
+            TString::Format("pi0_%1.1f", pi0_cut).Data()
+        );
+        
+        // cut effect on cos theta
+        TH1F *h_costheta[2];
+        h_costheta[0] = FSModeHistogram::getTH1F(
+            input_signal,
+            NT,
+            CATEGORY,
+            TString::Format(
+                "HELCOSTHETA(%d,%d,%d;%d;%d)",
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+            "(200, -1.0, 1.0)",
+            cut_string);       
+        h_costheta[1] = FSModeHistogram::getTH1F(
+            input_sideband,
+            NT,
+            CATEGORY,
+            TString::Format(
+                "HELCOSTHETA(%d,%d,%d;%d;%d)",
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+            "(200, -1.0, 1.0)",
+            cut_string);
+        h_costheta[0]->Add(h_costheta[1], -1);
+        h_costheta[0]->SetLineColor(kBlack);
+        h_costheta[0]->SetFillColor(color);
+        h_costheta[0]->SetFillStyle(1001);
+        h_costheta[0]->SetMarkerSize(1);
+        h_costheta_vec.push_back(h_costheta[0]);
+
+        // cut effect on omega pi0 mass
+        TH1F *h_omegapi0_mass[2];
+        h_omegapi0_mass[0] = FSModeHistogram::getTH1F(
+            input_signal,
+            NT,
+            CATEGORY,
+            M_OMEGA_PI0,
+            "(100, 1.0, 2.0)",
+            cut_string);
+        h_omegapi0_mass[1] = FSModeHistogram::getTH1F(
+            input_sideband,
+            NT,
+            CATEGORY,
+            M_OMEGA_PI0,
+            "(100, 1.0, 2.0)",
+            cut_string);
+        h_omegapi0_mass[0]->Add(h_omegapi0_mass[1], -1);
+        h_omegapi0_mass[0]->SetLineColor(kBlack);
+        h_omegapi0_mass[0]->SetFillColor(color);
+        h_omegapi0_mass[0]->SetFillStyle(1001);
+        h_omegapi0_mass[0]->SetMarkerSize(1);
+        h_omegapi0_mass_vec.push_back(h_omegapi0_mass[0]);
+
+        // cut effect on p' pi0 mass
+        TH1F *h_ppi0_mass[2];
+        h_ppi0_mass[0] = FSModeHistogram::getTH1F(
+            input_signal,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%d,%d)", PROTON, PI0_BACH),
+            "(200, 1.0, 3.0)",
+            cut_string);
+        h_ppi0_mass[1] = FSModeHistogram::getTH1F(
+            input_sideband,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%d,%d)", PROTON, PI0_BACH),
+            "(200, 1.0, 3.0)",
+            cut_string);
+        h_ppi0_mass[0]->Add(h_ppi0_mass[1], -1);
+        h_ppi0_mass[0]->SetLineColor(kBlack);
+        h_ppi0_mass[0]->SetFillColor(color);
+        h_ppi0_mass[0]->SetFillStyle(1001);
+        h_ppi0_mass[0]->SetMarkerSize(1);
+        h_ppi0_mass_vec.push_back(h_ppi0_mass[0]);
+
+        // cut effect on helcostheta vs helphi
+        // TODO: fill this one in
+    }
+
+    // Now that all histograms are filled, plot them
+    TCanvas *c_pi0_cut = new TCanvas("cpi0_cut", "cpi0_cut", 800, 600);
+    double bin_width;
+
+    // Plot cos theta
+    h_costheta_vec[0]->SetTitle("");
+    h_costheta_vec[0]->GetXaxis()->SetTitle("cos #theta");
+    bin_width = get_bin_width(h_costheta_vec[0]);
+    h_costheta_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_costheta_vec[0]->Draw("HIST");
+    for (size_t i = 1; i < h_costheta_vec.size(); ++i)
+    {
+        h_costheta_vec[i]->Draw("HIST SAME");
+    }
+    c_pi0_cut->SaveAs(
+        TString::Format(
+            "pi0_mom_cut_costheta%s.pdf",
+            mc ? "_mc" : "_data"));
+    c_pi0_cut->Clear();
+
+    // Plot omega pi0 mass
+    h_omegapi0_mass_vec[0]->SetTitle("");
+    h_omegapi0_mass_vec[0]->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
+    bin_width = get_bin_width(h_omegapi0_mass_vec[0]);
+    h_omegapi0_mass_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_omegapi0_mass_vec[0]->Draw("HIST");
+    for (size_t i = 1; i < h_omegapi0_mass_vec.size(); ++i)
+    {
+        h_omegapi0_mass_vec[i]->Draw("HIST SAME");
+    }
+    c_pi0_cut->SaveAs(
+        TString::Format(
+            "pi0_mom_cut_omegapi0_mass%s.pdf",
+            mc ? "_mc" : "_data"));
+    c_pi0_cut->Clear();
+
+    // Plot p' pi0 mass
+    h_ppi0_mass_vec[0]->SetTitle("");
+    h_ppi0_mass_vec[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
+    bin_width = get_bin_width(h_ppi0_mass_vec[0]);
+    h_ppi0_mass_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_ppi0_mass_vec[0]->Draw("HIST");
+    for (size_t i = 1; i < h_ppi0_mass_vec.size(); ++i)
+    {
+        h_ppi0_mass_vec[i]->Draw("HIST SAME");
+    }
+    c_pi0_cut->SaveAs(
+        TString::Format(
+            "pi0_mom_cut_ppi0_mass%s.pdf",
+            mc ? "_mc" : "_data"));
+
+    // plot helcostheta vs helphi
+    // TODO: finish. a little different since 2D plot
 
     return;
 }
