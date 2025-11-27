@@ -27,7 +27,8 @@
 
 // CONSTANTS
 // AmpTools indices for particles in the final state
-const int BEAM = 0; // four vectors named like energy = "EnPB"
+const TString TARGET = "GLUEXTARGET";
+const TString BEAM = "B";
 const int PROTON = 1;
 const int PI0_BACH = 2;
 const int PI0_OM = 3;
@@ -50,11 +51,19 @@ void plot_van_hove(
     TString input_signal,
     TString input_sideband,
     bool mc);
+void plot_pi_correlations(
+    TString NT, 
+    TString CATEGORY, 
+    TString input_signal, 
+    TString input_sideband, 
+    bool mc,
+    bool apply_delta_cut = false);
 
 void van_hove_analysis(
     bool mc = false,
     bool plot_relations_flag = false,
-    bool plot_van_hove_flag = false)
+    bool plot_van_hove_flag = false,
+    bool plot_pi0_corr_flag = false)
 {
     gStyle->SetPalette(kBird);
 
@@ -88,11 +97,12 @@ void van_hove_analysis(
         plot_relations(NT, CATEGORY, input_signal, input_sideband, mc);
     if (plot_van_hove_flag)
         plot_van_hove(NT, CATEGORY, input_signal, input_sideband, mc);
-
+    if (plot_pi0_corr_flag)
+    {
+        plot_pi_correlations(NT, CATEGORY, input_signal, input_sideband, mc, false);
+        plot_pi_correlations(NT, CATEGORY, input_signal, input_sideband, mc, true);
+    }
     /* TODO: want to follow these steps
-        1. DONE. Plot the cos(theta) vs baryon+bachelor mass for data and MC
-        2. Plot the van Hove distributions for data and MC
-        3. See where Delta contribution peaks in van Hove
         4. Apply cut on resulting bachelor pion momentum
         5. Observe cut's effect on phasespace angles and the helicity angles and
             baryon+bachelor system
@@ -103,11 +113,11 @@ void van_hove_analysis(
 /**
  * @brief Plot helicity angle vs omega pi0 and a dalitz plot to look for baryon resonances
  *
- * @param NT FSRoot tree name
- * @param CATEGORY FSRoot mode category
- * @param input_signal signal input file
- * @param input_sideband sideband input file
- * @param mc whether the input files are from Monte Carlo simulation
+ * @param[in] NT FSRoot tree name
+ * @param[in] CATEGORY FSRoot mode category
+ * @param[in] input_signal signal input file
+ * @param[in] input_sideband sideband input file
+ * @param[in] mc whether the input files are from Monte Carlo simulation
  */
 void plot_relations(
     TString NT,
@@ -220,6 +230,15 @@ void plot_relations(
     return;
 }
 
+/**
+ * @brief plot van Hove longitudinal phasespace with / without cut on p'pi0 mass 
+ * 
+ * @param[in] NT FSRoot tree name
+ * @param[in] CATEGORY FSRoot mode category
+ * @param[in] input_signal signal input file
+ * @param[in] input_sideband sideband input file
+ * @param[in] mc whether the input files are from Monte Carlo simulation
+ */
 void plot_van_hove(
     TString NT,
     TString CATEGORY,
@@ -359,5 +378,138 @@ void plot_van_hove(
         TString::Format(
             "van_hove_delta%s.pdf",
             mc ? "_mc" : "_data"));
+    return;
+}
+
+/**
+ * @brief plot correlations of bachelor pi0 momentum to other distributions
+ * 
+ * Other distributions include omega pi0 mass, proton pi0 mass, and cos theta
+ * 
+ * @param[in] NT FSRoot tree name
+ * @param[in] CATEGORY FSRoot mode category
+ * @param[in] input_signal signal input file
+ * @param[in] input_sideband sideband input file
+ * @param[in] mc whether the input files are from Monte Carlo simulation
+ * @param[in] apply_delta_cut whether to apply a cut on the p' pi0 mass to select Delta+ resonance
+ */
+void plot_pi_correlations(
+    TString NT, 
+    TString CATEGORY, 
+    TString input_signal, 
+    TString input_sideband, 
+    bool mc,
+    bool apply_delta_cut = false)
+{
+    TCanvas *c_pi_corr = new TCanvas("cpi_corr", "cpi_corr", 800, 600);
+
+    FSCut::defineCut("delta", TString::Format("MASS(%d,%d) < 1.4", PI0_BACH, PROTON));
+    TString cut_string = "CUT(broad)";
+    TString file_suffix = "";
+    if (apply_delta_cut)
+    {
+        cut_string = "CUT(delta,broad)";
+        file_suffix = "_delta";
+    }
+
+    // correlation of bachelor pi0 momentum vs omega pi0 mass
+    TH2F *h_pi_corr_omegapi0[2];
+    h_pi_corr_omegapi0[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):%s",
+            PI0_BACH, BEAM.Data(), TARGET.Data(), M_OMEGA_PI0.Data()),
+        "(200, 1.0, 2.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_omegapi0[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):%s",
+            PI0_BACH, BEAM.Data(), TARGET.Data(), M_OMEGA_PI0.Data()),
+        "(200, 1.0, 2.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_omegapi0[0]->Add(h_pi_corr_omegapi0[1], -1); // signal - sideband
+    h_pi_corr_omegapi0[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
+    h_pi_corr_omegapi0[0]->GetYaxis()->SetTitle("P_{z}^{CM}(#pi^{0}) (GeV)");
+    h_pi_corr_omegapi0[0]->SetTitle("");
+    h_pi_corr_omegapi0[0]->Draw("colz");
+    c_pi_corr->SaveAs(
+        TString::Format(
+            "pi0_pz_omegapi0_corr%s%s.pdf",
+            mc ? "_mc" : "_data",
+            file_suffix.Data()));
+
+    // correlation of bachelor pi0 momentum vs proton pi0 mass
+    TCanvas *c_pi_corr_ppi0 = new TCanvas("cpi_corr_ppi0", "cpi_corr_ppi0", 800, 600);
+    TH2F *h_pi_corr_ppi0[2];
+    h_pi_corr_ppi0[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):MASS(%d,%d)",
+            PI0_BACH, BEAM.Data(), TARGET.Data(),
+            PROTON, PI0_BACH),
+        "(200, 1.0, 3.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_ppi0[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):MASS(%d,%d)",
+            PI0_BACH, BEAM.Data(), TARGET.Data(),
+            PROTON, PI0_BACH),
+        "(200, 1.0, 3.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_ppi0[0]->Add(h_pi_corr_ppi0[1], -1); // signal - sideband
+    h_pi_corr_ppi0[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
+    h_pi_corr_ppi0[0]->GetYaxis()->SetTitle("P_{z}^{CM}(#pi^{0}) (GeV)");
+    h_pi_corr_ppi0[0]->SetTitle("");
+    h_pi_corr_ppi0[0]->Draw("colz");
+    c_pi_corr_ppi0->SaveAs(
+        TString::Format(
+            "pi0_pz_ppi0_corr%s%s.pdf",
+            mc ? "_mc" : "_data",
+            file_suffix.Data()));
+    
+    // correlation of bachelor pi0 momentum vs cos theta
+    TCanvas *c_pi_corr_costheta = new TCanvas("cpi_corr_costheta", "cpi_corr_costheta", 800, 600);
+    TH2F *h_pi_corr_costheta[2];
+    h_pi_corr_costheta[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):HELCOSTHETA(%d,%d,%d;%d;%d)",
+            PI0_BACH, BEAM.Data(), TARGET.Data(),
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+        "(200, -1.0, 1.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_costheta[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s):HELCOSTHETA(%d,%d,%d;%d;%d)",
+            PI0_BACH, BEAM.Data(), TARGET.Data(),
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+        "(200, -1.0, 1.0, 200, -0.5, 1.5)",
+        cut_string);
+    h_pi_corr_costheta[0]->Add(h_pi_corr_costheta[1], -1); // signal - sideband
+    h_pi_corr_costheta[0]->GetXaxis()->SetTitle("cos #theta");
+    h_pi_corr_costheta[0]->GetYaxis()->SetTitle("P_{z}^{CM}(#pi^{0}) (GeV)");
+    h_pi_corr_costheta[0]->SetTitle("");
+    h_pi_corr_costheta[0]->Draw("colz");
+    c_pi_corr_costheta->SaveAs(
+        TString::Format(
+            "pi0_pz_costheta_corr%s%s.pdf",
+            mc ? "_mc" : "_data",
+            file_suffix.Data()));
+
     return;
 }
