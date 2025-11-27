@@ -34,7 +34,6 @@ const int PI0_OM = 3;
 const int PIPLUS = 4;
 const int PIMINUS = 5;
 
-// proton, pi+, pi-
 const TString M_OMEGA = TString::Format("MASS(%d,%d,%d)", PIPLUS, PIMINUS, PI0_OM);
 const TString M_OMEGA_PI0 = TString::Format("MASS(%d,%d,%d,%d)", PIPLUS, PIMINUS, PI0_OM, PI0_BACH);
 
@@ -83,6 +82,8 @@ void van_hove_analysis(
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(false);
 
+    FSCut::defineCut("broad", "cut==1"); // uses special branch to implement all broad cuts
+
     if (plot_relations_flag)
         plot_relations(NT, CATEGORY, input_signal, input_sideband, mc);
     if (plot_van_hove_flag)
@@ -127,7 +128,7 @@ void plot_relations(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s",
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
         "(100, 1.0, 2.0, 200, -1.0, 1.0)",
-        "cut==1");
+        "CUT(broad)");
     h_corr[1] = FSModeHistogram::getTH2F(
         input_sideband,
         NT,
@@ -136,7 +137,7 @@ void plot_relations(
             "HELCOSTHETA(%d,%d,%d;%d;%d):%s",
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, M_OMEGA_PI0.Data()),
         "(100, 1.0, 2.0, 200, -1.0, 1.0)",
-        "cut==1");
+        "CUT(broad)");
     h_corr[0]->Add(h_corr[1], -1); // signal - sideband
 
     h_corr[0]->GetXaxis()->SetTitle("#omega #pi^{0} inv. mass (GeV)");
@@ -160,7 +161,7 @@ void plot_relations(
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
             PROTON, PI0_BACH),
         "(200, 1.0, 3.0, 200, -1.0, 1.0)",
-        "cut==1");
+        "CUT(broad)");
     h_corr_ppi0[1] = FSModeHistogram::getTH2F(
         input_sideband,
         NT,
@@ -170,7 +171,7 @@ void plot_relations(
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
             PROTON, PI0_BACH),
         "(200, 1.0, 3.0, 200, -1.0, 1.0)",
-        "cut==1");
+        "CUT(broad)");
     h_corr_ppi0[0]->Add(h_corr_ppi0[1], -1); // signal - sideband
     h_corr_ppi0[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
     h_corr_ppi0[0]->GetYaxis()->SetTitle("cos #theta");
@@ -193,7 +194,7 @@ void plot_relations(
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
         "(300, 1.0, 4.0, 900, 1.0, 9.0)",
-        "cut==1");
+        "CUT(broad)");
     h_dalitz[1] = FSModeHistogram::getTH2F(
         input_sideband,
         NT,
@@ -203,7 +204,7 @@ void plot_relations(
             PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH),
         "(300, 1.0, 4.0, 900, 1.0, 9.0)",
-        "cut==1");
+        "CUT(broad)");
     h_dalitz[0]->Add(h_dalitz[1], -1); // signal - sideband
     h_dalitz[0]->GetXaxis()->SetTitle("M^{2}(#omega #pi^{0}) (GeV^{2})");
     h_dalitz[0]->GetYaxis()->SetTitle("M^{2}(p' #pi^{0}) (GeV^{2})");
@@ -239,8 +240,8 @@ void plot_van_hove(
             "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
-        "(100, -4.0, 4.0, 100, -4.0, 4.0)",
-        "");
+        "(400, -4.0, 4.0, 400, -4.0, 4.0)",
+        "CUT(broad)");
     h_van_hove[1] = FSModeHistogram::getTH2F(
         input_sideband,
         NT,
@@ -249,8 +250,8 @@ void plot_van_hove(
             "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
             PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
-        "(100, -4.0, 4.0, 100, -4.0, 4.0)",
-        "");
+        "(400, -4.0, 4.0, 400, -4.0, 4.0)",
+        "CUT(broad)");
 
     // draw lines for van Hove regions
     TF1 *vHLine_pi0 = new TF1("vhl1", "-1.0*x*TMath::Tan( TMath::Pi() / 3.0 )", -4, 4);
@@ -316,5 +317,47 @@ void plot_van_hove(
             mc ? "_mc" : "_data"));
 
     // ==== Plot the longitudinal phasespace in Van Hove XY, selecting Delta+ ==== 
-    // TODO: select the Delta+ region in p' pi0 mass and replot van Hove
+    FSCut::defineCut("delta", TString::Format("MASS(%d,%d) < 1.4", PI0_BACH, PROTON));
+    TH2F *h_van_hove_delta[2];
+    h_van_hove_delta[0] = FSModeHistogram::getTH2F(
+        input_signal,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+        "(400, -4.0, 4.0, 400, -4.0, 4.0)",
+        "CUT(delta,broad)");
+    h_van_hove_delta[1] = FSModeHistogram::getTH2F(
+        input_sideband,
+        NT,
+        CATEGORY,
+        TString::Format(
+            "VANHOVEY(%d,%d,%d;%d;%d):VANHOVEX(%d,%d,%d;%d;%d)",
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+            PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON),
+        "(400, -4.0, 4.0, 400, -4.0, 4.0)",
+        "CUT(delta,broad)");
+
+    h_van_hove_delta[0]->Add(h_van_hove_delta[1], -1); // signal - sideband
+    h_van_hove_delta[0]->GetXaxis()->SetTitle("X");
+    h_van_hove_delta[0]->GetYaxis()->SetTitle("Y");
+    TCanvas *c_van_hove_delta = new TCanvas("cvanhove_delta", "cvanhove_delta", 800, 600);
+    h_van_hove_delta[0]->SetTitle("");
+    h_van_hove_delta[0]->Draw("colz");
+    vHLine_pi0->Draw("SAME");
+    vHLine_omega->Draw("SAME");
+    vHLine_proton->Draw("SAME");
+    omega_label->Draw();
+    arrow_omega->Draw();
+    baryon_label->Draw();
+    arrow_baryon->Draw();
+    bachelor_label->Draw();
+    arrow_bachelor->Draw();
+    c_van_hove_delta->SaveAs(
+        TString::Format(
+            "van_hove_delta%s.pdf",
+            mc ? "_mc" : "_data"));
+    return;
 }
