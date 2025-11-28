@@ -540,10 +540,10 @@ void plot_pi_cuts(
     };
     
     // setup containers for each type of histogram
-    std::vector<TH1F*> h_costheta_vec;
-    std::vector<TH1F*> h_omegapi0_mass_vec;
-    std::vector<TH1F*> h_ppi0_mass_vec;
-    std::vector<TH2F*> h_costheta_phi_vec;
+    std::map<float, TH1F*> h_costheta_map;
+    std::map<float, TH1F*> h_omegapi0_mass_map;
+    std::map<float, TH1F*> h_ppi0_mass_map;
+    std::map<float, TH2F*> h_costheta_phi_map;    
 
     for (std::map<float, Int_t>::iterator it = pi0_mom_cut_map.begin(); it != pi0_mom_cut_map.end(); ++it)
     {
@@ -587,7 +587,7 @@ void plot_pi_cuts(
         h_costheta[0]->SetFillColor(color);
         h_costheta[0]->SetFillStyle(1001);
         h_costheta[0]->SetMarkerSize(1);
-        h_costheta_vec.push_back(h_costheta[0]);
+        h_costheta_map[pi0_cut] = h_costheta[0];
 
         // cut effect on omega pi0 mass
         TH1F *h_omegapi0_mass[2];
@@ -610,7 +610,7 @@ void plot_pi_cuts(
         h_omegapi0_mass[0]->SetFillColor(color);
         h_omegapi0_mass[0]->SetFillStyle(1001);
         h_omegapi0_mass[0]->SetMarkerSize(1);
-        h_omegapi0_mass_vec.push_back(h_omegapi0_mass[0]);
+        h_omegapi0_mass_map[pi0_cut] = h_omegapi0_mass[0];
 
         // cut effect on p' pi0 mass
         TH1F *h_ppi0_mass[2];
@@ -633,10 +633,11 @@ void plot_pi_cuts(
         h_ppi0_mass[0]->SetFillColor(color);
         h_ppi0_mass[0]->SetFillStyle(1001);
         h_ppi0_mass[0]->SetMarkerSize(1);
-        h_ppi0_mass_vec.push_back(h_ppi0_mass[0]);
+        h_ppi0_mass_map[pi0_cut] = h_ppi0_mass[0];
 
         // cut effect on helcostheta vs helphi
         // TODO: fill this one in
+        // color code the title or something to indicate the cut applied
     }
 
     // Now that all histograms are filled, plot them
@@ -644,15 +645,22 @@ void plot_pi_cuts(
     double bin_width;
 
     // Plot cos theta
-    h_costheta_vec[0]->SetTitle("");
-    h_costheta_vec[0]->GetXaxis()->SetTitle("cos #theta");
-    bin_width = get_bin_width(h_costheta_vec[0]);
-    h_costheta_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
-    h_costheta_vec[0]->Draw("HIST");
-    for (size_t i = 1; i < h_costheta_vec.size(); ++i)
+    TLegend *leg_costheta = new TLegend(0.18, 0.58, 0.51, 0.89);
+    leg_costheta->SetTextSize(0.03);
+    leg_costheta->AddEntry(h_costheta_map.begin()->second, "P_{z}^{CM}(#pi^{0}) > -1.0 GeV", "f");
+    h_costheta_map.begin()->second->SetTitle("");
+    h_costheta_map.begin()->second->GetXaxis()->SetTitle("cos #theta");
+    bin_width = get_bin_width(h_costheta_map.begin()->second);
+    h_costheta_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_costheta_map.begin()->second->Draw("HIST");
+    for (std::map<float, TH1F*>::iterator it = std::next(h_costheta_map.begin()); it != h_costheta_map.end(); ++it)
     {
-        h_costheta_vec[i]->Draw("HIST SAME");
+        it->second->Draw("HIST SAME");
+        leg_costheta->AddEntry(
+            it->second,
+            TString::Format("P_{z}^{CM}(#pi^{0}) > %1.1f GeV", it->first), "f");
     }
+    leg_costheta->Draw();
     c_pi0_cut->SaveAs(
         TString::Format(
             "pi0_mom_cut_costheta%s.pdf",
@@ -660,15 +668,21 @@ void plot_pi_cuts(
     c_pi0_cut->Clear();
 
     // Plot omega pi0 mass
-    h_omegapi0_mass_vec[0]->SetTitle("");
-    h_omegapi0_mass_vec[0]->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
-    bin_width = get_bin_width(h_omegapi0_mass_vec[0]);
-    h_omegapi0_mass_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
-    h_omegapi0_mass_vec[0]->Draw("HIST");
-    for (size_t i = 1; i < h_omegapi0_mass_vec.size(); ++i)
+    TLegend *leg_omegapi0 = new TLegend(0.5, 0.6, 0.8, 0.88);
+    leg_omegapi0->SetTextSize(0.03);
+    h_omegapi0_mass_map.begin()->second->SetTitle("");
+    h_omegapi0_mass_map.begin()->second->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
+    bin_width = get_bin_width(h_omegapi0_mass_map.begin()->second);
+    h_omegapi0_mass_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_omegapi0_mass_map.begin()->second->Draw("HIST");
+    for (std::map<float, TH1F*>::iterator it = std::next(h_omegapi0_mass_map.begin()); it != h_omegapi0_mass_map.end(); ++it)
     {
-        h_omegapi0_mass_vec[i]->Draw("HIST SAME");
+        it->second->Draw("HIST SAME");
+        leg_omegapi0->AddEntry(
+            it->second,
+            TString::Format("P_{z}^{CM}(#pi^{0}) > %1.1f GeV", it->first), "f");
     }
+    leg_omegapi0->Draw();
     c_pi0_cut->SaveAs(
         TString::Format(
             "pi0_mom_cut_omegapi0_mass%s.pdf",
@@ -676,15 +690,21 @@ void plot_pi_cuts(
     c_pi0_cut->Clear();
 
     // Plot p' pi0 mass
-    h_ppi0_mass_vec[0]->SetTitle("");
-    h_ppi0_mass_vec[0]->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
-    bin_width = get_bin_width(h_ppi0_mass_vec[0]);
-    h_ppi0_mass_vec[0]->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
-    h_ppi0_mass_vec[0]->Draw("HIST");
-    for (size_t i = 1; i < h_ppi0_mass_vec.size(); ++i)
+    TLegend *leg_ppi0 = new TLegend(0.68, 0.7, 0.98, 0.98);
+    leg_ppi0->SetTextSize(0.03);
+    h_ppi0_mass_map.begin()->second->SetTitle("");
+    h_ppi0_mass_map.begin()->second->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
+    bin_width = get_bin_width(h_ppi0_mass_map.begin()->second);
+    h_ppi0_mass_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_ppi0_mass_map.begin()->second->Draw("HIST");
+    for (std::map<float, TH1F*>::iterator it = std::next(h_ppi0_mass_map.begin()); it != h_ppi0_mass_map.end(); ++it)
     {
-        h_ppi0_mass_vec[i]->Draw("HIST SAME");
+        it->second->Draw("HIST SAME");
+        leg_ppi0->AddEntry(
+            it->second,
+            TString::Format("P_{z}^{CM}(#pi^{0}) > %1.1f GeV", it->first), "f");
     }
+    leg_ppi0->Draw();
     c_pi0_cut->SaveAs(
         TString::Format(
             "pi0_mom_cut_ppi0_mass%s.pdf",
