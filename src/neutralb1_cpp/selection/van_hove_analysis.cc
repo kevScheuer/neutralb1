@@ -13,6 +13,7 @@
 
 #include "TArrow.h"
 #include "TCanvas.h"
+#include "TLegend.h"
 #include "TMath.h"
 #include "TString.h"
 #include "TH1.h"
@@ -636,8 +637,30 @@ void plot_pi_cuts(
         h_ppi0_mass_map[pi0_cut] = h_ppi0_mass[0];
 
         // cut effect on helcostheta vs helphi
-        // TODO: fill this one in
-        // color code the title or something to indicate the cut applied
+        TH2F *h_costheta_phi[2];
+        h_costheta_phi[0] = FSModeHistogram::getTH2F(
+            input_signal,
+            NT,
+            CATEGORY,
+            TString::Format( 
+                "HELCOSTHETA(%d,%d,%d;%d;%d):HELPHI(%d,%d,%d;%d;%d;%s)",                
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, BEAM.Data()),
+            "(200, -3.14, 3.14, 200, 1.0, 1.0)",
+            cut_string);
+        h_costheta_phi[1] = FSModeHistogram::getTH2F(
+            input_sideband,
+            NT,
+            CATEGORY,
+            TString::Format( 
+                "HELCOSTHETA(%d,%d,%d;%d;%d):HELPHI(%d,%d,%d;%d;%d;%s)",                
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, BEAM.Data()),
+            "(200, -3.14, 3.14, 200, 1.0, 1.0)",
+            cut_string);
+        h_costheta_phi[0]->Add(h_costheta_phi[1], -1);
+        h_costheta_phi[0]->SetTitle("");
+        h_costheta_phi_map[pi0_cut] = h_costheta_phi[0];        
     }
 
     // Now that all histograms are filled, plot them
@@ -647,13 +670,17 @@ void plot_pi_cuts(
     // Plot cos theta
     TLegend *leg_costheta = new TLegend(0.18, 0.58, 0.51, 0.89);
     leg_costheta->SetTextSize(0.03);
-    leg_costheta->AddEntry(h_costheta_map.begin()->second, "P_{z}^{CM}(#pi^{0}) > -1.0 GeV", "f");
+    leg_costheta->AddEntry(h_costheta_map.begin()->second, "No cut", "f"); // special legend entry for no cut
     h_costheta_map.begin()->second->SetTitle("");
     h_costheta_map.begin()->second->GetXaxis()->SetTitle("cos #theta");
     bin_width = get_bin_width(h_costheta_map.begin()->second);
     h_costheta_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_costheta_map.begin()->second->SetMinimum(0.0);
     h_costheta_map.begin()->second->Draw("HIST");
-    for (std::map<float, TH1F*>::iterator it = std::next(h_costheta_map.begin()); it != h_costheta_map.end(); ++it)
+    // start map at second element to avoid re-drawing no cut
+    std::map<float, TH1F*>::iterator it = h_costheta_map.begin();
+    ++it;
+    for (; it != h_costheta_map.end(); ++it)
     {
         it->second->Draw("HIST SAME");
         leg_costheta->AddEntry(
@@ -670,12 +697,16 @@ void plot_pi_cuts(
     // Plot omega pi0 mass
     TLegend *leg_omegapi0 = new TLegend(0.5, 0.6, 0.8, 0.88);
     leg_omegapi0->SetTextSize(0.03);
+    leg_omegapi0->AddEntry(h_omegapi0_mass_map.begin()->second, "No Cut", "f");
     h_omegapi0_mass_map.begin()->second->SetTitle("");
     h_omegapi0_mass_map.begin()->second->GetXaxis()->SetTitle("#omega#pi^{0} inv. mass (GeV)");
     bin_width = get_bin_width(h_omegapi0_mass_map.begin()->second);
     h_omegapi0_mass_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_omegapi0_mass_map.begin()->second->SetMinimum(0.0);
     h_omegapi0_mass_map.begin()->second->Draw("HIST");
-    for (std::map<float, TH1F*>::iterator it = std::next(h_omegapi0_mass_map.begin()); it != h_omegapi0_mass_map.end(); ++it)
+    it = h_omegapi0_mass_map.begin();
+    ++it;
+    for (; it != h_omegapi0_mass_map.end(); ++it)
     {
         it->second->Draw("HIST SAME");
         leg_omegapi0->AddEntry(
@@ -692,12 +723,16 @@ void plot_pi_cuts(
     // Plot p' pi0 mass
     TLegend *leg_ppi0 = new TLegend(0.68, 0.7, 0.98, 0.98);
     leg_ppi0->SetTextSize(0.03);
+    leg_ppi0->AddEntry(h_ppi0_mass_map.begin()->second, "No Cut", "f");
     h_ppi0_mass_map.begin()->second->SetTitle("");
     h_ppi0_mass_map.begin()->second->GetXaxis()->SetTitle("p' #pi^{0} inv. mass (GeV)");
     bin_width = get_bin_width(h_ppi0_mass_map.begin()->second);
     h_ppi0_mass_map.begin()->second->GetYaxis()->SetTitle(TString::Format("Events / %.3f", bin_width));
+    h_ppi0_mass_map.begin()->second->SetMinimum(0.0);
     h_ppi0_mass_map.begin()->second->Draw("HIST");
-    for (std::map<float, TH1F*>::iterator it = std::next(h_ppi0_mass_map.begin()); it != h_ppi0_mass_map.end(); ++it)
+    it = h_ppi0_mass_map.begin();
+    ++it;
+    for (; it != h_ppi0_mass_map.end(); ++it)
     {
         it->second->Draw("HIST SAME");
         leg_ppi0->AddEntry(
@@ -711,7 +746,36 @@ void plot_pi_cuts(
             mc ? "_mc" : "_data"));
 
     // plot helcostheta vs helphi
-    // TODO: finish. a little different since 2D plot
+    TCanvas *c_costheta_phi = new TCanvas("ccostheta_phi", "ccostheta_phi", 800, 600);
+    for(std::map<float, TH2F*>::iterator it = h_costheta_phi_map.begin(); it != h_costheta_phi_map.end(); ++it)
+    {
+        // set any negative bin contents to zero for better representation of holes
+        for(int binx = 1; binx <= it->second->GetNbinsX(); ++binx)
+        {
+            for(int biny = 1; biny <= it->second->GetNbinsY(); ++biny)
+            {
+                int bin_content = it->second->GetBinContent(binx, biny);
+                if (bin_content < 0)
+                    it->second->SetBinContent(binx, biny, 0);
+            }
+        }        
+        it->second->GetXaxis()->SetTitle("#phi (rad)");
+        it->second->GetXaxis()->SetRangeUser(-3.14, 3.14);
+        it->second->GetYaxis()->SetTitle("cos #theta");
+        it->second->GetYaxis()->SetRangeUser(-1.0, 1.0);
+        if (it->first < -0.9)
+            it->second->SetTitle("No cut");
+        else
+            it->second->SetTitle(TString::Format("P_{z}^{CM}(#pi^{0}) > %1.1f GeV", it->first));
+        
+        it->second->Draw("colz");
+        c_costheta_phi->SaveAs(
+            TString::Format(
+                "pi0_mom_cut_costheta_phi_%1.1f%s.pdf",
+                it->first,
+                mc ? "_mc" : "_data"));
+        c_costheta_phi->Clear();
+    }
 
     return;
 }
