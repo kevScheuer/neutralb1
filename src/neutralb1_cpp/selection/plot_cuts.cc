@@ -110,7 +110,7 @@ void plot_cuts(
     TString cuts;
     TH1F *h_og, *h_cut, *h_selection, *h_mc;
     double bin_width;
-    legend->SetBorderSize(0);    
+    legend->SetBorderSize(1);    
 
     // NOTE: that for all original data files, the tree variable is slightly different
     // as it uses the original branch name. We've renamed the branches to match the
@@ -155,7 +155,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -177,7 +177,7 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Unused_Shower_Energy.pdf");
     c->Clear();
@@ -223,7 +223,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -290,7 +290,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -357,7 +357,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -424,7 +424,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -491,7 +491,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -558,7 +558,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -688,7 +688,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -752,7 +752,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -891,7 +891,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -965,7 +965,7 @@ void plot_cuts(
     );
     legend->AddEntry(
         h_selection, 
-        "Selection"
+        "Selection",
         "f"
     );
 
@@ -1244,7 +1244,7 @@ TH1F* get_cut_histogram(
     );
     h_signal->Add(h_sideband, -1.0); // subtract sideband from signal
     h_signal->SetLineColor(kBlue);
-    h_signal->SetLineWidth(2);
+    h_signal->SetLineWidth(1);
     return h_signal;
 }
 
@@ -1346,7 +1346,6 @@ TH1F* get_mc_histogram(
     }
     legend->AddEntry(h_signal, legend_scale, "p");
     h_signal->SetMarkerStyle(24);
-    h_signal->SetMarkerColor(kBlack);
-    h_signal->SetLineColor(kBlack);
+    h_signal->SetMarkerColor(kBlack);    
     return h_signal;
 }
