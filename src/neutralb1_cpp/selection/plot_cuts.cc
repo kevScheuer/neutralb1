@@ -33,11 +33,6 @@
 #include "fsroot_setup.cc"
 
 // Forward declarations
-void plot_accidentals(
-    TString input_data_files, 
-    const TString NT, 
-    const TString CATEGORY, 
-    int period);
 TString remove_key_from_cuts(
     std::map<TString, Int_t> &cut_color_map, 
     const TString key_to_remove);
@@ -109,11 +104,6 @@ void plot_cuts(
 
     // load our broad cuts for the chi2 trees
     std::map<TString, Int_t> cut_color_map = load_broad_branch_cuts();    
-
-    // =================== Accidental Subtraction ===================
-    // Before we look at any other cuts let's look at the accidental subtraction itself
-    // to see how well it performs. All other cuts will have it applied    
-    // plot_accidentals(input_data_files, NT, CATEGORY, period);
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
     TLegend *legend = new TLegend(0.6, 0.6, 0.89, 0.89);
@@ -1151,71 +1141,6 @@ void plot_cuts(
     return;
 }
 
-
-/**
- * @brief Plot the rf accidentals and their weights
- * 
- * @param input_data_files data files to plot from
- * @param NT name of the tree in the ROOT file
- * @param CATEGORY category name in the ROOT file
- * @param period data taking period
- */
-void plot_accidentals(
-    TString input_data_files, 
-    const TString NT, 
-    const TString CATEGORY, 
-    int period)
-{
-    TCanvas *c_rf = new TCanvas("c_rf", "Accidental Subtraction", 800, 600);
-    TH1F *h_acc_data = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(400,-20.0,20.0)",
-        "");
-    TH1F *h_acc_subtracted = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(400,-20.0,20.0)",
-        "CUTSB(rf)");
-    TH1F *h_acc_signal = FSModeHistogram::getTH1F(
-        input_data_files,
-        NT,
-        CATEGORY,
-        "RFDeltaT",
-        "(40,-2.0,2.0)",
-        "CUT(rf)");
-    h_acc_data->SetLineColor(kGray);
-    h_acc_data->SetLineWidth(2);
-
-    h_acc_signal->SetLineWidth(0);
-    h_acc_signal->SetFillColorAlpha(kGreen + 1, 0.5);
-    h_acc_signal->SetFillStyle(1001);
-
-    h_acc_subtracted->SetLineWidth(0);
-    h_acc_subtracted->SetFillColorAlpha(TColor::GetColor("#c849a9"), 0.5);
-    h_acc_subtracted->SetFillStyle(1001);
-
-    h_acc_data->Draw("HIST");
-    h_acc_subtracted->Draw("HIST SAME");
-    h_acc_signal->Draw("HIST SAME");
-
-    TLegend *legend_acc = new TLegend(0.65, 0.65, 0.88, 0.88);
-    legend_acc->AddEntry(h_acc_data, "Original Data", "l");
-    legend_acc->AddEntry(h_acc_signal, "In-Time Signal Region", "f");
-    legend_acc->AddEntry(h_acc_subtracted, "Weighted Out-of-Time Combos", "f");
-    legend_acc->Draw();
-
-    h_acc_data->SetTitle("");
-    h_acc_data->SetXTitle("RF #DeltaT (ns)");
-    double bin_width = get_bin_width(h_acc_data);
-    h_acc_data->SetYTitle(TString::Format("Combos / %.3f ns", bin_width));
-    c_rf->Update();
-    c_rf->SaveAs("GlueXI_Accidental_Subtraction.pdf");        
-}
 
 /**
  * @brief Remove a key from the cut color map and return the joined keys
