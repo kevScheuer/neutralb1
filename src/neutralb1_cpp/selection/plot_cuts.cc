@@ -77,8 +77,10 @@ TH1F* get_mc_histogram(
 );
 
 void plot_cuts(    
+    bool log_scale = false,
     bool read_cache = false,
-    bool dump_cache = false)
+    bool dump_cache = false
+)
 {    
     TString input_data_og = "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
@@ -106,7 +108,9 @@ void plot_cuts(
     std::map<TString, Int_t> cut_color_map = load_broad_branch_cuts();    
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
-    TLegend *legend = new TLegend(0.6, 0.6, 0.85, 0.85);
+    if (log_scale)
+        c->SetLogy();
+    TLegend *legend = new TLegend(0.63, 0.63, 0.88, 0.88);
     TString cuts;
     TH1F *h_og, *h_cut, *h_selection, *h_mc;
     double bin_width;
@@ -173,6 +177,14 @@ void plot_cuts(
         "max",
         legend
     );
+    
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -242,6 +254,14 @@ void plot_cuts(
         legend
     );
 
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
+
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
@@ -252,7 +272,7 @@ void plot_cuts(
     legend->Clear();
 
     // =================== Production Vertex ===================
-    TLegend *leg_z = new TLegend(0.2, 0.6, 0.45, 0.85); // custom legend location
+    TLegend *leg_z = new TLegend(0.2, 0.63, 0.45, 0.88); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -309,6 +329,14 @@ void plot_cuts(
         "integral",
         leg_z
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -376,6 +404,14 @@ void plot_cuts(
         "max",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -446,6 +482,14 @@ void plot_cuts(
         leg_beam
     );
 
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
+
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
@@ -512,6 +556,14 @@ void plot_cuts(
         "max",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -580,6 +632,14 @@ void plot_cuts(
         legend
     );
 
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
+
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
@@ -644,6 +704,14 @@ void plot_cuts(
         "max",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -719,6 +787,14 @@ void plot_cuts(
         legend
     );
 
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
+
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
@@ -782,6 +858,14 @@ void plot_cuts(
         "max",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
@@ -847,6 +931,13 @@ void plot_cuts(
         "integral",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);        
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");    
@@ -921,6 +1012,14 @@ void plot_cuts(
         legend
     );
 
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
+
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
@@ -994,6 +1093,14 @@ void plot_cuts(
         "integral",
         legend
     );
+
+    if (log_scale)
+    {
+        h_og->SetMinimum(1);
+        h_cut->SetMinimum(1);
+        h_selection->SetMinimum(1);
+        h_mc->SetMinimum(1);
+    }
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
