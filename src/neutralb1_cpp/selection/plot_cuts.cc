@@ -106,7 +106,7 @@ void plot_cuts(
     std::map<TString, Int_t> cut_color_map = load_broad_branch_cuts();    
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
-    TLegend *legend = new TLegend(0.6, 0.6, 0.89, 0.89);
+    TLegend *legend = new TLegend(0.6, 0.6, 0.85, 0.85);
     TString cuts;
     TH1F *h_og, *h_cut, *h_selection, *h_mc;
     double bin_width;
@@ -190,7 +190,7 @@ void plot_cuts(
         NT,
         CATEGORY,
         "NumUnusedTracks",
-        100,
+        6,
         0.0,
         6.0
     );
@@ -210,7 +210,7 @@ void plot_cuts(
         CATEGORY,
         "unusedTracks",
         cuts,
-        100,
+        6,
         0.0,
         6.0
     );
@@ -235,7 +235,7 @@ void plot_cuts(
         CATEGORY,
         "unusedTracks",
         cuts,
-        100,
+        6,
         0.0,
         6.0,
         "max",
@@ -245,13 +245,14 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Number_Unused_Tracks.pdf");
     c->Clear();
     legend->Clear();
 
     // =================== Production Vertex ===================
+    TLegend *leg_z = new TLegend(0.2, 0.6, 0.45, 0.85); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -264,7 +265,7 @@ void plot_cuts(
     h_og->SetXTitle("Production Vertex Z (cm)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f cm", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_z->AddEntry(h_og, "Original Data", "l");
 
     cuts = remove_key_from_cuts(
         cut_color_map,
@@ -281,14 +282,14 @@ void plot_cuts(
         0.0,
         100.0
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_z->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         51.2,
         78.8
     );
-    legend->AddEntry(
+    leg_z->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -306,17 +307,17 @@ void plot_cuts(
         0.0,
         100.0,
         "integral",
-        legend
+        leg_z
     );
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
-    legend->Draw("SAME");
+    h_mc->Draw("SAME");
+    leg_z->Draw("SAME");
     c->SaveAs("GlueXI_Production_Vertex_Z.pdf");
     c->Clear();
-    legend->Clear();
+    delete leg_z;
 
     // =================== Missing Mass^2 ===================
     h_og = get_og_histogram(
@@ -379,13 +380,15 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_MM2.pdf");
     c->Clear();
     legend->Clear();
     
     // =================== Beam Energy ===================
+    TLegend *leg_beam = new TLegend(0.12, 0.8, 0.88, 0.88); // custom legend location
+    leg_beam->SetNColumns(4); // spread out across top of hist
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -398,7 +401,7 @@ void plot_cuts(
     h_og->SetXTitle("Beam Energy (GeV)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_beam->AddEntry(h_og, "Original Data", "l");
 
     cuts = remove_key_from_cuts(
         cut_color_map,
@@ -415,14 +418,14 @@ void plot_cuts(
         8.0,
         9.0
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_beam->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         8.2,
         8.8
     );
-    legend->AddEntry(
+    leg_beam->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -440,17 +443,17 @@ void plot_cuts(
         8.0,
         9.0,
         "integral",
-        legend
+        leg_beam
     );
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
-    legend->Draw("SAME");
+    h_mc->Draw("SAME");
+    leg_beam->Draw("SAME");
     c->SaveAs("GlueXI_Beam_Energy.pdf");
     c->Clear();
-    legend->Clear();
+    delete leg_beam;
 
     //=================== Chi2 / NDF ===================
     h_og = get_og_histogram(
@@ -513,7 +516,7 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Chi2.pdf");
     c->Clear();
@@ -580,7 +583,7 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_t.pdf");
     c->Clear();
@@ -615,8 +618,17 @@ void plot_cuts(
     );
     legend->AddEntry(h_cut, "After Cuts", "l");
 
-    // missing Energy is not selected on, since in reality the kinematic
-    // fitter forces it to a delta function
+    // selection same as analysis launch window
+    h_selection = get_selection_histogram(
+        h_cut,
+        -3.0,
+        3.0
+    );
+    legend->AddEntry(
+        h_selection, 
+        "Selection",
+        "f"
+    );
 
     h_mc = get_mc_histogram(
         h_cut,
@@ -636,7 +648,7 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Missing_Energy.pdf");
     c->Clear();
@@ -710,7 +722,7 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Omega_Mass.pdf");
     c->Clear();
@@ -722,9 +734,9 @@ void plot_cuts(
         NT,
         CATEGORY,
         "MASS(2,3,4,5)",
-        200,
+        100,
         1.0,
-        3.0
+        2.0
     );    
     h_og->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
     bin_width = get_bin_width(h_og);
@@ -739,9 +751,9 @@ void plot_cuts(
         CATEGORY,
         "MASS(2,3,4,5)",
         cuts,
-        200,
+        100,
         1.0,
-        3.0
+        2.0
     );
     legend->AddEntry(h_cut, "After Cuts", "l");
 
@@ -764,17 +776,17 @@ void plot_cuts(
         CATEGORY,
         "MASS(2,3,4,5)",
         cuts,
-        200,
+        100,
         1.0,
-        3.0,
-        "integral",
+        2.0,
+        "max",
         legend
     );
 
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Omega_Pi0_Mass.pdf");
     c->Clear();
@@ -837,9 +849,8 @@ void plot_cuts(
     );
 
     h_og->Draw("HIST");
-    h_cut->Draw("HIST SAME");
-    h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_cut->Draw("HIST SAME");    
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_Proton_Bachelor_Mass.pdf");
     c->Clear();
@@ -850,7 +861,7 @@ void plot_cuts(
         input_data_og,
         NT,
         CATEGORY,
-        "MOMENTUMZBOOST(4;B;GLUEXTARGET)",
+        "MOMENTUMZBOOST(4;B,GLUEXTARGET)",
         200,
         -0.5,
         1.5
@@ -859,7 +870,7 @@ void plot_cuts(
         input_data_og,
         NT,
         CATEGORY,
-        "MOMENTUMZBOOST(5;B;GLUEXTARGET)",
+        "MOMENTUMZBOOST(5;B,GLUEXTARGET)",
         200,
         -0.5,
         1.5
@@ -876,81 +887,7 @@ void plot_cuts(
         input_data_sideband,
         NT,
         CATEGORY,
-        "MOMENTUMZBOOST(3;B;GLUEXTARGET)",
-        cuts,
-        200,
-        -0.5,
-        1.5
-    );
-    legend->AddEntry(h_cut, "After Cuts", "l");
-
-    h_selection = get_selection_histogram(
-        h_cut,
-        -0.5,
-        1.5
-    );
-    legend->AddEntry(
-        h_selection, 
-        "Selection",
-        "f"
-    );
-
-    h_mc = get_mc_histogram(
-        h_cut,
-        input_mc_signal,
-        input_mc_sideband,
-        NT,
-        CATEGORY,
-        "MOMENTUMZBOOST(3;B;GLUEXTARGET)",
-        cuts,
-        200,
-        -0.5,
-        1.5,
-        "integral",
-        legend
-    );
-
-    h_og->Draw("HIST");
-    h_cut->Draw("HIST SAME");
-    h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
-    legend->Draw("SAME");
-    c->SaveAs("GlueXI_pz_omega.pdf");
-    c->Clear();
-    legend->Clear();
-
-    // =================== pi0 (bachelor) momenta ===================
-    h_og = get_og_histogram(
-        input_data_og,
-        NT,
-        CATEGORY,
-        "MOMENTUMZBOOST(4;B;GLUEXTARGET)",
-        200,
-        -0.5,
-        1.5
-    );
-    h_og_perm2 = get_og_histogram(
-        input_data_og,
-        NT,
-        CATEGORY,
-        "MOMENTUMZBOOST(5;B;GLUEXTARGET)",
-        200,
-        -0.5,
-        1.5
-    );
-    h_og->Add(h_og_perm2);
-    h_og->SetXTitle("P_{z}^{CM}(#pi^{0}_{bachelor}) (GeV)");
-    bin_width = get_bin_width(h_og);
-    h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
-
-    // no cut on pi0 momenta to exclude in broad cuts
-    h_cut = get_cut_histogram(
-        input_data_signal,
-        input_data_sideband,
-        NT,
-        CATEGORY,
-        "MOMENTUMZBOOST(2;B;GLUEXTARGET)",
+        "MOMENTUMZBOOST(3;B,GLUEXTARGET)",
         cuts,
         200,
         -0.5,
@@ -975,7 +912,7 @@ void plot_cuts(
         input_mc_sideband,
         NT,
         CATEGORY,
-        "MOMENTUMZBOOST(2;B;GLUEXTARGET)",
+        "MOMENTUMZBOOST(3;B,GLUEXTARGET)",
         cuts,
         200,
         -0.5,
@@ -987,7 +924,81 @@ void plot_cuts(
     h_og->Draw("HIST");
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
-    h_mc->Draw("HIST SAME");
+    h_mc->Draw("SAME");
+    legend->Draw("SAME");
+    c->SaveAs("GlueXI_pz_omega.pdf");
+    c->Clear();
+    legend->Clear();
+
+    // =================== pi0 (bachelor) momenta ===================
+    h_og = get_og_histogram(
+        input_data_og,
+        NT,
+        CATEGORY,
+        "MOMENTUMZBOOST(4;B,GLUEXTARGET)",
+        200,
+        -0.5,
+        1.5
+    );
+    h_og_perm2 = get_og_histogram(
+        input_data_og,
+        NT,
+        CATEGORY,
+        "MOMENTUMZBOOST(5;B,GLUEXTARGET)",
+        200,
+        -0.5,
+        1.5
+    );
+    h_og->Add(h_og_perm2);
+    h_og->SetXTitle("P_{z}^{CM}(#pi^{0}_{bachelor}) (GeV)");
+    bin_width = get_bin_width(h_og);
+    h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
+    legend->AddEntry(h_og, "Original Data", "l");
+
+    // no cut on pi0 momenta to exclude in broad cuts
+    h_cut = get_cut_histogram(
+        input_data_signal,
+        input_data_sideband,
+        NT,
+        CATEGORY,
+        "MOMENTUMZBOOST(2;B,GLUEXTARGET)",
+        cuts,
+        200,
+        -0.5,
+        1.5
+    );
+    legend->AddEntry(h_cut, "After Cuts", "l");
+
+    h_selection = get_selection_histogram(
+        h_cut,
+        -0.1,
+        1.5
+    );
+    legend->AddEntry(
+        h_selection, 
+        "Selection",
+        "f"
+    );
+
+    h_mc = get_mc_histogram(
+        h_cut,
+        input_mc_signal,
+        input_mc_sideband,
+        NT,
+        CATEGORY,
+        "MOMENTUMZBOOST(2;B,GLUEXTARGET)",
+        cuts,
+        200,
+        -0.5,
+        1.5,
+        "integral",
+        legend
+    );
+
+    h_og->Draw("HIST");
+    h_cut->Draw("HIST SAME");
+    h_selection->Draw("HIST SAME");
+    h_mc->Draw("SAME");
     legend->Draw("SAME");
     c->SaveAs("GlueXI_pz_bachelor.pdf");
     c->Clear();
