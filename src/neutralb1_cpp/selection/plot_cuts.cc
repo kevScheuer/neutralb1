@@ -191,7 +191,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Unused_Shower_Energy.pdf");
+    c->SaveAs(TString::Format("GlueXI_Unused_Shower_Energy%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
     
@@ -267,7 +268,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Number_Unused_Tracks.pdf");
+    c->SaveAs(TString::Format("GlueXI_Number_Unused_Tracks%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -343,7 +345,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     leg_z->Draw("SAME");
-    c->SaveAs("GlueXI_Production_Vertex_Z.pdf");
+    c->SaveAs(TString::Format("GlueXI_Production_Vertex_Z%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     delete leg_z;
 
@@ -418,7 +421,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_MM2.pdf");
+    c->SaveAs(TString::Format("GlueXI_MM2%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
     
@@ -495,7 +499,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     leg_beam->Draw("SAME");
-    c->SaveAs("GlueXI_Beam_Energy.pdf");
+    c->SaveAs(TString::Format("GlueXI_Beam_Energy%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     delete leg_beam;
 
@@ -570,7 +575,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Chi2.pdf");
+    c->SaveAs(TString::Format("GlueXI_Chi2%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -645,7 +651,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_t.pdf");
+    c->SaveAs(TString::Format("GlueXI_t%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -718,7 +725,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Missing_Energy.pdf");
+    c->SaveAs(TString::Format("GlueXI_Missing_Energy%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -800,7 +808,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Omega_Mass.pdf");
+    c->SaveAs(TString::Format("GlueXI_Omega_Mass%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -872,7 +881,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Omega_Pi0_Mass.pdf");
+    c->SaveAs(TString::Format("GlueXI_Omega_Pi0_Mass%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -943,7 +953,8 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");    
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_Proton_Bachelor_Mass.pdf");
+    c->SaveAs(TString::Format("GlueXI_Proton_Bachelor_Mass%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -1025,7 +1036,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_pz_omega.pdf");
+    c->SaveAs(TString::Format("GlueXI_pz_omega%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
@@ -1107,7 +1119,8 @@ void plot_cuts(
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
     legend->Draw("SAME");
-    c->SaveAs("GlueXI_pz_bachelor.pdf");
+    c->SaveAs(TString::Format("GlueXI_pz_bachelor%s.pdf", 
+        log_scale ? "_log" : ""));
     c->Clear();
     legend->Clear();
 
