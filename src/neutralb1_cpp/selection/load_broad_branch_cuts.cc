@@ -22,6 +22,7 @@ std::map<TString, Int_t> load_broad_branch_cuts()
     cut_map["chi2"] = "chi2<5";                                                                      // kinematic fit quality cut
     cut_map["t"] = "abs(t)<1.0";                                                                     // define the momentum transfer with the proton at the lower vertex
     cut_map["shQuality"] = "shQualityP2a>0.5&&shQualityP2b>0.5&&shQualityP3a>0.5&&shQualityP3b>0.5"; // classifier probability that showers are from neutral particles
+    cut_map["pzPi0"] = "MOMENTUMZBOOST(2;B,GLUEXTARGET)>-0.1";                                     // require pi0 moving forward in CM frame
 
     TString cuts;
     for (std::map<TString, TString>::const_iterator it = cut_map.begin(); it != cut_map.end(); ++it)

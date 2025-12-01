@@ -672,6 +672,10 @@ void plot_cuts(
     legend->AddEntry(h_og, "Original Data", "l");
 
     // missing Energy cut is not included, so no need to remove it from cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        ""
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -756,6 +760,10 @@ void plot_cuts(
     legend->AddEntry(h_og, "Original Data", "l");
 
     // no cut on omega mass to exclude in broad cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        ""
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -829,6 +837,10 @@ void plot_cuts(
     legend->AddEntry(h_og, "Original Data", "l");
 
     // no cut on omega mass to exclude in broad cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        ""
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -912,6 +924,10 @@ void plot_cuts(
     legend->AddEntry(h_og, "Original Data", "l");
 
     // no cut on proton pi0 mass to exclude in broad cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        ""
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -983,7 +999,11 @@ void plot_cuts(
     h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
     legend->AddEntry(h_og, "Original Data", "l");
 
-    // no cut on pi0 momenta to exclude in broad cuts
+    // no cut on omega pi0 momenta to exclude in broad cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        ""
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -1066,7 +1086,10 @@ void plot_cuts(
     h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
     legend->AddEntry(h_og, "Original Data", "l");
 
-    // no cut on pi0 momenta to exclude in broad cuts
+    cuts = remove_key_from_cuts(
+        cut_color_map,
+        "pzPi0"
+    );
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
