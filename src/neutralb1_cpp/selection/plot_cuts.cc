@@ -119,8 +119,9 @@ void plot_cuts(
     // NOTE: that for all original data files, the tree variable is slightly different
     // as it uses the original branch name. We've renamed the branches to match the
     // easier to use cut definitions in the signal and sideband files
+
     // =================== Unused Shower Energy ===================
-    
+    TLegend *leg_unusedE = new TLegend(0.63, 0.13, 0.88, 0.38); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -133,7 +134,7 @@ void plot_cuts(
     h_og->SetXTitle("Unused Shower Energy (GeV)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_unusedE->AddEntry(h_og, "Original Data", "l");
 
     cuts = remove_key_from_cuts(
         cut_color_map,
@@ -150,14 +151,14 @@ void plot_cuts(
         0.0,
         1.0
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_unusedE->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         0.0,
         0.1
     );
-    legend->AddEntry(
+    leg_unusedE->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -175,7 +176,7 @@ void plot_cuts(
         0.0,
         1.0,
         "max",
-        legend
+        leg_unusedE
     );
     
     if (log_scale)
@@ -190,11 +191,11 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
-    legend->Draw("SAME");
+    leg_unusedE->Draw("SAME");
     c->SaveAs(TString::Format("GlueXI_Unused_Shower_Energy%s.pdf", 
         log_scale ? "_log" : ""));
     c->Clear();
-    legend->Clear();
+    delete leg_unusedE;
     
 
     // =================== Number Unused Tracks ===================
@@ -427,8 +428,7 @@ void plot_cuts(
     legend->Clear();
     
     // =================== Beam Energy ===================
-    TLegend *leg_beam = new TLegend(0.12, 0.8, 0.88, 0.88); // custom legend location
-    leg_beam->SetNColumns(4); // spread out across top of hist
+    TLegend *leg_beam = new TLegend(0.7, 0.2, 0.88, 0.88); // custom legend location    
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -436,7 +436,7 @@ void plot_cuts(
         "EnPB",
         50,
         8.0,
-        9.0
+        9.8
     );
     h_og->SetXTitle("Beam Energy (GeV)");
     bin_width = get_bin_width(h_og);
@@ -456,7 +456,7 @@ void plot_cuts(
         cuts,
         50,
         8.0,
-        9.0
+        9.8
     );
     leg_beam->AddEntry(h_cut, "After Cuts", "l");
 
@@ -481,7 +481,7 @@ void plot_cuts(
         cuts,
         50,
         8.0,
-        9.0,
+        9.8,
         "integral",
         leg_beam
     );
@@ -505,6 +505,7 @@ void plot_cuts(
     delete leg_beam;
 
     //=================== Chi2 / NDF ===================
+    TLegend *leg_chi2 = new TLegend(0.63, 0.13, 0.88, 0.38); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -517,7 +518,7 @@ void plot_cuts(
     h_og->SetXTitle("#chi^{2} / NDF");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_chi2->AddEntry(h_og, "Original Data", "l");
 
     cuts = remove_key_from_cuts(
         cut_color_map,
@@ -534,14 +535,14 @@ void plot_cuts(
         0.0,
         8.0
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_chi2->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         0.0,
         5.0
     );
-    legend->AddEntry(
+    leg_chi2->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -559,7 +560,7 @@ void plot_cuts(
         0.0,
         8.0,
         "max",
-        legend
+        leg_chi2
     );
 
     if (log_scale)
@@ -574,11 +575,11 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
-    legend->Draw("SAME");
+    leg_chi2->Draw("SAME");
     c->SaveAs(TString::Format("GlueXI_Chi2%s.pdf", 
         log_scale ? "_log" : ""));
-    c->Clear();
-    legend->Clear();
+    c->Clear();    
+    delete leg_chi2;
 
     // =================== four momentum transfer -t ===================
     h_og = get_og_histogram(
@@ -822,6 +823,7 @@ void plot_cuts(
     legend->Clear();
 
     // =================== Omega Pi0 Mass ===================
+    TLegend *leg_omega_pi0 = new TLegend(0.63, 0.13, 0.88, 0.38); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -834,7 +836,7 @@ void plot_cuts(
     h_og->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_omega_pi0->AddEntry(h_og, "Original Data", "l");
 
     // no cut on omega mass to exclude in broad cuts
     cuts = remove_key_from_cuts(
@@ -852,14 +854,14 @@ void plot_cuts(
         1.0,
         2.0
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_omega_pi0->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         1.0,
         2.0
     );
-    legend->AddEntry(
+    leg_omega_pi0->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -877,7 +879,7 @@ void plot_cuts(
         1.0,
         2.0,
         "max",
-        legend
+        leg_omega_pi0
     );
 
     if (log_scale)
@@ -892,11 +894,11 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
-    legend->Draw("SAME");
+    leg_omega_pi0->Draw("SAME");
     c->SaveAs(TString::Format("GlueXI_Omega_Pi0_Mass%s.pdf", 
         log_scale ? "_log" : ""));
     c->Clear();
-    legend->Clear();
+    delete leg_omega_pi0;
 
     // =================== Proton Bachelor Mass ===================
     h_og = get_og_histogram(
@@ -975,6 +977,7 @@ void plot_cuts(
     legend->Clear();
 
     // =================== pi0 (omega) momenta ===================
+    TLegend *leg_pz = new TLegend(0.43, 0.13, 0.68, 0.38);
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -997,7 +1000,7 @@ void plot_cuts(
     h_og->SetXTitle("P_{z}^{CM}(#pi^{0}_{omega}) (GeV)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_pz->AddEntry(h_og, "Original Data", "l");
 
     // no cut on omega pi0 momenta to exclude in broad cuts
     cuts = remove_key_from_cuts(
@@ -1015,14 +1018,15 @@ void plot_cuts(
         -0.5,
         1.5
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_pz->AddEntry(h_cut, "After Cuts", "l");
 
+    // no selection for this variable
     h_selection = get_selection_histogram(
         h_cut,
-        -0.1,
+        -0.5,
         1.5
     );
-    legend->AddEntry(
+    leg_pz->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -1040,7 +1044,7 @@ void plot_cuts(
         -0.5,
         1.5,
         "integral",
-        legend
+        leg_pz
     );
 
     if (log_scale)
@@ -1055,11 +1059,11 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
-    legend->Draw("SAME");
+    leg_pz->Draw("SAME");
     c->SaveAs(TString::Format("GlueXI_pz_omega%s.pdf", 
         log_scale ? "_log" : ""));
     c->Clear();
-    legend->Clear();
+    leg_pz->Clear();
 
     // =================== pi0 (bachelor) momenta ===================
     h_og = get_og_histogram(
@@ -1084,7 +1088,7 @@ void plot_cuts(
     h_og->SetXTitle("P_{z}^{CM}(#pi^{0}_{bachelor}) (GeV)");
     bin_width = get_bin_width(h_og);
     h_og->SetYTitle(TString::Format("Events / %.3f GeV^{2}", bin_width));
-    legend->AddEntry(h_og, "Original Data", "l");
+    leg_pz->AddEntry(h_og, "Original Data", "l");
 
     cuts = remove_key_from_cuts(
         cut_color_map,
@@ -1101,14 +1105,14 @@ void plot_cuts(
         -0.5,
         1.5
     );
-    legend->AddEntry(h_cut, "After Cuts", "l");
+    leg_pz->AddEntry(h_cut, "After Cuts", "l");
 
     h_selection = get_selection_histogram(
         h_cut,
         -0.1,
         1.5
     );
-    legend->AddEntry(
+    leg_pz->AddEntry(
         h_selection, 
         "Selection",
         "f"
@@ -1126,7 +1130,7 @@ void plot_cuts(
         -0.5,
         1.5,
         "integral",
-        legend
+        leg_pz
     );
 
     if (log_scale)
@@ -1141,11 +1145,11 @@ void plot_cuts(
     h_cut->Draw("HIST SAME");
     h_selection->Draw("HIST SAME");
     h_mc->Draw("SAME");
-    legend->Draw("SAME");
+    leg_pz->Draw("SAME");
     c->SaveAs(TString::Format("GlueXI_pz_bachelor%s.pdf", 
         log_scale ? "_log" : ""));
     c->Clear();
-    legend->Clear();
+    delete leg_pz;
 
     // // =================== Shower Quality  ===================
     // // Create a larger canvas for a 2x2 grid, to see all 4 photons at once
