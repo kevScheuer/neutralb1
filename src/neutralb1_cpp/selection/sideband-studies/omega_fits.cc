@@ -29,9 +29,9 @@
 #include "FSBasic/FSTree.h"
 #include "FSMode/FSModeHistogram.h"
 
-#include "load_broad_cuts.cc"
+#include "../load_broad_cuts.cc"
 #include "neutralb1/fit_utils.h"
-#include "fsroot_setup.cc"
+#include "../fsroot_setup.cc"
 
 // forward declarations
 std::map<double, TH1F *> create_omega_histograms(
