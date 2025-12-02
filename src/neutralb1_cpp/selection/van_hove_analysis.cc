@@ -67,13 +67,21 @@ void plot_pi_cuts(
     TString input_signal,
     TString input_sideband,
     bool mc);
+void plot_costheta_phi_bins(
+    TString NT,
+    TString CATEGORY,
+    TString input_signal,
+    TString input_sideband,
+    bool mc,
+    float pi0_mom_cut = -0.1);
 
 void van_hove_analysis(
     bool mc = false,
     bool plot_relations_flag = false,
     bool plot_van_hove_flag = false,
     bool plot_pi0_corr_flag = false,
-    bool plot_pi0_cuts_flag = false)
+    bool plot_pi0_cuts_flag = false,
+    bool plot_costheta_phi_bins_flag = false)
 {
     gStyle->SetPalette(kBird);
 
@@ -114,6 +122,8 @@ void van_hove_analysis(
     }
     if (plot_pi0_cuts_flag)
         plot_pi_cuts(NT, CATEGORY, input_signal, input_sideband, mc);
+    if (plot_costheta_phi_bins_flag)
+        plot_costheta_phi_bins(NT, CATEGORY, input_signal, input_sideband, mc, -1.0);
 
     return;
 }
@@ -778,4 +788,116 @@ void plot_pi_cuts(
     }
 
     return;
+}
+
+/**
+ * @brief Plot cos theta vs phi in bins of omega pi0 mass
+ * 
+ * @param[in] NT FSRoot tree name
+ * @param[in] CATEGORY FSRoot mode category
+ * @param[in] input_signal signal input file
+ * @param[in] input_sideband sideband input file
+ * @param[in] mc whether the input files are from Monte Carlo simulation
+ * @param[in] pi0_mom_cut bachelor pi0 CM momentum cut to apply (default -0.1 GeV)
+ */
+void plot_costheta_phi_bins(
+    TString NT,
+    TString CATEGORY,
+    TString input_signal,
+    TString input_sideband,
+    bool mc,
+    float pi0_mom_cut = -0.1)
+{
+    // define cut on bachelor pi0 CM momentum
+    FSCut::defineCut(
+        "pi0_cut",
+        TString::Format(
+            "MOMENTUMZBOOST(%d;%s,%s) > %f",
+            PI0_BACH, BEAM.Data(), TARGET.Data(), pi0_mom_cut)
+    );
+
+    double bin_width = 0.05; // omega pi0 bin width in GeV
+    int n_bins = static_cast<int>((2.0 - 1.0) / bin_width);
+
+    std::map<std::pair<double,double>, TH2F*> hist_map; // maps omega pi bin to cos theta vs phi hist
+
+    for (int i = 0; i < n_bins; ++i)
+    {
+        float mass_bin_low = 1.0 + i * bin_width;
+        float mass_bin_high = mass_bin_low + bin_width;
+
+        TString mass_cut = TString::Format(
+            "%s > %f && %s < %f",
+            M_OMEGA_PI0.Data(), mass_bin_low,
+            M_OMEGA_PI0.Data(), mass_bin_high
+        );
+        FSCut::defineCut(
+            TString::Format("omegapi0_bin_%d", i),
+            mass_cut
+        );
+
+        TH2F *h_signal = FSModeHistogram::getTH2F(
+            input_signal,
+            NT,
+            CATEGORY,
+            TString::Format( 
+                "HELCOSTHETA(%d,%d,%d;%d;%d):HELPHI(%d,%d,%d;%d;%d;%s)",                
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, BEAM.Data()),
+            "(100, -3.14, 3.14, 100, -1.0, 1.0)",
+            TString::Format(
+                "CUT(broad,pi0_cut,omegapi0_bin_%d)", i)
+        );
+        TH2F *h_sideband = FSModeHistogram::getTH2F(
+            input_sideband,
+            NT,
+            CATEGORY,
+            TString::Format( 
+                "HELCOSTHETA(%d,%d,%d;%d;%d):HELPHI(%d,%d,%d;%d;%d;%s)",                
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON,
+                PIPLUS, PIMINUS, PI0_OM, PI0_BACH, PROTON, BEAM.Data()),
+            "(100, -3.14, 3.14, 100, -1.0, 1.0)",
+            TString::Format(
+                "CUT(broad,pi0_cut,omegapi0_bin_%d)", i)
+        );
+        h_signal->Add(h_sideband, -1); // signal - sideband
+        hist_map[std::make_pair(mass_bin_low, mass_bin_high)] = h_signal;        
+    } // end loop over omega pi0 mass bins
+
+    TCanvas *c = new TCanvas("c", "c", 1200, 1000);
+    c->Divide(5, 4); // 20 pads for 20 bins
+
+    int pad_index = 1;
+    for (std::map<std::pair<double,double>, TH2F*>::iterator it = hist_map.begin(); it != hist_map.end(); ++it)
+    {        
+        c->cd(pad_index);
+        pad_index++;
+        // set any negative bin contents to zero for better representation of holes
+        for(int binx = 1; binx <= it->second->GetNbinsX(); ++binx)
+        {
+            for(int biny = 1; biny <= it->second->GetNbinsY(); ++biny)
+            {
+                int bin_content = it->second->GetBinContent(binx, biny);
+                if (bin_content < 0)
+                    it->second->SetBinContent(binx, biny, 0);
+            }
+        }    
+
+        TString title = TString::Format(
+            "%1.2f < M_{#omega#pi^{0}} < %1.2f GeV",
+            it->first.first,
+            it->first.second);
+        it->second->SetTitle(title);
+        it->second->GetXaxis()->SetTitle("#phi (rad)");
+        it->second->GetXaxis()->SetRangeUser(-3.14, 3.14);
+        it->second->GetYaxis()->SetTitle("cos #theta");
+        it->second->GetYaxis()->SetRangeUser(-1.0, 1.0);
+        it->second->Draw("colz");
+    } // end loop over map
+
+    c->SaveAs(
+        TString::Format(
+            "costheta_phi_omegapi0_bins_pi0momcut%1.1f%s.pdf",
+            pi0_mom_cut,
+            mc ? "_mc" : "_data"));
 }
