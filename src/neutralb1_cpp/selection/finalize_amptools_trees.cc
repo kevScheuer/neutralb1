@@ -31,18 +31,42 @@
 #include "fsroot_setup.cc"
 
 // forward declarations
-void load_final_cuts(
+std::pair<TString, TString> load_final_cuts(
     int perm_id,
     std::vector<TString> perm_particles,
     bool nominal_cuts
 );
 std::vector<std::pair<TString, TString>> 
 get_amptools_branch_mappings(std::vector<TString> perm_particles);
+std::map<TString, TString> create_var_branches_map(
+    int perm_id,
+    std::vector<TString> perm_particles
+);
 
 // CONSTANTS
 const double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
 const double SIGNAL_HALF_WIDTH = 0.028; // half width of selected signal region in GeV
 const double SIDEBAND_GAP = SIGNAL_HALF_WIDTH*2; // how far from omega mass the sideband starts
+
+// FSRoot particle ordering
+//   0       1          2             3              4              5
+// [beam] [proton] [pi+ (omega)] [pi- (omega)] [pi0 (omega)] [pi0 (bachelor)]
+
+// The ordering for amptools will be different; we need to map the index of fs root
+// particles to the corresponding amptools particle that follows the order
+//   0       1            2               3            4             5
+// [beam] [proton] [pi0 (bachelor)] [pi0 (omega)] [pi+ (omega)] [pi- (omega)]
+const std::map<int, TString> FS_INDEX_TO_AMPTOOLS_MAP = {
+    {0, "B"}, {1, "1"}, {5, "2"}, {4, "3"}, {2, "4"}, {3, "5"}};
+
+// define some FSRoot index labels for readability
+const int BEAM = 0;
+const int PROTON = 1;
+const int PI_PLUS = 2;
+const int PI_MINUS = 3;
+const int PI0_OMEGA = 4;
+const int PI0_BACHELOR = 5;
+
 
 void finalize_amptools_trees(
     bool signal_mc = true, 
@@ -86,10 +110,30 @@ void finalize_amptools_trees(
             std::vector<TString> perm_particles = perm_it->second;
 
             // get the 4-momenta branch mappings to AmpTools for this permutation
-            std::vector<std::pair<TString, TString>> amptools_branch_mappings = 
+            std::vector<std::pair<TString, TString>> branches = 
                 get_amptools_branch_mappings(perm_particles);
 
-            load_final_cuts(perm_id, perm_particles, nominal_cuts);
+            std::pair<TString, TString> final_cuts = 
+                load_final_cuts(perm_id, perm_particles, nominal_cuts);
+
+            std::map<TString, TString> var_to_branch = 
+                create_var_branches_map(perm_id, perm_particles);
+
+            // add the variable branches to the AmpTools mapping branches
+            for (std::map<TString, TString>::iterator var_it = var_to_branch.begin();
+                 var_it != var_to_branch.end(); ++var_it)
+            {
+                branches.push_back(
+                    std::make_pair(var_it->first, var_it->second)
+                );
+            }
+
+            // print the branch mapping for debugging
+            for (auto pair : branches)
+                std::cout << "Branch: " << pair.first << " -> " << pair.second << "\n";
+
+            // create the friend tree for this permutation with these branches
+
 
 
         } // end loop over permutations
@@ -119,16 +163,7 @@ void finalize_amptools_trees(
 std::vector<std::pair<TString, TString>> 
 get_amptools_branch_mappings(std::vector<TString> perm_particles)
 {
-    // FSRoot particle ordering
-    //   0       1          2             3              4              5
-    // [beam] [proton] [pi+ (omega)] [pi- (omega)] [pi0 (omega)] [pi0 (bachelor)]
-
-    // The ordering for amptools will be different; we need to map the index of fs root
-    // particles to the corresponding amptools particle that follows the order
-    //   0       1            2               3            4             5
-    // [beam] [proton] [pi0 (bachelor)] [pi0 (omega)] [pi+ (omega)] [pi- (omega)]
-    std::map<int, TString> fs_index_to_amptools_map = {
-        {0, "B"}, {1, "1"}, {5, "2"}, {4, "3"}, {2, "4"}, {3, "5"}};
+    
 
     std::vector<TString> p4_components = {"EnP", "PxP", "PyP", "PzP"};
 
@@ -140,7 +175,7 @@ get_amptools_branch_mappings(std::vector<TString> perm_particles)
     for (int i = 0; i < perm_particles.size(); i++)
     {
         TString fs_particle = perm_particles[i];
-        TString amptools_particle = fs_index_to_amptools_map[i];
+        TString amptools_particle = FS_INDEX_TO_AMPTOOLS_MAP.at(i);
 
         for (const TString comp : p4_components)
         {
@@ -168,27 +203,27 @@ get_amptools_branch_mappings(std::vector<TString> perm_particles)
  * typically be either {B, 1, 2, 3, 4, 5} or {B, 1, 2, 3, 5, 4} depending on
  * which pi0 is assigned to the omega decay.
  * @param nominal_cuts If true, use nominal cuts; if false, use loose cuts
+ * @return std::pair<TString, TString> A pair of strings where the first element is
+ * the comma separated normal cuts and the second element is the comma separated 
+ * sideband cuts
  */
-void load_final_cuts(
+std::pair<TString, TString> load_final_cuts(
     int perm_id,
     std::vector<TString> perm_particles,
     bool nominal_cuts
 )
 {
-    // define some FSRoot index labels for readability
-    int beam = 0;
-    int proton = 1;
-    int pi_plus = 2;
-    int pi_minus = 3;
-    int pi0_omega = 4;
-    int pi0_bachelor = 5;
+    // we'll combine these vectors together at the end, but this makes tracking them 
+    // easier
+    std::vector<TString> single_vec; 
+    std::vector<TString> sideband_vec;
 
     // ==== omega sideband subtraction cut definition ====
     TString data_omega_mass = TString::Format(
         "MASS(%s,%s,%s)",
-        perm_particles[pi_plus].Data(),
-        perm_particles[pi_minus].Data(),
-        perm_particles[pi0_omega].Data());
+        perm_particles[PI_PLUS].Data(),
+        perm_particles[PI_MINUS].Data(),
+        perm_particles[PI0_OMEGA].Data());
     TString signal_region_cut = TString::Format(
         "abs(%s-%f)<%f",
         data_omega_mass.Data(),
@@ -209,14 +244,17 @@ void load_final_cuts(
         signal_region_cut,
         sideband_region_cut,
         1.0);
+    sideband_vec.push_back(
+        TString::Format("omega_sb_subtraction_perm%d", perm_id)
+    );
     
     // ==== omega pi0 mass region ====
     TString omega_pi0_mass = TString::Format(
         "MASS(%s,%s,%s,%s)",
-        perm_particles[pi_plus].Data(),
-        perm_particles[pi_minus].Data(),
-        perm_particles[pi0_omega].Data(),
-        perm_particles[pi0_bachelor].Data());
+        perm_particles[PI_PLUS].Data(),
+        perm_particles[PI_MINUS].Data(),
+        perm_particles[PI0_OMEGA].Data(),
+        perm_particles[PI0_BACHELOR].Data());
     TString omega_pi0_mass_cut = TString::Format(
         "%s>%f&&%s<%f",
         omega_pi0_mass.Data(),
@@ -227,6 +265,9 @@ void load_final_cuts(
     FSCut::defineCut(
         TString::Format("omega_pi0_mass_cut_perm%d", perm_id),
         omega_pi0_mass_cut);
+    single_vec.push_back(
+        TString::Format("omega_pi0_mass_cut_perm%d", perm_id)
+    );
 
     // ==== stable cuts ====
     // now define some cuts that will always remain consistent (no systematic variations)
@@ -238,6 +279,9 @@ void load_final_cuts(
     FSCut::defineCut("z", "ProdVz>=51.2&&ProdVz<=78.8");
     // rf sideband subtraction
     FSCut::defineCut("rf", "abs(RFDeltaT)<0.2", "abs(RFDeltaT)>2.0", 0.125);
+    single_vec.push_back("t");
+    single_vec.push_back("z");
+    sideband_vec.push_back("rf");
 
     // ==== systematic cuts ====
     // these cuts may be varied later for systematic checks. We'll separate them into
@@ -257,7 +301,7 @@ void load_final_cuts(
         FSCut::defineCut( // require bachelor pi0 moving forward in CM frame
             TString::Format("pzPi0_perm%d", perm_id),
             TString::Format(
-                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.1", pi0_bachelor
+                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.1", PI0_BACHELOR
             )); 
     }
     else 
@@ -273,9 +317,100 @@ void load_final_cuts(
         FSCut::defineCut( // require bachelor pi0 moving forward in CM frame
             TString::Format("pzPi0_perm%d", perm_id),
             TString::Format(
-                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.3", pi0_bachelor
+                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.3", PI0_BACHELOR   
             )); 
     }
+    single_vec.push_back("unusedE");
+    single_vec.push_back("unusedTracks");
+    single_vec.push_back("MM2");
+    single_vec.push_back("chi2");
+    single_vec.push_back("shQuality");
+    single_vec.push_back(TString::Format("pzPi0_perm%d", perm_id));
+
+    // now combine our single and sideband cut vectors into comma-separated strings
+    TString all_single_cuts;
+    TString all_sideband_cuts;
+    for (const TString& cut : single_vec)
+    {
+        if (all_single_cuts.IsNull())
+        {
+            all_single_cuts = cut;
+        }
+        else
+        {
+            all_single_cuts += "," + cut;
+        }
+    }
+    for (const TString& cut : sideband_vec)
+    {
+        if (all_sideband_cuts.IsNull())
+        {
+            all_sideband_cuts = cut;
+        }
+        else
+        {
+            all_sideband_cuts += "," + cut;
+        }
+    }
     
-    return;
+    return std::make_pair(all_single_cuts, all_sideband_cuts);
+}
+
+
+std::map<TString, TString> create_var_branches_map(
+    int perm_id,
+    std::vector<TString> perm_particles
+)
+{
+    // define some FSRoot index labels for readability
+    int beam = 0;
+    int proton = 1;
+    int pi_plus = 2;
+    int pi_minus = 3;
+    int pi0_omega = 4;
+    int pi0_bachelor = 5;
+
+    std::map<TString, TString> var_to_branch;
+    var_to_branch["rf"] = "RFDeltaT";
+    var_to_branch["M4Pi"] = TString::Format(
+        "MASS(%s,%s,%s,%s)",
+        perm_particles[pi_plus].Data(),
+        perm_particles[pi_minus].Data(),
+        perm_particles[pi0_omega].Data(),
+        perm_particles[pi0_bachelor].Data());
+    var_to_branch["unusedE"] = "EnUnusedSh";
+    var_to_branch["unusedTracks"] = "NumUnusedTracks";
+    var_to_branch["z"] = "ProdVz";
+    var_to_branch["MM2"] = "RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5)";
+    var_to_branch["missingE"] = "RENERGY(GLUEXTARGET, B) - RENERGY(1, 2, 3, 4, 5)";
+    var_to_branch["chi2"] = "Chi2DOF";
+    var_to_branch["t"] = "-1*MASS2(1,-GLUEXTARGET)";
+    var_to_branch["MRecoilPi"] = TString::Format(
+        "MASS(%s,%s)",
+        perm_particles[proton].Data(),
+        perm_particles[pi0_bachelor].Data());
+
+    // shower quality variables need to be remapped to match AmpTools indexing
+    var_to_branch[
+        TString::Format(
+            "shQualityP%sa", 
+            FS_INDEX_TO_AMPTOOLS_MAP.at(PI0_OMEGA).Data()
+        )] = TString::Format("ShQualityP%sa", perm_particles[PI0_OMEGA].Data());
+    var_to_branch[
+        TString::Format(
+            "shQualityP%sb", 
+            FS_INDEX_TO_AMPTOOLS_MAP.at(PI0_OMEGA).Data()
+        )] = TString::Format("ShQualityP%sb", perm_particles[PI0_OMEGA].Data());
+    var_to_branch[
+        TString::Format(
+            "shQualityP%sa", 
+            FS_INDEX_TO_AMPTOOLS_MAP.at(PI0_BACHELOR).Data()
+        )] = TString::Format("ShQualityP%sa", perm_particles[PI0_BACHELOR].Data());
+    var_to_branch[
+        TString::Format(
+            "shQualityP%sb", 
+            FS_INDEX_TO_AMPTOOLS_MAP.at(PI0_BACHELOR).Data()
+        )] = TString::Format("ShQualityP%sb", perm_particles[PI0_BACHELOR].Data());
+
+    return var_to_branch;
 }
