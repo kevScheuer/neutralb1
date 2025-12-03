@@ -46,6 +46,7 @@ std::map<TString, Int_t> load_broad_branch_cuts()
     cut_color_map["chi2"] = TColor::GetColor("#832db6");
     cut_color_map["t"] = TColor::GetColor("#3f90da");
     cut_color_map["shQuality"] = TColor::GetColor("#ffa90e");
+    cut_color_map["pzPi0"] = TColor::GetColor("#bd1f01");
 
     return cut_color_map;
 }

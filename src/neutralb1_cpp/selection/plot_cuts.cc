@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <map>
+#include <string>
 #include <tuple>
 
 #include "TString.h"
@@ -75,6 +76,7 @@ TH1F* get_mc_histogram(
     const TString scale_choice,
     TLegend *legend
 );
+void log_message(const std::string &plot_name, const TString cuts);
 
 void plot_cuts(    
     bool log_scale = false,
@@ -140,6 +142,7 @@ void plot_cuts(
         cut_color_map,
         "unusedE"
     );
+    log_message("Unused Shower Energy", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -217,6 +220,7 @@ void plot_cuts(
         cut_color_map,
         "unusedTracks"
     );
+    log_message("Number of Unused Tracks", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -294,6 +298,7 @@ void plot_cuts(
         cut_color_map,
         "z"
     );
+    log_message("Production Vertex Z", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -370,6 +375,7 @@ void plot_cuts(
         cut_color_map,
         "MM2"
     );
+    log_message("Missing Mass^2", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -434,9 +440,9 @@ void plot_cuts(
         NT,
         CATEGORY,
         "EnPB",
-        50,
+        150,
         8.0,
-        9.8
+        9.5
     );
     h_og->SetXTitle("Beam Energy (GeV)");
     bin_width = get_bin_width(h_og);
@@ -447,6 +453,7 @@ void plot_cuts(
         cut_color_map,
         "EnPB"
     );
+    log_message("Beam Energy", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -454,9 +461,9 @@ void plot_cuts(
         CATEGORY,
         "EnPB",
         cuts,
-        50,
+        150,
         8.0,
-        9.8
+        9.5
     );
     leg_beam->AddEntry(h_cut, "After Cuts", "l");
 
@@ -479,9 +486,9 @@ void plot_cuts(
         CATEGORY,
         "EnPB",
         cuts,
-        50,
+        150,
         8.0,
-        9.8,
+        9.5,
         "integral",
         leg_beam
     );
@@ -505,7 +512,7 @@ void plot_cuts(
     delete leg_beam;
 
     //=================== Chi2 / NDF ===================
-    TLegend *leg_chi2 = new TLegend(0.63, 0.13, 0.88, 0.38); // custom legend location
+    TLegend *leg_chi2 = new TLegend(0.63, 0.23, 0.88, 0.48); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -524,6 +531,7 @@ void plot_cuts(
         cut_color_map,
         "chi2"
     );
+    log_message("Chi2 / NDF", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -600,6 +608,7 @@ void plot_cuts(
         cut_color_map,
         "t"
     );
+    log_message("four momentum transfer -t", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -677,6 +686,7 @@ void plot_cuts(
         cut_color_map,
         ""
     );
+    log_message("Missing Energy", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -765,6 +775,7 @@ void plot_cuts(
         cut_color_map,
         ""
     );
+    log_message("Omega Mass", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -823,7 +834,7 @@ void plot_cuts(
     legend->Clear();
 
     // =================== Omega Pi0 Mass ===================
-    TLegend *leg_omega_pi0 = new TLegend(0.63, 0.13, 0.88, 0.38); // custom legend location
+    TLegend *leg_omega_pi0 = new TLegend(0.63, 0.23, 0.88, 0.48); // custom legend location
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -843,6 +854,7 @@ void plot_cuts(
         cut_color_map,
         ""
     );
+    log_message("Omega Pi0 Mass", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -930,6 +942,7 @@ void plot_cuts(
         cut_color_map,
         ""
     );
+    log_message("Proton Bachelor Mass", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -977,7 +990,7 @@ void plot_cuts(
     legend->Clear();
 
     // =================== pi0 (omega) momenta ===================
-    TLegend *leg_pz = new TLegend(0.43, 0.13, 0.68, 0.38);
+    TLegend *leg_pz = new TLegend(0.43, 0.23, 0.68, 0.48);
     h_og = get_og_histogram(
         input_data_og,
         NT,
@@ -1007,6 +1020,7 @@ void plot_cuts(
         cut_color_map,
         ""
     );
+    log_message("Pz(pi0_omega)", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -1094,6 +1108,7 @@ void plot_cuts(
         cut_color_map,
         "pzPi0"
     );
+    log_message("Pz(pi0_bachelor)", cuts);
     h_cut = get_cut_histogram(
         input_data_signal,
         input_data_sideband,
@@ -1506,4 +1521,11 @@ TH1F* get_mc_histogram(
     h_signal->SetMarkerStyle(24);
     h_signal->SetMarkerColor(kBlack);    
     return h_signal;
+}
+
+
+void log_message(const std::string &plot_name, const TString cuts)
+{
+    std::cout << "Plotting " << plot_name << " with cuts: \n\t" 
+              << cuts.Data() << std::endl;
 }
