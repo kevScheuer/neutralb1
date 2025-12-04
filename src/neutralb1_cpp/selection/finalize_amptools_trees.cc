@@ -208,8 +208,6 @@ void finalize_amptools_trees(bool nominal_cuts = true)
 std::vector<std::pair<TString, TString>> 
 get_amptools_branch_mappings(std::vector<TString> perm_particles)
 {
-    
-
     std::vector<TString> p4_components = {"EnP", "PxP", "PyP", "PzP"};
 
     // setup branches for our friend tree in this loop
