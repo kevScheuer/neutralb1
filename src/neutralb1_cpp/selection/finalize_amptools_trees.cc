@@ -112,7 +112,6 @@ void finalize_amptools_trees(bool nominal_cuts = true)
         TString phsp_file = TString::Format(
             "%stree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.root", 
             best_chi2_dir.Data(), period);
-        // TODO: find gen phasespace file and apply only RF cut (I think)?
 
         // Our particle orders determine what decay they are from
         //   0       1          2             3              4              5
