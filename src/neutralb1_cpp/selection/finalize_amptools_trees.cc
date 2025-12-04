@@ -52,8 +52,21 @@ void skim_trees(
     std::pair<TString, TString> final_cuts,
     std::vector<std::pair<TString, TString>> branches    
 );
+void skim_phasespace_trees(
+    TString NT, 
+    TString CATEGORY,
+    TString file, 
+    int period,
+    TString label,
+    int perm_id, 
+    std::pair<TString, TString> final_cuts,
+    std::vector<std::pair<TString, TString>> branches
+);
+void create_common_key(TString friend_file, TString NT, TString friend_extension);
 
 // CONSTANTS
+const TString TREE_OUTPUT_DIR = "/lustre24/expphy/volatile/halld/home/kscheuer/"
+    "FSRoot-skimmed-trees/final-amptools-trees/";
 const double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
 const double SIGNAL_HALF_WIDTH = 0.028; // half width of selected signal region in GeV
 const double SIDEBAND_GAP = SIGNAL_HALF_WIDTH*2; // how far from omega mass the sideband starts
@@ -78,10 +91,7 @@ const int PI0_OMEGA = 4;
 const int PI0_BACHELOR = 5;
 
 
-void finalize_amptools_trees(
-    bool signal_mc = true, 
-    bool phasespace_mc = true, 
-    bool nominal_cuts = true)
+void finalize_amptools_trees(bool nominal_cuts = true)
 {
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(false);    
@@ -101,6 +111,7 @@ void finalize_amptools_trees(
         TString phsp_file = TString::Format(
             "%stree_pi0pi0pippim__B4_bestChi2_SKIM_0%d_ver03.root", 
             best_chi2_dir.Data(), period);
+        // TODO: find gen phasespace file and apply only RF cut (I think)?
 
         // Our particle orders determine what decay they are from
         //   0       1          2             3              4              5
@@ -163,14 +174,21 @@ void finalize_amptools_trees(
                 final_cuts,
                 branches
             );
-
-            // TODO: same cuts for signal MC, but phasespace might want other function?
-
+            skim_phasespace_trees(
+                NT,
+                CATEGORY,
+                phsp_file,
+                period,
+                "ver03",
+                perm_id,
+                final_cuts,
+                branches
+            );            
         } // end loop over permutations
     } // end loop over run periods
 
-    // TODO: once all run periods done, then we can hadd the final trees together and 
-    // rename them to the more usual AmpToolInputTree format
+    // with friend trees now created for each period and permutation, we can now
+    // hadd them together into the final AmpTools input trees for fitting
 
 }
 
@@ -492,9 +510,6 @@ void skim_trees(
     std::cout << "Applying cuts: " << final_cuts.first.Data() << "\n";
     std::cout << "Applying sideband cuts: " << final_cuts.second.Data() << "\n";
 
-    TString out_dir = TString::Format(
-    "/lustre24/expphy/volatile/halld/home/kscheuer/"
-    "FSRoot-skimmed-trees/final-amptools-trees/");
 
     // define cuts for the 4 polarization orientations
     FSCut::defineCut("pol0", "PolarizationAngle>-5&&PolarizationAngle<5");
@@ -511,7 +526,7 @@ void skim_trees(
         // signal
         TString signal_out = TString::Format(
             "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_%s_%s_perm%d_signal.root",
-            out_dir.Data(),
+            TREE_OUTPUT_DIR.Data(),
             period,
             label.Data(),
             pol_cut_name.Data(),
@@ -533,11 +548,16 @@ void skim_trees(
             TString::Format("amptools_branches_perm%d", perm_id),
             branches_copy
         );
+        create_common_key(
+            signal_out, 
+            NT, 
+            TString::Format("amptools_branches_perm%d", perm_id)
+        );
 
         // background
-        TString data_out_background = TString::Format(
+        TString background_out = TString::Format(
             "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_%s_%s_perm%d_background.root",
-            out_dir.Data(),
+            TREE_OUTPUT_DIR.Data(),
             period,
             label.Data(),
             pol_cut_name.Data(),
@@ -547,7 +567,7 @@ void skim_trees(
             file,
             NT,
             CATEGORY,
-            data_out_background,
+            background_out,
             TString::Format(
                 "CUTSBWT(%s)*CUT(%s)", 
                 final_cuts.second.Data(), pol_cut_name.Data())
@@ -560,10 +580,121 @@ void skim_trees(
                 "CUTSBWT(%s)", final_cuts.second.Data())
         ));
         FSTree::createFriendTree(
-            data_out_background,
+            background_out,
             NT,                
             TString::Format("amptools_branches_perm%d", perm_id),
             branches_copy
         );
+        create_common_key(
+            background_out, 
+            NT, 
+            TString::Format("amptools_branches_perm%d", perm_id)
+        );
     } // end loop over polarization angles
+}
+
+/**
+ * @brief Skim and create phasespace trees for this permutation
+ * 
+ * Functionally very similar to void skim_trees, but phasespace trees only have 
+ * one output file with a weight that includes the sideband subtraction directly
+ * 
+ * @param NT tree name
+ * @param CATEGORY tree category
+ * @param file input file name
+ * @param period run period
+ * @param label label for output file naming
+ * @param perm_id permutation id
+ * @param final_cuts pair of final cuts and sideband cuts
+ * @param branches vector of branch names to write to friend tree
+ */
+void skim_phasespace_trees(
+    TString NT, 
+    TString CATEGORY,
+    TString file, 
+    int period,
+    TString label,
+    int perm_id, 
+    std::pair<TString, TString> final_cuts,
+    std::vector<std::pair<TString, TString>> branches
+)
+{
+    // make copy since we have to add weight branch later
+    std::vector<std::pair<TString, TString>> branches_copy = branches;
+
+    std::cout << "Skimming file: " << file << "\n";
+    std::cout << "Permutation " << perm_id << "\n";
+    std::cout << "Applying cuts: " << final_cuts.first.Data() << "\n";
+    std::cout << "Applying sideband cuts: " << final_cuts.second.Data() << "\n";
+
+    // define cuts for the 4 polarization orientations
+    FSCut::defineCut("pol0", "PolarizationAngle>-5&&PolarizationAngle<5");
+    FSCut::defineCut("pol45", "PolarizationAngle>40&&PolarizationAngle<50");
+    FSCut::defineCut("pol90", "PolarizationAngle>85&&PolarizationAngle<95");
+    FSCut::defineCut("pol135", "PolarizationAngle>130&&PolarizationAngle<140");
+
+    std::vector<int> pol_angles = {0, 45, 90, 135};
+    for (int angle : pol_angles)
+    {
+        std::cout << "Polarization angle: " << angle << "\n";
+        TString pol_cut_name = TString::Format("pol%d", angle);            
+    
+        // phasespace has only one output file per pol orientation, with sideband 
+        // weighting applied directly
+        TString output_file = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_%s_%s_perm%d.root",
+            TREE_OUTPUT_DIR.Data(),
+            period,
+            label.Data(),
+            pol_cut_name.Data(),
+            perm_id);
+
+        FSModeTree::skimTree(
+            file,
+            NT,
+            CATEGORY,
+            output_file,
+            TString::Format(
+                "CUT(%s,%s,%s)", 
+                final_cuts.first.Data(), final_cuts.second.Data(), pol_cut_name.Data())
+        );
+        branches_copy.push_back(std::make_pair(
+            "weight", 
+            TString::Format(
+                "CUTWT(%s)", final_cuts.second.Data())
+        ));
+        FSTree::createFriendTree(
+            output_file,
+            NT,                
+            TString::Format("amptools_branches_perm%d", perm_id),
+            branches_copy
+        );
+        create_common_key(
+            output_file, 
+            NT, 
+            TString::Format("amptools_branches_perm%d", perm_id)
+        );
+    } // end loop over polarization angles
+}
+
+/**
+ * @brief Add a common key to the friend trees for hadd-ing later
+ * 
+ * Since the friend trees have different names depending on the permutation,
+ * we need to rename them to a common name so that they can be hadd-ed together
+ * later on.
+ * 
+ * @param friend_file ROOT file of the friend tree
+ * @param NT Original tree name
+ * @param friend_extension friend tree name that extends on NT
+ */
+void create_common_key(TString friend_file, TString NT, TString friend_extension)
+{
+    TString tree_name = NT + "_" + friend_extension;
+
+    TFile *f = TFile::Open(friend_file, "UPDATE");    
+    TTree *t = (TTree*)f->Get(tree_name);
+    t->SetName(NT);
+    t->Write("",TObject::kOverwrite);
+    f->Close();
 }
