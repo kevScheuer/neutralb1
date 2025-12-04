@@ -63,6 +63,7 @@ void skim_phasespace_trees(
     std::vector<std::pair<TString, TString>> branches
 );
 void create_common_key(TString friend_file, TString NT, TString friend_extension);
+void combine_permutations(TString NT, int period);
 
 // CONSTANTS
 const TString TREE_OUTPUT_DIR = "/lustre24/expphy/volatile/halld/home/kscheuer/"
@@ -697,4 +698,167 @@ void create_common_key(TString friend_file, TString NT, TString friend_extension
     t->SetName(NT);
     t->Write("",TObject::kOverwrite);
     f->Close();
+}
+
+/**
+ * @brief Combine permutations for each polarization and run period
+ * 
+ * A lot of the file naming here is hardcoded, but it works for now
+ * 
+ * @param NT tree name 
+ * @param period run period integer
+ */
+void combine_permutations(TString NT, int period)
+{    
+    std::vector<int> pol_angles = {0, 45, 90, 135};
+    for (int angle : pol_angles)
+    {
+        TString pol_cut_name = TString::Format("pol%d", angle);
+        TString friend_extension_perm1 = "amptools_branches_perm1";
+        TString friend_extension_perm2 = "amptools_branches_perm2";
+            
+
+        TString p1_data_signal = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_data_%s_perm1_signal.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm1.Data()
+        );
+        TString p2_data_signal = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_data_%s_perm2_signal.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm2.Data()
+        );
+        TString p1_data_background = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_data_%s_perm1_background.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm1.Data()
+        );
+        TString p2_data_background = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_data_%s_perm2_background.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm2.Data()
+        );
+
+        TString p1_mc_signal = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03.1_mc_%s_perm1_signal.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm1.Data()
+        );
+        TString p2_mc_signal = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03.1_mc_%s_perm2_signal.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm2.Data()
+        );
+        TString p1_mc_background = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03.1_mc_%s_perm1_background.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm1.Data()
+        );
+        TString p2_mc_background = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03.1_mc_%s_perm2_background.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm2.Data()
+        );
+
+        TString p1_phsp = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_%s_perm1.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm1.Data()
+        );
+        TString p2_phsp = TString::Format(
+            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_%s_perm2.root.%s",
+            TREE_OUTPUT_DIR.Data(),
+            period,            
+            pol_cut_name.Data(),
+            friend_extension_perm2.Data()
+        );
+
+        std::map<int, TString> period_to_name_map = {
+            {3, "2017_01"},
+            {4, "2018_01"},
+            {5, "2018_08"}
+        };
+        std::map<int, TString> angle_to_name_map = {
+            {0, "PARA_0"},
+            {45, "PERP_45"},
+            {90, "PERP_90"},
+            {135, "PERP_135"}
+        };
+
+        TString data_signal_output = TString::Format(
+            "%s_%s_data_signal.root",
+            angle_to_name_map.at(angle).Data(),
+            period_to_name_map.at(period).Data()      
+        );
+        TString data_background_output = TString::Format(
+            "%s_%s_data_background.root",
+            angle_to_name_map.at(angle).Data(),
+            period_to_name_map.at(period).Data()      
+        );
+        TString mc_signal_output = TString::Format(
+            "%s_%s_ver03.1_mc_signal.root",
+            angle_to_name_map.at(angle).Data(),
+            period_to_name_map.at(period).Data()      
+        );
+        TString mc_background_output = TString::Format(
+            "%s_%s_ver03.1_mc_background.root",
+            angle_to_name_map.at(angle).Data(),
+            period_to_name_map.at(period).Data()      
+        );
+        TString phsp_output = TString::Format(
+            "%s_%s_ver03_phsp.root",
+            angle_to_name_map.at(angle).Data(),
+            period_to_name_map.at(period).Data()      
+        );
+
+        // finally hadd the two permutations together for each case
+        system(TString::Format(
+            "hadd -f %s %s %s",
+            data_signal_output.Data(),
+            p1_data_signal.Data(),
+            p2_data_signal.Data()
+        ).Data());
+        system(TString::Format(
+            "hadd -f %s %s %s",
+            data_background_output.Data(),
+            p1_data_background.Data(),
+            p2_data_background.Data()
+        ).Data());
+        system(TString::Format(
+            "hadd -f %s %s %s",
+            mc_signal_output.Data(),
+            p1_mc_signal.Data(),
+            p2_mc_signal.Data()
+        ).Data());
+        system(TString::Format(
+            "hadd -f %s %s %s",
+            mc_background_output.Data(),
+            p1_mc_background.Data(),
+            p2_mc_background.Data()
+        ).Data());
+        system(TString::Format(
+            "hadd -f %s %s %s",
+            phsp_output.Data(),
+            p1_phsp.Data(),
+            p2_phsp.Data()
+        ).Data());
+    } // end loop over polarization angles
 }
