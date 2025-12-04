@@ -190,6 +190,9 @@ void finalize_amptools_trees(bool nominal_cuts = true)
 
     // with friend trees now created for each period and permutation, we can now
     // hadd them together into the final AmpTools input trees for fitting
+    combine_permutations(NT, 3);
+    combine_permutations(NT, 4);
+    combine_permutations(NT, 5);
 
 }
 
