@@ -42,6 +42,16 @@ std::map<TString, TString> create_var_branches_map(
     int perm_id,
     std::vector<TString> perm_particles
 );
+void skim_trees(
+    TString NT, 
+    TString CATEGORY,
+    TString file, 
+    int period,
+    TString label,
+    int perm_id, 
+    std::pair<TString, TString> final_cuts,
+    std::vector<std::pair<TString, TString>> branches    
+);
 
 // CONSTANTS
 const double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
@@ -132,7 +142,7 @@ void finalize_amptools_trees(
             for (auto pair : branches)
                 std::cout << "Branch: " << pair.first << " -> " << pair.second << "\n";
 
-            // skim the trees for data, signal MC, and phasespace MC
+            // skim the trees for data, and signal MC
             skim_trees(
                 NT,
                 CATEGORY, 
@@ -140,6 +150,16 @@ void finalize_amptools_trees(
                 period, 
                 "data", 
                 perm_id, 
+                final_cuts,
+                branches
+            );
+            skim_trees(
+                NT,
+                CATEGORY,
+                mc_file,
+                period,
+                "ver03.1_mc",
+                perm_id,
                 final_cuts,
                 branches
             );
@@ -360,7 +380,20 @@ std::pair<TString, TString> load_final_cuts(
     return std::make_pair(all_single_cuts, all_sideband_cuts);
 }
 
-
+/**
+ * @brief Sets up a map for the friend tree branches
+ * 
+ * Sets up branch names that we'll want to easily access in the new friend trees.
+ * Note that the ShowerQuality branch is remapped to match the AmpTools particle
+ * ordering for consistency.
+ * 
+ * @param perm_id permutation id (1 or 2)
+ * @param perm_particles The permutation of particles in FSRoot order. This will 
+ * typically be either {B, 1, 2, 3, 4, 5} or {B, 1, 2, 3, 5, 4} depending on
+ * which pi0 is assigned to the omega decay.
+ * @return std::map<TString, TString> A map where the key is the variable name
+ * used in cuts and the value is the corresponding branch name in the FSRoot tree
+ */
 std::map<TString, TString> create_var_branches_map(
     int perm_id,
     std::vector<TString> perm_particles
@@ -424,6 +457,22 @@ std::map<TString, TString> create_var_branches_map(
 }
 
 
+/**
+ * @brief Create skimmed signal and sideband trees and friend tree branches
+ * 
+ * Separates a run period into the 4 polarization orientations, applies the final
+ * cuts and sideband subtractions, and creates friend trees with the branches
+ * for the given permutation
+ * 
+ * @param NT tree name
+ * @param CATEGORY tree category
+ * @param file input file name
+ * @param period run period
+ * @param label label for output file naming
+ * @param perm_id permutation id
+ * @param final_cuts pair of final cuts and sideband cuts
+ * @param branches vector of branch names to write to friend tree
+ */
 void skim_trees(
     TString NT, 
     TString CATEGORY,
@@ -432,7 +481,7 @@ void skim_trees(
     TString label,
     int perm_id, 
     std::pair<TString, TString> final_cuts,
-    std::vector<std::pair<TString, TString>> branches
+    std::vector<std::pair<TString, TString>> branches    
 )
 {
     // make copy since we have to add weight branch later
@@ -457,9 +506,7 @@ void skim_trees(
     for (int angle : pol_angles)
     {
         std::cout << "Polarization angle: " << angle << "\n";
-        TString pol_cut_name = TString::Format("pol%d", angle);    
-
-        TString pol_angle_name = TString::Format("pol_%d", angle);
+        TString pol_cut_name = TString::Format("pol%d", angle);            
     
         // signal
         TString signal_out = TString::Format(
@@ -467,7 +514,7 @@ void skim_trees(
             out_dir.Data(),
             period,
             label.Data(),
-            pol_angle_name.Data(),
+            pol_cut_name.Data(),
             perm_id);
         // apply cuts, selected in signal region, for this pol orientation
         FSModeTree::skimTree(
@@ -493,7 +540,7 @@ void skim_trees(
             out_dir.Data(),
             period,
             label.Data(),
-            pol_angle_name.Data(),
+            pol_cut_name.Data(),
             perm_id);
          // apply cuts, with sideband weighting, for this pol orientation
         FSModeTree::skimTree(
