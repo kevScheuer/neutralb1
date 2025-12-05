@@ -685,12 +685,13 @@ void skim_phasespace_trees(
  * we need to rename them to a common name so that they can be hadd-ed together
  * later on.
  * 
- * @param friend_file ROOT file of the friend tree
+ * @param original_file ROOT file the friend tree is built off of
  * @param NT Original tree name
  * @param friend_extension friend tree name that extends on NT
  */
-void create_common_key(TString friend_file, TString NT, TString friend_extension)
+void create_common_key(TString original_file, TString NT, TString friend_extension)
 {
+    TString friend_file = original_file + "." + friend_extension;
     TString tree_name = NT + "_" + friend_extension;
 
     TFile *f = TFile::Open(friend_file, "UPDATE");    
