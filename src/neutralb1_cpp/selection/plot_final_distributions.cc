@@ -17,6 +17,10 @@
 #include "TString.h"
 #include "TH1.h"
 #include "TLegend.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TLorentzVector.h"
+#include "TMath.h"
 
 #include "FSBasic/FSTree.h"
 #include "FSMode/FSModeTree.h"
@@ -24,6 +28,7 @@
 
 #include "neutralb1/fit_utils.h"
 #include "fsroot_setup.cc"
+#include "/work/halld/kscheuer/my_build/cpu/halld_sim/src/libraries/AMPTOOLS_AMPS/vecPsAngles.h"
 
 // forward declarations
 void plot_mass_spectra(
@@ -256,5 +261,411 @@ void plot_1d_angles(
     TString gen_phasespace
 )
 {  
-    // - 1D histograms of the 5 angles (data, signal MC), with acceptance line
+    // Open the trees to read 4-momenta and calculate angles
+    TFile* f_data_signal = TFile::Open(data_signal);
+    TFile* f_data_sideband = TFile::Open(data_sideband);
+    TFile* f_mc_signal = TFile::Open(mc_signal);
+    TFile* f_mc_sideband = TFile::Open(mc_sideband);
+    TFile* f_acc_phasespace = TFile::Open(acc_phasespace);
+    TFile* f_gen_phasespace = TFile::Open(gen_phasespace);
+    
+    TTree* tree_data_signal = (TTree*)f_data_signal->Get(NT);
+    TTree* tree_data_sideband = (TTree*)f_data_sideband->Get(NT);
+    TTree* tree_mc_signal = (TTree*)f_mc_signal->Get(NT);
+    TTree* tree_mc_sideband = (TTree*)f_mc_sideband->Get(NT);
+    TTree* tree_acc_phasespace = (TTree*)f_acc_phasespace->Get(NT);
+    TTree* tree_gen_phasespace = (TTree*)f_gen_phasespace->Get(NT);
+    
+    // Create histograms for angles
+    // cos(theta) and phi for X resonance decay e.g. b1 -> omega pi0
+    TH1F* h_theta_data_signal = new TH1F("h_theta_data_signal", "", 100, -1, 1);
+    TH1F* h_theta_data_sideband = new TH1F("h_theta_data_sideband", "", 100, -1, 1);
+    TH1F* h_theta_mc_signal = new TH1F("h_theta_mc_signal", "", 100, -1, 1);
+    TH1F* h_theta_mc_sideband = new TH1F("h_theta_mc_sideband", "", 100, -1, 1);
+    TH1F* h_theta_acc = new TH1F("h_theta_acc", "", 100, -1, 1);
+    TH1F* h_theta_gen = new TH1F("h_theta_gen", "", 100, -1, 1);
+    
+    TH1F* h_phi_data_signal = new TH1F("h_phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_data_sideband = new TH1F("h_phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_mc_signal = new TH1F("h_phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_mc_sideband = new TH1F("h_phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_acc = new TH1F("h_phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_gen = new TH1F("h_phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    
+    TH1F* h_Phi_data_signal = new TH1F("h_Phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_data_sideband = new TH1F("h_Phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_mc_signal = new TH1F("h_Phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_mc_sideband = new TH1F("h_Phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_acc = new TH1F("h_Phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_gen = new TH1F("h_Phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    
+    // cos(theta_h) and phi_h for omega decay (normal to pi+pi- plane in omega rest frame)
+    TH1F* h_theta_h_data_signal = new TH1F("h_theta_h_data_signal", "", 100, -1, 1);
+    TH1F* h_theta_h_data_sideband = new TH1F("h_theta_h_data_sideband", "", 100, -1, 1);
+    TH1F* h_theta_h_mc_signal = new TH1F("h_theta_h_mc_signal", "", 100, -1, 1);
+    TH1F* h_theta_h_mc_sideband = new TH1F("h_theta_h_mc_sideband", "", 100, -1, 1);
+    TH1F* h_theta_h_acc = new TH1F("h_theta_h_acc", "", 100, -1, 1);
+    TH1F* h_theta_h_gen = new TH1F("h_theta_h_gen", "", 100, -1, 1);
+    
+    TH1F* h_phi_h_data_signal = new TH1F("h_phi_h_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_data_sideband = new TH1F("h_phi_h_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_mc_signal = new TH1F("h_phi_h_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_mc_sideband = new TH1F("h_phi_h_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_acc = new TH1F("h_phi_h_acc", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_gen = new TH1F("h_phi_h_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    
+    // Helper function to fill angle histograms from a tree
+    auto fillAngles = [](
+        TTree* tree, 
+        TH1F* h_theta, TH1F* h_phi, TH1F* h_Phi, 
+        TH1F* h_theta_h, TH1F* h_phi_h, 
+        double weight_scale = 1.0) {
+        // Set up branch addresses for 4-momenta
+        // AmpTools ordering: B(beam), 1(proton), 2(pi0 bachelor), 3(pi0 omega), 4(pi+ omega), 5(pi- omega)
+        double EnPB, PxPB, PyPB, PzPB;
+        double EnP1, PxP1, PyP1, PzP1;
+        double EnP2, PxP2, PyP2, PzP2;
+        double EnP3, PxP3, PyP3, PzP3;
+        double EnP4, PxP4, PyP4, PzP4;
+        double EnP5, PxP5, PyP5, PzP5;
+        double weight = 1.0;
+        double polAngle = 0.0;
+        
+        tree->SetBranchAddress("EnPB", &EnPB);
+        tree->SetBranchAddress("PxPB", &PxPB);
+        tree->SetBranchAddress("PyPB", &PyPB);
+        tree->SetBranchAddress("PzPB", &PzPB);
+        
+        tree->SetBranchAddress("EnP1", &EnP1);
+        tree->SetBranchAddress("PxP1", &PxP1);
+        tree->SetBranchAddress("PyP1", &PyP1);
+        tree->SetBranchAddress("PzP1", &PzP1);
+        
+        tree->SetBranchAddress("EnP2", &EnP2);
+        tree->SetBranchAddress("PxP2", &PxP2);
+        tree->SetBranchAddress("PyP2", &PyP2);
+        tree->SetBranchAddress("PzP2", &PzP2);
+        
+        tree->SetBranchAddress("EnP3", &EnP3);
+        tree->SetBranchAddress("PxP3", &PxP3);
+        tree->SetBranchAddress("PyP3", &PyP3);
+        tree->SetBranchAddress("PzP3", &PzP3);
+        
+        tree->SetBranchAddress("EnP4", &EnP4);
+        tree->SetBranchAddress("PxP4", &PxP4);
+        tree->SetBranchAddress("PyP4", &PyP4);
+        tree->SetBranchAddress("PzP4", &PzP4);
+        
+        tree->SetBranchAddress("EnP5", &EnP5);
+        tree->SetBranchAddress("PxP5", &PxP5);
+        tree->SetBranchAddress("PyP5", &PyP5);
+        tree->SetBranchAddress("PzP5", &PzP5);
+        
+        // Try to get weight and polAngle if they exist
+        if (tree->GetBranch("Weight")) {
+            tree->SetBranchAddress("Weight", &weight);
+        }
+        if (tree->GetBranch("PolAngle")) {
+            tree->SetBranchAddress("PolAngle", &polAngle);
+        }
+        
+        Long64_t nentries = tree->GetEntries();
+        for (Long64_t i = 0; i < nentries; i++) {
+            tree->GetEntry(i);
+            
+            // Create TLorentzVectors
+            TLorentzVector beam(PxPB, PyPB, PzPB, EnPB);
+            TLorentzVector proton(PxP1, PyP1, PzP1, EnP1);
+            TLorentzVector pi0_bachelor(PxP2, PyP2, PzP2, EnP2);
+            TLorentzVector pi0_omega(PxP3, PyP3, PzP3, EnP3);
+            TLorentzVector pi_plus(PxP4, PyP4, PzP4, EnP4);
+            TLorentzVector pi_minus(PxP5, PyP5, PzP5, EnP5);
+            
+            // Calculate combined 4-vectors
+            TLorentzVector beamP = beam + proton;  // center of mass
+            TLorentzVector X = pi0_bachelor + pi0_omega + pi_plus + pi_minus;
+            TLorentzVector omega = pi0_omega + pi_plus + pi_minus;
+            
+            // Get b1 decay angles (theta, phi, Phi)
+            vector<double> X_angles = getXDecayAngles(polAngle, beam, beamP, X, omega);
+            double theta = X_angles[0];
+            double phi = X_angles[1];
+            double Phi = X_angles[2];
+            
+            // Get omega decay angles (theta_h, phi_h, lambda)
+            vector<double> omega_angles = getVectorDecayAngles(beamP, X, omega, pi_plus, pi_minus);
+            double theta_h = omega_angles[0];
+            double phi_h = omega_angles[1];
+            
+            // Fill histograms with weight (use cos for theta angles)
+            double final_weight = weight * weight_scale;
+            h_theta->Fill(TMath::Cos(theta), final_weight);
+            h_phi->Fill(phi, final_weight);
+            h_Phi->Fill(Phi, final_weight);
+            h_theta_h->Fill(TMath::Cos(theta_h), final_weight);
+            h_phi_h->Fill(phi_h, final_weight);
+        }
+    };
+    
+    // Fill histograms
+    fillAngles(tree_data_signal, h_theta_data_signal, h_phi_data_signal, h_Phi_data_signal,
+               h_theta_h_data_signal, h_phi_h_data_signal);
+    fillAngles(tree_data_sideband, h_theta_data_sideband, h_phi_data_sideband, h_Phi_data_sideband,
+               h_theta_h_data_sideband, h_phi_h_data_sideband);
+    fillAngles(tree_mc_signal, h_theta_mc_signal, h_phi_mc_signal, h_Phi_mc_signal,
+               h_theta_h_mc_signal, h_phi_h_mc_signal);
+    fillAngles(tree_mc_sideband, h_theta_mc_sideband, h_phi_mc_sideband, h_Phi_mc_sideband,
+               h_theta_h_mc_sideband, h_phi_h_mc_sideband);
+    fillAngles(tree_acc_phasespace, h_theta_acc, h_phi_acc, h_Phi_acc,
+               h_theta_h_acc, h_phi_h_acc);
+    fillAngles(tree_gen_phasespace, h_theta_gen, h_phi_gen, h_Phi_gen,
+               h_theta_h_gen, h_phi_h_gen);
+    
+    // Combine data signal and sideband
+    TH1F* h_theta_data_total = (TH1F*)h_theta_data_signal->Clone("h_theta_data_total");
+    h_theta_data_total->Add(h_theta_data_sideband);
+    
+    TH1F* h_phi_data_total = (TH1F*)h_phi_data_signal->Clone("h_phi_data_total");
+    h_phi_data_total->Add(h_phi_data_sideband);
+    
+    TH1F* h_Phi_data_total = (TH1F*)h_Phi_data_signal->Clone("h_Phi_data_total");
+    h_Phi_data_total->Add(h_Phi_data_sideband);
+    
+    TH1F* h_theta_h_data_total = (TH1F*)h_theta_h_data_signal->Clone("h_theta_h_data_total");
+    h_theta_h_data_total->Add(h_theta_h_data_sideband);
+    
+    TH1F* h_phi_h_data_total = (TH1F*)h_phi_h_data_signal->Clone("h_phi_h_data_total");
+    h_phi_h_data_total->Add(h_phi_h_data_sideband);
+    
+    // Calculate acceptance
+    TH1F* h_theta_acceptance = (TH1F*)h_theta_acc->Clone("h_theta_acceptance");
+    h_theta_acceptance->Divide(h_theta_gen);
+    
+    TH1F* h_phi_acceptance = (TH1F*)h_phi_acc->Clone("h_phi_acceptance");
+    h_phi_acceptance->Divide(h_phi_gen);
+    
+    TH1F* h_Phi_acceptance = (TH1F*)h_Phi_acc->Clone("h_Phi_acceptance");
+    h_Phi_acceptance->Divide(h_Phi_gen);
+    
+    TH1F* h_theta_h_acceptance = (TH1F*)h_theta_h_acc->Clone("h_theta_h_acceptance");
+    h_theta_h_acceptance->Divide(h_theta_h_gen);
+    
+    TH1F* h_phi_h_acceptance = (TH1F*)h_phi_h_acc->Clone("h_phi_h_acceptance");
+    h_phi_h_acceptance->Divide(h_phi_h_gen);
+    
+    // Style histograms - cos(theta)
+    double bin_width = get_bin_width(h_theta_data_total);
+    h_theta_data_total->SetTitle("");
+    h_theta_data_total->SetXTitle("cos(#theta)");
+    h_theta_data_total->SetYTitle(TString::Format("Events / %.3f", bin_width));
+    h_theta_data_total->SetMarkerStyle(1);
+    h_theta_data_total->SetMarkerColor(kBlack);
+    
+    h_theta_data_signal->SetLineColor(kBlue);
+    h_theta_data_signal->SetLineWidth(2);
+    
+    h_theta_mc_signal->SetLineColor(kCyan+2);
+    h_theta_mc_signal->SetLineWidth(1);
+    h_theta_mc_signal->SetLineStyle(2);
+    
+    h_theta_data_sideband->SetLineColor(kRed+1);
+    h_theta_data_sideband->SetLineWidth(2);
+    
+    h_theta_mc_sideband->SetLineColor(kRed-7);
+    h_theta_mc_sideband->SetLineWidth(1);
+    h_theta_mc_sideband->SetLineStyle(2);
+    
+    // Style histograms - phi
+    bin_width = get_bin_width(h_phi_data_total);
+    h_phi_data_total->SetTitle("");
+    h_phi_data_total->SetXTitle("#phi (rad)");
+    h_phi_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
+    h_phi_data_total->SetMarkerStyle(1);
+    h_phi_data_total->SetMarkerColor(kBlack);
+    
+    h_phi_data_signal->SetLineColor(kBlue);
+    h_phi_data_signal->SetLineWidth(2);
+    
+    h_phi_mc_signal->SetLineColor(kCyan+2);
+    h_phi_mc_signal->SetLineWidth(1);
+    h_phi_mc_signal->SetLineStyle(2);
+    
+    h_phi_data_sideband->SetLineColor(kRed+1);
+    h_phi_data_sideband->SetLineWidth(2);
+    
+    h_phi_mc_sideband->SetLineColor(kRed-7);
+    h_phi_mc_sideband->SetLineWidth(1);
+    h_phi_mc_sideband->SetLineStyle(2);
+    
+    // Style histograms - Phi
+    bin_width = get_bin_width(h_Phi_data_total);
+    h_Phi_data_total->SetTitle("");
+    h_Phi_data_total->SetXTitle("#Phi (rad)");
+    h_Phi_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
+    h_Phi_data_total->SetMarkerStyle(1);
+    h_Phi_data_total->SetMarkerColor(kBlack);
+    
+    h_Phi_data_signal->SetLineColor(kBlue);
+    h_Phi_data_signal->SetLineWidth(2);
+    
+    h_Phi_mc_signal->SetLineColor(kCyan+2);
+    h_Phi_mc_signal->SetLineWidth(1);
+    h_Phi_mc_signal->SetLineStyle(2);
+    
+    h_Phi_data_sideband->SetLineColor(kRed+1);
+    h_Phi_data_sideband->SetLineWidth(2);
+    
+    h_Phi_mc_sideband->SetLineColor(kRed-7);
+    h_Phi_mc_sideband->SetLineWidth(1);
+    h_Phi_mc_sideband->SetLineStyle(2);
+    
+    // Style histograms - cos(theta_h)
+    bin_width = get_bin_width(h_theta_h_data_total);
+    h_theta_h_data_total->SetTitle("");
+    h_theta_h_data_total->SetXTitle("cos(#theta_{H})");
+    h_theta_h_data_total->SetYTitle(TString::Format("Events / %.3f", bin_width));
+    h_theta_h_data_total->SetMarkerStyle(1);
+    h_theta_h_data_total->SetMarkerColor(kBlack);
+    
+    h_theta_h_data_signal->SetLineColor(kBlue);
+    h_theta_h_data_signal->SetLineWidth(2);
+    
+    h_theta_h_mc_signal->SetLineColor(kCyan+2);
+    h_theta_h_mc_signal->SetLineWidth(1);
+    h_theta_h_mc_signal->SetLineStyle(2);
+    
+    h_theta_h_data_sideband->SetLineColor(kRed+1);
+    h_theta_h_data_sideband->SetLineWidth(2);
+    
+    h_theta_h_mc_sideband->SetLineColor(kRed-7);
+    h_theta_h_mc_sideband->SetLineWidth(1);
+    h_theta_h_mc_sideband->SetLineStyle(2);
+    
+    // Style histograms - phi_h
+    bin_width = get_bin_width(h_phi_h_data_total);
+    h_phi_h_data_total->SetTitle("");
+    h_phi_h_data_total->SetXTitle("#phi_{H} (rad)");
+    h_phi_h_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
+    h_phi_h_data_total->SetMarkerStyle(1);
+    h_phi_h_data_total->SetMarkerColor(kBlack);
+    
+    h_phi_h_data_signal->SetLineColor(kBlue);
+    h_phi_h_data_signal->SetLineWidth(2);
+    
+    h_phi_h_mc_signal->SetLineColor(kCyan+2);
+    h_phi_h_mc_signal->SetLineWidth(1);
+    h_phi_h_mc_signal->SetLineStyle(2);
+    
+    h_phi_h_data_sideband->SetLineColor(kRed+1);
+    h_phi_h_data_sideband->SetLineWidth(2);
+    
+    h_phi_h_mc_sideband->SetLineColor(kRed-7);
+    h_phi_h_mc_sideband->SetLineWidth(1);
+    h_phi_h_mc_sideband->SetLineStyle(2);
+    
+    // Style acceptance histograms
+    h_theta_acceptance->SetTitle("");
+    h_theta_acceptance->SetXTitle("cos(#theta)");
+    h_theta_acceptance->SetYTitle("Acceptance");
+    h_theta_acceptance->SetLineColor(kBlack);
+    h_theta_acceptance->SetLineWidth(2);
+    h_theta_acceptance->SetMarkerStyle(20);
+    h_theta_acceptance->SetMarkerColor(kBlack);
+    
+    h_phi_acceptance->SetTitle("");
+    h_phi_acceptance->SetXTitle("#phi (rad)");
+    h_phi_acceptance->SetYTitle("Acceptance");
+    h_phi_acceptance->SetLineColor(kBlack);
+    h_phi_acceptance->SetLineWidth(2);
+    h_phi_acceptance->SetMarkerStyle(20);
+    h_phi_acceptance->SetMarkerColor(kBlack);
+    
+    h_Phi_acceptance->SetTitle("");
+    h_Phi_acceptance->SetXTitle("#Phi (rad)");
+    h_Phi_acceptance->SetYTitle("Acceptance");
+    h_Phi_acceptance->SetLineColor(kBlack);
+    h_Phi_acceptance->SetLineWidth(2);
+    h_Phi_acceptance->SetMarkerStyle(20);
+    h_Phi_acceptance->SetMarkerColor(kBlack);
+    
+    h_theta_h_acceptance->SetTitle("");
+    h_theta_h_acceptance->SetXTitle("cos(#theta_{H})");
+    h_theta_h_acceptance->SetYTitle("Acceptance");
+    h_theta_h_acceptance->SetLineColor(kBlack);
+    h_theta_h_acceptance->SetLineWidth(2);
+    h_theta_h_acceptance->SetMarkerStyle(20);
+    h_theta_h_acceptance->SetMarkerColor(kBlack);
+    
+    h_phi_h_acceptance->SetTitle("");
+    h_phi_h_acceptance->SetXTitle("#phi_{H} (rad)");
+    h_phi_h_acceptance->SetYTitle("Acceptance");
+    h_phi_h_acceptance->SetLineColor(kBlack);
+    h_phi_h_acceptance->SetLineWidth(2);
+    h_phi_h_acceptance->SetMarkerStyle(20);
+    h_phi_h_acceptance->SetMarkerColor(kBlack);
+    
+    // Create legends
+    TLegend* legend = new TLegend(0.6, 0.6, 0.89, 0.89);
+    legend->AddEntry(h_theta_data_total, "Data", "lp");
+    legend->AddEntry(h_theta_data_signal, "Data Signal", "l");
+    legend->AddEntry(h_theta_mc_signal, "MC Signal", "l");
+    legend->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
+    legend->AddEntry(h_theta_mc_sideband, "MC Sideband", "l");
+    
+    // Draw theta
+    h_theta_data_total->Draw("E");
+    h_theta_data_signal->Draw("HIST SAME");
+    h_theta_mc_signal->Draw("HIST SAME");
+    h_theta_data_sideband->Draw("HIST SAME");
+    h_theta_mc_sideband->Draw("HIST SAME");
+    legend->Draw("SAME");
+    
+    // Draw phi
+    h_phi_data_total->Draw("E");
+    h_phi_data_signal->Draw("HIST SAME");
+    h_phi_mc_signal->Draw("HIST SAME");
+    h_phi_data_sideband->Draw("HIST SAME");
+    h_phi_mc_sideband->Draw("HIST SAME");
+    legend->Draw("SAME");
+    
+    // Draw Phi
+    h_Phi_data_total->Draw("E");
+    h_Phi_data_signal->Draw("HIST SAME");
+    h_Phi_mc_signal->Draw("HIST SAME");
+    h_Phi_data_sideband->Draw("HIST SAME");
+    h_Phi_mc_sideband->Draw("HIST SAME");
+    legend->Draw("SAME");
+    
+    // Draw theta_h
+    h_theta_h_data_total->Draw("E");
+    h_theta_h_data_signal->Draw("HIST SAME");
+    h_theta_h_mc_signal->Draw("HIST SAME");
+    h_theta_h_data_sideband->Draw("HIST SAME");
+    h_theta_h_mc_sideband->Draw("HIST SAME");
+    legend->Draw("SAME");
+    
+    // Draw phi_h
+    h_phi_h_data_total->Draw("E");
+    h_phi_h_data_signal->Draw("HIST SAME");
+    h_phi_h_mc_signal->Draw("HIST SAME");
+    h_phi_h_data_sideband->Draw("HIST SAME");
+    h_phi_h_mc_sideband->Draw("HIST SAME");
+    legend->Draw("SAME");
+    
+    // Draw acceptances
+    h_theta_acceptance->Draw("E");
+    h_phi_acceptance->Draw("E");
+    h_Phi_acceptance->Draw("E");
+    h_theta_h_acceptance->Draw("E");
+    h_phi_h_acceptance->Draw("E");
+    
+    // Clean up
+    f_data_signal->Close();
+    f_data_sideband->Close();
+    f_mc_signal->Close();
+    f_mc_sideband->Close();
+    f_acc_phasespace->Close();
+    f_gen_phasespace->Close();
+    
+    return;
 }
