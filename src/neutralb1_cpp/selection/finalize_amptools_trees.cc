@@ -716,7 +716,8 @@ void skim_mc_trees(
  * @brief Skim and create phasespace trees for this permutation
  * 
  * Functionally very similar to void skim_trees, but phasespace trees only have 
- * one output file with a weight that includes the sideband subtraction directly
+ * one output file with a weight that includes the sideband subtraction directly, and
+ * is independent of polarization angle
  * 
  * @param NT tree name
  * @param CATEGORY tree category
@@ -746,54 +747,41 @@ void skim_phasespace_trees(
     std::cout << "Applying cuts: " << final_cuts.first.Data() << "\n";
     std::cout << "Applying sideband cuts: " << final_cuts.second.Data() << "\n";
 
-    // define cuts for the 4 polarization orientations
-    FSCut::defineCut("pol0", "PolarizationAngle>-5&&PolarizationAngle<5");
-    FSCut::defineCut("pol45", "PolarizationAngle>40&&PolarizationAngle<50");
-    FSCut::defineCut("pol90", "PolarizationAngle>85&&PolarizationAngle<95");
-    FSCut::defineCut("pol135", "PolarizationAngle>130&&PolarizationAngle<140");
 
-    std::vector<int> pol_angles = {0, 45, 90, 135};
-    for (int angle : pol_angles)
-    {
-        std::cout << "Polarization angle: " << angle << "\n";
-        TString pol_cut_name = TString::Format("pol%d", angle);            
-    
-        // phasespace has only one output file per pol orientation, with sideband 
-        // weighting applied directly
-        TString output_file = TString::Format(
-            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_%s_%s_perm%d.root",
-            TREE_OUTPUT_DIR.Data(),
-            period,
-            label.Data(),
-            pol_cut_name.Data(),
-            perm_id);
+    // phasespace has only one output file per pol orientation, with sideband 
+    // weighting applied directly
+    TString output_file = TString::Format(
+        "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_%s_perm%d.root",
+        TREE_OUTPUT_DIR.Data(),
+        period,
+        label.Data(),
+        perm_id);
 
-        FSModeTree::skimTree(
-            file,
-            NT,
-            CATEGORY,
-            output_file,
-            TString::Format(
-                "CUT(%s,%s,%s)", 
-                final_cuts.first.Data(), final_cuts.second.Data(), pol_cut_name.Data())
-        );
-        branches_copy.push_back(std::make_pair(
-            "weight", 
-            TString::Format(
-                "CUTWT(%s)", final_cuts.second.Data())
-        ));
-        FSTree::createFriendTree(
-            output_file,
-            NT,                
-            TString::Format("amptools_branches_perm%d", perm_id),
-            branches_copy
-        );
-        create_common_key(
-            output_file, 
-            NT, 
-            TString::Format("amptools_branches_perm%d", perm_id)
-        );
-    } // end loop over polarization angles
+    FSModeTree::skimTree(
+        file,
+        NT,
+        CATEGORY,
+        output_file,
+        TString::Format(
+            "CUT(%s,%s)", 
+            final_cuts.first.Data(), final_cuts.second.Data())
+    );
+    branches_copy.push_back(std::make_pair(
+        "weight", 
+        TString::Format(
+            "CUTWT(%s)", final_cuts.second.Data())
+    ));
+    FSTree::createFriendTree(
+        output_file,
+        NT,                
+        TString::Format("amptools_branches_perm%d", perm_id),
+        branches_copy
+    );
+    create_common_key(
+        output_file, 
+        NT, 
+        TString::Format("amptools_branches_perm%d", perm_id)
+    );
 }
 
 /**
@@ -831,9 +819,9 @@ void combine_permutations(TString NT, int period)
 {    
 
     std::map<int, TString> period_to_name_map = {
-            {3, "2017_01"},
-            {4, "2018_01"},
-            {5, "2018_08"}
+        {3, "2017_01"},
+        {4, "2018_01"},
+        {5, "2018_08"}
     };
     std::map<int, TString> angle_to_name_map = {
         {0, "PARA_0"},
@@ -841,14 +829,13 @@ void combine_permutations(TString NT, int period)
         {90, "PERP_90"},
         {135, "PERP_135"}
     };
+    TString friend_extension_perm1 = "amptools_branches_perm1";
+    TString friend_extension_perm2 = "amptools_branches_perm2";
 
     std::vector<int> pol_angles = {0, 45, 90, 135};
     for (int angle : pol_angles)
     {
-        TString pol_cut_name = TString::Format("pol%d", angle);
-        TString friend_extension_perm1 = "amptools_branches_perm1";
-        TString friend_extension_perm2 = "amptools_branches_perm2";
-            
+        TString pol_cut_name = TString::Format("pol%d", angle);        
 
         TString p1_data_signal = TString::Format(
             "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_data_%s_perm1_signal.root.%s",
@@ -935,22 +922,6 @@ void combine_permutations(TString NT, int period)
             ).Data());           
         }
         
-
-        TString p1_phsp = TString::Format(
-            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_%s_perm1.root.%s",
-            TREE_OUTPUT_DIR.Data(),
-            period,            
-            pol_cut_name.Data(),
-            friend_extension_perm1.Data()
-        );
-        TString p2_phsp = TString::Format(
-            "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_%s_perm2.root.%s",
-            TREE_OUTPUT_DIR.Data(),
-            period,            
-            pol_cut_name.Data(),
-            friend_extension_perm2.Data()
-        );
-
         TString data_signal_output = TString::Format(
             "%s_%s_data_signal.root",
             angle_to_name_map.at(angle).Data(),
@@ -961,12 +932,7 @@ void combine_permutations(TString NT, int period)
             angle_to_name_map.at(angle).Data(),
             period_to_name_map.at(period).Data()      
         );        
-        TString phsp_output = TString::Format(
-            "%s_%s_ver03_phsp.root",
-            angle_to_name_map.at(angle).Data(),
-            period_to_name_map.at(period).Data()      
-        );
-
+        
         // finally hadd the two permutations together for each case
         system(TString::Format(
             "hadd -f %s %s %s",
@@ -980,11 +946,30 @@ void combine_permutations(TString NT, int period)
             p1_data_background.Data(),
             p2_data_background.Data()
         ).Data());        
-        system(TString::Format(
-            "hadd -f %s %s %s",
-            phsp_output.Data(),
-            p1_phsp.Data(),
-            p2_phsp.Data()
-        ).Data());
+        
     } // end loop over polarization angles
+
+    // phasespace is independent of pol angle
+    TString phsp_output = TString::Format(
+        "%s_ver03_phsp.root",        
+        period_to_name_map.at(period).Data()      
+    );
+    TString p1_phsp = TString::Format(
+        "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_perm1.root.%s",
+        TREE_OUTPUT_DIR.Data(),
+        period,                    
+        friend_extension_perm1.Data()
+    );
+    TString p2_phsp = TString::Format(
+        "%stree_pi0pi0pippim__B4_finalAmptools_SKIM_0%d_ver03_perm2.root.%s",
+        TREE_OUTPUT_DIR.Data(),
+        period,            
+        friend_extension_perm2.Data()
+    );
+    system(TString::Format(
+        "hadd -f %s %s %s",
+        phsp_output.Data(),
+        p1_phsp.Data(),
+        p2_phsp.Data()
+    ).Data());
 }
