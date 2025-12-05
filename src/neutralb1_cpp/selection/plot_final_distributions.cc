@@ -53,7 +53,16 @@ void plot_final_distributions()
 
     plot_mass_spectra(NT, CATEGORY, data_signal, data_sideband, mc_signal, mc_sideband);
 
-    plot_1d_angles();
+    plot_1d_angles(
+        NT,
+        CATEGORY,
+        data_signal,
+        data_sideband,
+        mc_signal,
+        mc_sideband,
+        acc_phasespace,
+        gen_phasespace
+    );
     /* TODO: implement
         - 2D histograms of angle correlations (data, signal MC)
         - 2D acceptance histograms of angle correlations
@@ -66,6 +75,17 @@ void plot_final_distributions()
     */
 }
 
+
+/**
+ * @brief Plot the omega pi0 and proton pi0 mass spectra for data and MC
+ * 
+ * @param NT tree name
+ * @param CATEGORY category name
+ * @param data_signal data events from signal file
+ * @param data_sideband data events from sideband (background) file
+ * @param mc_signal MC events from signal file
+ * @param mc_sideband MC events from sideband (background) file
+ */
 void plot_mass_spectra(
     TString NT,
     TString CATEGORY,
@@ -225,7 +245,16 @@ void plot_mass_spectra(
     return;
 }
 
-void plot_1d_angles()
+void plot_1d_angles(
+    TString NT,
+    TString CATEGORY,
+    TString data_signal,
+    TString data_sideband,
+    TString mc_signal,
+    TString mc_sideband,
+    TString acc_phasespace,
+    TString gen_phasespace
+)
 {  
     // - 1D histograms of the 5 angles (data, signal MC), with acceptance line
 }
