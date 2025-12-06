@@ -909,13 +909,13 @@ void combine_permutations(TString NT, int period)
             );
 
             system(TString::Format(
-                "hadd -f %s %s %s",
+                "hadd %s %s %s",
                 mc_signal_output.Data(),
                 p1_mc_signal.Data(),
                 p2_mc_signal.Data()
                 ).Data());
             system(TString::Format(
-                "hadd -f %s %s %s",
+                "hadd %s %s %s",
                 mc_background_output.Data(),
                 p1_mc_background.Data(),
                 p2_mc_background.Data()
@@ -935,13 +935,13 @@ void combine_permutations(TString NT, int period)
         
         // finally hadd the two permutations together for each case
         system(TString::Format(
-            "hadd -f %s %s %s",
+            "hadd %s %s %s",
             data_signal_output.Data(),
             p1_data_signal.Data(),
             p2_data_signal.Data()
         ).Data());
         system(TString::Format(
-            "hadd -f %s %s %s",
+            "hadd %s %s %s",
             data_background_output.Data(),
             p1_data_background.Data(),
             p2_data_background.Data()
@@ -967,7 +967,7 @@ void combine_permutations(TString NT, int period)
         friend_extension_perm2.Data()
     );
     system(TString::Format(
-        "hadd -f %s %s %s",
+        "hadd %s %s %s",
         phsp_output.Data(),
         p1_phsp.Data(),
         p2_phsp.Data()
