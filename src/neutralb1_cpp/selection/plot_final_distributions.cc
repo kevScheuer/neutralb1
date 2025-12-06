@@ -6,6 +6,9 @@
  * These plots do not distinguish between different polarizations or run periods,
  * they are just the final distributions after all cuts and sideband subtractions
  * have been applied.
+ * 
+ * TODO: have angular calculation be applied to 2D case as well. Don't copy/paste but 
+ * actually separate the function
  */
 
 #include <iostream>
@@ -32,6 +35,7 @@
 #include "neutralb1/fit_utils.h"
 #include "fsroot_setup.cc"
 #include "/work/halld/kscheuer/my_build/cpu/halld_sim/src/libraries/AMPTOOLS_AMPS/vecPsAngles.h"
+#include "/work/halld/kscheuer/my_build/cpu/halld_sim/src/libraries/AMPTOOLS_AMPS/vecPsAngles.cc"
 
 // forward declarations
 void plot_mass_spectra(
@@ -42,6 +46,16 @@ void plot_mass_spectra(
     TString mc_signal,
     TString mc_sideband
 );
+void plot_1d_angles(
+    TString NT,
+    TString CATEGORY,
+    TString data_signal,
+    TString data_sideband,
+    TString mc_signal,
+    TString mc_sideband,
+    TString acc_phasespace,
+    TString gen_phasespace
+);
 
 void plot_final_distributions()
 {
@@ -50,9 +64,9 @@ void plot_final_distributions()
 
     // input files 
     TString data_signal = tree_dir + "allPeriods_data_signal.root";
-    TString data_sideband = tree_dir + "allPeriods_data_sideband.root";
-    TString mc_signal = tree_dir + "allPeriods_ver03.1_mc_signal.root";
-    TString mc_sideband = tree_dir + "allPeriods_ver03.1_mc_sideband.root";
+    TString data_sideband = tree_dir + "allPeriods_data_background.root";
+    TString mc_signal = tree_dir + "PARA_0_allPeriods_ver03.1_mc_signal.root";
+    TString mc_sideband = tree_dir + "PARA_0_allPeriods_ver03.1_mc_background.root";
     TString acc_phasespace = tree_dir + "allPeriods_ver03_phasespace.root";
     TString gen_phasespace = tree_dir + "allPeriods_ver03_gen_phasespace.root";
 
@@ -74,11 +88,7 @@ void plot_final_distributions()
     /* TODO: implement
         - 2D histograms of angle correlations (data, signal MC)
         - 2D acceptance histograms of angle correlations
-        - omega pi0 and proton pi0 mass spectrum
-        - lambda distribution
     
-        angles will need to import, or at least copy the vec ps angles calculations
-
         for 2D, use col0 and plot data and signal MC separately
     */
 }
@@ -429,16 +439,22 @@ void plot_1d_angles(
     };
     
     // Fill histograms
+    std::cout << "filling data signal" << "\n";
     fillAngles(tree_data_signal, h_theta_data_signal, h_phi_data_signal, h_Phi_data_signal,
                h_theta_h_data_signal, h_phi_h_data_signal, h_lambda_data_signal);
+    std::cout << "filling data sideband" << "\n";
     fillAngles(tree_data_sideband, h_theta_data_sideband, h_phi_data_sideband, h_Phi_data_sideband,
                h_theta_h_data_sideband, h_phi_h_data_sideband, h_lambda_data_sideband);
+    std::cout << "filling mc signal" << "\n";
     fillAngles(tree_mc_signal, h_theta_mc_signal, h_phi_mc_signal, h_Phi_mc_signal,
                h_theta_h_mc_signal, h_phi_h_mc_signal, h_lambda_mc_signal);
+    std::cout << "filling mc sideband" << "\n";
     fillAngles(tree_mc_sideband, h_theta_mc_sideband, h_phi_mc_sideband, h_Phi_mc_sideband,
                h_theta_h_mc_sideband, h_phi_h_mc_sideband, h_lambda_mc_sideband);
+    std::cout << "filling acceptance phase space" << "\n";
     fillAngles(tree_acc_phasespace, h_theta_acc, h_phi_acc, h_Phi_acc,
                h_theta_h_acc, h_phi_h_acc, h_lambda_acc);
+    std::cout << "filling generated phase space" << "\n";
     fillAngles(tree_gen_phasespace, h_theta_gen, h_phi_gen, h_Phi_gen,
                h_theta_h_gen, h_phi_h_gen, h_lambda_gen);
     
