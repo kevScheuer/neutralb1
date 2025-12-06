@@ -235,6 +235,8 @@ void plot_mass_spectra(
     legend_proton_pi0->AddEntry(h_proton_pi0_data_sideband, "Data Sideband", "l");
     legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, "MC Sideband", "l");
 
+    TCanvas *c = new TCanvas("c", "c", 800, 600);
+
     // draw the histograms
     h_omega_pi0_data_total->Draw("E");
     h_omega_pi0_data_signal->Draw("HIST SAME");
@@ -243,12 +245,18 @@ void plot_mass_spectra(
     h_omega_pi0_mc_sideband->Draw("HIST SAME");
     legend_omega_pi0->Draw("SAME");
 
+    c->SaveAs("final_omega_pi0_mass_spectrum.pdf");
+    c->Clear();
+
     h_proton_pi0_data_total->Draw("E");
     h_proton_pi0_data_signal->Draw("HIST SAME");
     h_proton_pi0_mc_signal->Draw("HIST SAME");
     h_proton_pi0_data_sideband->Draw("HIST SAME");
     h_proton_pi0_mc_sideband->Draw("HIST SAME");
     legend_proton_pi0->Draw("SAME");
+
+    c->SaveAs("final_proton_pi0_mass_spectrum.pdf");
+    c->Clear();
 
     return;
 }
@@ -263,9 +271,7 @@ void plot_1d_angles(
     TString acc_phasespace,
     TString gen_phasespace
 )
-{  
-    TCanvas *c1 = new TCanvas("c1", "Final Angle Distributions", 800, 600);
-    
+{          
     // Open the trees to read 4-momenta and calculate angles
     TFile* f_data_signal = TFile::Open(data_signal);
     TFile* f_data_sideband = TFile::Open(data_sideband);
@@ -628,16 +634,17 @@ void plot_1d_angles(
     h_lambda_acceptance->SetLineWidth(2);
     h_lambda_acceptance->SetLineStyle(1);
     
-    // Create legends
-    TLegend* legend = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend->AddEntry(h_theta_data_total, "Data", "lp");
-    legend->AddEntry(h_theta_data_signal, "Data Signal", "l");
-    legend->AddEntry(h_theta_mc_signal, "MC Signal", "l");
-    legend->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
-    legend->AddEntry(h_theta_mc_sideband, "MC Sideband", "l");
-    legend->AddEntry(h_theta_acceptance, "Acceptance", "l");
+    // Create canvas for saving plots
+    TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
     
     // Draw theta
+    TLegend* legend_theta = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_theta->AddEntry(h_theta_data_total, "Data", "lp");
+    legend_theta->AddEntry(h_theta_data_signal, "Data Signal", "l");
+    legend_theta->AddEntry(h_theta_mc_signal, "MC Signal", "l");
+    legend_theta->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
+    legend_theta->AddEntry(h_theta_mc_sideband, "MC Sideband", "l");
+    legend_theta->AddEntry(h_theta_acceptance, "Acceptance", "l");
     h_theta_data_total->Draw("E");
     h_theta_data_signal->Draw("HIST SAME");
     h_theta_mc_signal->Draw("HIST SAME");
@@ -663,9 +670,19 @@ void plot_1d_angles(
     axis_theta->SetTitle("Acceptance");
     axis_theta->Draw();
     
-    legend->Draw("SAME");
+    legend_theta->Draw("SAME");
+    c1->SaveAs("final_cos_theta.pdf");
+    c1->Clear();
+    delete legend_theta;
     
     // Draw phi
+    TLegend* legend_phi = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_phi->AddEntry(h_phi_data_total, "Data", "lp");
+    legend_phi->AddEntry(h_phi_data_signal, "Data Signal", "l");
+    legend_phi->AddEntry(h_phi_mc_signal, "MC Signal", "l");
+    legend_phi->AddEntry(h_phi_data_sideband, "Data Sideband", "l");
+    legend_phi->AddEntry(h_phi_mc_sideband, "MC Sideband", "l");
+    legend_phi->AddEntry(h_phi_acceptance, "Acceptance", "l");
     h_phi_data_total->Draw("E");
     h_phi_data_signal->Draw("HIST SAME");
     h_phi_mc_signal->Draw("HIST SAME");
@@ -690,9 +707,20 @@ void plot_1d_angles(
     axis_phi->SetTitle("Acceptance");
     axis_phi->Draw();
     
-    legend->Draw("SAME");
+    legend_phi->Draw("SAME");
+    c1->SaveAs("final_phi.pdf");
+    c1->Clear();
+    delete legend_phi;
     
     // Draw Phi
+    TLegend* legend_Phi = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_Phi->AddEntry(h_Phi_data_total, "Data", "lp");
+    legend_Phi->AddEntry(h_Phi_data_signal, "Data Signal", "l");
+    legend_Phi->AddEntry(h_Phi_mc_signal, "MC Signal", "l");
+    legend_Phi->AddEntry(h_Phi_data_sideband, "Data Sideband", "l");
+    legend_Phi->AddEntry(h_Phi_mc_sideband, "MC Sideband", "l");
+    legend_Phi->AddEntry(h_Phi_acceptance, "Acceptance", "l");
+    
     h_Phi_data_total->Draw("E");
     h_Phi_data_signal->Draw("HIST SAME");
     h_Phi_mc_signal->Draw("HIST SAME");
@@ -717,9 +745,20 @@ void plot_1d_angles(
     axis_Phi->SetTitle("Acceptance");
     axis_Phi->Draw();
     
-    legend->Draw("SAME");
+    legend_Phi->Draw("SAME");
+    c1->SaveAs("final_Phi.pdf");
+    c1->Clear();
+    delete legend_Phi;
     
     // Draw theta_h
+    TLegend* legend_theta_h = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_theta_h->AddEntry(h_theta_h_data_total, "Data", "lp");
+    legend_theta_h->AddEntry(h_theta_h_data_signal, "Data Signal", "l");
+    legend_theta_h->AddEntry(h_theta_h_mc_signal, "MC Signal", "l");
+    legend_theta_h->AddEntry(h_theta_h_data_sideband, "Data Sideband", "l");
+    legend_theta_h->AddEntry(h_theta_h_mc_sideband, "MC Sideband", "l");
+    legend_theta_h->AddEntry(h_theta_h_acceptance, "Acceptance", "l");
+    
     h_theta_h_data_total->Draw("E");
     h_theta_h_data_signal->Draw("HIST SAME");
     h_theta_h_mc_signal->Draw("HIST SAME");
@@ -744,9 +783,20 @@ void plot_1d_angles(
     axis_theta_h->SetTitle("Acceptance");
     axis_theta_h->Draw();
     
-    legend->Draw("SAME");
+    legend_theta_h->Draw("SAME");
+    c1->SaveAs("final_cos_theta_h.pdf");
+    c1->Clear();
+    delete legend_theta_h;
     
     // Draw phi_h
+    TLegend* legend_phi_h = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_phi_h->AddEntry(h_phi_h_data_total, "Data", "lp");
+    legend_phi_h->AddEntry(h_phi_h_data_signal, "Data Signal", "l");
+    legend_phi_h->AddEntry(h_phi_h_mc_signal, "MC Signal", "l");
+    legend_phi_h->AddEntry(h_phi_h_data_sideband, "Data Sideband", "l");
+    legend_phi_h->AddEntry(h_phi_h_mc_sideband, "MC Sideband", "l");
+    legend_phi_h->AddEntry(h_phi_h_acceptance, "Acceptance", "l");
+    
     h_phi_h_data_total->Draw("E");
     h_phi_h_data_signal->Draw("HIST SAME");
     h_phi_h_mc_signal->Draw("HIST SAME");
@@ -771,9 +821,20 @@ void plot_1d_angles(
     axis_phi_h->SetTitle("Acceptance");
     axis_phi_h->Draw();
     
-    legend->Draw("SAME");
+    legend_phi_h->Draw("SAME");
+    c1->SaveAs("final_phi_h.pdf");
+    c1->Clear();
+    delete legend_phi_h;
     
     // Draw lambda
+    TLegend* legend_lambda = new TLegend(0.6, 0.55, 0.89, 0.89);
+    legend_lambda->AddEntry(h_lambda_data_total, "Data", "lp");
+    legend_lambda->AddEntry(h_lambda_data_signal, "Data Signal", "l");
+    legend_lambda->AddEntry(h_lambda_mc_signal, "MC Signal", "l");
+    legend_lambda->AddEntry(h_lambda_data_sideband, "Data Sideband", "l");
+    legend_lambda->AddEntry(h_lambda_mc_sideband, "MC Sideband", "l");
+    legend_lambda->AddEntry(h_lambda_acceptance, "Acceptance", "l");
+    
     h_lambda_data_total->Draw("E");
     h_lambda_data_signal->Draw("HIST SAME");
     h_lambda_mc_signal->Draw("HIST SAME");
@@ -798,7 +859,11 @@ void plot_1d_angles(
     axis_lambda->SetTitle("Acceptance");
     axis_lambda->Draw();
     
-    legend->Draw("SAME");
+    legend_lambda->Draw("SAME");
+    c1->SaveAs("final_lambda.pdf");
+    c1->Clear();
+    delete legend_lambda;
+    delete c1;
     
     // Clean up
     f_data_signal->Close();
