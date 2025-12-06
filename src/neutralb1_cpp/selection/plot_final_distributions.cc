@@ -21,6 +21,8 @@
 #include "TTree.h"
 #include "TLorentzVector.h"
 #include "TMath.h"
+#include "TGaxis.h"
+#include "TPad.h"
 
 #include "FSBasic/FSTree.h"
 #include "FSMode/FSModeTree.h"
@@ -564,53 +566,34 @@ void plot_1d_angles(
     h_phi_h_mc_sideband->SetLineStyle(2);
     
     // Style acceptance histograms
-    h_theta_acceptance->SetTitle("");
-    h_theta_acceptance->SetXTitle("cos(#theta)");
-    h_theta_acceptance->SetYTitle("Acceptance");
-    h_theta_acceptance->SetLineColor(kBlack);
+    h_theta_acceptance->SetLineColor(kGray+2);
     h_theta_acceptance->SetLineWidth(2);
-    h_theta_acceptance->SetMarkerStyle(20);
-    h_theta_acceptance->SetMarkerColor(kBlack);
+    h_theta_acceptance->SetLineStyle(1);
     
-    h_phi_acceptance->SetTitle("");
-    h_phi_acceptance->SetXTitle("#phi (rad)");
-    h_phi_acceptance->SetYTitle("Acceptance");
-    h_phi_acceptance->SetLineColor(kBlack);
+    h_phi_acceptance->SetLineColor(kGray+2);
     h_phi_acceptance->SetLineWidth(2);
-    h_phi_acceptance->SetMarkerStyle(20);
-    h_phi_acceptance->SetMarkerColor(kBlack);
+    h_phi_acceptance->SetLineStyle(1);
     
-    h_Phi_acceptance->SetTitle("");
-    h_Phi_acceptance->SetXTitle("#Phi (rad)");
-    h_Phi_acceptance->SetYTitle("Acceptance");
-    h_Phi_acceptance->SetLineColor(kBlack);
+    h_Phi_acceptance->SetLineColor(kGray+2);
     h_Phi_acceptance->SetLineWidth(2);
-    h_Phi_acceptance->SetMarkerStyle(20);
-    h_Phi_acceptance->SetMarkerColor(kBlack);
+    h_Phi_acceptance->SetLineStyle(1);
     
-    h_theta_h_acceptance->SetTitle("");
-    h_theta_h_acceptance->SetXTitle("cos(#theta_{H})");
-    h_theta_h_acceptance->SetYTitle("Acceptance");
-    h_theta_h_acceptance->SetLineColor(kBlack);
+    h_theta_h_acceptance->SetLineColor(kGray+2);
     h_theta_h_acceptance->SetLineWidth(2);
-    h_theta_h_acceptance->SetMarkerStyle(20);
-    h_theta_h_acceptance->SetMarkerColor(kBlack);
+    h_theta_h_acceptance->SetLineStyle(1);
     
-    h_phi_h_acceptance->SetTitle("");
-    h_phi_h_acceptance->SetXTitle("#phi_{H} (rad)");
-    h_phi_h_acceptance->SetYTitle("Acceptance");
-    h_phi_h_acceptance->SetLineColor(kBlack);
+    h_phi_h_acceptance->SetLineColor(kGray+2);
     h_phi_h_acceptance->SetLineWidth(2);
-    h_phi_h_acceptance->SetMarkerStyle(20);
-    h_phi_h_acceptance->SetMarkerColor(kBlack);
+    h_phi_h_acceptance->SetLineStyle(1);
     
     // Create legends
-    TLegend* legend = new TLegend(0.6, 0.6, 0.89, 0.89);
+    TLegend* legend = new TLegend(0.6, 0.55, 0.89, 0.89);
     legend->AddEntry(h_theta_data_total, "Data", "lp");
     legend->AddEntry(h_theta_data_signal, "Data Signal", "l");
     legend->AddEntry(h_theta_mc_signal, "MC Signal", "l");
     legend->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
     legend->AddEntry(h_theta_mc_sideband, "MC Sideband", "l");
+    legend->AddEntry(h_theta_acceptance, "Acceptance", "l");
     
     // Draw theta
     h_theta_data_total->Draw("E");
@@ -618,6 +601,26 @@ void plot_1d_angles(
     h_theta_mc_signal->Draw("HIST SAME");
     h_theta_data_sideband->Draw("HIST SAME");
     h_theta_mc_sideband->Draw("HIST SAME");
+    
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    double y_max = gPad->GetUymax();
+    double acc_max = h_theta_acceptance->GetMaximum();
+    double scale_factor = y_max / (acc_max * 1.1);  // 1.1 for some headroom
+    TH1F* h_theta_acc_scaled = (TH1F*)h_theta_acceptance->Clone("h_theta_acc_scaled");
+    h_theta_acc_scaled->Scale(scale_factor);
+    h_theta_acc_scaled->Draw("HIST SAME");
+    
+    // Create right axis for acceptance
+    TGaxis* axis_theta = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                     gPad->GetUxmax(), gPad->GetUymax(),
+                                     0, acc_max * 1.1, 510, "+L");
+    axis_theta->SetLineColor(kGray+2);
+    axis_theta->SetLabelColor(kGray+2);
+    axis_theta->SetTitleColor(kGray+2);
+    axis_theta->SetTitle("Acceptance");
+    axis_theta->Draw();
+    
     legend->Draw("SAME");
     
     // Draw phi
@@ -626,6 +629,25 @@ void plot_1d_angles(
     h_phi_mc_signal->Draw("HIST SAME");
     h_phi_data_sideband->Draw("HIST SAME");
     h_phi_mc_sideband->Draw("HIST SAME");
+    
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_phi_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_phi_acc_scaled = (TH1F*)h_phi_acceptance->Clone("h_phi_acc_scaled");
+    h_phi_acc_scaled->Scale(scale_factor);
+    h_phi_acc_scaled->Draw("HIST SAME");
+    
+    TGaxis* axis_phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                   gPad->GetUxmax(), gPad->GetUymax(),
+                                   0, acc_max * 1.1, 510, "+L");
+    axis_phi->SetLineColor(kGray+2);
+    axis_phi->SetLabelColor(kGray+2);
+    axis_phi->SetTitleColor(kGray+2);
+    axis_phi->SetTitle("Acceptance");
+    axis_phi->Draw();
+    
     legend->Draw("SAME");
     
     // Draw Phi
@@ -634,6 +656,25 @@ void plot_1d_angles(
     h_Phi_mc_signal->Draw("HIST SAME");
     h_Phi_data_sideband->Draw("HIST SAME");
     h_Phi_mc_sideband->Draw("HIST SAME");
+    
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_Phi_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_Phi_acc_scaled = (TH1F*)h_Phi_acceptance->Clone("h_Phi_acc_scaled");
+    h_Phi_acc_scaled->Scale(scale_factor);
+    h_Phi_acc_scaled->Draw("HIST SAME");
+    
+    TGaxis* axis_Phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                   gPad->GetUxmax(), gPad->GetUymax(),
+                                   0, acc_max * 1.1, 510, "+L");
+    axis_Phi->SetLineColor(kGray+2);
+    axis_Phi->SetLabelColor(kGray+2);
+    axis_Phi->SetTitleColor(kGray+2);
+    axis_Phi->SetTitle("Acceptance");
+    axis_Phi->Draw();
+    
     legend->Draw("SAME");
     
     // Draw theta_h
@@ -642,6 +683,25 @@ void plot_1d_angles(
     h_theta_h_mc_signal->Draw("HIST SAME");
     h_theta_h_data_sideband->Draw("HIST SAME");
     h_theta_h_mc_sideband->Draw("HIST SAME");
+    
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_theta_h_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_theta_h_acc_scaled = (TH1F*)h_theta_h_acceptance->Clone("h_theta_h_acc_scaled");
+    h_theta_h_acc_scaled->Scale(scale_factor);
+    h_theta_h_acc_scaled->Draw("HIST SAME");
+    
+    TGaxis* axis_theta_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                       gPad->GetUxmax(), gPad->GetUymax(),
+                                       0, acc_max * 1.1, 510, "+L");
+    axis_theta_h->SetLineColor(kGray+2);
+    axis_theta_h->SetLabelColor(kGray+2);
+    axis_theta_h->SetTitleColor(kGray+2);
+    axis_theta_h->SetTitle("Acceptance");
+    axis_theta_h->Draw();
+    
     legend->Draw("SAME");
     
     // Draw phi_h
@@ -650,14 +710,26 @@ void plot_1d_angles(
     h_phi_h_mc_signal->Draw("HIST SAME");
     h_phi_h_data_sideband->Draw("HIST SAME");
     h_phi_h_mc_sideband->Draw("HIST SAME");
-    legend->Draw("SAME");
     
-    // Draw acceptances
-    h_theta_acceptance->Draw("E");
-    h_phi_acceptance->Draw("E");
-    h_Phi_acceptance->Draw("E");
-    h_theta_h_acceptance->Draw("E");
-    h_phi_h_acceptance->Draw("E");
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_phi_h_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_phi_h_acc_scaled = (TH1F*)h_phi_h_acceptance->Clone("h_phi_h_acc_scaled");
+    h_phi_h_acc_scaled->Scale(scale_factor);
+    h_phi_h_acc_scaled->Draw("HIST SAME");
+    
+    TGaxis* axis_phi_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                     gPad->GetUxmax(), gPad->GetUymax(),
+                                     0, acc_max * 1.1, 510, "+L");
+    axis_phi_h->SetLineColor(kGray+2);
+    axis_phi_h->SetLabelColor(kGray+2);
+    axis_phi_h->SetTitleColor(kGray+2);
+    axis_phi_h->SetTitle("Acceptance");
+    axis_phi_h->Draw();
+    
+    legend->Draw("SAME");
     
     // Clean up
     f_data_signal->Close();
