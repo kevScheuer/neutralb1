@@ -583,7 +583,7 @@ void skim_trees(
             CATEGORY,
             background_out,
             TString::Format(
-                "CUTSB(%s)*CUT(%s,%s)", 
+                "CUTSBWT(%s)*CUT(%s,%s)", 
                 final_cuts.second.Data(), final_cuts.first.Data(), pol_cut_name.Data())
         );
 
@@ -691,7 +691,7 @@ void skim_mc_trees(
         CATEGORY,
         background_out,
         TString::Format(
-            "CUTSB(%s)*CUT(%s)",
+            "CUTSBWT(%s)*CUT(%s)",
             final_cuts.second.Data(), final_cuts.first.Data())
     );
 
