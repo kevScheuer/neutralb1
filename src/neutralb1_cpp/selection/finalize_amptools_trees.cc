@@ -513,9 +513,6 @@ void skim_trees(
     std::vector<std::pair<TString, TString>> branches    
 )
 {
-    // make copy since we have to add weight branch later
-    std::vector<std::pair<TString, TString>> branches_copy = branches;
-
     std::cout << "Skimming file: " << file << "\n";
     std::cout << "Permutation " << perm_id << "\n";
     std::cout << "Applying cuts: " << final_cuts.first.Data() << "\n";
@@ -531,6 +528,9 @@ void skim_trees(
     std::vector<int> pol_angles = {0, 45, 90, 135};
     for (int angle : pol_angles)
     {
+        // make copy since we have to add weight branch later
+        std::vector<std::pair<TString, TString>> branches_copy = branches;
+        
         std::cout << "Polarization angle: " << angle << "\n";
         TString pol_cut_name = TString::Format("pol%d", angle);            
     
@@ -580,8 +580,8 @@ void skim_trees(
             CATEGORY,
             background_out,
             TString::Format(
-                "CUTSBWT(%s)*CUT(%s)", 
-                final_cuts.second.Data(), pol_cut_name.Data())
+                "CUTSB(%s)*CUT(%s,%s)", 
+                final_cuts.second.Data(), final_cuts.first.Data(), pol_cut_name.Data())
         );
 
         // create friend with all of the branches, including a "weight" one for background
@@ -688,8 +688,8 @@ void skim_mc_trees(
         CATEGORY,
         background_out,
         TString::Format(
-            "CUTSBWT(%s)", 
-            final_cuts.second.Data())
+            "CUTSB(%s)*CUT(%s)",
+            final_cuts.second.Data(), final_cuts.first.Data())
     );
 
     // create friend with all of the branches, including a "weight" one for background
@@ -972,4 +972,9 @@ void combine_permutations(TString NT, int period)
         p1_phsp.Data(),
         p2_phsp.Data()
     ).Data());
+
+    // TODO: add all the other hadd commands here to make the final trees
+    // i.e. combine run periods into an "allPeriods" for an orientation, and then
+    // combine those orientations into a total one
+    // mc just needs to be combined run periods into one orientation
 }
