@@ -74,6 +74,7 @@ void skim_phasespace_trees(
 );
 void create_common_key(TString friend_file, TString NT, TString friend_extension);
 void combine_permutations(TString NT, int period);
+void combine_total();
 
 // CONSTANTS
 const TString TREE_OUTPUT_DIR = "/lustre24/expphy/volatile/halld/home/kscheuer/"
@@ -203,6 +204,8 @@ void finalize_amptools_trees(bool nominal_cuts = true)
     combine_permutations(NT, 4);
     combine_permutations(NT, 5);
 
+    // combine all run periods together
+    combine_total();
 }
 
 
@@ -909,13 +912,13 @@ void combine_permutations(TString NT, int period)
             );
 
             system(TString::Format(
-                "hadd %s %s %s",
+                "hadd -f %s %s %s",
                 mc_signal_output.Data(),
                 p1_mc_signal.Data(),
                 p2_mc_signal.Data()
                 ).Data());
             system(TString::Format(
-                "hadd %s %s %s",
+                "hadd -f %s %s %s",
                 mc_background_output.Data(),
                 p1_mc_background.Data(),
                 p2_mc_background.Data()
@@ -935,13 +938,13 @@ void combine_permutations(TString NT, int period)
         
         // finally hadd the two permutations together for each case
         system(TString::Format(
-            "hadd %s %s %s",
+            "hadd -f %s %s %s",
             data_signal_output.Data(),
             p1_data_signal.Data(),
             p2_data_signal.Data()
         ).Data());
         system(TString::Format(
-            "hadd %s %s %s",
+            "hadd -f %s %s %s",
             data_background_output.Data(),
             p1_data_background.Data(),
             p2_data_background.Data()
@@ -951,7 +954,7 @@ void combine_permutations(TString NT, int period)
 
     // phasespace is independent of pol angle
     TString phsp_output = TString::Format(
-        "%s_ver03_phsp.root",        
+        "%s_ver03_phasespace.root",        
         period_to_name_map.at(period).Data()      
     );
     TString p1_phsp = TString::Format(
@@ -967,14 +970,93 @@ void combine_permutations(TString NT, int period)
         friend_extension_perm2.Data()
     );
     system(TString::Format(
-        "hadd %s %s %s",
+        "hadd -f %s %s %s",
         phsp_output.Data(),
         p1_phsp.Data(),
         p2_phsp.Data()
     ).Data());
+}
 
-    // TODO: add all the other hadd commands here to make the final trees
-    // i.e. combine run periods into an "allPeriods" for an orientation, and then
-    // combine those orientations into a total one
-    // mc just needs to be combined run periods into one orientation
+/**
+ * @brief Combine all run periods together into final allPeriods files
+ * 
+ * This function combines the per-period files (2017_01, 2018_01, 2018_08) into
+ * allPeriods files for each polarization, and also combines all polarizations
+ * into total allPeriods files for data.
+ */
+void combine_total()
+{
+    std::map<int, TString> angle_to_name_map = {
+        {0, "PARA_0"},
+        {45, "PERP_45"},
+        {90, "PERP_90"},
+        {135, "PARA_135"}
+    };
+
+    // Combine run periods for each polarization angle
+    std::vector<int> pol_angles = {0, 45, 90, 135};
+    for (int angle : pol_angles)
+    {
+        TString angle_name = angle_to_name_map.at(angle);
+        
+        // Data signal
+        TString data_signal_allPeriods = TString::Format(
+            "%s_allPeriods_data_signal.root",
+            angle_name.Data()
+        );
+        system(TString::Format(
+            "hadd -f %s %s_2017_01_data_signal.root %s_2018_01_data_signal.root %s_2018_08_data_signal.root",
+            data_signal_allPeriods.Data(),
+            angle_name.Data(), angle_name.Data(), angle_name.Data()
+        ).Data());
+        
+        // Data background
+        TString data_background_allPeriods = TString::Format(
+            "%s_allPeriods_data_background.root",
+            angle_name.Data()
+        );
+        system(TString::Format(
+            "hadd -f %s %s_2017_01_data_background.root %s_2018_01_data_background.root %s_2018_08_data_background.root",
+            data_background_allPeriods.Data(),
+            angle_name.Data(), angle_name.Data(), angle_name.Data()
+        ).Data());
+        
+        // MC signal and background (only for PARA_0)
+        if (angle == 0)
+        {
+            TString mc_signal_allPeriods = TString::Format(
+                "%s_allPeriods_ver03.1_mc_signal.root",
+                angle_name.Data()
+            );
+            system(TString::Format(
+                "hadd -f %s %s_2017_01_ver03.1_mc_signal.root %s_2018_01_ver03.1_mc_signal.root %s_2018_08_ver03.1_mc_signal.root",
+                mc_signal_allPeriods.Data(),
+                angle_name.Data(), angle_name.Data(), angle_name.Data()
+            ).Data());
+            
+            TString mc_background_allPeriods = TString::Format(
+                "%s_allPeriods_ver03.1_mc_background.root",
+                angle_name.Data()
+            );
+            system(TString::Format(
+                "hadd -f %s %s_2017_01_ver03.1_mc_background.root %s_2018_01_ver03.1_mc_background.root %s_2018_08_ver03.1_mc_background.root",
+                mc_background_allPeriods.Data(),
+                angle_name.Data(), angle_name.Data(), angle_name.Data()
+            ).Data());
+        }
+    }
+    
+    // Combine all polarization angles into total allPeriods files (data only)
+    system(TString::Format(
+        "hadd -f allPeriods_data_signal.root PARA_0_allPeriods_data_signal.root PERP_45_allPeriods_data_signal.root PERP_90_allPeriods_data_signal.root PARA_135_allPeriods_data_signal.root"
+    ).Data());
+    
+    system(TString::Format(
+        "hadd -f allPeriods_data_background.root PARA_0_allPeriods_data_background.root PERP_45_allPeriods_data_background.root PERP_90_allPeriods_data_background.root PARA_135_allPeriods_data_background.root"
+    ).Data());
+    
+    // Combine phasespace across all periods
+    system(TString::Format(
+        "hadd -f allPeriods_ver03_phasespace.root 2017_01_ver03_phasespace.root 2018_01_ver03_phasespace.root 2018_08_ver03_phasespace.root"
+    ).Data());
 }
