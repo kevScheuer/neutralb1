@@ -289,10 +289,10 @@ std::pair<TString, TString> load_final_cuts(
         "abs(%s-%f)>(%f)&&abs(%s-%f)<(%f+%f)",
         data_omega_mass.Data(),
         OMEGA_MASS,
-        2*SIDEBAND_GAP,
+        SIDEBAND_GAP,
         data_omega_mass.Data(),
         OMEGA_MASS,
-        2*SIDEBAND_GAP,
+        SIDEBAND_GAP,
         SIGNAL_HALF_WIDTH);
     
     FSCut::defineCut(
@@ -334,7 +334,7 @@ std::pair<TString, TString> load_final_cuts(
     // avoid interactions with walls of target
     FSCut::defineCut("z", "ProdVz>=51.2&&ProdVz<=78.8");
     // rf sideband subtraction
-    FSCut::defineCut("rf", "abs(RFDeltaT)<0.2", "abs(RFDeltaT)>2.0", 0.125);
+    FSCut::defineCut("rf", "abs(RFDeltaT)<2.0", "abs(RFDeltaT)>2.0", 0.125);
     single_vec.push_back("t");
     single_vec.push_back("z");
     sideband_vec.push_back("rf");
