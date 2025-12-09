@@ -287,7 +287,7 @@ void plot_mass_spectra(
 
     h_omega_pi0_mc_signal->SetMarkerColor(kCyan+2);
     h_omega_pi0_mc_signal->SetMarkerStyle(24);
-    h_omega_pi0_mc_signal->SetMarkerSize(0.8);
+    h_omega_pi0_mc_signal->SetMarkerSize(0.6);
     h_omega_pi0_mc_signal->SetLineColor(kCyan+2);
 
     h_omega_pi0_data_sideband->SetLineColor(kRed+1);
@@ -295,7 +295,7 @@ void plot_mass_spectra(
 
     h_omega_pi0_mc_sideband->SetMarkerColor(kRed-7);
     h_omega_pi0_mc_sideband->SetMarkerStyle(25);
-    h_omega_pi0_mc_sideband->SetMarkerSize(0.8);
+    h_omega_pi0_mc_sideband->SetMarkerSize(0.6);
     h_omega_pi0_mc_sideband->SetLineColor(kRed-7);
 
 
@@ -314,7 +314,7 @@ void plot_mass_spectra(
 
     h_proton_pi0_mc_signal->SetMarkerColor(kCyan+2);
     h_proton_pi0_mc_signal->SetMarkerStyle(24);
-    h_proton_pi0_mc_signal->SetMarkerSize(0.8);
+    h_proton_pi0_mc_signal->SetMarkerSize(0.6);
     h_proton_pi0_mc_signal->SetLineColor(kCyan+2);
 
     h_proton_pi0_data_sideband->SetLineColor(kRed+1);
@@ -322,7 +322,7 @@ void plot_mass_spectra(
 
     h_proton_pi0_mc_sideband->SetMarkerColor(kRed-7);
     h_proton_pi0_mc_sideband->SetMarkerStyle(25);
-    h_proton_pi0_mc_sideband->SetMarkerSize(0.8);
+    h_proton_pi0_mc_sideband->SetMarkerSize(0.6);
     h_proton_pi0_mc_sideband->SetLineColor(kRed-7);
 
     // Scale MC to match data maximum
@@ -342,16 +342,16 @@ void plot_mass_spectra(
     TLegend* legend_omega_pi0 = new TLegend(0.7,0.7,0.88,0.88);
     legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Final Data", "lp");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_signal, "Data Signal", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_omega_signal), "l");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_omega_signal), "p");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_sideband, "Data Sideband", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_omega_sideband), "l");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_omega_sideband), "p");
 
     TLegend* legend_proton_pi0 = new TLegend(0.15,0.7,0.33,0.88);
     legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Final Data", "lp");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_signal, "Data Signal", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_proton_signal), "l");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_proton_signal), "p");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_sideband, "Data Sideband", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_proton_sideband), "l");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_proton_sideband), "p");
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
 
@@ -635,7 +635,7 @@ void plot_1d_angles(
     
     h_theta_mc_signal->SetMarkerColor(kCyan+2);
     h_theta_mc_signal->SetMarkerStyle(24);
-    h_theta_mc_signal->SetMarkerSize(0.8);
+    h_theta_mc_signal->SetMarkerSize(0.6);
     h_theta_mc_signal->SetLineColor(kCyan+2);
     
     h_theta_data_sideband->SetLineColor(kRed+1);
@@ -643,7 +643,7 @@ void plot_1d_angles(
     
     h_theta_mc_sideband->SetMarkerColor(kRed-7);
     h_theta_mc_sideband->SetMarkerStyle(25);
-    h_theta_mc_sideband->SetMarkerSize(0.8);
+    h_theta_mc_sideband->SetMarkerSize(0.6);
     h_theta_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -669,7 +669,7 @@ void plot_1d_angles(
     
     h_phi_mc_signal->SetMarkerColor(kCyan+2);
     h_phi_mc_signal->SetMarkerStyle(24);
-    h_phi_mc_signal->SetMarkerSize(0.8);
+    h_phi_mc_signal->SetMarkerSize(0.6);
     h_phi_mc_signal->SetLineColor(kCyan+2);
     
     h_phi_data_sideband->SetLineColor(kRed+1);
@@ -677,7 +677,7 @@ void plot_1d_angles(
     
     h_phi_mc_sideband->SetMarkerColor(kRed-7);
     h_phi_mc_sideband->SetMarkerStyle(25);
-    h_phi_mc_sideband->SetMarkerSize(0.8);
+    h_phi_mc_sideband->SetMarkerSize(0.6);
     h_phi_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -703,7 +703,7 @@ void plot_1d_angles(
     
     h_Phi_mc_signal->SetMarkerColor(kCyan+2);
     h_Phi_mc_signal->SetMarkerStyle(24);
-    h_Phi_mc_signal->SetMarkerSize(0.8);
+    h_Phi_mc_signal->SetMarkerSize(0.6);
     h_Phi_mc_signal->SetLineColor(kCyan+2);
     
     h_Phi_data_sideband->SetLineColor(kRed+1);
@@ -711,7 +711,7 @@ void plot_1d_angles(
     
     h_Phi_mc_sideband->SetMarkerColor(kRed-7);
     h_Phi_mc_sideband->SetMarkerStyle(25);
-    h_Phi_mc_sideband->SetMarkerSize(0.8);
+    h_Phi_mc_sideband->SetMarkerSize(0.6);
     h_Phi_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -737,7 +737,7 @@ void plot_1d_angles(
     
     h_theta_h_mc_signal->SetMarkerColor(kCyan+2);
     h_theta_h_mc_signal->SetMarkerStyle(24);
-    h_theta_h_mc_signal->SetMarkerSize(0.8);
+    h_theta_h_mc_signal->SetMarkerSize(0.6);
     h_theta_h_mc_signal->SetLineColor(kCyan+2);
     
     h_theta_h_data_sideband->SetLineColor(kRed+1);
@@ -745,7 +745,7 @@ void plot_1d_angles(
     
     h_theta_h_mc_sideband->SetMarkerColor(kRed-7);
     h_theta_h_mc_sideband->SetMarkerStyle(25);
-    h_theta_h_mc_sideband->SetMarkerSize(0.8);
+    h_theta_h_mc_sideband->SetMarkerSize(0.6);
     h_theta_h_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -771,7 +771,7 @@ void plot_1d_angles(
     
     h_phi_h_mc_signal->SetMarkerColor(kCyan+2);
     h_phi_h_mc_signal->SetMarkerStyle(24);
-    h_phi_h_mc_signal->SetMarkerSize(0.8);
+    h_phi_h_mc_signal->SetMarkerSize(0.6);
     h_phi_h_mc_signal->SetLineColor(kCyan+2);
     
     h_phi_h_data_sideband->SetLineColor(kRed+1);
@@ -779,7 +779,7 @@ void plot_1d_angles(
     
     h_phi_h_mc_sideband->SetMarkerColor(kRed-7);
     h_phi_h_mc_sideband->SetMarkerStyle(25);
-    h_phi_h_mc_sideband->SetMarkerSize(0.8);
+    h_phi_h_mc_sideband->SetMarkerSize(0.6);
     h_phi_h_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -805,7 +805,7 @@ void plot_1d_angles(
     
     h_lambda_mc_signal->SetMarkerColor(kCyan+2);
     h_lambda_mc_signal->SetMarkerStyle(24);
-    h_lambda_mc_signal->SetMarkerSize(0.8);
+    h_lambda_mc_signal->SetMarkerSize(0.6);
     h_lambda_mc_signal->SetLineColor(kCyan+2);
     
     h_lambda_data_sideband->SetLineColor(kRed+1);
@@ -814,7 +814,7 @@ void plot_1d_angles(
     
     h_lambda_mc_sideband->SetMarkerColor(kRed-7);
     h_lambda_mc_sideband->SetMarkerStyle(25);
-    h_lambda_mc_sideband->SetMarkerSize(0.8);
+    h_lambda_mc_sideband->SetMarkerSize(0.6);
     h_lambda_mc_sideband->SetLineColor(kRed-7);
     
     // Scale MC to match data maximum
@@ -856,9 +856,9 @@ void plot_1d_angles(
     TLegend* legend_theta = new TLegend(0.15, 0.7, 0.33, 0.88);
     legend_theta->AddEntry(h_theta_data_total, "Final Data", "lp");
     legend_theta->AddEntry(h_theta_data_signal, "Data Signal", "l");
-    legend_theta->AddEntry(h_theta_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_signal), "l");
+    legend_theta->AddEntry(h_theta_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_signal), "p");
     legend_theta->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
-    legend_theta->AddEntry(h_theta_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_sideband), "l");
+    legend_theta->AddEntry(h_theta_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_sideband), "p");
     // legend_theta->AddEntry(h_theta_acceptance, "Acceptance", "l");
     h_theta_data_total->Draw("E");
     h_theta_data_signal->Draw("HIST SAME");
@@ -894,9 +894,9 @@ void plot_1d_angles(
     TLegend* legend_phi = new TLegend(0.41, 0.7, 0.59, 0.88);
     legend_phi->AddEntry(h_phi_data_total, "Final Data", "lp");
     legend_phi->AddEntry(h_phi_data_signal, "Data Signal", "l");
-    legend_phi->AddEntry(h_phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_signal), "l");
+    legend_phi->AddEntry(h_phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_signal), "p");
     legend_phi->AddEntry(h_phi_data_sideband, "Data Sideband", "l");
-    legend_phi->AddEntry(h_phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_sideband), "l");
+    legend_phi->AddEntry(h_phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_sideband), "p");
     // legend_phi->AddEntry(h_phi_acceptance, "Acceptance", "l");
     h_phi_data_total->Draw("E");
     h_phi_data_signal->Draw("HIST SAME");
@@ -931,9 +931,9 @@ void plot_1d_angles(
     TLegend* legend_Phi =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_Phi->AddEntry(h_Phi_data_total, "Final Data", "lp");
     legend_Phi->AddEntry(h_Phi_data_signal, "Data Signal", "l");
-    legend_Phi->AddEntry(h_Phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_Phi_signal), "l");
+    legend_Phi->AddEntry(h_Phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_Phi_signal), "p");
     legend_Phi->AddEntry(h_Phi_data_sideband, "Data Sideband", "l");
-    legend_Phi->AddEntry(h_Phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_Phi_sideband), "l");
+    legend_Phi->AddEntry(h_Phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_Phi_sideband), "p");
     // legend_Phi->AddEntry(h_Phi_acceptance, "Acceptance", "l");
     
     h_Phi_data_total->Draw("E");
@@ -969,9 +969,9 @@ void plot_1d_angles(
     TLegend* legend_theta_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_theta_h->AddEntry(h_theta_h_data_total, "Final Data", "lp");
     legend_theta_h->AddEntry(h_theta_h_data_signal, "Data Signal", "l");
-    legend_theta_h->AddEntry(h_theta_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_h_signal), "l");
+    legend_theta_h->AddEntry(h_theta_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_h_signal), "p");
     legend_theta_h->AddEntry(h_theta_h_data_sideband, "Data Sideband", "l");
-    legend_theta_h->AddEntry(h_theta_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_h_sideband), "l");
+    legend_theta_h->AddEntry(h_theta_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_h_sideband), "p");
     // legend_theta_h->AddEntry(h_theta_h_acceptance, "Acceptance", "l");
     
     h_theta_h_data_total->Draw("E");
@@ -1007,9 +1007,9 @@ void plot_1d_angles(
     TLegend* legend_phi_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_phi_h->AddEntry(h_phi_h_data_total, "Final Data", "lp");
     legend_phi_h->AddEntry(h_phi_h_data_signal, "Data Signal", "l");
-    legend_phi_h->AddEntry(h_phi_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_h_signal), "l");
+    legend_phi_h->AddEntry(h_phi_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_h_signal), "p");
     legend_phi_h->AddEntry(h_phi_h_data_sideband, "Data Sideband", "l");
-    legend_phi_h->AddEntry(h_phi_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_h_sideband), "l");
+    legend_phi_h->AddEntry(h_phi_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_h_sideband), "p");
     // legend_phi_h->AddEntry(h_phi_h_acceptance, "Acceptance", "l");
     
     h_phi_h_data_total->Draw("E");
@@ -1045,9 +1045,9 @@ void plot_1d_angles(
     TLegend* legend_lambda = new TLegend(0.15, 0.7, 0.33, 0.88);
     legend_lambda->AddEntry(h_lambda_data_total, "Final Data", "lp");
     legend_lambda->AddEntry(h_lambda_data_signal, "Data Signal", "l");
-    legend_lambda->AddEntry(h_lambda_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_lambda_signal), "l");
+    legend_lambda->AddEntry(h_lambda_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_lambda_signal), "p");
     legend_lambda->AddEntry(h_lambda_data_sideband, "Data Sideband", "l");
-    legend_lambda->AddEntry(h_lambda_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_lambda_sideband), "l");
+    legend_lambda->AddEntry(h_lambda_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_lambda_sideband), "p");
     // legend_lambda->AddEntry(h_lambda_acceptance, "Acceptance", "l");
     
     h_lambda_data_total->Draw("E");
