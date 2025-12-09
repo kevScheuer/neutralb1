@@ -18,6 +18,7 @@
 #include "TCanvas.h"
 #include "TString.h"
 #include "TH1.h"
+#include "TH2.h"
 #include "TLegend.h"
 #include "TFile.h"
 #include "TTree.h"
@@ -25,13 +26,9 @@
 #include "TMath.h"
 #include "TGaxis.h"
 #include "TPad.h"
-
-#include "FSBasic/FSTree.h"
-#include "FSMode/FSModeTree.h"
-#include "FSMode/FSModeHistogram.h"
+#include "TStyle.h"
 
 #include "neutralb1/fit_utils.h"
-#include "fsroot_setup.cc"
 #include "/work/halld/kscheuer/my_build/cpu/halld_sim/src/libraries/AMPTOOLS_AMPS/vecPsAngles.h"
 #include "/work/halld/kscheuer/my_build/cpu/halld_sim/src/libraries/AMPTOOLS_AMPS/vecPsAngles.cc"
 
@@ -91,6 +88,7 @@ void plot_2d_acceptance(
 
 void plot_final_distributions()
 {
+    gStyle->SetOptStat(0);
     TString tree_dir = "/lustre24/expphy/volatile/halld/home/kscheuer/"
     "FSRoot-skimmed-trees/final-amptools-trees/";
 
@@ -102,8 +100,8 @@ void plot_final_distributions()
     TString acc_phasespace = tree_dir + "allPeriods_ver03_phasespace.root";
     TString gen_phasespace = tree_dir + "allPeriods_ver03_gen_phasespace.root";
 
-    TString NT, CATEGORY;
-    std::tie(NT, CATEGORY) = setup(false);
+    TString NT = "ntFSGlueX_100_112";
+    TString CATEGORY = "pi0pi0pippim";    
 
     plot_mass_spectra(NT, CATEGORY, data_signal, data_sideband, mc_signal, mc_sideband);
 
@@ -207,75 +205,67 @@ void plot_mass_spectra(
     TString mc_sideband
 )
 {
-    // get histograms
-    TH1F* h_omega_pi0_data_signal = FSModeHistogram::getTH1F(
-        data_signal,
-        NT,
-        CATEGORY,
-        "M4Pi",
-        "(100,1.0,2.0)",
-        ""        
-    );
-    TH1F *h_omega_pi0_data_sideband = FSModeHistogram::getTH1F(
-        data_sideband,
-        NT,
-        CATEGORY,
-        "M4Pi",
-        "(100,1.0,2.0)",
-        ""        
-    );
-    TH1F* h_omega_pi0_mc_signal = FSModeHistogram::getTH1F(
-        mc_signal,
-        NT,
-        CATEGORY,
-        "M4Pi",
-        "(100,1.0,2.0)",
-        ""        
-    );
-    TH1F *h_omega_pi0_mc_sideband = FSModeHistogram::getTH1F(
-        mc_sideband,
-        NT,
-        CATEGORY,
-        "M4Pi",
-        "(100,1.0,2.0)",
-        ""        
-    );
+    // get files and trees
+    TFile *f_data_signal = TFile::Open(data_signal);
+    TFile *f_data_sideband = TFile::Open(data_sideband);
+    TFile *f_mc_signal = TFile::Open(mc_signal);
+    TFile *f_mc_sideband = TFile::Open(mc_sideband);
+
+    TTree *tree_data_signal = (TTree*)f_data_signal->Get(NT);
+    TTree *tree_data_sideband = (TTree*)f_data_sideband->Get(NT);
+    TTree *tree_mc_signal = (TTree*)f_mc_signal->Get(NT);
+    TTree *tree_mc_sideband = (TTree*)f_mc_sideband->Get(NT);
+
+    // setup histograms for omega pi0 and proton pi0
+    TH1F *h_omega_pi0_data_signal = new TH1F(
+        "h_omega_pi0_data_signal", 
+        "", 
+        100, 1.0, 2.0);
+    TH1F *h_omega_pi0_data_sideband = new TH1F(
+        "h_omega_pi0_data_sideband", 
+        "", 
+        100, 1.0, 2.0);
+    TH1F *h_omega_pi0_mc_signal = new TH1F(
+        "h_omega_pi0_mc_signal", 
+        "", 
+        100, 1.0, 2.0);
+    TH1F *h_omega_pi0_mc_sideband = new TH1F(
+        "h_omega_pi0_mc_sideband", 
+        "", 
+        100, 1.0, 2.0);
+
+    TH1F *h_proton_pi0_data_signal = new TH1F(
+        "h_proton_pi0_data_signal", 
+        "", 
+        200, 1.0, 3.0);
+    TH1F *h_proton_pi0_data_sideband = new TH1F(
+        "h_proton_pi0_data_sideband", 
+        "", 
+        200, 1.0, 3.0);
+    TH1F *h_proton_pi0_mc_signal = new TH1F(
+        "h_proton_pi0_mc_signal", 
+        "", 
+        200, 1.0, 3.0);
+    TH1F *h_proton_pi0_mc_sideband = new TH1F(
+        "h_proton_pi0_mc_sideband", 
+        "", 
+        200, 1.0, 3.0);
+
+    // fill histograms
+    tree_data_signal->Draw("M4Pi>>h_omega_pi0_data_signal", "", "goff");
+    tree_data_sideband->Draw("M4Pi>>h_omega_pi0_data_sideband", "weight", "goff");
+    tree_mc_signal->Draw("M4Pi>>h_omega_pi0_mc_signal", "", "goff");
+    tree_mc_sideband->Draw("M4Pi>>h_omega_pi0_mc_sideband", "weight", "goff");
+    
+    tree_data_signal->Draw("MRecoilPi>>h_proton_pi0_data_signal", "", "goff");
+    tree_data_sideband->Draw("MRecoilPi>>h_proton_pi0_data_sideband", "weight", "goff");
+    tree_mc_signal->Draw("MRecoilPi>>h_proton_pi0_mc_signal", "", "goff");
+    tree_mc_sideband->Draw("MRecoilPi>>h_proton_pi0_mc_sideband", "weight", "goff");
+    
+    // get total data as sum of signal and sideband
     TH1F *h_omega_pi0_data_total = 
         (TH1F*)h_omega_pi0_data_signal->Clone("h_omega_pi0_data_total");
     h_omega_pi0_data_total->Add(h_omega_pi0_data_sideband);
-
-    TH1F* h_proton_pi0_data_signal = FSModeHistogram::getTH1F(
-        data_signal,
-        NT,
-        CATEGORY,
-        "MRecoilPi",
-        "(200,1.0,3.0)",
-        ""        
-    );
-    TH1F *h_proton_pi0_data_sideband = FSModeHistogram::getTH1F(
-        data_sideband,
-        NT,
-        CATEGORY,
-        "MRecoilPi",
-        "(200,1.0,3.0)",
-        ""        
-    );
-    TH1F* h_proton_pi0_mc_signal = FSModeHistogram::getTH1F(
-        mc_signal,
-        NT,
-        CATEGORY,
-        "MRecoilPi",
-        "(200,1.0,3.0)",
-        ""        
-    );
-    TH1F *h_proton_pi0_mc_sideband = FSModeHistogram::getTH1F(
-        mc_sideband,
-        NT,
-        CATEGORY,
-        "MRecoilPi",
-        "(200,1.0,3.0)",
-        ""        
-    );
     TH1F *h_proton_pi0_data_total = 
         (TH1F*)h_proton_pi0_data_signal->Clone("h_proton_pi0_data_total");
     h_proton_pi0_data_total->Add(h_proton_pi0_data_sideband);
@@ -287,6 +277,7 @@ void plot_mass_spectra(
     h_omega_pi0_data_total->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     h_omega_pi0_data_total->SetMarkerStyle(1);
     h_omega_pi0_data_total->SetMarkerColor(kBlack);
+    h_omega_pi0_data_total->SetLineColor(kBlack);
 
     h_omega_pi0_data_signal->SetLineColor(kBlue);
     h_omega_pi0_data_signal->SetLineWidth(2);
@@ -309,6 +300,7 @@ void plot_mass_spectra(
     h_proton_pi0_data_total->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     h_proton_pi0_data_total->SetMarkerStyle(1);
     h_proton_pi0_data_total->SetMarkerColor(kBlack);
+    h_proton_pi0_data_total->SetLineColor(kBlack);
 
     h_proton_pi0_data_signal->SetLineColor(kBlue);
     h_proton_pi0_data_signal->SetLineWidth(2);
@@ -325,14 +317,14 @@ void plot_mass_spectra(
     h_proton_pi0_mc_sideband->SetLineStyle(2);
 
     // create legend
-    TLegend* legend_omega_pi0 = new TLegend(0.6,0.6,0.89,0.89);
+    TLegend* legend_omega_pi0 = new TLegend(0.7,0.7,0.88,0.88);
     legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Data", "lp");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_signal, "Data Signal", "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, "MC Signal", "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_sideband, "Data Sideband", "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, "MC Sideband", "l");
 
-    TLegend* legend_proton_pi0 = new TLegend(0.6,0.6,0.89,0.89);
+    TLegend* legend_proton_pi0 = new TLegend(0.2,0.7,0.38,0.88);
     legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Data", "lp");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_signal, "Data Signal", "l");
     legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, "MC Signal", "l");
