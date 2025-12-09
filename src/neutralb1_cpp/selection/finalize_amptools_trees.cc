@@ -830,7 +830,7 @@ void combine_permutations(TString NT, int period)
         {0, "PARA_0"},
         {45, "PERP_45"},
         {90, "PERP_90"},
-        {135, "PERP_135"}
+        {135, "PARA_135"}
     };
     TString friend_extension_perm1 = "amptools_branches_perm1";
     TString friend_extension_perm2 = "amptools_branches_perm2";
