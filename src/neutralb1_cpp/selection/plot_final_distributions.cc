@@ -262,13 +262,13 @@ void plot_mass_spectra(
     tree_mc_signal->Draw("MRecoilPi>>h_proton_pi0_mc_signal", "", "goff");
     tree_mc_sideband->Draw("MRecoilPi>>h_proton_pi0_mc_sideband", "weight", "goff");
     
-    // get total data as sum of signal and sideband
+    // get final data as signal minus sideband
     TH1F *h_omega_pi0_data_total = 
         (TH1F*)h_omega_pi0_data_signal->Clone("h_omega_pi0_data_total");
-    h_omega_pi0_data_total->Add(h_omega_pi0_data_sideband);
+    h_omega_pi0_data_total->Add(h_omega_pi0_data_sideband, -1.0);
     TH1F *h_proton_pi0_data_total = 
         (TH1F*)h_proton_pi0_data_signal->Clone("h_proton_pi0_data_total");
-    h_proton_pi0_data_total->Add(h_proton_pi0_data_sideband);
+    h_proton_pi0_data_total->Add(h_proton_pi0_data_sideband, -1.0);
 
     // customize the histograms
     double bin_width = get_bin_width( h_omega_pi0_data_total );
@@ -278,6 +278,8 @@ void plot_mass_spectra(
     h_omega_pi0_data_total->SetMarkerStyle(1);
     h_omega_pi0_data_total->SetMarkerColor(kBlack);
     h_omega_pi0_data_total->SetLineColor(kBlack);
+    h_omega_pi0_data_total->SetMinimum(0);
+    h_omega_pi0_data_total->SetMaximum(h_omega_pi0_data_signal->GetMaximum() * 1.1);
 
     h_omega_pi0_data_signal->SetLineColor(kBlue);
     h_omega_pi0_data_signal->SetLineWidth(2);
@@ -301,6 +303,8 @@ void plot_mass_spectra(
     h_proton_pi0_data_total->SetMarkerStyle(1);
     h_proton_pi0_data_total->SetMarkerColor(kBlack);
     h_proton_pi0_data_total->SetLineColor(kBlack);
+    h_proton_pi0_data_total->SetMinimum(0);
+    h_proton_pi0_data_total->SetMaximum(h_proton_pi0_data_signal->GetMaximum() * 1.1);
 
     h_proton_pi0_data_signal->SetLineColor(kBlue);
     h_proton_pi0_data_signal->SetLineWidth(2);
@@ -316,20 +320,33 @@ void plot_mass_spectra(
     h_proton_pi0_mc_sideband->SetLineWidth(1);
     h_proton_pi0_mc_sideband->SetLineStyle(2);
 
+    // Scale MC to match data maximum
+    double scale_omega_signal = h_omega_pi0_data_signal->GetMaximum() / h_omega_pi0_mc_signal->GetMaximum();
+    h_omega_pi0_mc_signal->Scale(scale_omega_signal);
+    
+    double scale_omega_sideband = h_omega_pi0_data_sideband->GetMaximum() / h_omega_pi0_mc_sideband->GetMaximum();
+    h_omega_pi0_mc_sideband->Scale(scale_omega_sideband);
+    
+    double scale_proton_signal = h_proton_pi0_data_signal->GetMaximum() / h_proton_pi0_mc_signal->GetMaximum();
+    h_proton_pi0_mc_signal->Scale(scale_proton_signal);
+    
+    double scale_proton_sideband = h_proton_pi0_data_sideband->GetMaximum() / h_proton_pi0_mc_sideband->GetMaximum();
+    h_proton_pi0_mc_sideband->Scale(scale_proton_sideband);
+
     // create legend
     TLegend* legend_omega_pi0 = new TLegend(0.7,0.7,0.88,0.88);
-    legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Data", "lp");
+    legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Final Data", "lp");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_signal, "Data Signal", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, "MC Signal", "l");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_omega_signal), "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_sideband, "Data Sideband", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, "MC Sideband", "l");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_omega_sideband), "l");
 
     TLegend* legend_proton_pi0 = new TLegend(0.2,0.7,0.38,0.88);
-    legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Data", "lp");
+    legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Final Data", "lp");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_signal, "Data Signal", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, "MC Signal", "l");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_proton_signal), "l");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_sideband, "Data Sideband", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, "MC Sideband", "l");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_proton_sideband), "l");
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
 
@@ -412,8 +429,8 @@ AngleData calculate_angles(
     tree->SetBranchAddress("PzP5", &PzP5);
     
     // Try to get weight and polAngle if they exist
-    if (tree->GetBranch("Weight")) {
-        tree->SetBranchAddress("Weight", &weight);
+    if (tree->GetBranch("weight")) {
+        tree->SetBranchAddress("weight", &weight);
     }
     if (tree->GetBranch("PolAngle")) {
         tree->SetBranchAddress("PolAngle", &polAngle);
@@ -559,24 +576,24 @@ void plot_1d_angles(
     fillHistograms(angles_gen, h_theta_gen, h_phi_gen, h_Phi_gen,
                    h_theta_h_gen, h_phi_h_gen, h_lambda_gen);
     
-    // Combine data signal and sideband
+    // Combine data signal and sideband (signal - sideband)
     TH1F* h_theta_data_total = (TH1F*)h_theta_data_signal->Clone("h_theta_data_total");
-    h_theta_data_total->Add(h_theta_data_sideband);
+    h_theta_data_total->Add(h_theta_data_sideband, -1.0);
     
     TH1F* h_phi_data_total = (TH1F*)h_phi_data_signal->Clone("h_phi_data_total");
-    h_phi_data_total->Add(h_phi_data_sideband);
+    h_phi_data_total->Add(h_phi_data_sideband, -1.0);
     
     TH1F* h_Phi_data_total = (TH1F*)h_Phi_data_signal->Clone("h_Phi_data_total");
-    h_Phi_data_total->Add(h_Phi_data_sideband);
+    h_Phi_data_total->Add(h_Phi_data_sideband, -1.0);
     
     TH1F* h_theta_h_data_total = (TH1F*)h_theta_h_data_signal->Clone("h_theta_h_data_total");
-    h_theta_h_data_total->Add(h_theta_h_data_sideband);
+    h_theta_h_data_total->Add(h_theta_h_data_sideband, -1.0);
     
     TH1F* h_phi_h_data_total = (TH1F*)h_phi_h_data_signal->Clone("h_phi_h_data_total");
-    h_phi_h_data_total->Add(h_phi_h_data_sideband);
+    h_phi_h_data_total->Add(h_phi_h_data_sideband, -1.0);
     
     TH1F* h_lambda_data_total = (TH1F*)h_lambda_data_signal->Clone("h_lambda_data_total");
-    h_lambda_data_total->Add(h_lambda_data_sideband);
+    h_lambda_data_total->Add(h_lambda_data_sideband, -1.0);
     
     // Calculate acceptance
     TH1F* h_theta_acceptance = (TH1F*)h_theta_acc->Clone("h_theta_acceptance");
@@ -604,6 +621,8 @@ void plot_1d_angles(
     h_theta_data_total->SetYTitle(TString::Format("Events / %.3f", bin_width));
     h_theta_data_total->SetMarkerStyle(1);
     h_theta_data_total->SetMarkerColor(kBlack);
+    h_theta_data_total->SetMinimum(0);
+    h_theta_data_total->SetMaximum(h_theta_data_signal->GetMaximum() * 1.1);
     
     h_theta_data_signal->SetLineColor(kBlue);
     h_theta_data_signal->SetLineWidth(2);
@@ -626,6 +645,8 @@ void plot_1d_angles(
     h_phi_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
     h_phi_data_total->SetMarkerStyle(1);
     h_phi_data_total->SetMarkerColor(kBlack);
+    h_phi_data_total->SetMinimum(0);
+    h_phi_data_total->SetMaximum(h_phi_data_signal->GetMaximum() * 1.1);
     
     h_phi_data_signal->SetLineColor(kBlue);
     h_phi_data_signal->SetLineWidth(2);
@@ -648,6 +669,8 @@ void plot_1d_angles(
     h_Phi_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
     h_Phi_data_total->SetMarkerStyle(1);
     h_Phi_data_total->SetMarkerColor(kBlack);
+    h_Phi_data_total->SetMinimum(0);
+    h_Phi_data_total->SetMaximum(h_Phi_data_signal->GetMaximum() * 1.1);
     
     h_Phi_data_signal->SetLineColor(kBlue);
     h_Phi_data_signal->SetLineWidth(2);
@@ -670,6 +693,8 @@ void plot_1d_angles(
     h_theta_h_data_total->SetYTitle(TString::Format("Events / %.3f", bin_width));
     h_theta_h_data_total->SetMarkerStyle(1);
     h_theta_h_data_total->SetMarkerColor(kBlack);
+    h_theta_h_data_total->SetMinimum(0);
+    h_theta_h_data_total->SetMaximum(h_theta_h_data_signal->GetMaximum() * 1.1);
     
     h_theta_h_data_signal->SetLineColor(kBlue);
     h_theta_h_data_signal->SetLineWidth(2);
@@ -692,6 +717,8 @@ void plot_1d_angles(
     h_phi_h_data_total->SetYTitle(TString::Format("Events / %.3f rad", bin_width));
     h_phi_h_data_total->SetMarkerStyle(1);
     h_phi_h_data_total->SetMarkerColor(kBlack);
+    h_phi_h_data_total->SetMinimum(0);
+    h_phi_h_data_total->SetMaximum(h_phi_h_data_signal->GetMaximum() * 1.1);
     
     h_phi_h_data_signal->SetLineColor(kBlue);
     h_phi_h_data_signal->SetLineWidth(2);
@@ -714,6 +741,8 @@ void plot_1d_angles(
     h_lambda_data_total->SetYTitle(TString::Format("Events / %.3f", bin_width));
     h_lambda_data_total->SetMarkerStyle(1);
     h_lambda_data_total->SetMarkerColor(kBlack);
+    h_lambda_data_total->SetMinimum(0);
+    h_lambda_data_total->SetMaximum(h_lambda_data_signal->GetMaximum() * 1.1);
     
     h_lambda_data_signal->SetLineColor(kBlue);
     h_lambda_data_signal->SetLineWidth(2);
@@ -756,7 +785,7 @@ void plot_1d_angles(
     
     // Draw theta
     TLegend* legend_theta = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_theta->AddEntry(h_theta_data_total, "Data", "lp");
+    legend_theta->AddEntry(h_theta_data_total, "Final Data", "lp");
     legend_theta->AddEntry(h_theta_data_signal, "Data Signal", "l");
     legend_theta->AddEntry(h_theta_mc_signal, "MC Signal", "l");
     legend_theta->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
@@ -794,7 +823,7 @@ void plot_1d_angles(
     
     // Draw phi
     TLegend* legend_phi = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_phi->AddEntry(h_phi_data_total, "Data", "lp");
+    legend_phi->AddEntry(h_phi_data_total, "Final Data", "lp");
     legend_phi->AddEntry(h_phi_data_signal, "Data Signal", "l");
     legend_phi->AddEntry(h_phi_mc_signal, "MC Signal", "l");
     legend_phi->AddEntry(h_phi_data_sideband, "Data Sideband", "l");
@@ -831,7 +860,7 @@ void plot_1d_angles(
     
     // Draw Phi
     TLegend* legend_Phi = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_Phi->AddEntry(h_Phi_data_total, "Data", "lp");
+    legend_Phi->AddEntry(h_Phi_data_total, "Final Data", "lp");
     legend_Phi->AddEntry(h_Phi_data_signal, "Data Signal", "l");
     legend_Phi->AddEntry(h_Phi_mc_signal, "MC Signal", "l");
     legend_Phi->AddEntry(h_Phi_data_sideband, "Data Sideband", "l");
@@ -869,7 +898,7 @@ void plot_1d_angles(
     
     // Draw theta_h
     TLegend* legend_theta_h = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_theta_h->AddEntry(h_theta_h_data_total, "Data", "lp");
+    legend_theta_h->AddEntry(h_theta_h_data_total, "Final Data", "lp");
     legend_theta_h->AddEntry(h_theta_h_data_signal, "Data Signal", "l");
     legend_theta_h->AddEntry(h_theta_h_mc_signal, "MC Signal", "l");
     legend_theta_h->AddEntry(h_theta_h_data_sideband, "Data Sideband", "l");
@@ -907,7 +936,7 @@ void plot_1d_angles(
     
     // Draw phi_h
     TLegend* legend_phi_h = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_phi_h->AddEntry(h_phi_h_data_total, "Data", "lp");
+    legend_phi_h->AddEntry(h_phi_h_data_total, "Final Data", "lp");
     legend_phi_h->AddEntry(h_phi_h_data_signal, "Data Signal", "l");
     legend_phi_h->AddEntry(h_phi_h_mc_signal, "MC Signal", "l");
     legend_phi_h->AddEntry(h_phi_h_data_sideband, "Data Sideband", "l");
@@ -945,7 +974,7 @@ void plot_1d_angles(
     
     // Draw lambda
     TLegend* legend_lambda = new TLegend(0.6, 0.55, 0.89, 0.89);
-    legend_lambda->AddEntry(h_lambda_data_total, "Data", "lp");
+    legend_lambda->AddEntry(h_lambda_data_total, "Final Data", "lp");
     legend_lambda->AddEntry(h_lambda_data_signal, "Data Signal", "l");
     legend_lambda->AddEntry(h_lambda_mc_signal, "MC Signal", "l");
     legend_lambda->AddEntry(h_lambda_data_sideband, "Data Sideband", "l");
@@ -1030,15 +1059,15 @@ void plot_2d_angles(
         h_Phi_phi_sideband->Fill(angles_sideband.Phi[i], angles_sideband.phi[i], weight);
     }
     
-    // Create total histograms (signal + sideband)
+    // Create total histograms (signal - sideband)
     TH2F* h_theta_phi_total = (TH2F*)h_theta_phi_signal->Clone("h_theta_phi_total");
-    h_theta_phi_total->Add(h_theta_phi_sideband);
+    h_theta_phi_total->Add(h_theta_phi_sideband, -1.0);
     
     TH2F* h_theta_h_phi_h_total = (TH2F*)h_theta_h_phi_h_signal->Clone("h_theta_h_phi_h_total");
-    h_theta_h_phi_h_total->Add(h_theta_h_phi_h_sideband);
+    h_theta_h_phi_h_total->Add(h_theta_h_phi_h_sideband, -1.0);
     
     TH2F* h_Phi_phi_total = (TH2F*)h_Phi_phi_signal->Clone("h_Phi_phi_total");
-    h_Phi_phi_total->Add(h_Phi_phi_sideband);
+    h_Phi_phi_total->Add(h_Phi_phi_sideband, -1.0);
     
     // Style histograms
     h_theta_phi_total->SetTitle("");
