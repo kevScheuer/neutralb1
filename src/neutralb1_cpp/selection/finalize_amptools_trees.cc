@@ -522,11 +522,11 @@ void skim_trees(
     std::cout << "Applying sideband cuts: " << final_cuts.second.Data() << "\n";
 
 
-    // define cuts for the 4 polarization orientations
-    FSCut::defineCut("pol0", "PolarizationAngle>-5&&PolarizationAngle<5");
-    FSCut::defineCut("pol45", "PolarizationAngle>40&&PolarizationAngle<50");
-    FSCut::defineCut("pol90", "PolarizationAngle>85&&PolarizationAngle<95");
-    FSCut::defineCut("pol135", "PolarizationAngle>130&&PolarizationAngle<140");
+    // define cuts for the 4 polarization orientations    
+    FSCut::defineCut("pol0", "PolarizationAngle==0");
+    FSCut::defineCut("pol45", "PolarizationAngle==45");
+    FSCut::defineCut("pol90", "PolarizationAngle==90");
+    FSCut::defineCut("pol135", "PolarizationAngle==135");
 
     std::vector<int> pol_angles = {0, 45, 90, 135};
     for (int angle : pol_angles)
