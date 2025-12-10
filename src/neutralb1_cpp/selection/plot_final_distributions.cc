@@ -133,8 +133,7 @@ void plot_final_distributions()
     std::cout << "Calculating acceptance phase space angles..." << std::endl;
     AngleData angles_acc = calculate_angles(tree_acc_phasespace);
     std::cout << "Calculating generated phase space angles..." << std::endl;
-    //AngleData angles_gen = calculate_angles(tree_gen_phasespace);
-    AngleData angles_gen;
+    AngleData angles_gen = calculate_angles(tree_gen_phasespace);    
 
     // Close files
     f_data_signal->Close();
@@ -178,12 +177,12 @@ void plot_final_distributions()
         "mc"
     );
     
-    // plot_2d_acceptance(
-    //     NT,
-    //     CATEGORY,
-    //     angles_acc,
-    //     angles_gen
-    // );
+    plot_2d_acceptance(
+        NT,
+        CATEGORY,
+        angles_acc,
+        angles_gen
+    );
 }
 
 
@@ -342,16 +341,16 @@ void plot_mass_spectra(
     TLegend* legend_omega_pi0 = new TLegend(0.7,0.7,0.88,0.88);
     legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Final Data", "lp");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_signal, "Data Signal", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_omega_signal), "p");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_omega_signal), "p");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_sideband, "Data Sideband", "l");
-    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_omega_sideband), "p");
+    legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_omega_sideband), "p");
 
     TLegend* legend_proton_pi0 = new TLegend(0.15,0.7,0.33,0.88);
     legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Final Data", "lp");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_signal, "Data Signal", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_proton_signal), "p");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_proton_signal), "p");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_sideband, "Data Sideband", "l");
-    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_proton_sideband), "p");
+    legend_proton_pi0->AddEntry(h_proton_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_proton_sideband), "p");
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
 
@@ -508,21 +507,21 @@ void plot_1d_angles(
     TH1F* h_theta_mc_signal = new TH1F("h_theta_mc_signal", "", 100, -1, 1);
     TH1F* h_theta_mc_sideband = new TH1F("h_theta_mc_sideband", "", 100, -1, 1);
     TH1F* h_theta_acc = new TH1F("h_theta_acc", "", 100, -1, 1);
-    // TH1F* h_theta_gen = new TH1F("h_theta_gen", "", 100, -1, 1);
+    TH1F* h_theta_gen = new TH1F("h_theta_gen", "", 100, -1, 1);
     
     TH1F* h_phi_data_signal = new TH1F("h_phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_data_sideband = new TH1F("h_phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_mc_signal = new TH1F("h_phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_mc_sideband = new TH1F("h_phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_acc = new TH1F("h_phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    // TH1F* h_phi_gen = new TH1F("h_phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_gen = new TH1F("h_phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
     
     TH1F* h_Phi_data_signal = new TH1F("h_Phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_Phi_data_sideband = new TH1F("h_Phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_Phi_mc_signal = new TH1F("h_Phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_Phi_mc_sideband = new TH1F("h_Phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_Phi_acc = new TH1F("h_Phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    // TH1F* h_Phi_gen = new TH1F("h_Phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_gen = new TH1F("h_Phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
     
     // cos(theta_h) and phi_h for omega decay (normal to pi+pi- plane in omega rest frame)
     TH1F* h_theta_h_data_signal = new TH1F("h_theta_h_data_signal", "", 100, -1, 1);
@@ -530,14 +529,14 @@ void plot_1d_angles(
     TH1F* h_theta_h_mc_signal = new TH1F("h_theta_h_mc_signal", "", 100, -1, 1);
     TH1F* h_theta_h_mc_sideband = new TH1F("h_theta_h_mc_sideband", "", 100, -1, 1);
     TH1F* h_theta_h_acc = new TH1F("h_theta_h_acc", "", 100, -1, 1);
-    // TH1F* h_theta_h_gen = new TH1F("h_theta_h_gen", "", 100, -1, 1);
+    TH1F* h_theta_h_gen = new TH1F("h_theta_h_gen", "", 100, -1, 1);
     
     TH1F* h_phi_h_data_signal = new TH1F("h_phi_h_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_h_data_sideband = new TH1F("h_phi_h_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_h_mc_signal = new TH1F("h_phi_h_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_h_mc_sideband = new TH1F("h_phi_h_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
     TH1F* h_phi_h_acc = new TH1F("h_phi_h_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    // TH1F* h_phi_h_gen = new TH1F("h_phi_h_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_gen = new TH1F("h_phi_h_gen", "", 100, -TMath::Pi(), TMath::Pi());
     
     // lambda for omega decay
     TH1F* h_lambda_data_signal = new TH1F("h_lambda_data_signal", "", 100, 0, 1);
@@ -545,7 +544,7 @@ void plot_1d_angles(
     TH1F* h_lambda_mc_signal = new TH1F("h_lambda_mc_signal", "", 100, 0, 1);
     TH1F* h_lambda_mc_sideband = new TH1F("h_lambda_mc_sideband", "", 100, 0, 1);
     TH1F* h_lambda_acc = new TH1F("h_lambda_acc", "", 100, 0, 1);
-    // TH1F* h_lambda_gen = new TH1F("h_lambda_gen", "", 100, 0, 1);
+    TH1F* h_lambda_gen = new TH1F("h_lambda_gen", "", 100, 0, 1);
     
     // Helper function to fill histograms from pre-calculated AngleData
     auto fillHistograms = [](
@@ -578,8 +577,8 @@ void plot_1d_angles(
                    h_theta_h_mc_sideband, h_phi_h_mc_sideband, h_lambda_mc_sideband);
     fillHistograms(angles_acc, h_theta_acc, h_phi_acc, h_Phi_acc,
                    h_theta_h_acc, h_phi_h_acc, h_lambda_acc);
-    // fillHistograms(angles_gen, h_theta_gen, h_phi_gen, h_Phi_gen,
-    //                h_theta_h_gen, h_phi_h_gen, h_lambda_gen);
+    fillHistograms(angles_gen, h_theta_gen, h_phi_gen, h_Phi_gen,
+                   h_theta_h_gen, h_phi_h_gen, h_lambda_gen);
     
     // Combine data signal and sideband (signal - sideband)
     TH1F* h_theta_data_total = (TH1F*)h_theta_data_signal->Clone("h_theta_data_total");
@@ -600,24 +599,24 @@ void plot_1d_angles(
     TH1F* h_lambda_data_total = (TH1F*)h_lambda_data_signal->Clone("h_lambda_data_total");
     h_lambda_data_total->Add(h_lambda_data_sideband, -1.0);
     
-    // // Calculate acceptance
-    // TH1F* h_theta_acceptance = (TH1F*)h_theta_acc->Clone("h_theta_acceptance");
-    // h_theta_acceptance->Divide(h_theta_gen);
+    // Calculate acceptance
+    TH1F* h_theta_acceptance = (TH1F*)h_theta_acc->Clone("h_theta_acceptance");
+    h_theta_acceptance->Divide(h_theta_gen);
     
-    // TH1F* h_phi_acceptance = (TH1F*)h_phi_acc->Clone("h_phi_acceptance");
-    // h_phi_acceptance->Divide(h_phi_gen);
+    TH1F* h_phi_acceptance = (TH1F*)h_phi_acc->Clone("h_phi_acceptance");
+    h_phi_acceptance->Divide(h_phi_gen);
     
-    // TH1F* h_Phi_acceptance = (TH1F*)h_Phi_acc->Clone("h_Phi_acceptance");
-    // h_Phi_acceptance->Divide(h_Phi_gen);
+    TH1F* h_Phi_acceptance = (TH1F*)h_Phi_acc->Clone("h_Phi_acceptance");
+    h_Phi_acceptance->Divide(h_Phi_gen);
     
-    // TH1F* h_theta_h_acceptance = (TH1F*)h_theta_h_acc->Clone("h_theta_h_acceptance");
-    // h_theta_h_acceptance->Divide(h_theta_h_gen);
+    TH1F* h_theta_h_acceptance = (TH1F*)h_theta_h_acc->Clone("h_theta_h_acceptance");
+    h_theta_h_acceptance->Divide(h_theta_h_gen);
     
-    // TH1F* h_phi_h_acceptance = (TH1F*)h_phi_h_acc->Clone("h_phi_h_acceptance");
-    // h_phi_h_acceptance->Divide(h_phi_h_gen);
+    TH1F* h_phi_h_acceptance = (TH1F*)h_phi_h_acc->Clone("h_phi_h_acceptance");
+    h_phi_h_acceptance->Divide(h_phi_h_gen);
     
-    // TH1F* h_lambda_acceptance = (TH1F*)h_lambda_acc->Clone("h_lambda_acceptance");
-    // h_lambda_acceptance->Divide(h_lambda_gen);
+    TH1F* h_lambda_acceptance = (TH1F*)h_lambda_acc->Clone("h_lambda_acceptance");
+    h_lambda_acceptance->Divide(h_lambda_gen);
     
     // Style histograms - cos(theta)
     double bin_width = get_bin_width(h_theta_data_total);
@@ -824,30 +823,30 @@ void plot_1d_angles(
     double scale_lambda_sideband = h_lambda_data_sideband->GetMaximum() / h_lambda_mc_sideband->GetMaximum();
     h_lambda_mc_sideband->Scale(scale_lambda_sideband);
     
-    // // Style acceptance histograms
-    // h_theta_acceptance->SetLineColor(kGray+2);
-    // h_theta_acceptance->SetLineWidth(2);
-    // h_theta_acceptance->SetLineStyle(1);
+    // Style acceptance histograms
+    h_theta_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_theta_acceptance->SetLineWidth(1);
+    h_theta_acceptance->SetLineStyle(1);
     
-    // h_phi_acceptance->SetLineColor(kGray+2);
-    // h_phi_acceptance->SetLineWidth(2);
-    // h_phi_acceptance->SetLineStyle(1);
+    h_phi_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_phi_acceptance->SetLineWidth(1);
+    h_phi_acceptance->SetLineStyle(1);
     
-    // h_Phi_acceptance->SetLineColor(kGray+2);
-    // h_Phi_acceptance->SetLineWidth(2);
-    // h_Phi_acceptance->SetLineStyle(1);
+    h_Phi_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_Phi_acceptance->SetLineWidth(1);
+    h_Phi_acceptance->SetLineStyle(1);
     
-    // h_theta_h_acceptance->SetLineColor(kGray+2);
-    // h_theta_h_acceptance->SetLineWidth(2);
-    // h_theta_h_acceptance->SetLineStyle(1);
+    h_theta_h_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_theta_h_acceptance->SetLineWidth(1);
+    h_theta_h_acceptance->SetLineStyle(1);
     
-    // h_phi_h_acceptance->SetLineColor(kGray+2);
-    // h_phi_h_acceptance->SetLineWidth(2);
-    // h_phi_h_acceptance->SetLineStyle(1);
+    h_phi_h_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_phi_h_acceptance->SetLineWidth(1);
+    h_phi_h_acceptance->SetLineStyle(1);
 
-    // h_lambda_acceptance->SetLineColor(kGray+2);
-    // h_lambda_acceptance->SetLineWidth(2);
-    // h_lambda_acceptance->SetLineStyle(1);
+    h_lambda_acceptance->SetLineColorAlpha(kGray+2, 0.5);
+    h_lambda_acceptance->SetLineWidth(1);
+    h_lambda_acceptance->SetLineStyle(1);
     
     // Create canvas for saving plots
     TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
@@ -856,10 +855,10 @@ void plot_1d_angles(
     TLegend* legend_theta = new TLegend(0.15, 0.7, 0.33, 0.88);
     legend_theta->AddEntry(h_theta_data_total, "Final Data", "lp");
     legend_theta->AddEntry(h_theta_data_signal, "Data Signal", "l");
-    legend_theta->AddEntry(h_theta_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_signal), "p");
+    legend_theta->AddEntry(h_theta_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_theta_signal), "p");
     legend_theta->AddEntry(h_theta_data_sideband, "Data Sideband", "l");
-    legend_theta->AddEntry(h_theta_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_sideband), "p");
-    // legend_theta->AddEntry(h_theta_acceptance, "Acceptance", "l");
+    legend_theta->AddEntry(h_theta_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_theta_sideband), "p");
+    legend_theta->AddEntry(h_theta_acceptance, "Acceptance", "l");
     h_theta_data_total->Draw("E");
     h_theta_data_signal->Draw("HIST SAME");
     h_theta_mc_signal->Draw("E SAME");
@@ -867,23 +866,25 @@ void plot_1d_angles(
     h_theta_mc_sideband->Draw("E SAME");
     
     // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // double y_max = gPad->GetUymax();
-    // double acc_max = h_theta_acceptance->GetMaximum();
-    // double scale_factor = y_max / (acc_max * 1.1);  // 1.1 for some headroom
-    // TH1F* h_theta_acc_scaled = (TH1F*)h_theta_acceptance->Clone("h_theta_acc_scaled");
-    // h_theta_acc_scaled->Scale(scale_factor);
-    // h_theta_acc_scaled->Draw("HIST SAME");
+    gPad->Update();
+    double y_max = gPad->GetUymax();
+    double acc_max = h_theta_acceptance->GetMaximum();
+    double scale_factor = y_max / (acc_max * 1.1);  // 1.1 for some headroom
+    TH1F* h_theta_acc_scaled = (TH1F*)h_theta_acceptance->Clone("h_theta_acc_scaled");
+    h_theta_acc_scaled->Scale(scale_factor);
+    h_theta_acc_scaled->Draw("HIST SAME");
     
-    // // Create right axis for acceptance
-    // TGaxis* axis_theta = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                  gPad->GetUxmax(), gPad->GetUymax(),
-    //                                  0, acc_max * 1.1, 510, "+L");
-    // axis_theta->SetLineColor(kGray+2);
-    // axis_theta->SetLabelColor(kGray+2);
-    // axis_theta->SetTitleColor(kGray+2);
-    // axis_theta->SetTitle("Acceptance");
-    // axis_theta->Draw();
+    // Create right axis for acceptance
+    TGaxis* axis_theta = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                     gPad->GetUxmax(), gPad->GetUymax(),
+                                     0, acc_max * 1.1, 510, "+L");
+    axis_theta->SetLineColor(kGray+2);
+    axis_theta->SetLabelColor(kGray+2);
+    axis_theta->SetLabelSize(0.028);
+    axis_theta->SetTitleColor(kGray+2);
+    axis_theta->SetTitle("Acceptance");
+    axis_theta->SetTitleOffset(1.3);
+    axis_theta->Draw();
     
     legend_theta->Draw("SAME");
     c1->SaveAs("final_cos_theta.pdf");
@@ -894,10 +895,10 @@ void plot_1d_angles(
     TLegend* legend_phi = new TLegend(0.41, 0.7, 0.59, 0.88);
     legend_phi->AddEntry(h_phi_data_total, "Final Data", "lp");
     legend_phi->AddEntry(h_phi_data_signal, "Data Signal", "l");
-    legend_phi->AddEntry(h_phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_signal), "p");
+    legend_phi->AddEntry(h_phi_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_phi_signal), "p");
     legend_phi->AddEntry(h_phi_data_sideband, "Data Sideband", "l");
-    legend_phi->AddEntry(h_phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_sideband), "p");
-    // legend_phi->AddEntry(h_phi_acceptance, "Acceptance", "l");
+    legend_phi->AddEntry(h_phi_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_phi_sideband), "p");
+    legend_phi->AddEntry(h_phi_acceptance, "Acceptance", "l");
     h_phi_data_total->Draw("E");
     h_phi_data_signal->Draw("HIST SAME");
     h_phi_mc_signal->Draw("E SAME");
@@ -905,22 +906,24 @@ void plot_1d_angles(
     h_phi_mc_sideband->Draw("E SAME");
     
     // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // y_max = gPad->GetUymax();
-    // acc_max = h_phi_acceptance->GetMaximum();
-    // scale_factor = y_max / (acc_max * 1.1);
-    // TH1F* h_phi_acc_scaled = (TH1F*)h_phi_acceptance->Clone("h_phi_acc_scaled");
-    // h_phi_acc_scaled->Scale(scale_factor);
-    // h_phi_acc_scaled->Draw("HIST SAME");
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_phi_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_phi_acc_scaled = (TH1F*)h_phi_acceptance->Clone("h_phi_acc_scaled");
+    h_phi_acc_scaled->Scale(scale_factor);
+    h_phi_acc_scaled->Draw("HIST SAME");
     
-    // TGaxis* axis_phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                gPad->GetUxmax(), gPad->GetUymax(),
-    //                                0, acc_max * 1.1, 510, "+L");
-    // axis_phi->SetLineColor(kGray+2);
-    // axis_phi->SetLabelColor(kGray+2);
-    // axis_phi->SetTitleColor(kGray+2);
-    // axis_phi->SetTitle("Acceptance");
-    // axis_phi->Draw();
+    TGaxis* axis_phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                   gPad->GetUxmax(), gPad->GetUymax(),
+                                   0, acc_max * 1.1, 510, "+L");
+    axis_phi->SetLineColor(kGray+2);
+    axis_phi->SetLabelColor(kGray+2);
+    axis_phi->SetLabelSize(0.028);
+    axis_phi->SetTitleColor(kGray+2);
+    axis_phi->SetTitle("Acceptance");
+    axis_phi->SetTitleOffset(1.3);
+    axis_phi->Draw();
     
     legend_phi->Draw("SAME");
     c1->SaveAs("final_phi.pdf");
@@ -931,10 +934,10 @@ void plot_1d_angles(
     TLegend* legend_Phi =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_Phi->AddEntry(h_Phi_data_total, "Final Data", "lp");
     legend_Phi->AddEntry(h_Phi_data_signal, "Data Signal", "l");
-    legend_Phi->AddEntry(h_Phi_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_Phi_signal), "p");
+    legend_Phi->AddEntry(h_Phi_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_Phi_signal), "p");
     legend_Phi->AddEntry(h_Phi_data_sideband, "Data Sideband", "l");
-    legend_Phi->AddEntry(h_Phi_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_Phi_sideband), "p");
-    // legend_Phi->AddEntry(h_Phi_acceptance, "Acceptance", "l");
+    legend_Phi->AddEntry(h_Phi_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_Phi_sideband), "p");
+    legend_Phi->AddEntry(h_Phi_acceptance, "Acceptance", "l");
     
     h_Phi_data_total->Draw("E");
     h_Phi_data_signal->Draw("HIST SAME");
@@ -942,23 +945,25 @@ void plot_1d_angles(
     h_Phi_data_sideband->Draw("HIST SAME");
     h_Phi_mc_sideband->Draw("E SAME");
     
-    // // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // y_max = gPad->GetUymax();
-    // acc_max = h_Phi_acceptance->GetMaximum();
-    // scale_factor = y_max / (acc_max * 1.1);
-    // TH1F* h_Phi_acc_scaled = (TH1F*)h_Phi_acceptance->Clone("h_Phi_acc_scaled");
-    // h_Phi_acc_scaled->Scale(scale_factor);
-    // h_Phi_acc_scaled->Draw("HIST SAME");
+    // Draw acceptance on secondary y-axis
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_Phi_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_Phi_acc_scaled = (TH1F*)h_Phi_acceptance->Clone("h_Phi_acc_scaled");
+    h_Phi_acc_scaled->Scale(scale_factor);
+    h_Phi_acc_scaled->Draw("HIST SAME");
     
-    // TGaxis* axis_Phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                gPad->GetUxmax(), gPad->GetUymax(),
-    //                                0, acc_max * 1.1, 510, "+L");
-    // axis_Phi->SetLineColor(kGray+2);
-    // axis_Phi->SetLabelColor(kGray+2);
-    // axis_Phi->SetTitleColor(kGray+2);
-    // axis_Phi->SetTitle("Acceptance");
-    // axis_Phi->Draw();
+    TGaxis* axis_Phi = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                   gPad->GetUxmax(), gPad->GetUymax(),
+                                   0, acc_max * 1.1, 510, "+L");
+    axis_Phi->SetLineColor(kGray+2);
+    axis_Phi->SetLabelColor(kGray+2);
+    axis_Phi->SetLabelSize(0.028);
+    axis_Phi->SetTitleColor(kGray+2);
+    axis_Phi->SetTitle("Acceptance");
+    axis_Phi->SetTitleOffset(1.3);
+    axis_Phi->Draw();
     
     legend_Phi->Draw("SAME");
     c1->SaveAs("final_Phi.pdf");
@@ -969,10 +974,10 @@ void plot_1d_angles(
     TLegend* legend_theta_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_theta_h->AddEntry(h_theta_h_data_total, "Final Data", "lp");
     legend_theta_h->AddEntry(h_theta_h_data_signal, "Data Signal", "l");
-    legend_theta_h->AddEntry(h_theta_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_theta_h_signal), "p");
+    legend_theta_h->AddEntry(h_theta_h_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_theta_h_signal), "p");
     legend_theta_h->AddEntry(h_theta_h_data_sideband, "Data Sideband", "l");
-    legend_theta_h->AddEntry(h_theta_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_theta_h_sideband), "p");
-    // legend_theta_h->AddEntry(h_theta_h_acceptance, "Acceptance", "l");
+    legend_theta_h->AddEntry(h_theta_h_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_theta_h_sideband), "p");
+    legend_theta_h->AddEntry(h_theta_h_acceptance, "Acceptance", "l");
     
     h_theta_h_data_total->Draw("E");
     h_theta_h_data_signal->Draw("HIST SAME");
@@ -981,22 +986,24 @@ void plot_1d_angles(
     h_theta_h_mc_sideband->Draw("E SAME");
     
     // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // y_max = gPad->GetUymax();
-    // acc_max = h_theta_h_acceptance->GetMaximum();
-    // scale_factor = y_max / (acc_max * 1.1);
-    // TH1F* h_theta_h_acc_scaled = (TH1F*)h_theta_h_acceptance->Clone("h_theta_h_acc_scaled");
-    // h_theta_h_acc_scaled->Scale(scale_factor);
-    // h_theta_h_acc_scaled->Draw("HIST SAME");
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_theta_h_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_theta_h_acc_scaled = (TH1F*)h_theta_h_acceptance->Clone("h_theta_h_acc_scaled");
+    h_theta_h_acc_scaled->Scale(scale_factor);
+    h_theta_h_acc_scaled->Draw("HIST SAME");
     
-    // TGaxis* axis_theta_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                    gPad->GetUxmax(), gPad->GetUymax(),
-    //                                    0, acc_max * 1.1, 510, "+L");
-    // axis_theta_h->SetLineColor(kGray+2);
-    // axis_theta_h->SetLabelColor(kGray+2);
-    // axis_theta_h->SetTitleColor(kGray+2);
-    // axis_theta_h->SetTitle("Acceptance");
-    // axis_theta_h->Draw();
+    TGaxis* axis_theta_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                       gPad->GetUxmax(), gPad->GetUymax(),
+                                       0, acc_max * 1.1, 510, "+L");
+    axis_theta_h->SetLineColor(kGray+2);
+    axis_theta_h->SetLabelColor(kGray+2);
+    axis_theta_h->SetLabelSize(0.028);
+    axis_theta_h->SetTitleColor(kGray+2);
+    axis_theta_h->SetTitle("Acceptance");
+    axis_theta_h->SetTitleOffset(1.3);
+    axis_theta_h->Draw();
     
     legend_theta_h->Draw("SAME");
     c1->SaveAs("final_cos_theta_h.pdf");
@@ -1007,10 +1014,10 @@ void plot_1d_angles(
     TLegend* legend_phi_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
     legend_phi_h->AddEntry(h_phi_h_data_total, "Final Data", "lp");
     legend_phi_h->AddEntry(h_phi_h_data_signal, "Data Signal", "l");
-    legend_phi_h->AddEntry(h_phi_h_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_phi_h_signal), "p");
+    legend_phi_h->AddEntry(h_phi_h_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_phi_h_signal), "p");
     legend_phi_h->AddEntry(h_phi_h_data_sideband, "Data Sideband", "l");
-    legend_phi_h->AddEntry(h_phi_h_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_phi_h_sideband), "p");
-    // legend_phi_h->AddEntry(h_phi_h_acceptance, "Acceptance", "l");
+    legend_phi_h->AddEntry(h_phi_h_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_phi_h_sideband), "p");
+    legend_phi_h->AddEntry(h_phi_h_acceptance, "Acceptance", "l");
     
     h_phi_h_data_total->Draw("E");
     h_phi_h_data_signal->Draw("HIST SAME");
@@ -1019,22 +1026,24 @@ void plot_1d_angles(
     h_phi_h_mc_sideband->Draw("E SAME");
     
     // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // y_max = gPad->GetUymax();
-    // acc_max = h_phi_h_acceptance->GetMaximum();
-    // scale_factor = y_max / (acc_max * 1.1);
-    // TH1F* h_phi_h_acc_scaled = (TH1F*)h_phi_h_acceptance->Clone("h_phi_h_acc_scaled");
-    // h_phi_h_acc_scaled->Scale(scale_factor);
-    // h_phi_h_acc_scaled->Draw("HIST SAME");
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_phi_h_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_phi_h_acc_scaled = (TH1F*)h_phi_h_acceptance->Clone("h_phi_h_acc_scaled");
+    h_phi_h_acc_scaled->Scale(scale_factor);
+    h_phi_h_acc_scaled->Draw("HIST SAME");
     
-    // TGaxis* axis_phi_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                  gPad->GetUxmax(), gPad->GetUymax(),
-    //                                  0, acc_max * 1.1, 510, "+L");
-    // axis_phi_h->SetLineColor(kGray+2);
-    // axis_phi_h->SetLabelColor(kGray+2);
-    // axis_phi_h->SetTitleColor(kGray+2);
-    // axis_phi_h->SetTitle("Acceptance");
-    // axis_phi_h->Draw();
+    TGaxis* axis_phi_h = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                     gPad->GetUxmax(), gPad->GetUymax(),
+                                     0, acc_max * 1.1, 510, "+L");
+    axis_phi_h->SetLineColor(kGray+2);
+    axis_phi_h->SetLabelColor(kGray+2);
+    axis_phi_h->SetLabelSize(0.028);
+    axis_phi_h->SetTitleColor(kGray+2);
+    axis_phi_h->SetTitle("Acceptance");
+    axis_phi_h->SetTitleOffset(1.3);
+    axis_phi_h->Draw();
     
     legend_phi_h->Draw("SAME");
     c1->SaveAs("final_phi_h.pdf");
@@ -1045,10 +1054,10 @@ void plot_1d_angles(
     TLegend* legend_lambda = new TLegend(0.15, 0.7, 0.33, 0.88);
     legend_lambda->AddEntry(h_lambda_data_total, "Final Data", "lp");
     legend_lambda->AddEntry(h_lambda_data_signal, "Data Signal", "l");
-    legend_lambda->AddEntry(h_lambda_mc_signal, TString::Format("MC Signal (scale=%.3f)", scale_lambda_signal), "p");
+    legend_lambda->AddEntry(h_lambda_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_lambda_signal), "p");
     legend_lambda->AddEntry(h_lambda_data_sideband, "Data Sideband", "l");
-    legend_lambda->AddEntry(h_lambda_mc_sideband, TString::Format("MC Sideband (scale=%.3f)", scale_lambda_sideband), "p");
-    // legend_lambda->AddEntry(h_lambda_acceptance, "Acceptance", "l");
+    legend_lambda->AddEntry(h_lambda_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_lambda_sideband), "p");
+    legend_lambda->AddEntry(h_lambda_acceptance, "Acceptance", "l");
     
     h_lambda_data_total->Draw("E");
     h_lambda_data_signal->Draw("HIST SAME");
@@ -1057,22 +1066,24 @@ void plot_1d_angles(
     h_lambda_mc_sideband->Draw("E SAME");
     
     // Draw acceptance on secondary y-axis
-    // gPad->Update();
-    // y_max = gPad->GetUymax();
-    // acc_max = h_lambda_acceptance->GetMaximum();
-    // scale_factor = y_max / (acc_max * 1.1);
-    // TH1F* h_lambda_acc_scaled = (TH1F*)h_lambda_acceptance->Clone("h_lambda_acc_scaled");
-    // h_lambda_acc_scaled->Scale(scale_factor);
-    // h_lambda_acc_scaled->Draw("HIST SAME");
+    gPad->Update();
+    y_max = gPad->GetUymax();
+    acc_max = h_lambda_acceptance->GetMaximum();
+    scale_factor = y_max / (acc_max * 1.1);
+    TH1F* h_lambda_acc_scaled = (TH1F*)h_lambda_acceptance->Clone("h_lambda_acc_scaled");
+    h_lambda_acc_scaled->Scale(scale_factor);
+    h_lambda_acc_scaled->Draw("HIST SAME");
     
-    // TGaxis* axis_lambda = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
-    //                                   gPad->GetUxmax(), gPad->GetUymax(),
-    //                                   0, acc_max * 1.1, 510, "+L");
-    // axis_lambda->SetLineColor(kGray+2);
-    // axis_lambda->SetLabelColor(kGray+2);
-    // axis_lambda->SetTitleColor(kGray+2);
-    // axis_lambda->SetTitle("Acceptance");
-    // axis_lambda->Draw();
+    TGaxis* axis_lambda = new TGaxis(gPad->GetUxmax(), gPad->GetUymin(),
+                                      gPad->GetUxmax(), gPad->GetUymax(),
+                                      0, acc_max * 1.1, 510, "+L");
+    axis_lambda->SetLineColor(kGray+2);
+    axis_lambda->SetLabelColor(kGray+2);
+    axis_lambda->SetLabelSize(0.028);
+    axis_lambda->SetTitleColor(kGray+2);
+    axis_lambda->SetTitle("Acceptance");
+    axis_lambda->SetTitleOffset(1.3);
+    axis_lambda->Draw();
     
     legend_lambda->Draw("SAME");
     c1->SaveAs("final_lambda.pdf");
@@ -1103,14 +1114,14 @@ void plot_2d_angles(
     std::cout << "Creating 2D angle plots for " << output_prefix << "..." << std::endl;
     
     // Create 2D histograms
-    TH2F* h_theta_phi_signal = new TH2F("h_theta_phi_signal", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_phi_sideband = new TH2F("h_theta_phi_sideband", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_signal = new TH2F("h_theta_phi_signal", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_sideband = new TH2F("h_theta_phi_sideband", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_theta_h_phi_h_signal = new TH2F("h_theta_h_phi_h_signal", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_h_phi_h_sideband = new TH2F("h_theta_h_phi_h_sideband", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_signal = new TH2F("h_theta_h_phi_h_signal", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_sideband = new TH2F("h_theta_h_phi_h_sideband", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_Phi_phi_signal = new TH2F("h_Phi_phi_signal", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_Phi_phi_sideband = new TH2F("h_Phi_phi_sideband", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_signal = new TH2F("h_Phi_phi_signal", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_sideband = new TH2F("h_Phi_phi_sideband", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
     
     // Fill signal histograms
     for (size_t i = 0; i < angles_signal.theta.size(); i++) {
@@ -1159,17 +1170,17 @@ void plot_2d_angles(
     c2d->SetRightMargin(0.15);
     
     // Draw cos(theta) vs phi
-    h_theta_phi_total->Draw("COL0");
+    h_theta_phi_total->Draw("colz");
     c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_vs_phi.pdf");
     c2d->Clear();
     
     // Draw cos(theta_h) vs phi_h
-    h_theta_h_phi_h_total->Draw("COL0");
+    h_theta_h_phi_h_total->Draw("colz");
     c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_h_vs_phi_h.pdf");
     c2d->Clear();
     
     // Draw Phi vs phi
-    h_Phi_phi_total->Draw("COL0");
+    h_Phi_phi_total->Draw("colz");
     c2d->SaveAs("final_2d_" + output_prefix + "_Phi_vs_phi.pdf");
     c2d->Clear();
     
@@ -1205,14 +1216,14 @@ void plot_2d_acceptance(
     std::cout << "Creating 2D acceptance plots..." << std::endl;
     
     // Create 2D histograms for accepted and generated events
-    TH2F* h_theta_phi_acc = new TH2F("h_theta_phi_acc", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_phi_gen = new TH2F("h_theta_phi_gen", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_acc = new TH2F("h_theta_phi_acc", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_gen = new TH2F("h_theta_phi_gen", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_theta_h_phi_h_acc = new TH2F("h_theta_h_phi_h_acc", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_h_phi_h_gen = new TH2F("h_theta_h_phi_h_gen", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_acc = new TH2F("h_theta_h_phi_h_acc", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_gen = new TH2F("h_theta_h_phi_h_gen", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_Phi_phi_acc = new TH2F("h_Phi_phi_acc", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
-    TH2F* h_Phi_phi_gen = new TH2F("h_Phi_phi_gen", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_acc = new TH2F("h_Phi_phi_acc", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_gen = new TH2F("h_Phi_phi_gen", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
     
     // Fill accepted events histograms
     for (size_t i = 0; i < angles_acc.theta.size(); i++) {
@@ -1245,39 +1256,33 @@ void plot_2d_acceptance(
     h_theta_phi_acceptance->SetXTitle("cos(#theta)");
     h_theta_phi_acceptance->SetYTitle("#phi (rad)");
     h_theta_phi_acceptance->SetZTitle("Acceptance");
-    h_theta_phi_acceptance->SetMinimum(0);
-    h_theta_phi_acceptance->SetMaximum(1);
     
     h_theta_h_phi_h_acceptance->SetTitle("");
     h_theta_h_phi_h_acceptance->SetXTitle("cos(#theta_{H})");
     h_theta_h_phi_h_acceptance->SetYTitle("#phi_{H} (rad)");
     h_theta_h_phi_h_acceptance->SetZTitle("Acceptance");
-    h_theta_h_phi_h_acceptance->SetMinimum(0);
-    h_theta_h_phi_h_acceptance->SetMaximum(1);
     
     h_Phi_phi_acceptance->SetTitle("");
     h_Phi_phi_acceptance->SetXTitle("#Phi (rad)");
     h_Phi_phi_acceptance->SetYTitle("#phi (rad)");
     h_Phi_phi_acceptance->SetZTitle("Acceptance");
-    h_Phi_phi_acceptance->SetMinimum(0);
-    h_Phi_phi_acceptance->SetMaximum(1);
     
     // Create canvas and draw
     TCanvas* c2d_acc = new TCanvas("c2d_acc", "c2d_acc", 800, 600);
     c2d_acc->SetRightMargin(0.15);
     
     // Draw cos(theta) vs phi acceptance
-    h_theta_phi_acceptance->Draw("COL0");
+    h_theta_phi_acceptance->Draw("colz");
     c2d_acc->SaveAs("final_2d_acceptance_cos_theta_vs_phi.pdf");
     c2d_acc->Clear();
     
     // Draw cos(theta_h) vs phi_h acceptance
-    h_theta_h_phi_h_acceptance->Draw("COL0");
+    h_theta_h_phi_h_acceptance->Draw("colz");
     c2d_acc->SaveAs("final_2d_acceptance_cos_theta_h_vs_phi_h.pdf");
     c2d_acc->Clear();
     
     // Draw Phi vs phi acceptance
-    h_Phi_phi_acceptance->Draw("COL0");
+    h_Phi_phi_acceptance->Draw("colz");
     c2d_acc->SaveAs("final_2d_acceptance_Phi_vs_phi.pdf");
     c2d_acc->Clear();
     
