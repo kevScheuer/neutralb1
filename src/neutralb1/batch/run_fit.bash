@@ -197,8 +197,7 @@ if [ $my_num_rand_fits -ne 0 ]; then
     mv -f fitPars_*.txt rand/    
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv --verbose
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a --verbose
-    # TODO: rand projected moments far too slow with many fits, need to optimize
-    # uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --verbose
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --verbose
     # uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
@@ -222,20 +221,21 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
         echo "include bestFitPars.txt" >> bootstrap_fit.cfg
     fi
 
-    # do the same for the moments, but since truth not setup for it, always run
-    cp -f fit_moment.cfg bootstrap_fit_moment.cfg
-    echo "include bestFitPars_moment.txt" >> bootstrap_fit_moment.cfg
+    # # do the same for the moments, but since truth not setup for it, always run
+    # cp -f fit_moment.cfg bootstrap_fit_moment.cfg
+    # echo "include bestFitPars_moment.txt" >> bootstrap_fit_moment.cfg
 
     # replace data reader with bootstrap version for just the "data" file    
-    sed -i -e '/data/s/ROOTDataReader \([^ ]\+\)/ROOTDataReaderBootstrap \1 0/' bootstrap_fit.cfg
-    sed -i -e '/data/s/ROOTDataReader \([^ ]\+\)/ROOTDataReaderBootstrap \1 0/' bootstrap_fit_moment.cfg
+    sed -i -e '/data/s/FSROOTDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit.cfg
+    # sed -i -e '/data/s/FSROOTDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit_moment.cfg
+    # TODO: do we want to bootstrap background as well?
 
     all_amplitude_bootstrap_start_time=$(date +%s)
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
     for ((i=1;i<=$my_num_bootstrap_fits;i++)); do
         echo -e "\nAMPLITUDE BOOTSTRAP FIT: $i\n"      
         # replace the bootstrap seed in the cfg  
-        sed -i -E "s/(ROOTDataReaderBootstrap [^ ]+) [0-9]+/\1 $i/" bootstrap_fit.cfg        
+        sed -i -E "s/(FSRootDataReaderBootstrap [^ ]+ [^ ]+ [^ ]+) [0-9]+/\1 $i/" bootstrap_fit.cfg        
         # run fit
         bootstrap_start_time=$(date +%s)
         if [ "$use_mpi" = true ]; then 

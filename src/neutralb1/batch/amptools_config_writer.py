@@ -426,7 +426,7 @@ class AmpToolsConfigWriter:
             f" {self.config.data.num_final_state_particles}\n"
             f"data LOOPREAC FSROOTDataReader LOOPDATA"
             f" {self.config.data.tree_name}"
-            f" {self.config.data.num_final_state_particles}\n\n"
+            f" {self.config.data.num_final_state_particles}\n"
             f"bkgnd LOOPREAC FSROOTDataReader LOOPBKG"
             f" {self.config.data.tree_name}"
             f" {self.config.data.num_final_state_particles}\n\n"
