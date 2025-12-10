@@ -120,12 +120,13 @@ class ConfigManager:
             data=DataConfig(
                 orientations=["PARA_0", "PERP_45"],
                 run_periods=["allPeriods"],
+                tree_name="ntFSGlueX_100_112",
+                num_final_state_particles=5,
                 mass_min=1.0,
                 mass_max=2.0,
                 mass_width=0.1,
                 t_bins=[0.1, 0.2, 0.4],
                 energy=[8.2, 8.8],
-                cut_recoil_pi_mass=1.4,
             ),
             compute=ComputeConfig(
                 nrand=20,
@@ -140,7 +141,7 @@ class ConfigManager:
     def validate_config(self, config: PWAConfig) -> List[str]:
         """Validate configuration and return list of errors.
 
-        This function ensure no argument passed conflict with each other and produce
+        This function ensure no arguments passed conflict with each other and produce
         undefined behavior. It also ensures that files passed do exist.
 
         Args:

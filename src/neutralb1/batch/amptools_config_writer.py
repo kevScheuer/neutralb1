@@ -358,7 +358,7 @@ class AmpToolsConfigWriter:
     def _write_data_lines(
         self, cfg_file: TextIO, orientations: List[str], reaction: str, is_iso: bool
     ) -> None:
-        """Writes the AmpTools 'loop' statements to read in data files for each orientation
+        """Writes AmpTools 'loop' statements to read in data files for each orientation
 
         This function also handles the 'reaction' and 'sum' lines
 
@@ -372,6 +372,8 @@ class AmpToolsConfigWriter:
         cfg_file.write(f"\n\n{'#'*8} LOOP OVER POLARIZATION STATES {'#'*8}\n")
 
         # create the parScale parameters for each orientation
+        # an arbitrary orientation's scale must be fixed to prevent floating scale,
+        # so the first one in the list is fixed
         for i, ont in enumerate(orientations):
             pol_scales = {
                 "PARA_0": "1.0",  # TODO: potential for an arg that changes these values
@@ -388,9 +390,11 @@ class AmpToolsConfigWriter:
         # create reaction, scale, and data loops for each orientation
         reaction_with_angles = ""
         loop_data_str = ""
+        loop_bkg_str = ""
         for ont in orientations:
             reaction_with_angles += f" {reaction}_{POL_DICT[ont]['angle']}"
-            loop_data_str += f" anglesOmegaPiAmplitude_{POL_DICT[ont]['angle']}.root"
+            loop_data_str += f" {ont}_signal.root"
+            loop_bkg_str += f" {ont}_background.root"
 
             # explicitly need to write each normintfile with orientation angle in it
             cfg_file.write(
@@ -402,9 +406,10 @@ class AmpToolsConfigWriter:
 
         # the phasespace files are the same for each orientation
         cfg_file.write(
-            f"loop LOOPGENMC {'anglesOmegaPiPhaseSpace.root ' * len(orientations)} \n"
-            f"loop LOOPACCMC {'anglesOmegaPiPhaseSpaceAcc.root ' * len(orientations)} \n"
+            f"loop LOOPGENMC {'phasespace.root ' * len(orientations)} \n"
+            f"loop LOOPACCMC {'gen_phasespace.root ' * len(orientations)} \n"
             f"loop LOOPDATA{loop_data_str}\n"
+            f"loop LOOPBKG{loop_bkg_str}\n"
         )
 
         bkgd = "Bkgd" if is_iso else ""
@@ -413,9 +418,18 @@ class AmpToolsConfigWriter:
         cfg_file.write(
             f"\n{'#'*8} DATA, REACTIONS, AND SUMS {'#'*8}\n"
             "reaction LOOPREAC Beam Proton Pi01 Pi02 Pi+ Pi-\n"
-            "genmc LOOPREAC ROOTDataReader LOOPGENMC\n"
-            "accmc LOOPREAC ROOTDataReader LOOPACCMC\n"
-            "data LOOPREAC ROOTDataReader LOOPDATA\n\n"
+            f"genmc LOOPREAC FSROOTDataReader LOOPGENMC"
+            f" {self.config.data.tree_name}"
+            f" {self.config.data.num_final_state_particles}\n"
+            f"accmc LOOPREAC FSROOTDataReader LOOPACCMC"
+            f" {self.config.data.tree_name}"
+            f" {self.config.data.num_final_state_particles}\n"
+            f"data LOOPREAC FSROOTDataReader LOOPDATA"
+            f" {self.config.data.tree_name}"
+            f" {self.config.data.num_final_state_particles}\n\n"
+            f"bkgnd LOOPREAC FSROOTDataReader LOOPBKG"
+            f" {self.config.data.tree_name}"
+            f" {self.config.data.num_final_state_particles}\n\n"
             f"sum LOOPREAC ImagNegSign RealNegSign RealPosSign ImagPosSign {bkgd}\n\n"
         )
 

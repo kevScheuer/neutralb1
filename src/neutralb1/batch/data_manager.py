@@ -63,8 +63,8 @@ class DataManager:
         for run_period in config.data.run_periods:
             # Find generated phasespace file
             gen_file = (
-                f"{config.data.phasespace_dir}/anglesOmegaPiPhaseSpaceGen_"
-                f"{run_period}_{config.data.phasespace_version}.root"
+                f"{config.data.phasespace_dir}/{run_period}"
+                f"_{config.data.phasespace_version}_gen_phasespace.root"
             )
             if not os.path.isfile(gen_file):
                 raise FileNotFoundError(f"Path {gen_file} does not exist!")
@@ -74,23 +74,34 @@ class DataManager:
             # of the generated phasespace file
             if "mcthrown" not in config.data.data_option:
                 acc_file = (
-                    f"{config.data.phasespace_dir}/anglesOmegaPiPhaseSpaceAcc_"
-                    f"{run_period}_{config.data.phasespace_version}"
-                    f"{config.data.phasespace_option}.root"
+                    f"{config.data.phasespace_dir}/{run_period}"
+                    f"_{config.data.phasespace_version}_phasespace.root"
                 )
                 if not os.path.isfile(acc_file):
                     raise FileNotFoundError(f"Path {acc_file} does not exist!")
                 src_files_to_copy_to_dir[acc_file] = []
 
-            # Find data files
+            # Find signal files
             for ont in config.data.orientations:
-                data_file = (
-                    f"{config.data.data_dir}/AmpToolsInputTree_sum_{ont}_{run_period}"
-                    f"_{config.data.data_version}{config.data.data_option}.root"
+                signal_file = (
+                    f"{config.data.data_dir}/{ont}_{run_period}"
+                    f"_{config.data.data_version}{config.data.data_option}"
+                    f"_signal.root"
                 )
-                if not os.path.isfile(data_file):
-                    raise FileNotFoundError(f"Path {data_file} does not exist!")
-                src_files_to_copy_to_dir[data_file] = []
+                if not os.path.isfile(signal_file):
+                    raise FileNotFoundError(f"Path {signal_file} does not exist!")
+                src_files_to_copy_to_dir[signal_file] = []
+
+            # Find background files
+            for ont in config.data.orientations:
+                bkg_file = (
+                    f"{config.data.data_dir}/{ont}_{run_period}"
+                    f"_{config.data.data_version}{config.data.data_option}"
+                    f"_background.root"
+                )
+                if not os.path.isfile(bkg_file):
+                    raise FileNotFoundError(f"Path {bkg_file} does not exist!")
+                src_files_to_copy_to_dir[bkg_file] = []
 
             # Loop over TEM bins to determine what bins need the cut data files
             for low_mass, high_mass in zip(
@@ -101,7 +112,6 @@ class DataManager:
                 ):
                     volatile_path = self.get_volatile_path(
                         config.general.reaction,
-                        config.data.cut_recoil_pi_mass,
                         low_t,
                         high_t,
                         energy_min,
@@ -167,7 +177,6 @@ class DataManager:
     def get_volatile_path(
         self,
         reaction: str,
-        cut_recoil_pi_mass: float,
         low_t: float,
         high_t: float,
         energy_min: float,
@@ -189,6 +198,9 @@ class DataManager:
 
         Returns:
             str: Path to volatile directory for this kinematic bin.
+
+        TODO: for systematics, change out "nominal" for whatever cut is being varied,
+        and its value
         """
         return "/".join(
             [
@@ -196,7 +208,7 @@ class DataManager:
                 "ampToolsFits",
                 reaction,
                 "data_files",
-                f"recoil-pi-mass_{cut_recoil_pi_mass}",
+                "nominal",
                 f"t_{low_t:.2f}-{high_t:.2f}",
                 f"E_{energy_min:.2f}-{energy_max:.2f}",
                 f"mass_{low_mass:.3f}-{high_mass:.3f}",

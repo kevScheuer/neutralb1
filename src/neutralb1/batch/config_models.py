@@ -76,6 +76,8 @@ class DataConfig:
 
     orientations: List[str] = field(default_factory=lambda: ["PARA_0"])
     run_periods: List[str] = field(default_factory=lambda: ["allPeriods"])
+    tree_name: str = "ntFSGlueX_100_112"
+    num_final_state_particles: int = 5
     mass_bins: List[float] = field(default_factory=list)
     mass_min: float = 0
     mass_max: float = 0
@@ -85,14 +87,14 @@ class DataConfig:
     t_max: float = 0
     t_width: float = 0
     energy: List[float] = field(default_factory=lambda: [8.2, 8.8])
-    data_dir: str = f"{WORKSPACE_DIR}/data/GlueX"
+    data_dir: str = f"{WORKSPACE_DIR}/data/FSRoot/GlueX"
     data_version: str = "data"
     data_option: str = ""
-    phasespace_dir: str = f"{WORKSPACE_DIR}/data/phasespace"
+    phasespace_dir: str = f"{WORKSPACE_DIR}/data/FSRoot/phasespace"
     phasespace_version: str = "ver03"
     phasespace_option: str = ""
-    cut_recoil_pi_mass: float = 1.4
     truth_file: str = ""
+    # TODO: for systematics, could add additional cut parameters here
 
 
 @dataclass

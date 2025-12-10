@@ -119,6 +119,7 @@ class MomentConfigWriter:
             )
 
         # create reaction, scale, and data loops for each orientation
+        # TODO: change to more sensible file name, include full PARA_# in it
         reaction_and_angles = ""
         loop_data_str = ""
         for ont in orientations:

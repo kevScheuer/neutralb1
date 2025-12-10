@@ -101,6 +101,7 @@ class JobSubmitter:
             raise ValueError(f"Could not parse t/mass bins from directory: {job_dir}")
 
         # build shell commands directly into files since its simpler
+        # TODO: here is where additional systematic cuts could be added from pwa config
         script_command = (
             "source setup_gluex.sh version.xml &&"
             " export PATH="  # path export hard-coded for now
@@ -108,7 +109,7 @@ class JobSubmitter:
             " && copy_tree_with_cuts"
             f" {src_file}"
             f" {job_dir}"
-            f" {config.data.cut_recoil_pi_mass}"
+            f" {config.data.tree_name}"
             f" {low_t} {high_t}"
             f" {low_energy} {high_energy}"
             f" {low_mass} {high_mass}"
@@ -128,7 +129,7 @@ class JobSubmitter:
             config.compute.email_type,
             "00:30:00",  # copy_tree_with_cuts should not take long
             "5000M",  # 5 G should be enough memory
-            8,  # MPI cant help, so request small number of GPUs
+            1,  # MPI cant help, so request one CPU
             config.compute.test,
         )
 
@@ -169,17 +170,17 @@ class JobSubmitter:
             str: Job ID of submitted job, or "" if in test mode.
         """
         slurm_script_content = self._generate_slurm_script(
-            job_name=job_name,
-            script_command=script_command,
-            running_dir=running_dir,
-            log_dir=log_dir,
-            gpu_type=gpu_type,
-            n_gpus=n_gpus,
-            email_address=email_address,
-            email_type=email_type,
-            time_limit=time_limit,
-            mem_per_cpu=mem_per_cpu,
-            n_cpus=n_cpus,
+            job_name,
+            script_command,
+            running_dir,
+            log_dir,
+            gpu_type,
+            n_gpus,
+            email_address,
+            email_type,
+            time_limit,
+            mem_per_cpu,
+            n_cpus,
         )
 
         temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")

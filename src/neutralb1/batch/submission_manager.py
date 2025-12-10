@@ -78,7 +78,11 @@ class SubmissionManager:
             else self.config_manager.create_amptools_config(config)
         )
 
-        moment_cfg = self.config_manager.create_moment_config(config)
+        moment_cfg = (
+            self.config_manager.create_moment_config(config)
+            if config.physics.max_moment_J > 0
+            else ""
+        )
 
         # Submit jobs for each combination of run period and kinematic bins
         job_ids = []
@@ -93,7 +97,6 @@ class SubmissionManager:
 
                     data_path = self.data_manager.get_volatile_path(
                         config.general.reaction,
-                        config.data.cut_recoil_pi_mass,
                         low_t,
                         high_t,
                         config.data.energy[0],
@@ -200,7 +203,7 @@ class SubmissionManager:
                 f"{config.data.data_version}{config.data.data_option}",
                 f"{config.data.phasespace_version}{config.data.phasespace_option}",
                 waveset_dir,
-                f"recoil_pi_mass_{config.data.cut_recoil_pi_mass}",
+                "nominal",  # TODO: here is where additional systematics subdirs could be added
                 f"t_{low_t:.2f}-{high_t:.2f}",
                 f"mass_{low_mass:.3f}-{high_mass:.3f}",
                 truth_subdir,
@@ -262,35 +265,32 @@ class SubmissionManager:
             )
             shutil.copy(f"{WORKSPACE_DIR}/config/version.xml", f"{dir}/version.xml")
 
-        # link data phasespace files
+        # copy data signal and data background files
         for ont in config.data.orientations:
-            # data file should be labelled with just the orientation angle to match
-            # the AmpTools cfg file
-            ont_number = ont.replace("PARA_", "").replace("PERP_", "")
-            self._symlink_force(
-                (
-                    f"{selected_data_path}/AmpToolsInputTree_sum_{ont}_{run_period}"
-                    f"_{config.data.data_version}{config.data.data_option}.root"
-                ),
-                (f"{dir}/anglesOmegaPiAmplitude_{ont_number}.root"),
+            shutil.copy(
+                f"{selected_data_path}/{ont}_{run_period}"
+                f"_{config.data.data_version}{config.data.data_option}_signal.root",
+                f"{dir}/{ont}_signal.root",
             )
+            shutil.copy(
+                f"{selected_data_path}/{ont}_{run_period}"
+                f"_{config.data.data_version}{config.data.data_option}_background.root",
+                f"{dir}/{ont}_background.root",
+            )
+
         # gen phasespace
-        self._symlink_force(
-            (
-                f"{selected_data_path}/anglesOmegaPiPhaseSpaceGen_{run_period}"
-                f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
-            ),
-            (f"{dir}/anglesOmegaPiPhaseSpace.root"),
+        shutil.copy(
+            f"{selected_data_path}/{run_period}"
+            f"_{config.data.phasespace_version}_gen_phasespace.root",
+            f"{dir}/gen_phasespace.root",
         )
 
         # acc phasespace (won't apply for thrown MC studies)
-        label = "Gen" if "mcthrown" in config.data.data_option else "Acc"
-        self._symlink_force(
-            (
-                f"{selected_data_path}/anglesOmegaPiPhaseSpace{label}_{run_period}"
-                f"_{config.data.phasespace_version}{config.data.phasespace_option}.root"
-            ),
-            (f"{dir}/anglesOmegaPiPhaseSpaceAcc.root"),
+        label = "gen_" if "mcthrown" in config.data.data_option else ""
+        shutil.copy(
+            f"{selected_data_path}/{run_period}"
+            f"_{config.data.phasespace_version}_{label}phasespace.root",
+            f"{dir}/phasespace.root",
         )
 
     def _prepare_init_directory(
@@ -351,18 +351,3 @@ class SubmissionManager:
         # Write the scale factor to the scale.txt file
         with open(f"{running_dir}/scale.txt", "w") as f:
             f.write(f"parameter intensity_scale {scale_factor} fixed")
-
-    def _symlink_force(self, target: str, link_name: str) -> None:
-        """Forcefully create a symlink, overwriting any existing link or file.
-
-        Args:
-            target (str): The target file to link to.
-            link_name (str): The name of the symlink to create.
-        """
-        try:
-            os.symlink(target, link_name)
-        except FileExistsError:
-            os.remove(link_name)
-            os.symlink(target, link_name)
-        except Exception as e:
-            print(f"Failed to create symlink {link_name} -> {target}: {e}")
