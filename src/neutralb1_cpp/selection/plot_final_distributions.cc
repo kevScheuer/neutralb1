@@ -338,14 +338,16 @@ void plot_mass_spectra(
     h_proton_pi0_mc_sideband->Scale(scale_proton_sideband);
 
     // create legend
-    TLegend* legend_omega_pi0 = new TLegend(0.7,0.7,0.88,0.88);
+    TLegend* legend_omega_pi0 = new TLegend(0.65,0.7,0.85,0.88);
+    legend_omega_pi0->SetFillColorAlpha(kWhite, 0.8);
     legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "Final Data", "lp");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_signal, "Data Signal", "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_omega_signal), "p");
     legend_omega_pi0->AddEntry(h_omega_pi0_data_sideband, "Data Sideband", "l");
     legend_omega_pi0->AddEntry(h_omega_pi0_mc_sideband, TString::Format("MC Sideband (scale=%.1f)", scale_omega_sideband), "p");
 
-    TLegend* legend_proton_pi0 = new TLegend(0.15,0.7,0.33,0.88);
+    TLegend* legend_proton_pi0 = new TLegend(0.15,0.7,0.35,0.88);
+    legend_proton_pi0->SetFillColorAlpha(kWhite, 0.8);
     legend_proton_pi0->AddEntry(h_proton_pi0_data_total, "Final Data", "lp");
     legend_proton_pi0->AddEntry(h_proton_pi0_data_signal, "Data Signal", "l");
     legend_proton_pi0->AddEntry(h_proton_pi0_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_proton_signal), "p");
@@ -852,7 +854,8 @@ void plot_1d_angles(
     TCanvas* c1 = new TCanvas("c1", "c1", 800, 600);
     
     // Draw theta
-    TLegend* legend_theta = new TLegend(0.15, 0.7, 0.33, 0.88);
+    TLegend* legend_theta = new TLegend(0.15, 0.7, 0.35, 0.88);
+    legend_theta->SetFillColorAlpha(kWhite, 0.8);
     legend_theta->AddEntry(h_theta_data_total, "Final Data", "lp");
     legend_theta->AddEntry(h_theta_data_signal, "Data Signal", "l");
     legend_theta->AddEntry(h_theta_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_theta_signal), "p");
@@ -892,7 +895,8 @@ void plot_1d_angles(
     delete legend_theta;
     
     // Draw phi
-    TLegend* legend_phi = new TLegend(0.41, 0.7, 0.59, 0.88);
+    TLegend* legend_phi = new TLegend(0.4, 0.7, 0.6, 0.88);
+    legend_phi->SetFillColorAlpha(kWhite, 0.8);
     legend_phi->AddEntry(h_phi_data_total, "Final Data", "lp");
     legend_phi->AddEntry(h_phi_data_signal, "Data Signal", "l");
     legend_phi->AddEntry(h_phi_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_phi_signal), "p");
@@ -931,7 +935,8 @@ void plot_1d_angles(
     delete legend_phi;
     
     // Draw Phi
-    TLegend* legend_Phi =  new TLegend(0.7, 0.7, 0.88, 0.88);
+    TLegend* legend_Phi =  new TLegend(0.65, 0.7, 0.85, 0.88);
+    legend_Phi->SetFillColorAlpha(kWhite, 0.8);
     legend_Phi->AddEntry(h_Phi_data_total, "Final Data", "lp");
     legend_Phi->AddEntry(h_Phi_data_signal, "Data Signal", "l");
     legend_Phi->AddEntry(h_Phi_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_Phi_signal), "p");
@@ -971,7 +976,8 @@ void plot_1d_angles(
     delete legend_Phi;
     
     // Draw theta_h
-    TLegend* legend_theta_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
+    TLegend* legend_theta_h =  new TLegend(0.65, 0.7, 0.85, 0.88);
+    legend_theta_h->SetFillColorAlpha(kWhite, 0.8);
     legend_theta_h->AddEntry(h_theta_h_data_total, "Final Data", "lp");
     legend_theta_h->AddEntry(h_theta_h_data_signal, "Data Signal", "l");
     legend_theta_h->AddEntry(h_theta_h_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_theta_h_signal), "p");
@@ -1011,7 +1017,8 @@ void plot_1d_angles(
     delete legend_theta_h;
     
     // Draw phi_h
-    TLegend* legend_phi_h =  new TLegend(0.7, 0.7, 0.88, 0.88);
+    TLegend* legend_phi_h =  new TLegend(0.65, 0.7, 0.85, 0.88);
+    legend_phi_h->SetFillColorAlpha(kWhite, 0.8);
     legend_phi_h->AddEntry(h_phi_h_data_total, "Final Data", "lp");
     legend_phi_h->AddEntry(h_phi_h_data_signal, "Data Signal", "l");
     legend_phi_h->AddEntry(h_phi_h_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_phi_h_signal), "p");
@@ -1051,7 +1058,8 @@ void plot_1d_angles(
     delete legend_phi_h;
     
     // Draw lambda
-    TLegend* legend_lambda = new TLegend(0.15, 0.7, 0.33, 0.88);
+    TLegend* legend_lambda = new TLegend(0.15, 0.7, 0.35, 0.88);
+    legend_lambda->SetFillColorAlpha(kWhite, 0.8);
     legend_lambda->AddEntry(h_lambda_data_total, "Final Data", "lp");
     legend_lambda->AddEntry(h_lambda_data_signal, "Data Signal", "l");
     legend_lambda->AddEntry(h_lambda_mc_signal, TString::Format("MC Signal (scale=%.1f)", scale_lambda_signal), "p");
@@ -1256,16 +1264,19 @@ void plot_2d_acceptance(
     h_theta_phi_acceptance->SetXTitle("cos(#theta)");
     h_theta_phi_acceptance->SetYTitle("#phi (rad)");
     h_theta_phi_acceptance->SetZTitle("Acceptance");
+    h_theta_phi_acceptance->GetZaxis()->SetTitleOffset(1.4);
     
     h_theta_h_phi_h_acceptance->SetTitle("");
     h_theta_h_phi_h_acceptance->SetXTitle("cos(#theta_{H})");
     h_theta_h_phi_h_acceptance->SetYTitle("#phi_{H} (rad)");
     h_theta_h_phi_h_acceptance->SetZTitle("Acceptance");
+    h_theta_h_phi_h_acceptance->GetZaxis()->SetTitleOffset(1.4);
     
     h_Phi_phi_acceptance->SetTitle("");
     h_Phi_phi_acceptance->SetXTitle("#Phi (rad)");
     h_Phi_phi_acceptance->SetYTitle("#phi (rad)");
     h_Phi_phi_acceptance->SetZTitle("Acceptance");
+    h_Phi_phi_acceptance->GetZaxis()->SetTitleOffset(1.4);
     
     // Create canvas and draw
     TCanvas* c2d_acc = new TCanvas("c2d_acc", "c2d_acc", 800, 600);
