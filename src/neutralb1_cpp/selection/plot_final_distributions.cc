@@ -3,9 +3,8 @@
  * @author Kevin Scheuer
  * @brief Make plots from finalized amptools trees to show what goes into PWA
  * 
- * These plots do not distinguish between different polarizations or run periods,
- * they are just the final distributions after all cuts and sideband subtractions
- * have been applied.
+ * Only the PARA_0 trees are used for data, because the signal MC was only generated
+ * in this orientation, so we can get a more directo comparison
  * 
  */
 
@@ -54,7 +53,9 @@ void plot_mass_spectra(
 );
 AngleData calculate_angles(
     TTree* tree,
-    double weight_scale = 1.0
+    double weight_scale = 1.0,
+    double mass_min = 0.0,
+    double mass_max = 999.0
 );
 void plot_1d_angles(
     TString NT,
@@ -70,20 +71,23 @@ void plot_1d_angles(
     AngleData& angles_mc_signal,
     AngleData& angles_mc_sideband,
     AngleData& angles_acc,
-    AngleData& angles_gen
+    AngleData& angles_gen,
+    TString mass_bin_label
 );
 void plot_2d_angles(
     TString NT,
     TString CATEGORY,
     const AngleData& angles_signal,
     const AngleData& angles_sideband,
-    TString output_prefix
+    TString output_prefix,
+    TString mass_bin_label
 );
 void plot_2d_acceptance(
     TString NT,
     TString CATEGORY,
     const AngleData& angles_acc,
-    const AngleData& angles_gen
+    const AngleData& angles_gen,
+    TString mass_bin_label
 );
 
 void plot_final_distributions()
@@ -93,8 +97,8 @@ void plot_final_distributions()
     "FSRoot-skimmed-trees/final-amptools-trees/";
 
     // input files 
-    TString data_signal = tree_dir + "allPeriods_data_signal.root";
-    TString data_sideband = tree_dir + "allPeriods_data_background.root";
+    TString data_signal = tree_dir + "PARA_0_allPeriods_data_signal.root";
+    TString data_sideband = tree_dir + "PARA_0_allPeriods_data_background.root";
     TString mc_signal = tree_dir + "PARA_0_allPeriods_ver03.1_mc_signal.root";
     TString mc_sideband = tree_dir + "PARA_0_allPeriods_ver03.1_mc_background.root";
     TString acc_phasespace = tree_dir + "allPeriods_ver03_phasespace.root";
@@ -105,9 +109,14 @@ void plot_final_distributions()
 
     plot_mass_spectra(NT, CATEGORY, data_signal, data_sideband, mc_signal, mc_sideband);
 
-    // Calculate angles once for all datasets
-    std::cout << "Calculating angles for all datasets..." << std::endl;
+    // Define mass bins
+    std::vector<std::pair<double, double>> mass_bins = {
+        {1.20, 1.25},
+        {1.45, 1.50},
+        {1.65, 1.70}
+    };
     
+    // Open files once
     TFile* f_data_signal = TFile::Open(data_signal);
     TFile* f_data_sideband = TFile::Open(data_sideband);
     TFile* f_mc_signal = TFile::Open(mc_signal);
@@ -122,19 +131,76 @@ void plot_final_distributions()
     TTree* tree_acc_phasespace = (TTree*)f_acc_phasespace->Get(NT);
     TTree* tree_gen_phasespace = (TTree*)f_gen_phasespace->Get(NT);
     
-    std::cout << "Calculating data signal angles..." << std::endl;
-    AngleData angles_data_signal = calculate_angles(tree_data_signal);
-    std::cout << "Calculating data sideband angles..." << std::endl;
-    AngleData angles_data_sideband = calculate_angles(tree_data_sideband);
-    std::cout << "Calculating MC signal angles..." << std::endl;
-    AngleData angles_mc_signal = calculate_angles(tree_mc_signal);
-    std::cout << "Calculating MC sideband angles..." << std::endl;
-    AngleData angles_mc_sideband = calculate_angles(tree_mc_sideband);
-    std::cout << "Calculating acceptance phase space angles..." << std::endl;
-    AngleData angles_acc = calculate_angles(tree_acc_phasespace);
-    std::cout << "Calculating generated phase space angles..." << std::endl;
-    AngleData angles_gen = calculate_angles(tree_gen_phasespace);    
-
+    // Loop over mass bins
+    for (const auto& mass_bin : mass_bins) {
+        double mass_min = mass_bin.first;
+        double mass_max = mass_bin.second;
+        TString mass_bin_label = TString::Format("_%.2f_%.2f", mass_min, mass_max);
+        
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "Processing mass bin: [" << mass_min << ", " << mass_max << "]" << std::endl;
+        std::cout << "========================================" << std::endl;
+        
+        // Calculate angles for this mass bin
+        std::cout << "Calculating data signal angles..." << std::endl;
+        AngleData angles_data_signal = calculate_angles(tree_data_signal, 1.0, mass_min, mass_max);
+        std::cout << "Calculating data sideband angles..." << std::endl;
+        AngleData angles_data_sideband = calculate_angles(tree_data_sideband, 1.0, mass_min, mass_max);
+        std::cout << "Calculating MC signal angles..." << std::endl;
+        AngleData angles_mc_signal = calculate_angles(tree_mc_signal, 1.0, mass_min, mass_max);
+        std::cout << "Calculating MC sideband angles..." << std::endl;
+        AngleData angles_mc_sideband = calculate_angles(tree_mc_sideband, 1.0, mass_min, mass_max);
+        std::cout << "Calculating acceptance phase space angles..." << std::endl;
+        AngleData angles_acc = calculate_angles(tree_acc_phasespace, 1.0, mass_min, mass_max);
+        std::cout << "Calculating generated phase space angles..." << std::endl;
+        AngleData angles_gen = calculate_angles(tree_gen_phasespace, 1.0, mass_min, mass_max);
+        
+        // Create plots using pre-calculated angles for this mass bin
+        plot_1d_angles(
+            NT,
+            CATEGORY,
+            data_signal,
+            data_sideband,
+            mc_signal,
+            mc_sideband,
+            acc_phasespace,
+            gen_phasespace,
+            angles_data_signal,
+            angles_data_sideband,
+            angles_mc_signal,
+            angles_mc_sideband,
+            angles_acc,
+            angles_gen,
+            mass_bin_label
+        );
+        
+        plot_2d_angles(
+            NT,
+            CATEGORY,
+            angles_data_signal,
+            angles_data_sideband,
+            "data",
+            mass_bin_label
+        );
+        
+        plot_2d_angles(
+            NT,
+            CATEGORY,
+            angles_mc_signal,
+            angles_mc_sideband,
+            "mc",
+            mass_bin_label
+        );
+        
+        plot_2d_acceptance(
+            NT,
+            CATEGORY,
+            angles_acc,
+            angles_gen,
+            mass_bin_label
+        );
+    }
+    
     // Close files
     f_data_signal->Close();
     f_data_sideband->Close();
@@ -142,47 +208,6 @@ void plot_final_distributions()
     f_mc_sideband->Close();
     f_acc_phasespace->Close();
     f_gen_phasespace->Close();
-    
-    // Now create plots using pre-calculated angles
-    plot_1d_angles(
-        NT,
-        CATEGORY,
-        data_signal,
-        data_sideband,
-        mc_signal,
-        mc_sideband,
-        acc_phasespace,
-        gen_phasespace,
-        angles_data_signal,
-        angles_data_sideband,
-        angles_mc_signal,
-        angles_mc_sideband,
-        angles_acc,
-        angles_gen
-    );
-    
-    plot_2d_angles(
-        NT,
-        CATEGORY,
-        angles_data_signal,
-        angles_data_sideband,
-        "data"
-    );
-    
-    plot_2d_angles(
-        NT,
-        CATEGORY,
-        angles_mc_signal,
-        angles_mc_sideband,
-        "mc"
-    );
-    
-    plot_2d_acceptance(
-        NT,
-        CATEGORY,
-        angles_acc,
-        angles_gen
-    );
 }
 
 
@@ -385,11 +410,15 @@ void plot_mass_spectra(
  * 
  * @param tree TTree containing 4-momenta data
  * @param weight_scale Optional weight scaling factor
+ * @param mass_min Minimum M4Pi mass for filtering (default: 0.0 for no filter)
+ * @param mass_max Maximum M4Pi mass for filtering (default: 999.0 for no filter)
  * @return AngleData structure containing all calculated angles and weights
  */
 AngleData calculate_angles(
     TTree* tree,
-    double weight_scale
+    double weight_scale = 1.0,
+    double mass_min = 0.0,
+    double mass_max = 999.0
 )
 {
     AngleData angles;
@@ -403,7 +432,9 @@ AngleData calculate_angles(
     double EnP5, PxP5, PyP5, PzP5;
     double weight = 1.0;
     double polAngle = 0.0;
+    double M4Pi = 0.0;
     
+    tree->SetBranchAddress("M4Pi", &M4Pi);
     tree->SetBranchAddress("EnPB", &EnPB);
     tree->SetBranchAddress("PxPB", &PxPB);
     tree->SetBranchAddress("PyPB", &PyPB);
@@ -454,6 +485,11 @@ AngleData calculate_angles(
     for (Long64_t i = 0; i < nentries; i++) {
         tree->GetEntry(i);
         
+        // Apply mass filter if specified
+        if (M4Pi < mass_min || M4Pi > mass_max) {
+            continue;
+        }
+        
         // Create TLorentzVectors
         TLorentzVector beam(PxPB, PyPB, PzPB, EnPB);
         TLorentzVector proton(PxP1, PyP1, PzP1, EnP1);
@@ -499,54 +535,55 @@ void plot_1d_angles(
     AngleData& angles_mc_signal,
     AngleData& angles_mc_sideband,
     AngleData& angles_acc,
-    AngleData& angles_gen
+    AngleData& angles_gen,
+    TString mass_bin_label
 )
 {
     // Create histograms for angles
     // cos(theta) and phi for X resonance decay e.g. b1 -> omega pi0
-    TH1F* h_theta_data_signal = new TH1F("h_theta_data_signal", "", 100, -1, 1);
-    TH1F* h_theta_data_sideband = new TH1F("h_theta_data_sideband", "", 100, -1, 1);
-    TH1F* h_theta_mc_signal = new TH1F("h_theta_mc_signal", "", 100, -1, 1);
-    TH1F* h_theta_mc_sideband = new TH1F("h_theta_mc_sideband", "", 100, -1, 1);
-    TH1F* h_theta_acc = new TH1F("h_theta_acc", "", 100, -1, 1);
-    TH1F* h_theta_gen = new TH1F("h_theta_gen", "", 100, -1, 1);
+    TH1F* h_theta_data_signal = new TH1F("h_theta_data_signal", "", 50, -1, 1);
+    TH1F* h_theta_data_sideband = new TH1F("h_theta_data_sideband", "", 50, -1, 1);
+    TH1F* h_theta_mc_signal = new TH1F("h_theta_mc_signal", "", 50, -1, 1);
+    TH1F* h_theta_mc_sideband = new TH1F("h_theta_mc_sideband", "", 50, -1, 1);
+    TH1F* h_theta_acc = new TH1F("h_theta_acc", "", 50, -1, 1);
+    TH1F* h_theta_gen = new TH1F("h_theta_gen", "", 50, -1, 1);
     
-    TH1F* h_phi_data_signal = new TH1F("h_phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_data_sideband = new TH1F("h_phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_mc_signal = new TH1F("h_phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_mc_sideband = new TH1F("h_phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_acc = new TH1F("h_phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_gen = new TH1F("h_phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_data_signal = new TH1F("h_phi_data_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_data_sideband = new TH1F("h_phi_data_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_mc_signal = new TH1F("h_phi_mc_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_mc_sideband = new TH1F("h_phi_mc_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_acc = new TH1F("h_phi_acc", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_gen = new TH1F("h_phi_gen", "", 50, -TMath::Pi(), TMath::Pi());
     
-    TH1F* h_Phi_data_signal = new TH1F("h_Phi_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_Phi_data_sideband = new TH1F("h_Phi_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_Phi_mc_signal = new TH1F("h_Phi_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_Phi_mc_sideband = new TH1F("h_Phi_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_Phi_acc = new TH1F("h_Phi_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_Phi_gen = new TH1F("h_Phi_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_data_signal = new TH1F("h_Phi_data_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_data_sideband = new TH1F("h_Phi_data_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_mc_signal = new TH1F("h_Phi_mc_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_mc_sideband = new TH1F("h_Phi_mc_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_acc = new TH1F("h_Phi_acc", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_Phi_gen = new TH1F("h_Phi_gen", "", 50, -TMath::Pi(), TMath::Pi());
     
     // cos(theta_h) and phi_h for omega decay (normal to pi+pi- plane in omega rest frame)
-    TH1F* h_theta_h_data_signal = new TH1F("h_theta_h_data_signal", "", 100, -1, 1);
-    TH1F* h_theta_h_data_sideband = new TH1F("h_theta_h_data_sideband", "", 100, -1, 1);
-    TH1F* h_theta_h_mc_signal = new TH1F("h_theta_h_mc_signal", "", 100, -1, 1);
-    TH1F* h_theta_h_mc_sideband = new TH1F("h_theta_h_mc_sideband", "", 100, -1, 1);
-    TH1F* h_theta_h_acc = new TH1F("h_theta_h_acc", "", 100, -1, 1);
-    TH1F* h_theta_h_gen = new TH1F("h_theta_h_gen", "", 100, -1, 1);
+    TH1F* h_theta_h_data_signal = new TH1F("h_theta_h_data_signal", "", 50, -1, 1);
+    TH1F* h_theta_h_data_sideband = new TH1F("h_theta_h_data_sideband", "", 50, -1, 1);
+    TH1F* h_theta_h_mc_signal = new TH1F("h_theta_h_mc_signal", "", 50, -1, 1);
+    TH1F* h_theta_h_mc_sideband = new TH1F("h_theta_h_mc_sideband", "", 50, -1, 1);
+    TH1F* h_theta_h_acc = new TH1F("h_theta_h_acc", "", 50, -1, 1);
+    TH1F* h_theta_h_gen = new TH1F("h_theta_h_gen", "", 50, -1, 1);
     
-    TH1F* h_phi_h_data_signal = new TH1F("h_phi_h_data_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_h_data_sideband = new TH1F("h_phi_h_data_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_h_mc_signal = new TH1F("h_phi_h_mc_signal", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_h_mc_sideband = new TH1F("h_phi_h_mc_sideband", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_h_acc = new TH1F("h_phi_h_acc", "", 100, -TMath::Pi(), TMath::Pi());
-    TH1F* h_phi_h_gen = new TH1F("h_phi_h_gen", "", 100, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_data_signal = new TH1F("h_phi_h_data_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_data_sideband = new TH1F("h_phi_h_data_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_mc_signal = new TH1F("h_phi_h_mc_signal", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_mc_sideband = new TH1F("h_phi_h_mc_sideband", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_acc = new TH1F("h_phi_h_acc", "", 50, -TMath::Pi(), TMath::Pi());
+    TH1F* h_phi_h_gen = new TH1F("h_phi_h_gen", "", 50, -TMath::Pi(), TMath::Pi());
     
     // lambda for omega decay
-    TH1F* h_lambda_data_signal = new TH1F("h_lambda_data_signal", "", 100, 0, 1);
-    TH1F* h_lambda_data_sideband = new TH1F("h_lambda_data_sideband", "", 100, 0, 1);
-    TH1F* h_lambda_mc_signal = new TH1F("h_lambda_mc_signal", "", 100, 0, 1);
-    TH1F* h_lambda_mc_sideband = new TH1F("h_lambda_mc_sideband", "", 100, 0, 1);
-    TH1F* h_lambda_acc = new TH1F("h_lambda_acc", "", 100, 0, 1);
-    TH1F* h_lambda_gen = new TH1F("h_lambda_gen", "", 100, 0, 1);
+    TH1F* h_lambda_data_signal = new TH1F("h_lambda_data_signal", "", 50, 0, 1);
+    TH1F* h_lambda_data_sideband = new TH1F("h_lambda_data_sideband", "", 50, 0, 1);
+    TH1F* h_lambda_mc_signal = new TH1F("h_lambda_mc_signal", "", 50, 0, 1);
+    TH1F* h_lambda_mc_sideband = new TH1F("h_lambda_mc_sideband", "", 50, 0, 1);
+    TH1F* h_lambda_acc = new TH1F("h_lambda_acc", "", 50, 0, 1);
+    TH1F* h_lambda_gen = new TH1F("h_lambda_gen", "", 50, 0, 1);
     
     // Helper function to fill histograms from pre-calculated AngleData
     auto fillHistograms = [](
@@ -890,7 +927,7 @@ void plot_1d_angles(
     axis_theta->Draw();
     
     legend_theta->Draw("SAME");
-    c1->SaveAs("final_cos_theta.pdf");
+    c1->SaveAs("final_cos_theta" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_theta;
     
@@ -930,7 +967,7 @@ void plot_1d_angles(
     axis_phi->Draw();
     
     legend_phi->Draw("SAME");
-    c1->SaveAs("final_phi.pdf");
+    c1->SaveAs("final_phi" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_phi;
     
@@ -971,7 +1008,7 @@ void plot_1d_angles(
     axis_Phi->Draw();
     
     legend_Phi->Draw("SAME");
-    c1->SaveAs("final_Phi.pdf");
+    c1->SaveAs("final_Phi" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_Phi;
     
@@ -1012,7 +1049,7 @@ void plot_1d_angles(
     axis_theta_h->Draw();
     
     legend_theta_h->Draw("SAME");
-    c1->SaveAs("final_cos_theta_h.pdf");
+    c1->SaveAs("final_cos_theta_h" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_theta_h;
     
@@ -1053,7 +1090,7 @@ void plot_1d_angles(
     axis_phi_h->Draw();
     
     legend_phi_h->Draw("SAME");
-    c1->SaveAs("final_phi_h.pdf");
+    c1->SaveAs("final_phi_h" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_phi_h;
     
@@ -1094,7 +1131,7 @@ void plot_1d_angles(
     axis_lambda->Draw();
     
     legend_lambda->Draw("SAME");
-    c1->SaveAs("final_lambda.pdf");
+    c1->SaveAs("final_lambda" + mass_bin_label + ".pdf");
     c1->Clear();
     delete legend_lambda;
     delete c1;
@@ -1110,26 +1147,28 @@ void plot_1d_angles(
  * @param angles_signal pre-calculated angles for signal events
  * @param angles_sideband pre-calculated angles for sideband (background) events
  * @param output_prefix prefix for output filenames ("data" or "mc")
+ * @param mass_bin_label label for mass bin (e.g., "_1.20_1.25")
  */
 void plot_2d_angles(
     TString NT,
     TString CATEGORY,
     const AngleData& angles_signal,
     const AngleData& angles_sideband,
-    TString output_prefix
+    TString output_prefix,
+    TString mass_bin_label = ""
 )
 {
     std::cout << "Creating 2D angle plots for " << output_prefix << "..." << std::endl;
     
     // Create 2D histograms
-    TH2F* h_theta_phi_signal = new TH2F("h_theta_phi_signal", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_phi_sideband = new TH2F("h_theta_phi_sideband", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_signal = new TH2F("h_theta_phi_signal", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_sideband = new TH2F("h_theta_phi_sideband", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_theta_h_phi_h_signal = new TH2F("h_theta_h_phi_h_signal", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_h_phi_h_sideband = new TH2F("h_theta_h_phi_h_sideband", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_signal = new TH2F("h_theta_h_phi_h_signal", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_sideband = new TH2F("h_theta_h_phi_h_sideband", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_Phi_phi_signal = new TH2F("h_Phi_phi_signal", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_Phi_phi_sideband = new TH2F("h_Phi_phi_sideband", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_signal = new TH2F("h_Phi_phi_signal", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_sideband = new TH2F("h_Phi_phi_sideband", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
     
     // Fill signal histograms
     for (size_t i = 0; i < angles_signal.theta.size(); i++) {
@@ -1179,17 +1218,17 @@ void plot_2d_angles(
     
     // Draw cos(theta) vs phi
     h_theta_phi_total->Draw("colz");
-    c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_vs_phi.pdf");
+    c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_vs_phi" + mass_bin_label + ".pdf");
     c2d->Clear();
     
     // Draw cos(theta_h) vs phi_h
     h_theta_h_phi_h_total->Draw("colz");
-    c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_h_vs_phi_h.pdf");
+    c2d->SaveAs("final_2d_" + output_prefix + "_cos_theta_h_vs_phi_h" + mass_bin_label + ".pdf");
     c2d->Clear();
     
     // Draw Phi vs phi
     h_Phi_phi_total->Draw("colz");
-    c2d->SaveAs("final_2d_" + output_prefix + "_Phi_vs_phi.pdf");
+    c2d->SaveAs("final_2d_" + output_prefix + "_Phi_vs_phi" + mass_bin_label + ".pdf");
     c2d->Clear();
     
     delete c2d;
@@ -1213,25 +1252,27 @@ void plot_2d_angles(
  * @param CATEGORY category name (unused but kept for API consistency)
  * @param angles_acc pre-calculated angles for accepted phase space events
  * @param angles_gen pre-calculated angles for generated phase space events
+ * @param mass_bin_label label for mass bin (e.g., "_1.20_1.25")
  */
 void plot_2d_acceptance(
     TString NT,
     TString CATEGORY,
     const AngleData& angles_acc,
-    const AngleData& angles_gen
+    const AngleData& angles_gen,
+    TString mass_bin_label = ""
 )
 {
     std::cout << "Creating 2D acceptance plots..." << std::endl;
     
     // Create 2D histograms for accepted and generated events
-    TH2F* h_theta_phi_acc = new TH2F("h_theta_phi_acc", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_phi_gen = new TH2F("h_theta_phi_gen", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_acc = new TH2F("h_theta_phi_acc", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_phi_gen = new TH2F("h_theta_phi_gen", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_theta_h_phi_h_acc = new TH2F("h_theta_h_phi_h_acc", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_theta_h_phi_h_gen = new TH2F("h_theta_h_phi_h_gen", "", 100, -1, 1, 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_acc = new TH2F("h_theta_h_phi_h_acc", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_theta_h_phi_h_gen = new TH2F("h_theta_h_phi_h_gen", "", 50, -1, 1, 50, -TMath::Pi(), TMath::Pi());
     
-    TH2F* h_Phi_phi_acc = new TH2F("h_Phi_phi_acc", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
-    TH2F* h_Phi_phi_gen = new TH2F("h_Phi_phi_gen", "", 100, -TMath::Pi(), TMath::Pi(), 100, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_acc = new TH2F("h_Phi_phi_acc", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
+    TH2F* h_Phi_phi_gen = new TH2F("h_Phi_phi_gen", "", 50, -TMath::Pi(), TMath::Pi(), 50, -TMath::Pi(), TMath::Pi());
     
     // Fill accepted events histograms
     for (size_t i = 0; i < angles_acc.theta.size(); i++) {
@@ -1284,17 +1325,17 @@ void plot_2d_acceptance(
     
     // Draw cos(theta) vs phi acceptance
     h_theta_phi_acceptance->Draw("colz");
-    c2d_acc->SaveAs("final_2d_acceptance_cos_theta_vs_phi.pdf");
+    c2d_acc->SaveAs("final_2d_acceptance_cos_theta_vs_phi" + mass_bin_label + ".pdf");
     c2d_acc->Clear();
     
     // Draw cos(theta_h) vs phi_h acceptance
     h_theta_h_phi_h_acceptance->Draw("colz");
-    c2d_acc->SaveAs("final_2d_acceptance_cos_theta_h_vs_phi_h.pdf");
+    c2d_acc->SaveAs("final_2d_acceptance_cos_theta_h_vs_phi_h" + mass_bin_label + ".pdf");
     c2d_acc->Clear();
     
     // Draw Phi vs phi acceptance
     h_Phi_phi_acceptance->Draw("colz");
-    c2d_acc->SaveAs("final_2d_acceptance_Phi_vs_phi.pdf");
+    c2d_acc->SaveAs("final_2d_acceptance_Phi_vs_phi" + mass_bin_label + ".pdf");
     c2d_acc->Clear();
     
     delete c2d_acc;
