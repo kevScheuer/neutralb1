@@ -106,8 +106,18 @@ class SubmissionManager:
                     )
 
                     if config.compute.test:  # provide cfg file to user if running test
+                        if not os.path.isfile(amptools_cfg):
+                            raise FileNotFoundError(
+                                f"AmpTools config file not found: {amptools_cfg}"
+                            )
                         shutil.copy(amptools_cfg, f"{os.getcwd()}/fit.cfg")
-                        shutil.copy(moment_cfg, f"{os.getcwd()}/fit_moment.cfg")
+                        if config.physics.max_moment_J > 0:
+                            if not os.path.isfile(moment_cfg):
+                                raise FileNotFoundError(
+                                    f"Moment config file not found: {moment_cfg}"
+                                )
+                            shutil.copy(moment_cfg, f"{os.getcwd()}/fit_moment.cfg")
+
                     else:  # otherwise prepare the job directory by linking needed files
                         self._prepare_job_directory(
                             config,
@@ -248,8 +258,19 @@ class SubmissionManager:
             rand_dir = f"{dir}/rand/"
             pathlib.Path(rand_dir).mkdir(parents=True, exist_ok=True)
 
+        if not os.path.isfile(amptools_config):
+            raise FileNotFoundError(
+                f"AmpTools config file not found: {amptools_config}"
+            )
         shutil.copy(amptools_config, f"{dir}/fit.cfg")
-        shutil.copy(moment_config, f"{dir}/fit_moment.cfg")
+
+        if config.physics.max_moment_J > 0:
+            if not os.path.isfile(moment_config):
+                raise FileNotFoundError(
+                    f"Moment config file not found: {moment_config}"
+                )
+            shutil.copy(moment_config, f"{dir}/fit_moment.cfg")
+
         # save the submission config to the dir so its clear what parameters were used
         self.config_manager.save_yaml_config(config, f"{dir}/config.yaml")
 
