@@ -1,33 +1,40 @@
-/* Extract the fit results from a list of AmpTools output files and writes them to a csv
-The csv file will have the following columns, and their errors if applicable:
-    - file name
-    - eMatrixStatus
-    - lastMinuitCommandStatus
-    - likelihood
-    - detected_events
-    - generated_events
-    - all AmpTools parameters
-    - all production coefficients
-    - all amplitude coherent sums
-    - all phase differences
-
-This script assumes the amplitudes are named in the vector-pseudoscalar style 'eJPmL'
-format, where:
-    e = reflectivity (either p [+] or m [-])
-    J = total spin (positive integers including 0)
-    P = parity (either p [+] or m [-])
-    m = m-projection (either p [+], m [-], or 0)
-    L = orbital angular momentum (standard letter convention: S, P, D, F, ...)
-It also assumes that reflectivity sums do not mix and are constrained across sums,
-meaning that phase differences can not be computed between negative and positive
-reflectivity waves.
-
-
-NOTE: this script is "reaction" independent, meaning if multiple reactions are in the
-    fit, it assumes the phase differences are common across all of them. It also means
-    that coherent sums are calculated over all reactions. This is so that multiple
-    orientations, typically denoted using the "reaction", can be fit simultaneously and
-    have their fit results extracted in one go.
+/**
+ * @file extract_fit_results.cc
+ * @author Kevin Scheuer
+ * @brief Extract fit results from AmpTools output files into a csv
+ *
+ *  Extract the fit results from a list of AmpTools output files and writes them to a csv
+ * The csv file will have the following columns, and their errors if applicable:
+ *   - file name
+ *   - eMatrixStatus
+ *   - lastMinuitCommandStatus
+ *   - likelihood
+ *   - detected_events
+ *   - generated_events
+ *   - all AmpTools parameters
+ *   - all production coefficients
+ *   - all amplitude coherent sums
+ *   - all phase differences
+ * This script assumes the amplitudes are named in the vector-pseudoscalar style 'eJPmL'
+ * format, where:
+ *   e = reflectivity (either p [+] or m [-])
+ *   J = total spin (positive integers including 0)
+ *   P = parity (either p [+] or m [-])
+ *   m = m-projection (either p [+], m [-], or 0)
+ *   L = orbital angular momentum (standard letter convention: S, P, D, F, ...)
+ * It also assumes that reflectivity sums do not mix and are constrained across sums,
+ * meaning that phase differences can not be computed between negative and positive
+ * reflectivity waves.
+ * 
+ * The script can also optionally call the extract_bin_info program to extract
+ * the bin information from the data files used in the fit.
+ *
+ * note: 
+ * this script is "reaction" independent, meaning if multiple reactions are in the
+ *    fit, it assumes the phase differences are common across all of them. It also means
+ *    that coherent sums are calculated over all reactions. This is so that multiple
+ *    orientations, typically denoted using the "reaction", can be fit simultaneously and
+ *    have their fit results extracted in one go.
 */
 
 #include <cstring>
@@ -38,6 +45,7 @@ NOTE: this script is "reaction" independent, meaning if multiple reactions are i
 #include <sstream> // for std::istringstream
 #include <string>
 #include <vector>
+#include <cstdlib> // for system()
 
 #include "IUAmpTools/FitResults.h"
 #include "neutralb1/file_utils.h" // for read_file_list
@@ -57,19 +65,17 @@ std::pair<double, double> corrected_dphase(
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
+    if (argc != 5 && argc != 6)
     {
-        std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv> [acceptance_corrected (0/1)]\n";
+        std::cerr << "Usage: " << argv[0] << " <file_list.txt> <output.csv> <acceptance_corrected (0/1)> <extract_data (0/1)> [mass_branch]\n";
         return 1;
     }
 
     std::string file_path = argv[1];
     std::string csv_name = argv[2];
-    bool is_acceptance_corrected = false;
-    if (argc > 3)
-    {
-        is_acceptance_corrected = (std::string(argv[3]) == "1");
-    }
+    bool is_acceptance_corrected = (std::string(argv[3]) == "1");
+    bool extract_data = (std::string(argv[4]) == "1");
+    std::string mass_branch = (argc == 6) ? argv[5] : "M4Pi";        
 
     // file path is a text file with a list of AmpTools output files, each on a newline
     // load this into a vector using the utility function
@@ -282,6 +288,48 @@ int main(int argc, char *argv[])
     // Write all collected data to the CSV file at once
     csv_file << csv_data.str();
     csv_file.close();
+
+    // If extract_data flag is set, call extract_bin_info to extract bin information
+    if (extract_data)
+    {
+        std::cout << "\nExtracting bin information...\n";
+        
+        // Construct output filename for bin info (replace fits.csv with data.csv)
+        std::string bin_info_csv = csv_name;
+        size_t pos = bin_info_csv.rfind("fits.csv");
+        if (pos != std::string::npos)
+        {
+            bin_info_csv.replace(pos, 8, "data.csv");
+        }
+        else
+        {
+            // If it doesn't end with fits.csv, just insert _data before .csv
+            pos = bin_info_csv.rfind(".csv");
+            if (pos != std::string::npos)
+            {
+                bin_info_csv.insert(pos, "_data");
+            }
+            else
+            {
+                bin_info_csv += "_data.csv";
+            }
+        }
+        
+        // Construct command to call extract_bin_info
+        std::string command = "extract_bin_info " + file_path + " " + bin_info_csv + " " + mass_branch;
+        
+        std::cout << "Running command: " << command << "\n";
+        int result = std::system(command.c_str());
+        
+        if (result != 0)
+        {
+            std::cerr << "Warning: extract_bin_info returned non-zero exit code: " << result << "\n";
+        }
+        else
+        {
+            std::cout << "Bin information successfully extracted to: " << bin_info_csv << "\n";
+        }
+    }
 
     return 0;
 }

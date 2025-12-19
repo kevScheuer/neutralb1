@@ -1,15 +1,9 @@
 /* Extract the bin information from a list of pre-cut ROOT data files used in fits
 
 The csv file will have columns for:
-    - The low and high bin edges for the t, E_beam, and mass histograms
-    - The center, average, and RMS values for the t, E_beam, and mass histograms
+    - The low and high bin edges for the t, beam energy, and mass histograms
+    - The center, average, and RMS values for the t, beam energy, and mass histograms
     - The total number of events and the error on the total number of events
-
-NOTE:
-This script assumes that the original Flat Tree data files have been cut to their
-respective bin, and that they contain the t, E_beam, and Weight branches. The
-Weight branch is used for sideband subtraction, and so if a separate "background" file
-is used, then it will need to be implemented here.
  */
 
 #include <cmath>   // for power function

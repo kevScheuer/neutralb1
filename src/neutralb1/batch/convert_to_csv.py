@@ -51,14 +51,8 @@ def main() -> int:
         if not os.path.isabs(file):
             input_files[input_files.index(file)] = os.path.abspath(file)
 
-    if all(file.endswith(".fit") for file in input_files):
-        file_type = "fit"
-    elif all(file.endswith(".root") for file in input_files):
-        file_type = "root"
-    else:
-        raise ValueError(
-            "All input files must be of the same type: either .fit or .root files"
-        )
+    if not all(file.endswith(".fit") for file in input_files):
+        raise ValueError("All input files must be .fit files")
 
     # sort the input files
     input_files = (
@@ -82,56 +76,55 @@ def main() -> int:
 
     # convert this flag into bool integers for the c++ script to interpret
     is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
+    # extract_data is 1 by default, unless --no-data is passed
+    extract_data = 0 if args["no_data"] else 1
 
     # setup c++ command with appropriate arguments
-    if file_type == "fit":
-        if args["moments"]:
-            output_file_name = (
-                "projected_moments.csv" if not args["output"] else args["output"]
-            )
-            command = [
-                f"project_moments",
-                f"{temp_file_path}",
-                f"{output_file_name}",
-            ]
-        else:
-            output_file_name = "fits.csv" if not args["output"] else args["output"]
-            command = [
-                f"extract_fit_results",
-                f"{temp_file_path}",
-                f"{output_file_name}",
-                f"{is_acceptance_corrected}",
-            ]
-        return_code = run_process(command, args["verbose"])
-
-        if args["correlation"]:
-            corr_output_name = output_file_name.replace(".csv", "_corr.csv")
-            corr_command = [
-                f"extract_corr_matrix",
-                f"{temp_file_path}",
-                f"{corr_output_name}",
-            ]
-            return_code = run_process(corr_command, args["verbose"])
-        if args["covariance"]:
-            cov_output_name = output_file_name.replace(".csv", "_cov.csv")
-            cov_command = [
-                f"extract_cov_matrix",
-                f"{temp_file_path}",
-                f"{cov_output_name}",
-            ]
-            return_code = run_process(cov_command, args["verbose"])
-    elif file_type == "root":
+    if args["data_only"]:
         output_file_name = "data.csv" if not args["output"] else args["output"]
-        bin_command = [
+        command = [
             f"extract_bin_info",
             f"{temp_file_path}",
             f"{output_file_name}",
             f"{args['mass_branch']}",
         ]
-        return_code = run_process(bin_command, args["verbose"])
+    elif args["moments"]:
+        output_file_name = (
+            "projected_moments.csv" if not args["output"] else args["output"]
+        )
+        command = [
+            f"project_moments",
+            f"{temp_file_path}",
+            f"{output_file_name}",
+        ]
     else:
-        return_code = 1
-        raise ValueError("Invalid type. Must be either 'fit' or 'root'")
+        output_file_name = "fits.csv" if not args["output"] else args["output"]
+        command = [
+            f"extract_fit_results",
+            f"{temp_file_path}",
+            f"{output_file_name}",
+            f"{is_acceptance_corrected}",
+            f"{extract_data}",
+            f"{args['mass_branch']}",
+        ]
+    return_code = run_process(command, args["verbose"])
+
+    if args["correlation"]:
+        corr_output_name = output_file_name.replace(".csv", "_corr.csv")
+        corr_command = [
+            f"extract_corr_matrix",
+            f"{temp_file_path}",
+            f"{corr_output_name}",
+        ]
+        return_code = run_process(corr_command, args["verbose"])
+    if args["covariance"]:
+        cov_output_name = output_file_name.replace(".csv", "_cov.csv")
+        cov_command = [
+            f"extract_cov_matrix",
+            f"{temp_file_path}",
+            f"{cov_output_name}",
+        ]
+        return_code = run_process(cov_command, args["verbose"])
 
     return return_code
 
@@ -215,7 +208,7 @@ def create_parser() -> argparse.ArgumentParser:
         help=(
             "Name of branch for the final invariant mass combo of interest in the"
             " Amplitude Analysis. Note this is only applicable when attempting to"
-            " create csv's for ROOT data files. Defaults to M4Pi"
+            " create data csv's. Defaults to M4Pi"
         ),
     )
     parser.add_argument(
@@ -252,6 +245,22 @@ def create_parser() -> argparse.ArgumentParser:
         help=(
             "When passed, the script will project the moments from the partial wave fit"
             " results into a csv file. The fit file must be a partial wave fit."
+        ),
+    )
+    parser.add_argument(
+        "--data-only",
+        action="store_true",
+        help=(
+            "When passed, the script will only extract the data bin information from"
+            " the fit files into a csv file."
+        ),
+    )
+    parser.add_argument(
+        "--no-data",
+        action="store_true",
+        help=(
+            "When passed, extract_fit_results will not extract bin information. By"
+            " default, bin information is extracted alongside fit results."
         ),
     )
     return parser
