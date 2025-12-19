@@ -181,23 +181,20 @@ echo "vecps_plotter took: $((vecps_end_time - vecps_start_time)) seconds"
 # =============== CONVERT RESULTS TO CSV ===============
 csv_start_time=$(date +%s)
 
-# get total data csv file
-hadd -f all_data.root *Amplitude*.root
-uv run convert_to_csv -i $(pwd)/all_data.root -o $(pwd)/data.csv --verbose
-
 # convert best fit results to csvs
-uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv --verbose
-uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_acceptance_corrected.csv -a --verbose
-uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments --verbose
+# first conversion include data file creation, and MINUIT covariance/correlation matrices
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best.csv --covariance --correlation --verbose
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_acceptance_corrected.csv -a --no-data --verbose
+uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --moments --no-data --verbose
 # uv run convert_to_csv -i $(pwd)/best_moment.fit -o $(pwd)/best_moment.csv
 
 # process random fits into subdirectory
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f fitPars_*.txt rand/    
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv --verbose
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a --verbose
-    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --verbose
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv --no-data --verbose
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a --no-data --verbose
+    uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --no-data --verbose
     # uv run convert_to_csv -i $(pwd)/rand/"$my_reaction"_moment*.fit -o $(pwd)/rand/rand_moment.csv    
     echo -e "\n\n==================================================\n
     Randomized fits have completed and been moved to the rand subdirectory\n\n"
@@ -274,9 +271,9 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     mv -f "$my_reaction"_.ni bootstrap/
     mv -f bootstrap_fit.cfg bootstrap/
     mv -f bootstrap_fit_moment.cfg bootstrap/
-    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv --verbose
-    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_acceptance_corrected.csv -a --verbose
-    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments --verbose
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv --no-data --verbose
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_acceptance_corrected.csv -a --no-data --verbose
+    uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments --no-data --verbose
     # uv run convert_to_csv -i $(pwd)/bootstrap/"$my_reaction"_moment*.fit -o $(pwd)/bootstrap/bootstrap_moment.csv
     
     echo -e "\n\n==================================================\nBootstrap fits have completed and been moved to the bootstrap subdirectory\n\n"
