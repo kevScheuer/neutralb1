@@ -75,13 +75,19 @@ class JobSubmitter:
 
         return job_id
 
-    def submit_data_job(self, config: PWAConfig, src_file: str, job_dir: str) -> str:
+    def submit_data_job(
+        self, config: PWAConfig, src_file: str, job_dir: str, file_name: str
+    ) -> str:
         """Submit a job to create cut data files.
 
         Args:
             config (PWAConfig): Configuration object.
             src_file (str): Source ROOT file path.
             job_dir (str): Directory where the job will run.
+            file_name (str): Name of the data file being processed to be added to log
+                directory name.
+        Returns:
+            str: Job ID of the submitted job.
         """
         job_name = job_dir.replace("/", "_")
 
@@ -117,6 +123,7 @@ class JobSubmitter:
 
         # Create directories
         log_dir = self._get_log_directory(config, job_dir)
+        log_dir = log_dir.replace("/log/", f"{file_name.replace('.root','')}/log/")
 
         job_id = self.submit_slurm_job(
             job_name,

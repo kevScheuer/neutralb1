@@ -153,7 +153,7 @@ class DataManager:
                             self._prepare_job_directory(dir)
                         try:
                             job_id = self.job_submitter.submit_data_job(
-                                config, src_file, dir
+                                config, src_file, dir, os.path.basename(src_file)
                             )
                         except Exception as e:
                             print(
