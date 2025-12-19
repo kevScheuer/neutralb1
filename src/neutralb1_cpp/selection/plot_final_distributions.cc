@@ -1196,6 +1196,34 @@ void plot_2d_angles(
     TH2F* h_Phi_phi_total = (TH2F*)h_Phi_phi_signal->Clone("h_Phi_phi_total");
     h_Phi_phi_total->Add(h_Phi_phi_sideband, -1.0);
     
+    // Set any negative bin contents to zero for better representation of holes
+    for(int binx = 1; binx <= h_theta_phi_total->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_theta_phi_total->GetNbinsY(); ++biny)
+        {
+            if (h_theta_phi_total->GetBinContent(binx, biny) < 0)
+                h_theta_phi_total->SetBinContent(binx, biny, 0);
+        }
+    }
+    
+    for(int binx = 1; binx <= h_theta_h_phi_h_total->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_theta_h_phi_h_total->GetNbinsY(); ++biny)
+        {
+            if (h_theta_h_phi_h_total->GetBinContent(binx, biny) < 0)
+                h_theta_h_phi_h_total->SetBinContent(binx, biny, 0);
+        }
+    }
+    
+    for(int binx = 1; binx <= h_Phi_phi_total->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_Phi_phi_total->GetNbinsY(); ++biny)
+        {
+            if (h_Phi_phi_total->GetBinContent(binx, biny) < 0)
+                h_Phi_phi_total->SetBinContent(binx, biny, 0);
+        }
+    }
+    
     // Style histograms
     h_theta_phi_total->SetTitle("");
     h_theta_phi_total->SetXTitle("cos(#theta)");
@@ -1299,6 +1327,34 @@ void plot_2d_acceptance(
     
     TH2F* h_Phi_phi_acceptance = (TH2F*)h_Phi_phi_acc->Clone("h_Phi_phi_acceptance");
     h_Phi_phi_acceptance->Divide(h_Phi_phi_gen);
+    
+    // Set any negative bin contents to zero for better representation of holes
+    for(int binx = 1; binx <= h_theta_phi_acceptance->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_theta_phi_acceptance->GetNbinsY(); ++biny)
+        {
+            if (h_theta_phi_acceptance->GetBinContent(binx, biny) < 0)
+                h_theta_phi_acceptance->SetBinContent(binx, biny, 0);
+        }
+    }
+    
+    for(int binx = 1; binx <= h_theta_h_phi_h_acceptance->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_theta_h_phi_h_acceptance->GetNbinsY(); ++biny)
+        {
+            if (h_theta_h_phi_h_acceptance->GetBinContent(binx, biny) < 0)
+                h_theta_h_phi_h_acceptance->SetBinContent(binx, biny, 0);
+        }
+    }
+    
+    for(int binx = 1; binx <= h_Phi_phi_acceptance->GetNbinsX(); ++binx)
+    {
+        for(int biny = 1; biny <= h_Phi_phi_acceptance->GetNbinsY(); ++biny)
+        {
+            if (h_Phi_phi_acceptance->GetBinContent(binx, biny) < 0)
+                h_Phi_phi_acceptance->SetBinContent(binx, biny, 0);
+        }
+    }
     
     // Style histograms
     h_theta_phi_acceptance->SetTitle("");
