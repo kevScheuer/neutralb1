@@ -223,8 +223,8 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     # echo "include bestFitPars_moment.txt" >> bootstrap_fit_moment.cfg
 
     # replace data reader with bootstrap version for just the "data" file    
-    sed -i -e '/data/s/FSROOTDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit.cfg
-    # sed -i -e '/data/s/FSROOTDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit_moment.cfg
+    sed -i -e '/data/s/FSRootDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit.cfg
+    # sed -i -e '/data/s/FSRootDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit_moment.cfg
     # TODO: do we want to bootstrap background as well?
 
     all_amplitude_bootstrap_start_time=$(date +%s)
