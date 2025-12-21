@@ -145,12 +145,12 @@ hadd -f vecps_plot.root vecps_plot_*.root
 vecps_files=(./vecps_plot_*.root)
 for file in "${vecps_files[@]}"; do
     [ -e "$file" ] || continue    
-    angle_plotter -f "$file" --gluex-style
+    angle_plotter -f "$file"
     # name the pdf files according to the reaction
     pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
     mv angles.pdf "angles_$pol_angle.pdf"
 done
-angle_plotter -f ./vecps_plot.root --gluex-style
+angle_plotter -f ./vecps_plot.root
 mv vecps_plot*.root ./distributions/
 mv *.pdf ./distributions/
 
@@ -164,13 +164,13 @@ mv *.pdf ./distributions/
 #         continue
 #     fi
 #     [ -e "$file" ] || continue
-#     angle_plotter -f "$file" --gluex-style
+#     angle_plotter -f "$file"
 #     pol_angle=$(basename "$file" | sed -E 's/vecps_plot_(.*)\.root/\1/')
 #     mv angles.pdf "angles_moment_$pol_angle.pdf"
 #     # now rename the root files to not interfere with the amplitude ones
 #     mv "$file" "$(basename "$file" .root)_moment.root"
 # done
-# angle_plotter -f ./vecps_plot_moment.root --gluex-style
+# angle_plotter -f ./vecps_plot_moment.root
 # mv angles.pdf angles_moment.pdf
 # mv vecps_plot*.root ./distributions/
 # mv *.pdf ./distributions/

@@ -1,20 +1,22 @@
-/*Plot fit results for angular distributions and other variables of interest
+/**
+ * @file angle_plotter.cc
+ * @author Kevin Scheuer
+ * @brief Plot data + fit angular distributions and mass variables from PWA
+ * 
+ * There's no simple way to place these results with the .csv of all the other amplitude
+ * fit results, so this script handles their plotting. The primary use of these is for
+ * diagnostic purposes, to check that the grey "Fit Result" reasonably matches the black
+ * data points. Each total J^P contribution is also plotted, to observe any interference
+ * effects those waves create.
 
-There's no simple way to place these results with the .csv of all the other amplitude
-fit results, so this script handles their plotting. The primary use of these is for
-diagnostic purposes, to check that the grey "Fit Result" reasonably matches the black
-data points. Each total J^P contribution is also plotted, to observe any interference
-effects those waves create.
-
-Usage: angle_plotter [file_path] [data_title] [output_dir] [--gluex-style]
-  file_path:  Full path to the ROOT file (default: "./vecps_plot.root")
-  data_title: Title for data in legend (default: "GlueX Data")
-  output_dir: Directory to save PDF files (default: current directory)
-  --gluex-style: Apply GlueX collaboration style (optional)
-
-Output PDFs will be saved in the current directory or specified output directory.
-
-*/
+ * Usage: angle_plotter [file_path] [data_title] [output_dir]
+ * file_path:  Full path to the ROOT file (default: "./vecps_plot.root")
+ * data_title: Title for data in legend (default: "GlueX Data")
+ * output_dir: Directory to save PDF files (default: current directory) 
+ *
+ * Output PDFs will be saved in the current directory or specified output directory.
+ * 
+ */
 
 #include <iostream>
 #include <regex>
@@ -56,17 +58,15 @@ int main(int argc, char *argv[])
 {
     std::string file_path = "./vecps_plot.root";
     std::string data_title = "GlueX Data";
-    std::string output_dir = "./";
-    bool use_gluex_style = false;
+    std::string output_dir = "./";    
 
     // Help message
     auto print_help = []()
     {
-        std::cout << "Usage: angle_plotter [-f file_path] [-l legend_title] [-o output_dir] [--gluex-style]\n"
+        std::cout << "Usage: angle_plotter [-f file_path] [-l legend_title] [-o output_dir]\n"
                   << "  -f file_path:     Full path to the ROOT file (default: ./vecps_plot.root)\n"
                   << "  -l legend_title:  Title for data in legend (default: GlueX Data)\n"
                   << "  -o output_dir:    Directory to save PDF files (default: current directory)\n"
-                  << "  --gluex-style:    Apply GlueX collaboration style (optional)\n"
                   << "  -h, --help:       Show this help message\n";
     };
 
@@ -79,8 +79,6 @@ int main(int argc, char *argv[])
             print_help();
             return 0;
         }
-        else if (arg == "--gluex-style")
-            use_gluex_style = true;
         else if ((arg == "-f" || arg == "--file-path") && i + 1 < argc)
             file_path = argv[++i];
         else if ((arg == "-l" || arg == "--legend-title") && i + 1 < argc)
@@ -101,12 +99,6 @@ int main(int argc, char *argv[])
         output_dir += "/";
     }
 
-    // Conditionally load and apply GlueX style
-    if (use_gluex_style)
-    {
-        gROOT->ProcessLine(".L glueXstyle.C");
-        gROOT->ProcessLine("gluex_style();");
-    }
     gStyle->SetOptStat(0); // force stats box off
 
     TFile *f = TFile::Open(file_path.c_str());
@@ -240,6 +232,20 @@ TCanvas *summary_plot(TFile *f, TString data_title)
         hfit->Draw("same HIST");
         if (plot_count == 0)
             leg1->AddEntry(hfit, "Fit Result", "f");
+
+        // next, if a background file is present, plot it
+        TH1F *hbkgd = (TH1F *)f->Get(distribution + "bkgd");
+        if (hbkgd)
+        {
+            hbkgd->SetLineColor(kRed);
+            hbkgd->SetLineWidth(1);
+            hbkgd->SetMarkerStyle(0);
+            hbkgd->SetFillStyle(1001);   
+            hbkgd->SetFillColorAlpha(kRed, 0.3);         
+            hbkgd->Draw("same HIST");
+            if (plot_count == 0)
+                leg1->AddEntry(hbkgd, "Background", "l");
+        }
 
         // now we can loop through the JP contributions and plot them
         for (const TString &jp : jp_keys)
@@ -518,7 +524,7 @@ const std::map<TString, JP_props> create_jp_map()
     std::vector<TColor *> custom_colors = create_custom_colors();
 
     const std::map<TString, JP_props> jp_map = {
-        {"Bkgd", JP_props{"Bkgd", custom_colors[0], 1}},
+        {"Bkgd", JP_props{"Iso. Bkgd", custom_colors[0], 1}},
         {"0m", JP_props{"#[]{0^{#minus}}^{(#pm)} (P)", custom_colors[1], 5}},
         {"1p", JP_props{"#[]{1^{#plus}}^{(#pm)} (S+D)", custom_colors[2], 20}},
         {"1m", JP_props{"#[]{1^{#minus}}^{(#pm)} (P)", custom_colors[3], 21}},
