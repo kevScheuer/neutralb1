@@ -234,7 +234,7 @@ TCanvas *summary_plot(TFile *f, TString data_title)
             leg1->AddEntry(hfit, "Fit Result", "f");
 
         // next, if a background file is present, plot it
-        TH1F *hbkgd = (TH1F *)f->Get(distribution + "bkgd");
+        TH1F *hbkgd = (TH1F *)f->Get(distribution + "bkgnd");
         if (hbkgd)
         {
             hbkgd->SetLineColor(kRed);
