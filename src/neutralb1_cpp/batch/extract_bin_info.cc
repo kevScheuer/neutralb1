@@ -148,15 +148,21 @@ int main(int argc, char *argv[])
             // fill the file histograms, and include weight if applicable
             if (background_files.empty())
             {
-                tree->Draw((t_branch + ">>h_t").c_str(), weight_branch.c_str(), "goff");
-                tree->Draw((beamE_branch + ">>h_e").c_str(), weight_branch.c_str(), "goff");
-                tree->Draw((mass_branch + ">>h_m").c_str(), weight_branch.c_str(), "goff");            
+                tree->Draw((t_branch + ">>h_t(100, 0.0, 1.0)").c_str(), weight_branch.c_str(), "goff");
+                h_t = (TH1D*)gDirectory->Get("h_t");
+                tree->Draw((beamE_branch + ">>h_e(100, 8.2, 8.8)").c_str(), weight_branch.c_str(), "goff");
+                h_e = (TH1D*)gDirectory->Get("h_e");
+                tree->Draw((mass_branch + ">>h_m(100, 1.0, 2.0)").c_str(), weight_branch.c_str(), "goff");            
+                h_m = (TH1D*)gDirectory->Get("h_m");
             }
             else
             {
-                tree->Draw((t_branch + ">>h_t").c_str(), "", "goff");
-                tree->Draw((beamE_branch + ">>h_e").c_str(), "", "goff");
-                tree->Draw((mass_branch + ">>h_m").c_str(), "", "goff");            
+                tree->Draw((t_branch + ">>h_t(100, 0.0, 1.0)").c_str(), "", "goff");
+                h_t = (TH1D*)gDirectory->Get("h_t");
+                tree->Draw((beamE_branch + ">>h_e(100, 8.2, 8.8)").c_str(), "", "goff");
+                h_e = (TH1D*)gDirectory->Get("h_e");
+                tree->Draw((mass_branch + ">>h_m(100, 1.0, 2.0)").c_str(), "", "goff");    
+                h_m = (TH1D*)gDirectory->Get("h_m");        
             }
 
             if (!h_t || !h_m || !h_e)
@@ -166,15 +172,26 @@ int main(int argc, char *argv[])
 
             // Add current histograms to the total histograms
             if (!h_t_total)
+            {
                 h_t_total = (TH1D *)h_t->Clone("h_t_total");
+                h_t_total->SetDirectory(0); // detach from file
+            }
             else
                 h_t_total->Add(h_t);
             if (!h_e_total)
+            {
                 h_e_total = (TH1D *)h_e->Clone("h_e_total");
+                h_e_total->SetDirectory(0); // detach from file
+            }
             else
+            {
                 h_e_total->Add(h_e);
+            }
             if (!h_m_total)
+            {
                 h_m_total = (TH1D *)h_m->Clone("h_m_total");
+                h_m_total->SetDirectory(0); // detach from file
+            }
             else
                 h_m_total->Add(h_m);
 
@@ -206,9 +223,12 @@ int main(int argc, char *argv[])
                     exit(1);
                 }
 
-                tree->Draw("t>>h_t", weight_branch.c_str(), "goff");
-                tree->Draw((beamE_branch + ">>h_e").c_str(), weight_branch.c_str(), "goff");
-                tree->Draw((mass_branch + ">>h_m").c_str(), weight_branch.c_str(), "goff");
+                tree->Draw((t_branch + ">>h_t(100, 0.0, 1.0)").c_str(), weight_branch.c_str(), "goff");
+                h_t = (TH1D*)gDirectory->Get("h_t");
+                tree->Draw((beamE_branch + ">>h_e(100, 8.2, 8.8)").c_str(), weight_branch.c_str(), "goff");
+                h_e = (TH1D*)gDirectory->Get("h_e");
+                tree->Draw((mass_branch + ">>h_m(100, 1.0, 2.0)").c_str(), weight_branch.c_str(), "goff");
+                h_m = (TH1D*)gDirectory->Get("h_m");
 
                 if (!h_t || !h_m || !h_e)
                 {

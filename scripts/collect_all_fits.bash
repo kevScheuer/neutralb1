@@ -4,7 +4,7 @@
 # Expects the following directory structure created by neutralb1.batch.submit
 #   -t bin
 #     - mass_X.YY bins
-#       - primary fit results (best.csv, data.csv, etc.)
+#       - primary fit results (best.csv, best_data.csv, etc.)
 #           - bootstrap fit results
 #           - randomized fit results
 
@@ -75,9 +75,9 @@ fi
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ "$force_overwrite" == "true" ]; then
-    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/data.csv -o ${output_dir}/data.csv $preview
+    python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best_data.csv -o ${output_dir}/best_data.csv $preview
 else
-    echo "Skipping data.csv collection"
+    echo "Skipping best_data.csv collection"
 fi
 if [ "$force_overwrite" == "true" ]; then
     python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/best.csv -o ${output_dir}/best.csv $preview

@@ -74,9 +74,8 @@ def main() -> int:
         temp_file_path = temp_file.name
     print(f"Temp file created at {temp_file_path}")
 
-    # convert this flag into bool integers for the c++ script to interpret
+    # convert flags into bool integers for the c++ scripts to interpret
     is_acceptance_corrected = 1 if args["acceptance_corrected"] else 0
-    # extract_data is 1 by default, unless --no-data is passed
     extract_data = 0 if args["no_data"] else 1
 
     # setup c++ command with appropriate arguments
