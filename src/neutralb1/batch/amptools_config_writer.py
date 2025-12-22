@@ -406,8 +406,8 @@ class AmpToolsConfigWriter:
 
         # the phasespace files are the same for each orientation
         cfg_file.write(
-            f"loop LOOPGENMC {'phasespace.root ' * len(orientations)} \n"
-            f"loop LOOPACCMC {'gen_phasespace.root ' * len(orientations)} \n"
+            f"loop LOOPGENMC {'gen_phasespace.root ' * len(orientations)} \n"
+            f"loop LOOPACCMC {'phasespace.root ' * len(orientations)} \n"
             f"loop LOOPDATA{loop_data_str}\n"
             f"loop LOOPBKG{loop_bkg_str}\n"
         )
