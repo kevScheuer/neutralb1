@@ -2,7 +2,7 @@
  * @file angle_plotter.cc
  * @author Kevin Scheuer
  * @brief Plot data + fit angular distributions and mass variables from PWA
- * 
+ *
  * There's no simple way to place these results with the .csv of all the other amplitude
  * fit results, so this script handles their plotting. The primary use of these is for
  * diagnostic purposes, to check that the grey "Fit Result" reasonably matches the black
@@ -12,10 +12,10 @@
  * Usage: angle_plotter [file_path] [data_title] [output_dir]
  * file_path:  Full path to the ROOT file (default: "./vecps_plot.root")
  * data_title: Title for data in legend (default: "GlueX Data")
- * output_dir: Directory to save PDF files (default: current directory) 
+ * output_dir: Directory to save PDF files (default: current directory)
  *
  * Output PDFs will be saved in the current directory or specified output directory.
- * 
+ *
  */
 
 #include <iostream>
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 {
     std::string file_path = "./vecps_plot.root";
     std::string data_title = "GlueX Data";
-    std::string output_dir = "./";    
+    std::string output_dir = "./";
 
     // Help message
     auto print_help = []()
@@ -110,7 +110,6 @@ int main(int argc, char *argv[])
 
     TCanvas *summary_canvas = summary_plot(f, data_title);
     std::map<std::string, TCanvas *> amp_canvases = amplitude_plots(f);
-    TCanvas *test_canvas = summary_plot(f, data_title);
 
     TString pdf_path = output_dir + "angles.pdf";
 
@@ -119,9 +118,11 @@ int main(int argc, char *argv[])
     {
         const std::string &amp = it->first;
         TCanvas *canvas = it->second;
-        canvas->Print(pdf_path, Form("Title:%s", amp.c_str()));
+        if (std::next(it) == amp_canvases.end())
+            canvas->Print(pdf_path + ")", Form("Title:%s", amp.c_str()));
+        else
+            canvas->Print(pdf_path, Form("Title:%s", amp.c_str()));
     }
-    test_canvas->Print(pdf_path + ")", "Title:Last Plot");
 
     plot2D(f, output_dir);
 
@@ -212,10 +213,35 @@ TCanvas *summary_plot(TFile *f, TString data_title)
         hdat->SetTitleSize(0.08, "xy");
         hdat->SetTitleOffset(0.88, "x");
         hdat->SetTitleOffset(1.0, "y");
-        hdat->SetMinimum(0);
         hdat->SetMarkerStyle(20);
         hdat->SetMarkerSize(0.5);
+
+        // before drawing, if a background file is present, subtract it from the data
+        TH1F *hbkgd = (TH1F *)f->Get(distribution + "bkgnd");
+        if (hbkgd)
+        {
+            hdat->Add(hbkgd, -1.0);
+            hdat->SetMinimum(hbkgd->GetMaximum() * -1.1);
+
+            hbkgd->SetLineColor(kRed);
+            hbkgd->SetLineWidth(1);
+            hbkgd->SetMarkerStyle(0);
+            hbkgd->SetFillStyle(1001);
+            hbkgd->SetFillColorAlpha(kRed, 0.3);
+            // flip background to negative values for visual distinction
+            hbkgd->Scale(-1.0);
+
+            if (plot_count == 0)
+                leg1->AddEntry(hbkgd, "Background", "l");
+        }
+        else
+        {
+            hdat->SetMinimum(0);
+        }
         hdat->Draw();
+        if (hbkgd)
+            hbkgd->Draw("same HIST");
+
         if (plot_count == 0)
             leg1->AddEntry(hdat, data_title, "ep");
 
@@ -232,20 +258,6 @@ TCanvas *summary_plot(TFile *f, TString data_title)
         hfit->Draw("same HIST");
         if (plot_count == 0)
             leg1->AddEntry(hfit, "Fit Result", "f");
-
-        // next, if a background file is present, plot it
-        TH1F *hbkgd = (TH1F *)f->Get(distribution + "bkgnd");
-        if (hbkgd)
-        {
-            hbkgd->SetLineColor(kRed);
-            hbkgd->SetLineWidth(1);
-            hbkgd->SetMarkerStyle(0);
-            hbkgd->SetFillStyle(1001);   
-            hbkgd->SetFillColorAlpha(kRed, 0.3);         
-            hbkgd->Draw("same HIST");
-            if (plot_count == 0)
-                leg1->AddEntry(hbkgd, "Background", "l");
-        }
 
         // now we can loop through the JP contributions and plot them
         for (const TString &jp : jp_keys)
