@@ -51,9 +51,6 @@ class DataManager:
         # Extract energy range
         energy_min, energy_max = config.data.energy
 
-        # Track what files need to be copied to what directories on volatile
-        src_files_to_copy_to_dir = {}
-
         # If user wants to skip being asked about every job submission,
         # this will become True
         skip_input = False
@@ -61,6 +58,9 @@ class DataManager:
         job_ids = []
 
         for run_period in config.data.run_periods:
+            # Track what files need to be copied to what directories on volatile
+            src_files_to_copy_to_dir = {}
+
             # Find generated phasespace file
             gen_file = (
                 f"{config.data.phasespace_dir}/{run_period}"
