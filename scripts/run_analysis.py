@@ -66,7 +66,7 @@ def main() -> int:
         # read in collected csv files
         ac_str = "_acceptance_corrected" if args["acceptance_corrected"] else ""
         fit_df = pd.read_csv(f"{args['output']}/raw/best{ac_str}.csv")
-        data_df = pd.read_csv(f"{args['output']}/raw/data.csv")
+        data_df = pd.read_csv(f"{args['output']}/raw/best_data.csv")
 
         # following ones are optional
         proj_moments_df = (
