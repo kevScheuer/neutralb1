@@ -136,7 +136,7 @@ class ResultManager:
             )
             return
 
-        # warn of missing values in the DataFrames
+        print("Checking for null values in DataFrames...")
         if preprocessing.find_null_columns(self.fit_df):
             warnings.warn(
                 "The fit DataFrame contains null values. Consider checking the "
@@ -229,7 +229,8 @@ class ResultManager:
                 UserWarning,
             )
 
-        # link the DataFrames together by adding a 'fit_index' column
+        # link dataframes by their fit_index columns
+        print("Linking DataFrames...")
         self.data_df = preprocessing.link_dataframes(
             self.fit_df, self.data_df, 1  # expected to be fit sibling
         )
@@ -263,6 +264,7 @@ class ResultManager:
             )
 
         # convert unbound phase columns in radians to degrees from -180 to 180
+        print("Wrapping phase columns...")
         self.fit_df = preprocessing.wrap_phases(self.fit_df)
         self.data_df = preprocessing.wrap_phases(self.data_df)
         if self.randomized_df is not None:
@@ -288,6 +290,7 @@ class ResultManager:
             self.truth_df = preprocessing.wrap_phases(self.truth_df)
 
         # Remove projected moment columns expected to be 0
+        print("Filtering projected moment columns...")
         if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.filter_projected_moments(
                 self.proj_moments_df
@@ -305,7 +308,7 @@ class ResultManager:
                 self.truth_proj_moments_df
             )
 
-        # remove real/imaginary suffixes from projected moment columns
+        print("Removing real/imaginary suffixes from projected moment columns...")
         if self.proj_moments_df is not None:
             self.proj_moments_df = preprocessing.remove_real_imag_suffixes(
                 self.proj_moments_df
@@ -323,7 +326,7 @@ class ResultManager:
                 self.truth_proj_moments_df
             )
 
-        # standardize types across DataFrames to save memory
+        print("Standardizing DataFrame types...")
         self.fit_df = preprocessing.standardize_fit_types(self.fit_df)
         self.data_df = preprocessing.standardize_data_types(self.data_df)
         if self.randomized_df is not None:
@@ -349,7 +352,7 @@ class ResultManager:
                 self.truth_proj_moments_df
             )
 
-        # align phase difference names across DataFrames
+        print("Aligning phase difference names across DataFrames...")
         if self.randomized_df is not None:
             self.randomized_df = preprocessing.align_phase_difference_names(
                 self.fit_df, self.randomized_df
