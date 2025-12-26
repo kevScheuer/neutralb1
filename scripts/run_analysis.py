@@ -39,6 +39,12 @@ def main() -> int:
         with open(args["input"], "rb") as f:
             data = pickle.load(f)
         result = ResultManager(**data)
+        ac_str = (
+            "_acceptance_corrected"
+            if result.plot.intensity.is_fit_acceptance_corrected
+            else ""
+        )
+        print("Loaded preprocessed results from pickle file.")
     else:
         # collect raw csv files
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -130,7 +136,7 @@ def main() -> int:
         print("Skipping plotting as per --no-plots flag.")
         return 0
     print("Generating standard plots...")
-    save_standard_plots(result, args["output"])
+    save_standard_plots(result, args["output"], ac_str)
     print("Plotting completed.")
 
     # If input was a t-bin directory (not a .pkl file), also stitch angle PDFs
@@ -141,12 +147,13 @@ def main() -> int:
     return 0
 
 
-def save_standard_plots(result: ResultManager, output_dir: str) -> None:
+def save_standard_plots(result: ResultManager, output_dir: str, ac_str: str) -> None:
     """Generate and save standard plots using the provided ResultManager.
 
     Args:
         result (ResultManager): The ResultManager instance containing fit results.
         output_dir (str): Directory to save the generated plots.
+        ac_str (str): Suffix indicating if acceptance-corrected results are used.
 
     Returns:
         None, just saves plot pdfs to output_dir.
@@ -159,20 +166,20 @@ def save_standard_plots(result: ResultManager, output_dir: str) -> None:
     # Intensity plots
     intensity = result.plot.intensity
     intensity.jp()
-    plt.gcf().savefig(f"{output_dir}/plots/jp.pdf", bbox_inches="tight")
+    plt.gcf().savefig(f"{output_dir}/plots/jp{ac_str}.pdf", bbox_inches="tight")
 
     intensity.waves()
-    plt.gcf().savefig(f"{output_dir}/plots/waves.pdf", bbox_inches="tight")
+    plt.gcf().savefig(f"{output_dir}/plots/waves{ac_str}.pdf", bbox_inches="tight")
 
     if result.proj_moments_df is not None:
         intensity.moments()
-        plt.gcf().savefig(f"{output_dir}/plots/proj_moments.pdf", bbox_inches="tight")
-
+        plt.gcf().savefig(
+            f"{output_dir}/plots/proj_moments{ac_str}.pdf", bbox_inches="tight"
+        )
     # Diagnostic plots
     diagnostic = result.plot.diagnostic
     diagnostic.matrix()
-    plt.gcf().savefig(f"{output_dir}/plots/matrix.pdf", bbox_inches="tight")
-
+    plt.gcf().savefig(f"{output_dir}/plots/matrix{ac_str}.pdf", bbox_inches="tight")
     return
 
 
