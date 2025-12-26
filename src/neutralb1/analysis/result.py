@@ -45,6 +45,10 @@ class ResultManager:
             preprocessed. It's unlikely that the user would set this to True. Main
             purpose is tracking if preprocessing has been done when loading from a
             pickle file. Defaults to False.
+
+    todo:
+        - Add methods for calculating correlations / covariances from the fit results
+            and storing them internally. Allows dsratio correlation plot to work.
     """
 
     def __init__(
