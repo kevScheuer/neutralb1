@@ -21,7 +21,6 @@ class IntensityPlotter(BasePWAPlotter):
             matplotlib.axes.Axes: The axes object for further customization.
 
         Todo:
-            - Add option to plot with MINUIT or bootstrap errors
             - Handle very small mismatch between data widths and bar widths
         """
 
@@ -146,8 +145,6 @@ class IntensityPlotter(BasePWAPlotter):
 
         Raises:
             ValueError: If no wave amplitudes are found in the fit results.
-        Todo:
-            - create space for legend in upper right corner
         """
 
         # Validate that we have wave data to plot

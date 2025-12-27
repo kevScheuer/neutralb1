@@ -19,17 +19,26 @@ class DiagnosticPlotter(BasePWAPlotter):
     """
 
     def ds_ratio(
-        self, show_e852_reference: bool = True, figsize: tuple = (10, 8)
+        self,
+        show_e852_reference: bool = True,
+        figsize: tuple = (10, 8),
+        exclude_waves=None,
     ) -> matplotlib.axes.Axes | np.ndarray:
         """Plot the ratio and phase between D and S waves.
 
-        Creates either a correlation plot (if dsratio is defined) or separate ratio/phase
-        plots, comparing fit results to E852 reference values when requested.
+        Creates either a correlation plot (if dsratio is defined) or separate
+        ratio/phase plots, comparing fit results to E852 reference values when
+        requested.
 
         Args:
             show_e852_reference (bool): Whether to show E852 reference lines.
                 Defaults to True.
             figsize (tuple): Figure size in inches (width, height). Defaults to (10, 8).
+            exclude_waves (list): List of wave names to exclude from D/S ratio
+                calculation in the case of an undefined dsratio parameter. If either the
+                S or D wave from a reflectivity + m-projection pair is in this list,
+                that pair will be excluded e.g. ["p1ppS"] also excludes "p1ppD".
+                Defaults to None.
 
         Returns:
             matplotlib.axes.Axes | np.ndarray: Single axes object or array of axes
@@ -62,8 +71,16 @@ class DiagnosticPlotter(BasePWAPlotter):
                 show_e852_reference, e852_ratio, e852_phase, figsize
             )
         else:
+            if exclude_waves is None:
+                exclude_waves = []
             return self._plot_ds_ratio_from_amplitudes(
-                d_waves, s_waves, show_e852_reference, e852_ratio, e852_phase, figsize
+                d_waves,
+                s_waves,
+                show_e852_reference,
+                e852_ratio,
+                e852_phase,
+                figsize,
+                exclude_waves,
             )
 
     def _plot_ds_ratio_with_correlation(
@@ -214,16 +231,9 @@ class DiagnosticPlotter(BasePWAPlotter):
         e852_ratio: float,
         e852_phase: float,
         figsize: tuple,
+        exclude_waves: list,
     ) -> np.ndarray:
-        """Plot D/S ratio calculated from individual amplitudes.
-
-        Todo:
-            - Implement bootstrap errors for ratio calculation.
-            - Very messy and difficult to read plot. Needs improvement, though still
-                helpful as it visualizes correlation as a function of mass. Would be
-                nice to compare bootstrap correlation value in each bin to visual
-                correlation across bins.
-        """
+        """Plot D/S ratio calculated from individual amplitudes."""
 
         # Marker and color maps for different quantum numbers
         marker_map = {"q": "h", "p": "^", "0": ".", "m": "v", "n": "s"}
@@ -279,6 +289,8 @@ class DiagnosticPlotter(BasePWAPlotter):
             s_wave = d_wave[:-1] + "S"
             if s_wave not in s_waves:
                 continue
+            if d_wave in exclude_waves or s_wave in exclude_waves:
+                continue
 
             # Extract quantum numbers for styling
             epsilon = d_wave[0]  # reflectivity
@@ -296,7 +308,11 @@ class DiagnosticPlotter(BasePWAPlotter):
                 continue  # Skip if phase difference not available
 
             phase = self.fit_df[phase_dif_name]
-            phase_err = self.fit_df[f"{phase_dif_name}_err"].abs()
+            phase_err = (
+                self.get_bootstrap_error(phase_dif_name)
+                if self.bootstrap_df is not None
+                else self.fit_df[f"{phase_dif_name}_err"].abs()
+            )
 
             # Create label
             label = utils.convert_amp_name(d_wave).replace("D", "(D/S)")
@@ -345,31 +361,25 @@ class DiagnosticPlotter(BasePWAPlotter):
             )
 
             # Plot correlation (ratio vs phase)
-            ax_corr.errorbar(
-                x=ratio,
-                xerr=ratio_err,
-                y=phase,
-                yerr=phase_err,
+            ax_corr.plot(
+                ratio,
+                phase,
                 marker=marker_map[m],
                 color=color_map[epsilon],
                 linestyle="",
                 markersize=6,
-                capsize=2,
                 label=label,
             )
 
             # Plot sign ambiguity on correlation plot
-            ax_corr.errorbar(
-                x=ratio,
-                xerr=ratio_err,
-                y=-phase,
-                yerr=phase_err,
+            ax_corr.plot(
+                ratio,
+                -phase,
                 marker=marker_map[m],
                 color=color_map[epsilon],
                 linestyle="",
                 markersize=6,
                 alpha=0.6,
-                capsize=2,
             )
 
         # Configure left subplot axes
@@ -399,8 +409,16 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Calculate ratio using square roots (amplitude ratios)
         d_intensity = self.fit_df[d_wave]
         s_intensity = self.fit_df[s_wave]
-        d_err = self.fit_df[f"{d_wave}_err"]
-        s_err = self.fit_df[f"{s_wave}_err"]
+        d_err = (
+            self.get_bootstrap_error(d_wave)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{d_wave}_err"]
+        )
+        s_err = (
+            self.get_bootstrap_error(s_wave)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{s_wave}_err"]
+        )
 
         # Avoid division by zero
         safe_d = np.where(d_intensity == 0, np.finfo(float).eps, d_intensity)

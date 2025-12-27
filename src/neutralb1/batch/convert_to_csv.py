@@ -8,7 +8,6 @@ a. The covariance and correlation matrices are also included in separate .csv fi
 Behind the scenes, this runs compiled c++ scripts for either situation.
 
 Todo:
-    - Eventually, the fit converter should simply include the needed data info in it
     - return codes are overwritten and so won't communicate errors properly
 """
 
