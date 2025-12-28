@@ -1,80 +1,238 @@
 from typing import List, Optional
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import scipy.stats
+from matplotlib.backends.backend_pdf import PdfPages
 
 import neutralb1.utils as utils
 
-# TODO: complete this function. Uses old variables from old Plotter class
-# def normality_test(
-#     self,
-#     columns: Optional[List[str]] = None,
-#     method: Optional[Literal["None", "normal", "log_normal"]] = None,
-# ) -> None:
-#     """
-#     Shapiro-wilkes for parameters and amplitudes. Log-transform the amps near zero.
-#     Use other method for circular (phase) data.
 
-#     """
-#     if self.bootstrap_df is None:
-#         raise ValueError("Bootstrap df was not defined on instantiation")
+def normality_test(
+    fit_df: pd.DataFrame,
+    bootstrap_df: pd.DataFrame,
+    columns: List[str],
+    alpha: float = 0.05,
+    output: str = "./normality_test_results.pdf",
+    transform_small_amps: bool = True,
+    small_amp_threshold: float = 0.05,
+    skew_threshold: float = 1.0,
+    n_mc_samples: int = 1000,
+) -> None:
+    """Test normality of bootstrap distributions for specified columns.
 
-#     # PLAN: loop over the fit indices of the bootstrap df and calculate the test.
-#     # Those that don't pass, or whose bootstrap mean is too far from the fit
-#     # result's are plotted in big pdf. There should be indicators for the fit mean
-#     # value on the QQ plot, and whether it failed due to p value or mean
+    This function handles 3 cases:
+    1. Circular data (phase differences): uses the von Mises distribution for testing.
+    2. Amplitude data: if the distribution is highly skewed and the fit fraction
+        is small, this means the amplitude is affected by the boundary at zero. In this
+        case, we log-transform the data before testing for normality. This is configured
+        via the `transform_small_amps`, `small_amp_threshold`, and `skew_threshold`
+        parameters. Uses the Shapiro-Wilk test for normality.
+    3. Regular data: uses the Shapiro-Wilk test for normality.
 
-#     fit_indices = self.bootstrap_df["fit_index"].unique()
+    Args:
+        fit_df (pd.DataFrame): DataFrame containing nominal fit results.
+        bootstrap_df (pd.DataFrame): DataFrame containing bootstrap fit results.
+        columns (List[str]): List of column names to test for normality.
+        alpha (float, optional): Significance level for normality tests.
+            Defaults to 0.05.
+        output (str, optional): Path to output PDF file for plots of failed tests.
+            Defaults to "./normality_test_results.pdf".
+        transform_small_amps (bool, optional): Whether to log-transform "small"
+            amplitude distributions before testing for normality. Defaults to True.
+        small_amp_threshold (float, optional): Threshold for fit fraction below which
+            amplitudes are considered small. Defaults to 0.05.
+        skew_threshold (float, optional): Skewness threshold above which amplitude
+            distributions that are also "small" will be log-transformed before testing.
+            Defaults to 1.0.
+        n_mc_samples (int, optional): Number of Monte Carlo samples for circular
+            normality test. Increasing will increase accuracy but also computation time.
+            Defaults to 1000.
+    Raises:
+        KeyError: If any specified column is not found in either DataFrame.
+        ValueError: If phase difference values are not within [-180, 180] degrees.
+        TypeError: If amplitude fit value or number of events are not numeric types.
+    Returns:
+        None: Generates a PDF file with probability plots for failed normality tests.
 
-#     # add the amplitudes and phase differences to the columns to be tested
-#     columns = columns if columns is not None else []
-#     columns.extend(self.coherent_sums["eJPmL"])
-#     columns.extend(set(self.phase_differences.values()))
+    Todo:
+        - Within each subplot, in a "best" location, show the fitted distribution and
+            the density bootstrap histogram for visual comparison.
+    """
 
-#     failed_dict = {}  # to store {fit_index: {column : [mean, p-value]}}
-#     for fit_index in fit_indices:
-#         for col in columns:
-#             if col in set(self.phase_differences.values()):
-#                 # do circular data test. Take absolute value because we have no way
-#                 # to distinguish positive vs negative values
-#                 pass
+    # check that columns exist in both dataframes
+    for col in columns:
+        if col not in fit_df.columns:
+            raise KeyError(f"Column {col} not found in fit_df")
+        if col not in bootstrap_df.columns:
+            raise KeyError(f"Column {col} not found in bootstrap_df")
 
-#             elif any(col in sublist for sublist in self.coherent_sums.values()):
-#                 # do normality test on amplitudes
-#                 # log-transform the amps near zero
-#                 # type: ignore or type annotation for pylance
-#                 amp_values = self.bootstrap_df.loc[
-#                     self.bootstrap_df["fit_index"] == fit_index
-#                 ][col]
+    # if the dataframe has amplitudes or phase differences, we'll want to adjust our
+    # tests accordingly
+    phases = utils.get_phase_differences(fit_df)
+    coherent_sums = utils.get_coherent_sums(fit_df)
 
-#                 # log-transform if col is near zero
-#                 # use rel distance to minimum test to determine if near zero
-#                 # TODO: finish this
+    failed_dict = {}  # to store {fit_index: {column : p_value}}
+    for fit_index in bootstrap_df["fit_index"].unique():
+        for col in columns:
+            values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
 
-#                 # perform normality test
-#                 stat, p_value = scipy.stats.shapiro(amp_values)
-#                 if p_value < 0.05:
-#                     failed_dict.setdefault(fit_index, {})[col] = [
-#                         amp_values.mean(),
-#                         p_value,
-#                     ]
+            if col in phases:
+                # do circular data test
+                if values.max() > 180.0 or values.min() < -180.0:
+                    raise ValueError("phase difference values must be within [-pi, pi]")
 
-#             else:
-#                 # do normality test as usual
-#                 values = self.bootstrap_df.loc[
-#                     self.bootstrap_df["fit_index"] == fit_index
-#                 ][col]
+                values_rad = np.deg2rad(values.to_numpy())
+                loc = scipy.stats.circmean(values_rad, high=np.pi, low=0)
+                res = scipy.stats.goodness_of_fit(
+                    scipy.stats.vonmises,
+                    values_rad,
+                    fit_params={"loc": loc},
+                    statistic="cvm",
+                    n_mc_samples=n_mc_samples,
+                )
+                p_value = res.pvalue
 
-#                 # perform normality test
-#                 stat, p_value = scipy.stats.shapiro(values)
-#                 if p_value < 0.05:
-#                     failed_dict.setdefault(fit_index, {})[col] = [
-#                         values.mean(),
-#                         p_value,
-#                     ]
+            elif any(col in sublist for sublist in coherent_sums.values()):
+                # if the amplitude is highly skewed and near zero, its distribution
+                # will be affected by the boundary at zero. In that case, we can try
+                # to log-transform the data to better test for normality.
+                skew = scipy.stats.skew(values)
 
-#     # PLAN: here we'll loop over the failed ones and plot probdists
+                fit_val = fit_df.loc[fit_index, col]
+                num_events = fit_df.loc[fit_index, "detected_events"]
+                if not isinstance(fit_val, (int, float)) or not isinstance(
+                    num_events, (int, float)
+                ):
+                    raise TypeError(
+                        "amplitude fit value and number of events must be numeric types"
+                    )
+                fit_fraction = fit_val / num_events
 
-#     pass
+                if (
+                    skew > skew_threshold
+                    and fit_fraction < small_amp_threshold
+                    and transform_small_amps
+                ):
+                    # log-transform
+                    log_values = np.log1p(values)
+
+                    # perform normality test on log-transformed values
+                    stat, p_value = scipy.stats.shapiro(log_values)
+                else:
+                    # do normality test as usual
+                    stat, p_value = scipy.stats.shapiro(values)
+
+            else:
+                # do normality test as usual
+                stat, p_value = scipy.stats.shapiro(values)
+
+            if p_value < 0.05:
+                if fit_index not in failed_dict:
+                    failed_dict[fit_index] = {}
+                failed_dict[fit_index][col] = p_value
+
+    # Make probability plots for the failed tests against the appropriate distribution
+    if not failed_dict:
+        print("All normality tests passed.")
+        return
+
+    with PdfPages(output) as pdf:
+        for fit_index, col_dict in failed_dict.items():
+            # setup the figure as a square grid of subplots
+            num_plots = len(col_dict)
+            ncols = int(np.ceil(np.sqrt(num_plots)))
+            nrows = int(np.ceil(num_plots / ncols))
+            fig, axes = plt.subplots(
+                nrows=nrows,
+                ncols=ncols,
+                figsize=(5 * ncols, 5 * nrows),
+                layout="constrained",
+            )
+            axes = axes.flatten() if num_plots > 1 else [axes]
+
+            # loop through each failed column and make the probability plot
+            for ax, (col, p_value) in zip(axes, col_dict.items()):
+                values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
+
+                if col in phases:
+                    # circular data QQ plot against von Mises distribution
+                    values_rad = np.deg2rad(values.to_numpy())
+                    kappa, loc, scale = scipy.stats.vonmises.fit(values_rad)
+
+                    scipy.stats.probplot(
+                        values_rad,
+                        dist=scipy.stats.vonmises,  # type: ignore
+                        sparams=(kappa, loc, scale),
+                        plot=ax,
+                    )
+                    ax.set_title(
+                        f"{utils.convert_amp_name(col)} (circular): p={p_value:.3e}"
+                    )
+
+                elif any(col in sublist for sublist in coherent_sums.values()):
+                    # amplitude QQ plot against normal distribution
+                    skew = scipy.stats.skew(values)
+
+                    fit_val = fit_df.loc[fit_index, col]
+                    num_events = fit_df.loc[fit_index, "detected_events"]
+                    if not isinstance(fit_val, (int, float)) or not isinstance(
+                        num_events, (int, float)
+                    ):
+                        raise TypeError(
+                            "amplitude fit value and number of events must be numeric "
+                            "types"
+                        )
+                    fit_fraction = float(fit_val) / float(num_events)
+
+                    if (
+                        skew > skew_threshold
+                        and fit_fraction < small_amp_threshold
+                        and transform_small_amps
+                    ):
+                        # log-transform
+                        log_values = np.log1p(values)
+                        scipy.stat.probplot(log_values, dist="norm", plot=ax)
+                        ax.set_title(f"{col} (log-transformed): p={p_value:.3e}")
+                    else:
+                        scipy.stats.probplot(values, dist="norm", plot=ax)
+                        ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
+                else:
+                    scipy.stats.probplot(values, dist="norm", plot=ax)
+                    ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
+
+                # finish loop over columns
+
+            # hide any unused subplots
+            for ax in axes[num_plots:]:
+                ax.set_visible(False)
+
+            fig.suptitle(
+                f"Normality Test Failures for Fit Index {fit_index}", fontsize=16
+            )
+
+            pdf.savefig(fig)
+            plt.close(fig)
+        print("Normality test results saved to:", output)
+
+    return
+
+
+def mean_test(
+    fit_df: pd.DataFrame,
+    bootstrap_df: pd.DataFrame,
+    columns: List[str],
+) -> None:
+    """
+    Todo:
+        this function will test whether the mean of the bootstrap samples is
+        consistent with the fit result value for each column. Those that fail will be
+        plotted in a big pdf with subplot for each failed column, showing its bootstrap
+        distribution and the fit result value.
+    """
+
+    pass
 
 
 def report_correlations(
