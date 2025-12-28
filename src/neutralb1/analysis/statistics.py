@@ -15,9 +15,10 @@ def normality_test(
     columns: List[str],
     alpha: float = 0.05,
     output: str = "./normality_test_results.pdf",
+    ignore_small_amps: bool = True,
     transform_small_amps: bool = True,
     small_amp_threshold: float = 0.05,
-    skew_threshold: float = 1.0,
+    skew_threshold: float = 0.5,
     n_mc_samples: int = 1000,
 ) -> None:
     """Test normality of bootstrap distributions for specified columns.
@@ -25,10 +26,14 @@ def normality_test(
     This function handles 3 cases:
     1. Circular data (phase differences): uses the von Mises distribution for testing.
     2. Amplitude data: if the distribution is highly skewed and the fit fraction
-        is small, this means the amplitude is affected by the boundary at zero. In this
-        case, we log-transform the data before testing for normality. This is configured
-        via the `transform_small_amps`, `small_amp_threshold`, and `skew_threshold`
-        parameters. Uses the Shapiro-Wilk test for normality.
+        is small, this means the amplitude is affected by the boundary at zero. Most of
+        the time we do not care about estimating the error on these amplitudes, and
+        consider them to be negligible (ignore_small_amps=True). However, if we do want
+        to test their normality, the standard Shapiro-Wilk test will often fail due to
+        this boundary effect. In this case, we log-transform the data before testing for
+        normality. This is configured via the `transform_small_amps`,
+        `small_amp_threshold`, and `skew_threshold` parameters. Uses the Shapiro-Wilk
+        test for normality.
     3. Regular data: uses the Shapiro-Wilk test for normality.
 
     Args:
@@ -39,6 +44,8 @@ def normality_test(
             Defaults to 0.05.
         output (str, optional): Path to output PDF file for plots of failed tests.
             Defaults to "./normality_test_results.pdf".
+        ignore_small_amps (bool, optional): Whether to ignore amplitude distributions
+            with small fit fractions when testing for normality. Defaults to True.
         transform_small_amps (bool, optional): Whether to log-transform "small"
             amplitude distributions before testing for normality. Defaults to True.
         small_amp_threshold (float, optional): Threshold for fit fraction below which
@@ -108,6 +115,9 @@ def normality_test(
                     and fit_fraction < small_amp_threshold
                     and transform_small_amps
                 ):
+                    if ignore_small_amps:
+                        # skip normality test for small amplitudes
+                        continue
                     # log-transform
                     log_values = np.log1p(values)
 
@@ -167,7 +177,11 @@ def normality_test(
                     # add inset with histogram and fitted von Mises distribution
                     inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
                     inset_ax.hist(values_rad, bins=30, density=True, alpha=0.7)
-                    x_range = np.linspace(values_rad.min(), values_rad.max(), 200)
+                    x_range = np.linspace(
+                        values_rad.min() - 0.1 * values_rad.min(),
+                        values_rad.max() + 0.1 * values_rad.max(),
+                        200,
+                    )
                     inset_ax.plot(
                         x_range,
                         scipy.stats.vonmises.pdf(x_range, kappa, loc, scale),
@@ -200,14 +214,19 @@ def normality_test(
                             f" (log-transformed): p={p_value:.3e}"
                         )
 
-                        # add inset with histogram and fitted normal distribution
+                        # add inset with histogram and fitted lognorm distribution
                         inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
-                        inset_ax.hist(log_values, bins=30, density=True, alpha=0.7)
-                        x_range = np.linspace(log_values.min(), log_values.max(), 200)
-                        mu, sigma = log_values.mean(), log_values.std()
+                        inset_ax.hist(values, bins=30, density=True, alpha=0.7)
+                        x_range = np.linspace(
+                            values.min() - 0.1 * values.min(),
+                            values.max() + 0.1 * values.max(),
+                            200,
+                        )
+                        # fit lognorm to original (non-transformed) data
+                        shape, loc, scale = scipy.stats.lognorm.fit(values)
                         inset_ax.plot(
                             x_range,
-                            scipy.stats.norm.pdf(x_range, mu, sigma),
+                            scipy.stats.lognorm.pdf(x_range, shape, loc, scale),
                             "r-",
                             lw=2,
                         )
@@ -219,7 +238,11 @@ def normality_test(
                         # add inset with histogram and fitted normal distribution
                         inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
                         inset_ax.hist(values, bins=30, density=True, alpha=0.7)
-                        x_range = np.linspace(values.min(), values.max(), 200)
+                        x_range = np.linspace(
+                            values.min() - 0.1 * values.min(),
+                            values.max() + 0.1 * values.max(),
+                            200,
+                        )
                         mu, sigma = values.mean(), values.std()
                         inset_ax.plot(
                             x_range,
@@ -235,7 +258,11 @@ def normality_test(
                     # add inset with histogram and fitted normal distribution
                     inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
                     inset_ax.hist(values, bins=30, density=True, alpha=0.7)
-                    x_range = np.linspace(values.min(), values.max(), 200)
+                    x_range = np.linspace(
+                        values.min() - 0.1 * values.min(),
+                        values.max() + 0.1 * values.max(),
+                        200,
+                    )
                     mu, sigma = values.mean(), values.std()
                     inset_ax.plot(
                         x_range, scipy.stats.norm.pdf(x_range, mu, sigma), "r-", lw=2
