@@ -12,11 +12,7 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 
 
 class DiagnosticPlotter(BasePWAPlotter):
-    """Handles more complex diagnostic plots.
-
-    Todo:
-        - Add shapiro test for bootstrap distributions, like in february study
-    """
+    """Handles more complex diagnostic plots."""
 
     def ds_ratio(
         self,
