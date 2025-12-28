@@ -460,10 +460,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         Note:
             This plot can become cramped for large models. Consider adjusting dpi
             or figsize, or using a subset of waves for better readability.
-
-        Todo:
-            - implement bootstrap errors if available. Copy (or extract in separate
-                method) phase difference handling from likelihood_comparison
         """
 
         # Validate that we have wave data to plot
@@ -486,10 +482,6 @@ class DiagnosticPlotter(BasePWAPlotter):
             axs = np.array([[axs]])
         elif n_waves == 2:
             axs = axs.reshape(n_waves, n_waves)
-
-        # Track plot handles for legend
-        pos_plot_handle = None
-        neg_plot_handle = None
 
         # Calculate intensity scale for diagonal plots
         max_intensity = max(
