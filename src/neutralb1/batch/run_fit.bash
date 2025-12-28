@@ -192,6 +192,7 @@ uv run convert_to_csv -i $(pwd)/best.fit -o $(pwd)/best_projected_moments.csv --
 if [ $my_num_rand_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit rand/
     mv -f fitPars_*.txt rand/    
+    mv -f fit_ranking.txt rand/
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand.csv --no-data --verbose
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_acceptance_corrected.csv -a --no-data --verbose
     uv run convert_to_csv -i $(ls rand/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/rand/rand_projected_moments.csv --moments --no-data --verbose
@@ -270,7 +271,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     mv -f "$my_reaction"_*.fit bootstrap/
     mv -f "$my_reaction"_.ni bootstrap/
     mv -f bootstrap_fit.cfg bootstrap/
-    mv -f bootstrap_fit_moment.cfg bootstrap/
+    # mv -f bootstrap_fit_moment.cfg bootstrap/
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv --no-data --verbose
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_acceptance_corrected.csv -a --no-data --verbose
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments --no-data --verbose
@@ -288,5 +289,5 @@ echo "Execution time: $elapsed_time seconds"
 current_dir=$(pwd)
 common_path=${current_dir#*"$USER"/}
 
-ln -s "/farm_out/$USER/$common_path/log/out.log" ./out.log
-ln -s "/farm_out/$USER/$common_path/log/err.log" ./err.log
+ln -sf "/farm_out/$USER/$common_path/log/out.log" ./out.log
+ln -sf "/farm_out/$USER/$common_path/log/err.log" ./err.log
