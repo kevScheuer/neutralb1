@@ -55,10 +55,6 @@ def normality_test(
         TypeError: If amplitude fit value or number of events are not numeric types.
     Returns:
         None: Generates a PDF file with probability plots for failed normality tests.
-
-    Todo:
-        - Within each subplot, in a "best" location, show the fitted distribution and
-            the density bootstrap histogram for visual comparison.
     """
 
     # check that columns exist in both dataframes
@@ -100,15 +96,12 @@ def normality_test(
                 # to log-transform the data to better test for normality.
                 skew = scipy.stats.skew(values)
 
-                fit_val = fit_df.loc[fit_index, col]
-                num_events = fit_df.loc[fit_index, "detected_events"]
-                if not isinstance(fit_val, (int, float)) or not isinstance(
-                    num_events, (int, float)
-                ):
-                    raise TypeError(
-                        "amplitude fit value and number of events must be numeric types"
-                    )
-                fit_fraction = fit_val / num_events
+                fit_fraction = (
+                    values.mean()
+                    / bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                        "detected_events"
+                    ].mean()
+                )
 
                 if (
                     skew > skew_threshold
@@ -128,7 +121,7 @@ def normality_test(
                 # do normality test as usual
                 stat, p_value = scipy.stats.shapiro(values)
 
-            if p_value < 0.05:
+            if p_value < alpha:
                 if fit_index not in failed_dict:
                     failed_dict[fit_index] = {}
                 failed_dict[fit_index][col] = p_value
@@ -171,20 +164,28 @@ def normality_test(
                         f"{utils.convert_amp_name(col)} (circular): p={p_value:.3e}"
                     )
 
+                    # add inset with histogram and fitted von Mises distribution
+                    inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                    inset_ax.hist(values_rad, bins=30, density=True, alpha=0.7)
+                    x_range = np.linspace(values_rad.min(), values_rad.max(), 200)
+                    inset_ax.plot(
+                        x_range,
+                        scipy.stats.vonmises.pdf(x_range, kappa, loc, scale),
+                        "r-",
+                        lw=2,
+                    )
+                    inset_ax.tick_params(labelsize=8)
+
                 elif any(col in sublist for sublist in coherent_sums.values()):
                     # amplitude QQ plot against normal distribution
                     skew = scipy.stats.skew(values)
 
-                    fit_val = fit_df.loc[fit_index, col]
-                    num_events = fit_df.loc[fit_index, "detected_events"]
-                    if not isinstance(fit_val, (int, float)) or not isinstance(
-                        num_events, (int, float)
-                    ):
-                        raise TypeError(
-                            "amplitude fit value and number of events must be numeric "
-                            "types"
-                        )
-                    fit_fraction = float(fit_val) / float(num_events)
+                    fit_fraction = (
+                        values.mean()
+                        / bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                            "detected_events"
+                        ].mean()
+                    )
 
                     if (
                         skew > skew_threshold
@@ -193,14 +194,53 @@ def normality_test(
                     ):
                         # log-transform
                         log_values = np.log1p(values)
-                        scipy.stat.probplot(log_values, dist="norm", plot=ax)
-                        ax.set_title(f"{col} (log-transformed): p={p_value:.3e}")
+                        scipy.stats.probplot(log_values, dist="norm", plot=ax)
+                        ax.set_title(
+                            f"{utils.convert_amp_name(col)}"
+                            f" (log-transformed): p={p_value:.3e}"
+                        )
+
+                        # add inset with histogram and fitted normal distribution
+                        inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                        inset_ax.hist(log_values, bins=30, density=True, alpha=0.7)
+                        x_range = np.linspace(log_values.min(), log_values.max(), 200)
+                        mu, sigma = log_values.mean(), log_values.std()
+                        inset_ax.plot(
+                            x_range,
+                            scipy.stats.norm.pdf(x_range, mu, sigma),
+                            "r-",
+                            lw=2,
+                        )
+                        inset_ax.tick_params(labelsize=8)
                     else:
                         scipy.stats.probplot(values, dist="norm", plot=ax)
                         ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
+
+                        # add inset with histogram and fitted normal distribution
+                        inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                        inset_ax.hist(values, bins=30, density=True, alpha=0.7)
+                        x_range = np.linspace(values.min(), values.max(), 200)
+                        mu, sigma = values.mean(), values.std()
+                        inset_ax.plot(
+                            x_range,
+                            scipy.stats.norm.pdf(x_range, mu, sigma),
+                            "r-",
+                            lw=2,
+                        )
+                        inset_ax.tick_params(labelsize=8)
                 else:
                     scipy.stats.probplot(values, dist="norm", plot=ax)
                     ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
+
+                    # add inset with histogram and fitted normal distribution
+                    inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                    inset_ax.hist(values, bins=30, density=True, alpha=0.7)
+                    x_range = np.linspace(values.min(), values.max(), 200)
+                    mu, sigma = values.mean(), values.std()
+                    inset_ax.plot(
+                        x_range, scipy.stats.norm.pdf(x_range, mu, sigma), "r-", lw=2
+                    )
+                    inset_ax.tick_params(labelsize=8)
 
                 # finish loop over columns
 
