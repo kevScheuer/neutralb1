@@ -3,6 +3,7 @@
 import cmath
 import warnings
 from typing import Optional
+import pathlib
 
 import numpy as np
 import pandas as pd
@@ -135,30 +136,63 @@ def link_dataframes(
     if "file" not in target_df.columns:
         raise KeyError("The target DataFrame must contain a 'file' column.")
 
-    # Get the files as strings
-    fit_files = fit_df["file"].astype(str)
-    target_files = target_df["file"].astype(str)
+    # Pre-resolve and cache all fit file paths and their parent hierarchies
+    fit_path_cache = {}
+    for idx, file_str in enumerate(fit_df["file"].astype(str)):
+        resolved = pathlib.Path(file_str).resolve()
+        # Store ancestors up to max_depth
+        ancestors = []
+        current = resolved.parent
+        for _ in range(max_depth + 1):
+            ancestors.append(current)
+            if current == current.parent:
+                break
+            current = current.parent
+        fit_path_cache[idx] = (resolved, set(ancestors))
 
-    index_to_fit_file = dict(enumerate(fit_files))
+    # Build a lookup dict: ancestor_path -> list of (fit_index, depth)
+    ancestor_to_fits = {}
+    for fit_idx, (fit_path, ancestors) in fit_path_cache.items():
+        for depth, ancestor in enumerate(ancestors):
+            if depth <= max_depth:
+                if ancestor not in ancestor_to_fits:
+                    ancestor_to_fits[ancestor] = []
+                ancestor_to_fits[ancestor].append((fit_idx, depth))
+
+    # Cache for target file path resolution
+    target_path_cache = {}
 
     def find_fit_index(target_file: str) -> int:
         """If target_path shares a common ancestor with a fit file, return its index."""
-        for index, fit_file in index_to_fit_file.items():
+        # Check cache first
+        if target_file in target_path_cache:
+            return target_path_cache[target_file]
 
-            ancestor, fit_depth, target_depth = utils.shared_ancestor_info(
-                fit_file, target_file
-            )
+        target_path = pathlib.Path(target_file).resolve()
 
-            if not ancestor or fit_depth == None or target_depth == None:
-                continue  # Skip if no common ancestor
+        # Get target ancestors up to max_depth
+        target_ancestors = []
+        current = target_path.parent
+        for depth in range(max_depth + 1):
+            target_ancestors.append((current, depth))
+            if current == current.parent:
+                break
+            current = current.parent
 
-            if fit_depth <= max_depth and target_depth <= max_depth:
-                return index
+        # Find first matching ancestor
+        for target_ancestor, target_depth in target_ancestors:
+            if target_ancestor in ancestor_to_fits:
+                # Return the first fit that matches within depth constraints
+                for fit_idx, fit_depth in ancestor_to_fits[target_ancestor]:
+                    if fit_depth <= max_depth and target_depth <= max_depth:
+                        target_path_cache[target_file] = fit_idx
+                        return fit_idx
 
-        # If not found, check if the target_path is a parent of any fit file
         raise FileNotFoundError(f"No matching fit found for {target_file}")
 
-    return target_df.assign(fit_index=target_files.map(find_fit_index).astype("uint16"))
+    return target_df.assign(
+        fit_index=target_df["file"].astype(str).map(find_fit_index).astype("uint16")
+    )
 
 
 def add_missing_columns(
