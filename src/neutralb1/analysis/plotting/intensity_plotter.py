@@ -151,9 +151,11 @@ class IntensityPlotter(BasePWAPlotter):
         if not self.coherent_sums["JPmL"]:
             raise ValueError("No wave amplitudes found in fit results.")
 
-        # Helper dictionaries for formatting TODO: use utils functions
+        # Helper dictionaries for formatting
+        # TODO: use utils functions
         int_to_char = {-2: "n", -1: "m", 0: "0", 1: "p", 2: "q"}
         pm_dict = {"m": "-", "p": "+", "0": "0", "n": "-", "q": "+"}
+        marker_alpha = 0.3 if self.truth_df is not None else 0.5
 
         # Sort values in increasing order of angular momenta and spin-projection
         jpl_values = sorted(
@@ -165,8 +167,8 @@ class IntensityPlotter(BasePWAPlotter):
 
         # Create figure
         n_rows, n_cols = len(jpl_values), len(m_values)
-        fig_width = max(10, n_cols * 3)
-        fig_height = max(6, n_rows * 2.5)
+        fig_width = max(15, n_cols * 4)
+        fig_height = max(9, n_rows * 3.5)
 
         fig, axs = plt.subplots(
             n_rows,
@@ -217,10 +219,10 @@ class IntensityPlotter(BasePWAPlotter):
 
                 # Set subplot titles and labels
                 if row == 0:
-                    ax.set_title(f"m = {m}", fontsize=14, pad=10)
+                    ax.set_title(f"m = {m}", fontsize=20, pad=12)
                 if col == 0:
                     wave_label = rf"${J}^{{{pm_dict[P]}}}{L}$"
-                    ax.set_ylabel(wave_label, fontsize=14, loc="center")
+                    ax.set_ylabel(wave_label, fontsize=20, loc="center")
 
                 # Plot negative reflectivity contribution
                 neg_amp_name = f"m{JPmL}"
@@ -241,11 +243,11 @@ class IntensityPlotter(BasePWAPlotter):
                         xerr=self._bin_width / 2,
                         y=unumpy.nominal_values(y_values),
                         yerr=unumpy.std_devs(y_values),
-                        marker="v",
+                        marker=".",
                         linestyle="",
-                        markersize=6,
+                        markersize=1,
                         color="blue",
-                        alpha=0.7,
+                        alpha=marker_alpha,
                         label=r"$\varepsilon = -1$",
                         capsize=2,
                     )
@@ -285,11 +287,11 @@ class IntensityPlotter(BasePWAPlotter):
                         xerr=self._bin_width / 2,
                         y=unumpy.nominal_values(y_values),
                         yerr=unumpy.std_devs(y_values),
-                        marker="^",
+                        marker=".",
                         linestyle="",
-                        markersize=6,
+                        markersize=1,
                         color="red",
-                        alpha=0.7,
+                        alpha=marker_alpha,
                         label=r"$\varepsilon = +1$",
                         capsize=2,
                     )
@@ -307,7 +309,6 @@ class IntensityPlotter(BasePWAPlotter):
                             linestyle="-",
                             linewidth=2,
                             color="red",
-                            alpha=0.8,
                         )
 
         # Set y-limit to start from zero only after all plotting is done
@@ -326,11 +327,13 @@ class IntensityPlotter(BasePWAPlotter):
 
         # Configure figure-wide labels and legend
         y_label = (
-            "Fit Fraction" if fractional else f"Events / {self._bin_width:.3f} GeV"
+            f"Fit Fraction / {self._bin_width:.3f} GeV"
+            if fractional
+            else f"Events / {self._bin_width:.3f} GeV"
         )
 
-        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=16, x=0.53)
-        fig.supylabel(y_label, fontsize=16)
+        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=24, x=0.53)
+        fig.supylabel(y_label, fontsize=24)
 
         # Add legend if we have plot handles
         legend_handles = []
@@ -342,8 +345,7 @@ class IntensityPlotter(BasePWAPlotter):
         if legend_handles:
             fig.legend(
                 handles=legend_handles,
-                loc="upper right",
-                bbox_to_anchor=(1.02, 1.05),
+                loc="outside upper right",
                 fontsize=12,
             )
 
