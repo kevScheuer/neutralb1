@@ -62,6 +62,9 @@ def normality_test(
         TypeError: If amplitude fit value or number of events are not numeric types.
     Returns:
         None: Generates a PDF file with probability plots for failed normality tests.
+
+    Todo:
+        - handle acc_corrected (detected_events -> generated_events)
     """
 
     # check that columns exist in both dataframes
@@ -78,6 +81,10 @@ def normality_test(
 
     failed_dict = {}  # to store {fit_index: {column : p_value}}
     for fit_index in bootstrap_df["fit_index"].unique():
+        num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+            "detected_events"
+        ].mean()
+
         for col in columns:
             values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
 
@@ -85,6 +92,26 @@ def normality_test(
                 # do circular data test
                 if values.max() > 180.0 or values.min() < -180.0:
                     raise ValueError("phase difference values must be within [-pi, pi]")
+
+                # skip normality test for phase differences with small amplitudes if
+                # configured to do so
+                amp1, amp2 = col.split("_")
+                amp1_ff = (
+                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                        amp1
+                    ].mean()
+                    / num_events
+                )
+                amp2_ff = (
+                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                        amp2
+                    ].mean()
+                    / num_events
+                )
+                if ignore_small_amps and (
+                    amp1_ff < small_amp_threshold or amp2_ff < small_amp_threshold
+                ):
+                    continue
 
                 values_rad = np.deg2rad(values.to_numpy())
                 loc = scipy.stats.circmean(values_rad, high=np.pi, low=0)
@@ -103,12 +130,7 @@ def normality_test(
                 # to log-transform the data to better test for normality.
                 skew = scipy.stats.skew(values)
 
-                fit_fraction = (
-                    values.mean()
-                    / bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                        "detected_events"
-                    ].mean()
-                )
+                fit_fraction = values.mean() / num_events
 
                 if (
                     skew > skew_threshold
@@ -286,20 +308,222 @@ def normality_test(
     return
 
 
-def mean_test(
+def bias_test(
     fit_df: pd.DataFrame,
     bootstrap_df: pd.DataFrame,
     columns: List[str],
+    output: str = "./bias_test_results.pdf",
+    threshold: float = 0.05,
+    small_amp_threshold: float = 0.05,
 ) -> None:
-    """
+    """Test whether the mean of bootstrap samples is consistent with fit results.
+
+    For each column, calculates the bias as (bootstrap mean - fit value). If the
+    absolute bias exceeds the threshold, the column is flagged and plotted. Amplitudes
+    are calculated and plotted as fit fractions to provide a sense of scale.
+
+    Args:
+        fit_df (pd.DataFrame): DataFrame containing nominal fit results.
+        bootstrap_df (pd.DataFrame): DataFrame containing bootstrap fit results.
+        columns (List[str]): List of column names to test for bias.
+        output (str, optional): Path to output PDF file for plots of failed tests.
+            Defaults to "./bias_test_results.pdf".
+        threshold (float, optional): Threshold for bias detection. Fits with
+            | (bootstrap_mean - fit_value) / d | > threshold are flagged. For circular
+            data (phase differences), d = π. All other data, d = fit_value.
+            Defaults to 0.05.
+        small_amp_threshold (float, optional): Threshold for fit fraction below which
+            amplitudes are considered small, and thus ignored in bias tests. Phase
+            differences who contain a small amplitude are also ignored. Defaults to
+            0.05.
+
+    Raises:
+        KeyError: If any specified column is not found in either DataFrame.
+
+    Returns:
+        None: Generates a PDF file with histograms for failed bias tests.
+
     Todo:
-        this function will test whether the mean of the bootstrap samples is
-        consistent with the fit result value for each column. Those that fail will be
-        plotted in a big pdf with subplot for each failed column, showing its bootstrap
-        distribution and the fit result value.
+        - handle acc_corrected (detected_events -> generated_events)
     """
 
-    pass
+    # check that columns exist in both dataframes
+    for col in columns:
+        if col not in fit_df.columns:
+            raise KeyError(f"Column {col} not found in fit_df")
+        if col not in bootstrap_df.columns:
+            raise KeyError(f"Column {col} not found in bootstrap_df")
+
+    # get phase differences for circular data handling
+    phases = utils.get_phase_differences(fit_df)
+    coherent_sums = utils.get_coherent_sums(fit_df)
+
+    failed_dict = {}  # to store {fit_index: {column: bias_value}}
+    for fit_index in bootstrap_df["fit_index"].unique():
+        fit_value_row = fit_df.loc[fit_index]
+        num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+            "detected_events"
+        ].mean()
+
+        for col in columns:
+            values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
+            fit_value = fit_value_row[col]
+            # avoid division by zero in fractional bias calculation
+            safe_fit_value = fit_value if fit_value != 0 else 1e-6
+
+            if col in phases:
+                # calculate circular mean and bias for phase differences
+                bootstrap_mean = np.rad2deg(
+                    scipy.stats.circmean(
+                        np.deg2rad(values.to_numpy()),
+                        high=np.pi,
+                        low=-np.pi,  # type: ignore
+                    )
+                )
+
+                # if either amplitude in the phase difference is small, skip bias test
+                amp1, amp2 = col.split("_")
+                amp1_ff = (
+                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                        amp1
+                    ].mean()
+                    / num_events
+                )
+                amp2_ff = (
+                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                        amp2
+                    ].mean()
+                    / num_events
+                )
+                if amp1_ff < small_amp_threshold or amp2_ff < small_amp_threshold:
+                    continue
+
+                bias = utils.circular_residual(
+                    bootstrap_mean, fit_value, in_degrees=True
+                )
+                fractional_bias = abs(bias / 180.0)  # normalize by pi for phase diffs
+
+            elif any(col in sublist for sublist in coherent_sums.values()):
+                bootstrap_mean = values.mean()
+
+                # skip bias test for small amplitudes
+                fit_fraction = bootstrap_mean / num_events
+                if fit_fraction < small_amp_threshold:
+                    continue
+
+                bias = abs((bootstrap_mean - fit_value) / safe_fit_value)
+                fractional_bias = bias
+
+            else:
+                bootstrap_mean = values.mean()
+                bias = bootstrap_mean - fit_value
+                fractional_bias = abs(bias / safe_fit_value)
+
+            if fractional_bias > threshold:
+                if fit_index not in failed_dict:
+                    failed_dict[fit_index] = {}
+                failed_dict[fit_index][col] = bias
+
+    # Make plots for the failed tests
+    if not failed_dict:
+        print("All bias tests passed.")
+        return
+
+    with PdfPages(output) as pdf:
+        for fit_index, col_dict in failed_dict.items():
+            # setup the figure as a square grid of subplots
+            num_plots = len(col_dict)
+            ncols = int(np.ceil(np.sqrt(num_plots)))
+            nrows = int(np.ceil(num_plots / ncols))
+            fig, axes = plt.subplots(
+                nrows=nrows,
+                ncols=ncols,
+                figsize=(5 * ncols, 5 * nrows),
+                layout="constrained",
+                sharey=True,
+            )
+            axes = axes.flatten() if num_plots > 1 else [axes]
+
+            # loop through each failed column and make the histogram
+            for ax, (col, bias) in zip(axes, col_dict.items()):
+                values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
+                fit_value = fit_df.loc[fit_index][col]
+                num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                    "detected_events"
+                ].mean()
+
+                if col in phases:
+                    # For phase differences, match sign like in bootstrap_plotter
+                    bootstrap_mean = np.rad2deg(
+                        scipy.stats.circmean(
+                            np.deg2rad(values.to_numpy()),
+                            high=np.pi,
+                            low=-np.pi,  # type: ignore
+                        )
+                    )
+
+                    # Match the sign of fit_df to bootstrap mean
+                    if fit_value * bootstrap_mean < 0:
+                        fit_value = -fit_value
+
+                    # Create histogram
+                    ax.hist(values, bins=30, alpha=0.7, color="blue")
+                    ax.axvline(
+                        bootstrap_mean, color="blue", linestyle="--", linewidth=2
+                    )
+                    ax.axvline(fit_value, color="red", linestyle="-", linewidth=2)
+                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.3f}°")
+                    ax.set_xlabel("Phase Difference (degrees)")
+
+                elif any(col in sublist for sublist in coherent_sums.values()):
+                    # amplitude fit fraction
+                    bootstrap_mean = values.mean()
+                    fit_fraction = bootstrap_mean / num_events
+
+                    ax.hist(values / num_events, bins=30, alpha=0.7, color="blue")
+                    ax.axvline(
+                        bootstrap_mean / num_events,
+                        color="blue",
+                        linestyle="--",
+                        linewidth=2,
+                    )
+                    ax.axvline(
+                        fit_value / num_events,
+                        color="red",
+                        linestyle="-",
+                        linewidth=2,
+                    )
+                    ax.set_title(f"{utils.convert_amp_name(col)}: " f"bias={bias:.3e}")
+                    ax.set_xlabel("Fit Fraction")
+
+                else:
+                    # Regular histogram
+                    bootstrap_mean = values.mean()
+                    ax.hist(values, bins=30, alpha=0.7, color="blue")
+                    ax.axvline(
+                        bootstrap_mean, color="blue", linestyle="--", linewidth=2
+                    )
+                    ax.axvline(
+                        fit_value,
+                        color="red",
+                        linestyle="-",
+                        linewidth=2,
+                    )
+                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.3e}")
+
+                ax.set_ylabel("Counts")
+
+            # hide any unused subplots
+            for ax in axes[num_plots:]:
+                ax.set_visible(False)
+
+            fig.suptitle(f"Bias Test Failures for Fit Index {fit_index}", fontsize=16)
+
+            pdf.savefig(fig)
+            plt.close(fig)
+        print("Bias test results saved to:", output)
+
+    return
 
 
 def report_correlations(
