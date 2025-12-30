@@ -411,8 +411,8 @@ def bias_test(
                 if fit_fraction < small_amp_threshold:
                     continue
 
-                bias = abs((bootstrap_mean - fit_value) / safe_fit_value)
-                fractional_bias = bias
+                bias = (bootstrap_mean - fit_value) / safe_fit_value
+                fractional_bias = abs(bias)
 
             else:
                 bootstrap_mean = values.mean()
@@ -444,6 +444,10 @@ def bias_test(
             )
             axes = axes.flatten() if num_plots > 1 else [axes]
 
+            dist_handle = None
+            mean_handle = None
+            fit_handle = None
+
             # loop through each failed column and make the histogram
             for ax, (col, bias) in zip(axes, col_dict.items()):
                 values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
@@ -467,12 +471,28 @@ def bias_test(
                         fit_value = -fit_value
 
                     # Create histogram
-                    ax.hist(values, bins=30, alpha=0.7, color="blue")
-                    ax.axvline(
-                        bootstrap_mean, color="blue", linestyle="--", linewidth=2
+                    dist_handle = ax.hist(
+                        values,
+                        bins=30,
+                        alpha=0.7,
+                        color="blue",
+                        label="Bootstrap Samples",
                     )
-                    ax.axvline(fit_value, color="red", linestyle="-", linewidth=2)
-                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.3f}°")
+                    mean_handle = ax.axvline(
+                        bootstrap_mean,
+                        color="blue",
+                        linestyle="--",
+                        linewidth=2,
+                        label="Bootstrap Mean",
+                    )
+                    fit_handle = ax.axvline(
+                        fit_value,
+                        color="red",
+                        linestyle="-",
+                        linewidth=2,
+                        label="Fit Value",
+                    )
+                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.0f}°")
                     ax.set_xlabel("Phase Difference (degrees)")
 
                 elif any(col in sublist for sublist in coherent_sums.values()):
@@ -480,36 +500,55 @@ def bias_test(
                     bootstrap_mean = values.mean()
                     fit_fraction = bootstrap_mean / num_events
 
-                    ax.hist(values / num_events, bins=30, alpha=0.7, color="blue")
-                    ax.axvline(
+                    dist_handle = ax.hist(
+                        values / num_events,
+                        bins=30,
+                        alpha=0.7,
+                        color="blue",
+                        label="Bootstrap Samples",
+                    )
+                    mean_handle = ax.axvline(
                         bootstrap_mean / num_events,
                         color="blue",
                         linestyle="--",
                         linewidth=2,
+                        label="Bootstrap Mean",
                     )
-                    ax.axvline(
+                    fit_handle = ax.axvline(
                         fit_value / num_events,
                         color="red",
                         linestyle="-",
                         linewidth=2,
+                        label="Fit Value",
                     )
-                    ax.set_title(f"{utils.convert_amp_name(col)}: " f"bias={bias:.3e}")
+                    ax.set_title(f"{utils.convert_amp_name(col)}: " f"bias={bias:.1e}")
                     ax.set_xlabel("Fit Fraction")
 
                 else:
                     # Regular histogram
                     bootstrap_mean = values.mean()
-                    ax.hist(values, bins=30, alpha=0.7, color="blue")
-                    ax.axvline(
-                        bootstrap_mean, color="blue", linestyle="--", linewidth=2
+                    dist_handle = ax.hist(
+                        values,
+                        bins=30,
+                        alpha=0.7,
+                        color="blue",
+                        label="Bootstrap Samples",
                     )
-                    ax.axvline(
+                    mean_handle = ax.axvline(
+                        bootstrap_mean,
+                        color="blue",
+                        linestyle="--",
+                        linewidth=2,
+                        label="Bootstrap Mean",
+                    )
+                    fit_handle = ax.axvline(
                         fit_value,
                         color="red",
                         linestyle="-",
                         linewidth=2,
+                        label="Fit Value",
                     )
-                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.3e}")
+                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.1e}")
 
                 ax.set_ylabel("Counts")
 
@@ -519,6 +558,24 @@ def bias_test(
 
             fig.suptitle(f"Bias Test Failures for Fit Index {fit_index}", fontsize=16)
 
+            legend_handles = []
+            legend_loc = "outside upper right" if len(axes) > 1 else "outside right"
+            if dist_handle is not None and isinstance(dist_handle, (list, tuple)):
+                # ax.hist returns (n, bins, patches) - we want the patches
+                if len(dist_handle) == 3:
+                    legend_handles.append(dist_handle[2][0])
+                else:
+                    legend_handles.append(dist_handle[0])
+            elif dist_handle is not None and hasattr(dist_handle, "get_label"):
+                legend_handles.append(dist_handle)
+
+            if mean_handle is not None and hasattr(mean_handle, "get_label"):
+                legend_handles.append(mean_handle)
+            if fit_handle is not None and hasattr(fit_handle, "get_label"):
+                legend_handles.append(fit_handle)
+
+            if legend_handles:
+                fig.legend(handles=legend_handles, loc=legend_loc)
             pdf.savefig(fig)
             plt.close(fig)
         print("Bias test results saved to:", output)
