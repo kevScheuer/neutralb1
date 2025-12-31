@@ -8,6 +8,9 @@ Example:
     >>> python scripts/run_analysis.py -i /path/to/t_bin/ -o /path/to/output
     >>> # load previously saved preprocessed results and generate plots
     >>> python scripts/run_analysis.py -i preprocessed_results.pkl -o /path/to/output
+Todo:
+    - If raw csv files are missing, do the the collection. Currently one has to use the
+        --force flag even if no csv's exist.
 """
 
 import argparse
