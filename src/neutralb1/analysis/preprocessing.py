@@ -1,9 +1,9 @@
 """A collection of methods for preprocessing PWA fit result DataFrames."""
 
 import cmath
+import pathlib
 import warnings
 from typing import Optional
-import pathlib
 
 import numpy as np
 import pandas as pd
@@ -159,15 +159,8 @@ def link_dataframes(
                     ancestor_to_fits[ancestor] = []
                 ancestor_to_fits[ancestor].append((fit_idx, depth))
 
-    # Cache for target file path resolution
-    target_path_cache = {}
-
     def find_fit_index(target_file: str) -> int:
         """If target_path shares a common ancestor with a fit file, return its index."""
-        # Check cache first
-        if target_file in target_path_cache:
-            return target_path_cache[target_file]
-
         target_path = pathlib.Path(target_file).resolve()
 
         # Get target ancestors up to max_depth
@@ -185,13 +178,19 @@ def link_dataframes(
                 # Return the first fit that matches within depth constraints
                 for fit_idx, fit_depth in ancestor_to_fits[target_ancestor]:
                     if fit_depth <= max_depth and target_depth <= max_depth:
-                        target_path_cache[target_file] = fit_idx
                         return fit_idx
 
         raise FileNotFoundError(f"No matching fit found for {target_file}")
 
+    # Get unique file paths from target DataFrame to avoid redundant lookups
+    unique_files = target_df["file"].astype(str).unique()
+
+    # Build mapping for unique files only
+    file_to_fit_index = {file: find_fit_index(file) for file in unique_files}
+
+    # Map all rows at once using the pre-computed mapping
     return target_df.assign(
-        fit_index=target_df["file"].astype(str).map(find_fit_index).astype("uint16")
+        fit_index=target_df["file"].astype(str).map(file_to_fit_index).astype("uint16")
     )
 
 
