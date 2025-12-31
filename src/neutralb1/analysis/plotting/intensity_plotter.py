@@ -378,6 +378,7 @@ class IntensityPlotter(BasePWAPlotter):
         ]
 
         n_moments = len(columns)
+        marker_alpha = 0.5 if self.truth_proj_moments_df is None else 0.3
 
         fig, axs = plt.subplots(
             nrows=int(np.ceil(n_moments / 3)),
@@ -421,11 +422,21 @@ class IntensityPlotter(BasePWAPlotter):
                 xerr=self._bin_width / 2,
                 y=y_values,
                 yerr=y_errors,
-                fmt="o",
+                marker="o",
                 markersize=5,
+                color="black",
+                linestyle="",
+                capsize=2,
+                alpha=marker_alpha,
             )
 
-            # TODO: plot truth data if available
+            if self.truth_proj_moments_df is not None:
+                truth_y = self.truth_proj_moments_df[col]
+                if fractional:
+                    truth_denom = self.truth_proj_moments_df["H0_0000"]
+                    truth_y = truth_y / truth_denom
+
+                ax.plot(self._masses, truth_y, linestyle="-", color="black")
 
         # figure wide labels
         y_label = (
