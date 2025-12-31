@@ -41,7 +41,7 @@ def main() -> int:
         result = ResultManager(**data)
         ac_str = (
             "_acceptance_corrected"
-            if result.plot.intensity.is_fit_acceptance_corrected
+            if result.plot.intensity.is_acceptance_corrected
             else ""
         )
         print("Loaded preprocessed results from pickle file.")
