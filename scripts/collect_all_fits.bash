@@ -178,7 +178,7 @@ fi
 files=(${input_dir}/mass*/truth/best_projected_moments.csv)
 if [ ${#files[@]} -gt 0 ]; then
     if [ "$force_overwrite" == "true" ]; then
-        python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/truth/best_projected_moments.csv -o ${output_dir}/truth_projected_moments.csv $preview
+        python ${script_dir}/collect_csv.py -i ${input_dir}/mass*/truth/best_projected_moments.csv -o ${output_dir}/truth_moments.csv $preview
     else
         echo "Skipping truth_projected_moments.csv collection"
     fi
