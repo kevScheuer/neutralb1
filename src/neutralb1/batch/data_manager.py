@@ -23,6 +23,10 @@ class DataManager:
 
     This class handles the copying and cutting of ROOT data files to the
     volatile directory with appropriate kinematic cuts applied.
+
+    Todo:
+        - the log dir appears to be broken, run test for unmade data and check the slurm
+            script
     """
 
     def __init__(self):
