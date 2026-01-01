@@ -25,6 +25,7 @@ class FactoryPlotter:
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
+        is_acceptance_corrected: bool = False,
     ) -> None:
         """Initialize the factory with common data and utilities."""
         self.fit_df = fit_df
@@ -36,6 +37,7 @@ class FactoryPlotter:
         self.bootstrap_df = bootstrap_df
         self.truth_df = truth_df
         self.truth_proj_moments_df = truth_proj_moments_df
+        self.is_acceptance_corrected = is_acceptance_corrected
 
         # Set the matplotlib style for consistent plotting
         WORKSPACE_DIR = utils.get_workspace_dir()
@@ -53,6 +55,7 @@ class FactoryPlotter:
             bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
             truth_df=self.truth_df,
             truth_proj_moments_df=self.truth_proj_moments_df,
+            is_acceptance_corrected=self.is_acceptance_corrected,
         )
 
     @property
@@ -67,6 +70,7 @@ class FactoryPlotter:
             bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
             truth_df=self.truth_df,
             truth_proj_moments_df=self.truth_proj_moments_df,
+            is_acceptance_corrected=self.is_acceptance_corrected,
         )
 
     @property
@@ -81,6 +85,7 @@ class FactoryPlotter:
             bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
             truth_df=self.truth_df,
             truth_proj_moments_df=self.truth_proj_moments_df,
+            is_acceptance_corrected=self.is_acceptance_corrected,
         )
 
     @property
@@ -95,6 +100,7 @@ class FactoryPlotter:
             bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
             truth_df=self.truth_df,
             truth_proj_moments_df=self.truth_proj_moments_df,
+            is_acceptance_corrected=self.is_acceptance_corrected,
         )
 
     @property
@@ -109,4 +115,5 @@ class FactoryPlotter:
             bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
             truth_df=self.truth_df,
             truth_proj_moments_df=self.truth_proj_moments_df,
+            is_acceptance_corrected=self.is_acceptance_corrected,
         )

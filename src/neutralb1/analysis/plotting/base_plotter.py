@@ -21,6 +21,7 @@ class BasePWAPlotter:
         bootstrap_proj_moments_df: Optional[pd.DataFrame] = None,
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
+        is_acceptance_corrected: bool = False,
         channel: Optional[str] = r"$\omega\pi^0$",
     ) -> None:
         """Initialize base plotter with common data and utilities.
@@ -42,6 +43,8 @@ class BasePWAPlotter:
                 the fit. Defaults to None.
             truth_proj_moments_df (pd.DataFrame, optional): Contains the ground truth
                 projected moments values for the fit. Defaults to None.
+            is_acceptance_corrected (bool, optional): Whether the fit is acceptance
+                corrected. Defaults to False.
             channel (str, optional): The channel label to be used in plot axes. Defaults
                 to r"$\\omega\\pi^0$".
         """
@@ -57,6 +60,7 @@ class BasePWAPlotter:
         self.truth_df = truth_df
         self.truth_proj_moments_df = truth_proj_moments_df
         self.channel = channel
+        self.is_acceptance_corrected = is_acceptance_corrected
 
         # Common properties
         self._masses = self.data_df["m_center"].astype(float).round(3)
@@ -66,29 +70,6 @@ class BasePWAPlotter:
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
-
-        # Determine if the fit is acceptance corrected
-        self.is_acceptance_corrected = self.is_fit_acceptance_corrected()
-
-    def is_fit_acceptance_corrected(self) -> bool:
-        """Check if the fit is using acceptance corrected amplitudes.
-
-        The sum of the positive and negative reflectivity coherent sums will always be
-        the number of events, and if this is greater than the detected events, then the
-        fit must be acceptance corrected. We only check the first row, as this should be
-        true for all rows. The detected_events_err is included to account for small
-        numerical differences.
-
-        Returns:
-            bool: True if the fit is acceptance corrected, False otherwise.
-        """
-
-        if self.fit_df[self.coherent_sums["e"]].iloc[0].sum() > (
-            self.fit_df["detected_events"].iloc[0]
-            + self.fit_df["detected_events_err"].iloc[0]
-        ):
-            return True
-        return False
 
     def _get_pretty_label(self, label: str) -> str:
         """Convert label name to nicer LaTeX formatting."""

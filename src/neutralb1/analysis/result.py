@@ -46,7 +46,7 @@ class ResultManager:
             purpose is tracking if preprocessing has been done when loading from a
             pickle file. Defaults to False.
 
-    todo:
+    Todo:
         - Add methods for calculating correlations / covariances from the fit results
             and storing them internally. Allows dsratio correlation plot to work.
     """
@@ -102,6 +102,7 @@ class ResultManager:
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
         self.is_preprocessed = is_preprocessed
+        self.is_acceptance_corrected = self._is_fit_acceptance_corrected()
 
         # private attributes
         self._plotter_factory = None  # initialize to None until plotter is called
@@ -487,5 +488,92 @@ class ResultManager:
                 bootstrap_proj_moments_df=self.bootstrap_proj_moments_df,
                 truth_df=self.truth_df,
                 truth_proj_moments_df=self.truth_proj_moments_df,
+                is_acceptance_corrected=self.is_acceptance_corrected,
             )
         return self._plotter_factory
+
+    def get_significant_amplitudes(
+        self, threshold: float = 0.05, fit_indices=None
+    ) -> set[str]:
+        """Determine single amplitudes whose average fit fraction is above a threshold
+
+        Single amplitudes refers to an 'eJPmL' amplitude, that is not coherently summed.
+
+        Args:
+            threshold (float, optional): amplitudes with an average fit fraction above
+                this value are considered significant. Defaults to 0.05.
+            fit_indices (list, optional): Indices of the fit DataFrame to consider for
+                averaging. Defaults to None (all indices used)
+
+        Returns:
+            set: A set of significant single amplitudes.
+        """
+
+        if fit_indices is None:
+            fit_indices = self.fit_df.index
+
+        significant_amplitudes = set()
+
+        for amp in self.coherent_sums["eJPmL"]:
+            num_events = (
+                self.fit_df["generated_events"]
+                if self.is_acceptance_corrected
+                else self.fit_df["detected_events"]
+            )
+            fit_fractions = (self.fit_df[amp] / num_events).loc[fit_indices]
+            is_significant = fit_fractions.mean() > threshold
+            if is_significant:
+                significant_amplitudes.add(amp)
+
+        return significant_amplitudes
+
+    def get_significant_phases(
+        self, threshold: float = 0.05, fit_indices=None
+    ) -> set[str]:
+        """Determine phase differences that are only between significant amplitudes
+
+        Only returns phase differences where both amplitudes that makeup the phase
+        difference are considered significant. See 'get_significant_amplitudes' for more
+        details.
+
+        Args:
+            threshold (float, optional): amplitudes with an average fit fraction above
+                this value are considered significant. Defaults to 0.05.
+            fit_indices (list, optional): Indices of the fit DataFrame to consider for
+                averaging. Defaults to None (all indices used)
+        Returns:
+            set: A set of significant phase differences.
+        """
+
+        if fit_indices is None:
+            fit_indices = self.fit_df.index
+
+        significant_phases = set()
+        significant_amplitudes = self.get_significant_amplitudes(threshold, fit_indices)
+
+        for phase_dif in self.phase_differences:
+            phase1, phase2 = phase_dif.split("_")
+            if phase1 in significant_amplitudes and phase2 in significant_amplitudes:
+                significant_phases.add(phase_dif)
+
+        return significant_phases
+
+    def _is_fit_acceptance_corrected(self) -> bool:
+        """Check if the fit is using acceptance corrected amplitudes.
+
+        The sum of the positive and negative reflectivity coherent sums will always be
+        the number of events, and if this is greater than the detected events, then the
+        fit must be acceptance corrected. We only check the first row, as this should be
+        true for all rows. The detected_events_err is included to account for small
+        numerical differences.
+
+        Returns:
+            bool: True if the fit is acceptance corrected, False otherwise.
+        """
+
+        if self.fit_df[self.coherent_sums["e"]].iloc[0].sum() > (
+            self.fit_df["detected_events"].iloc[0]
+            + self.fit_df["detected_events_err"].iloc[0]
+        ):
+            return True
+        return False
