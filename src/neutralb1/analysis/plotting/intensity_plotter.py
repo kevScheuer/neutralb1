@@ -1,7 +1,6 @@
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from uncertainties import ufloat, unumpy
 
 import neutralb1.utils as utils
@@ -22,6 +21,7 @@ class IntensityPlotter(BasePWAPlotter):
 
         Todo:
             - Handle very small mismatch between data widths and bar widths
+            - add kwargs (see phase_plotter) for implementation example
         """
 
         # property map for consistent plotting
@@ -145,6 +145,9 @@ class IntensityPlotter(BasePWAPlotter):
 
         Raises:
             ValueError: If no wave amplitudes are found in the fit results.
+        Todo:
+            - add pos/neg reflectivity kwargs to be applied for each plot
+                (see phase_plotter) for implementation example
         """
 
         # Validate that we have wave data to plot
@@ -367,6 +370,9 @@ class IntensityPlotter(BasePWAPlotter):
 
         Returns:
             np.ndarray: Array of axes for the moments.
+        Todo:
+            - add kwargs that are applied to each plot
+                (see phase_plotter) for implementation example
         """
 
         assert self.proj_moments_df is not None, "No projected moments data available."
