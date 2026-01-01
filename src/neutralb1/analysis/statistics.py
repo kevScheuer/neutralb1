@@ -314,7 +314,6 @@ def bias_test(
     columns: List[str],
     output: str = "./bias_test_results.pdf",
     threshold: float = 0.05,
-    small_amp_threshold: float = 0.05,
 ) -> None:
     """Test whether the mean of bootstrap samples is consistent with fit results.
 
@@ -332,10 +331,6 @@ def bias_test(
             | (bootstrap_mean - fit_value) / d | > threshold are flagged. For circular
             data (phase differences), d = π. All other data, d = fit_value.
             Defaults to 0.05.
-        small_amp_threshold (float, optional): Threshold for fit fraction below which
-            amplitudes are considered small, and thus ignored in bias tests. Phase
-            differences who contain a small amplitude are also ignored. Defaults to
-            0.05.
 
     Raises:
         KeyError: If any specified column is not found in either DataFrame.
@@ -381,23 +376,6 @@ def bias_test(
                     )
                 )
 
-                # if either amplitude in the phase difference is small, skip bias test
-                amp1, amp2 = col.split("_")
-                amp1_ff = (
-                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                        amp1
-                    ].mean()
-                    / num_events
-                )
-                amp2_ff = (
-                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                        amp2
-                    ].mean()
-                    / num_events
-                )
-                if amp1_ff < small_amp_threshold or amp2_ff < small_amp_threshold:
-                    continue
-
                 bias = utils.circular_residual(
                     bootstrap_mean, fit_value, in_degrees=True
                 )
@@ -405,12 +383,6 @@ def bias_test(
 
             elif any(col in sublist for sublist in coherent_sums.values()):
                 bootstrap_mean = values.mean()
-
-                # skip bias test for small amplitudes
-                fit_fraction = bootstrap_mean / num_events
-                if fit_fraction < small_amp_threshold:
-                    continue
-
                 bias = (bootstrap_mean - fit_value) / safe_fit_value
                 fractional_bias = abs(bias)
 
@@ -498,7 +470,6 @@ def bias_test(
                 elif any(col in sublist for sublist in coherent_sums.values()):
                     # amplitude fit fraction
                     bootstrap_mean = values.mean()
-                    fit_fraction = bootstrap_mean / num_events
 
                     dist_handle = ax.hist(
                         values / num_events,
