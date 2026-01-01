@@ -155,9 +155,13 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "markersize": 5,
             "color": "black",
+            "alpha": 0.5,
             "label": utils.convert_amp_name(amp1),
         }
-        if amp1_kwargs is not None:
+        if self.truth_df is not None:
+            # make data more transparent if truth is also plotted, but allow override
+            amp1_params["alpha"] = 0.3
+        if amp1_kwargs is not None:  # override defaults
             amp1_params.update(amp1_kwargs)
         axs[0].errorbar(**amp1_params)
 
@@ -171,9 +175,13 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "markersize": 5,
             "color": "gray",
+            "alpha": 0.5,
             "label": utils.convert_amp_name(amp2),
         }
-        if amp2_kwargs is not None:
+        if self.truth_df is not None:
+            # make data more transparent if truth is also plotted, but allow override
+            amp2_params["alpha"] = 0.3
+        if amp2_kwargs is not None:  # override defaults
             amp2_params.update(amp2_kwargs)
         axs[0].errorbar(**amp2_params)
 
@@ -183,14 +191,14 @@ class PhasePlotter(BasePWAPlotter):
                 self.truth_df[amp1],
                 linestyle="-",
                 marker="",
-                color="black",
+                color=amp1_params["color"],
             )
             axs[0].plot(
                 self._masses,
                 self.truth_df[amp2],
                 linestyle="-",
                 marker="",
-                color="gray",
+                color=amp2_params["color"],
             )
 
         # plot the phase difference on the second subplot
@@ -209,9 +217,13 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "marker": ".",
             "color": "black",
+            "alpha": 0.5,
         }
+        if self.truth_df is not None:
+            # make data more transparent if truth is also plotted, but allow override
+            phase_params["alpha"] = 0.3
         if phase_kwargs is not None:
-            phase_params.update(phase_kwargs)
+            phase_params.update(phase_kwargs)  # override defaults
         axs[1].errorbar(**phase_params)
 
         # Also plot the negative phase with the same parameters (except for y values)
@@ -224,7 +236,7 @@ class PhasePlotter(BasePWAPlotter):
                 self.truth_df[phase_dif],
                 linestyle="-",
                 marker="",
-                color="black",
+                color=phase_params["color"],
             )
 
         axs[0].set_ylim(bottom=0.0)
