@@ -571,8 +571,9 @@ def report_correlations(
             Defaults to None.
         correlation_threshold (float, optional): The correlation threshold for
             reporting. Defaults to 0.8.
-        report_average (bool, optional): Whether to report average correlations.
-            Defaults to True.
+        report_average (bool, optional): Whether to report the correlations averaged
+            across the fit_indices, or when False, report the correlations in each
+            index. Defaults to True.
         drop_columns (Optional[List[str]], optional): Columns to drop from the
             analysis. Defaults to None.
 
