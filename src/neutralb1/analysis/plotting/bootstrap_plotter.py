@@ -25,40 +25,42 @@ class BootstrapPlotter(BasePWAPlotter):
     def correlation_matrix(
         self,
         columns: list[str],
-        pdf_path: str,
+        report_average: bool = True,
+        fit_indices: Optional[list[int]] = None,
         method: Literal["pearson", "kendall", "spearman"] = "pearson",
-        directories: Optional[list[str]] = None,
-        figsize: tuple = (10, 8),
+        pdf_path: str = "./bootstrap_correlation_matrices.pdf",
         annot: bool = True,
         cmap: str = "RdBu_r",
     ) -> None:
         """Generate correlation matrices for bootstrap samples and save to PDF.
 
-        Creates correlation matrix heatmaps for each bootstrap sample directory,
-        with proper amplitude name formatting and statistical annotations.
+        Creates correlation matrix heatmaps for bootstrap samples. When
+        report_average is True, averages correlations across all fit_indices and
+        generates a single matrix. When False, generates a separate matrix for each
+        fit_index with proper amplitude name formatting and statistical annotations.
 
         Args:
-            columns (list[str]): Bootstrap DataFrame columns to calculate correlations for.
-            pdf_path (str): Path to save the PDF file containing all correlation matrices.
-            method (str): Correlation method. Options: 'pearson', 'kendall', 'spearman'.
-                Defaults to 'pearson'.
-            directories (list[str], optional): Specific bootstrap directories to plot.
-                If None, plots all available directories. Defaults to None.
-            figsize (tuple): Figure size in inches (width, height). Defaults to (10, 8).
+            columns (list[str]): Bootstrap DataFrame columns to calculate correlations
+                for.
+            report_average (bool): If True, average correlations across all fit_indices
+                and output a single matrix. If False, output one matrix per fit_index.
+                Defaults to True.
+            fit_indices (list[int], optional): Specific fit indices to include. If
+                None, uses all available fit indices. Defaults to None.
+            method (Literal["pearson", "kendall", "spearman"]): Correlation method.
+                Defaults to "pearson".
+            pdf_path (str): Path to save the PDF file containing correlation
+                matrix/matrices. Defaults to "./bootstrap_correlation_matrices.pdf".
             annot (bool): Whether to annotate heatmap cells with correlation values.
                 Defaults to True.
-            cmap (str): Colormap for the heatmap. Defaults to 'RdBu_r'.
+            cmap (str): Colormap for the heatmap. Defaults to "RdBu_r".
 
         Raises:
-            ValueError: If bootstrap DataFrame is None or contains missing columns.
-            FileNotFoundError: If specified directories are not found.
+            ValueError: If bootstrap DataFrame is None, contains missing columns, or
+                specified fit_indices are not found.
 
         Returns:
             None: Saves plots to PDF file and prints confirmation.
-
-        Todo:
-            - Outdated directories method, should use fit_index instead.
-            - implement methods from statistics.report_correlations
         """
 
         assert self.bootstrap_df is not None
@@ -78,36 +80,53 @@ class BootstrapPlotter(BasePWAPlotter):
         if method not in valid_methods:
             raise ValueError(f"Method must be one of {valid_methods}, got '{method}'")
 
-        # Handle directories
-        available_dirs = self.bootstrap_df["directory"].unique()
-        if directories is None:
-            directories = available_dirs.tolist()
+        # Handle fit indices
+        if fit_indices is None:
+            fit_indices = self.bootstrap_df["fit_index"].unique().tolist()
         else:
-            missing_dirs = set(directories) - set(available_dirs)
-            if missing_dirs:
-                raise FileNotFoundError(
-                    f"The following directories were not found: {missing_dirs}"
+            missing_indices = set(fit_indices) - set(
+                self.bootstrap_df["fit_index"].unique()
+            )
+            if missing_indices:
+                raise ValueError(
+                    f"The following fit indices were not found: {missing_indices}"
                 )
 
-        # At this point directories is guaranteed to be a list
-        assert directories is not None
+        # At this point fit_indices is guaranteed to be a list[int]
+        assert fit_indices is not None
+
+        # Calculate figure size based on number of columns
+        # Use 0.6 inches per column/row, with minimum of 6 and maximum of 16
+        n_cols = len(columns)
+        base_size = max(6, min(16, n_cols * 0.6))
+        figsize = (base_size, base_size)
 
         # Create PDF to save all plots
         with PdfPages(pdf_path) as pdf:
-            for directory in directories:
-                # Filter data for current directory
-                dir_data = self.bootstrap_df[
-                    self.bootstrap_df["directory"] == directory
-                ][columns]
+            if report_average:
+                # Average correlations across all fit indices
+                correlation_matrices = []
+                for fit_index in fit_indices:
+                    data = self.bootstrap_df[
+                        self.bootstrap_df["fit_index"] == fit_index
+                    ][columns]
 
-                if dir_data.empty:
-                    warnings.warn(
-                        f"No data found for directory {directory}", UserWarning
-                    )
-                    continue
+                    if data.empty:
+                        warnings.warn(
+                            f"No data found for fit index {fit_index}", UserWarning
+                        )
+                        continue
 
-                # Calculate correlation matrix
-                corr_matrix = dir_data.corr(method=method)
+                    corr_matrix = data.corr(method=method)
+                    correlation_matrices.append(corr_matrix)
+
+                if not correlation_matrices:
+                    raise ValueError("No valid correlation matrices computed")
+
+                # Average all correlation matrices using pandas
+                avg_corr_matrix = (
+                    pd.concat(correlation_matrices).groupby(level=0).mean()
+                )
 
                 # Create prettier labels for amplitudes and phases
                 label_mapping = {}
@@ -121,7 +140,7 @@ class BootstrapPlotter(BasePWAPlotter):
                         label_mapping[col] = col
 
                 # Apply label mapping
-                corr_matrix = corr_matrix.rename(
+                avg_corr_matrix = avg_corr_matrix.rename(
                     index=label_mapping, columns=label_mapping
                 )
 
@@ -130,7 +149,7 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # Generate heatmap
                 heatmap = sns.heatmap(
-                    corr_matrix,
+                    avg_corr_matrix,
                     annot=annot,
                     cmap=cmap,
                     vmin=-1,
@@ -143,7 +162,10 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # Customize plot appearance
                 plt.title(
-                    f"{method.capitalize()} Correlation Matrix\n{directory}",
+                    (
+                        f"Average {method.capitalize()} Correlation Matrix "
+                        f"(n={len(correlation_matrices)} fit indices)"
+                    ),
                     fontsize=14,
                     pad=20,
                 )
@@ -160,8 +182,87 @@ class BootstrapPlotter(BasePWAPlotter):
                 pdf.savefig(bbox_inches="tight", dpi=300)
                 plt.close()
 
-        print(f"Correlation matrices saved to: {pdf_path}")
-        print(f"Generated {len(directories)} correlation matrix plots")
+                print(f"Correlation matrix saved to: {pdf_path}")
+                print(f"Averaged across {len(correlation_matrices)} fit indices")
+
+            else:
+                # Generate separate matrix for each fit_index
+                num_plots = 0
+                for fit_index in fit_indices:
+                    # Filter data for current directory
+                    data = self.bootstrap_df[
+                        self.bootstrap_df["fit_index"] == fit_index
+                    ][columns]
+
+                    if data.empty:
+                        warnings.warn(
+                            f"No data found for fit index {fit_index}", UserWarning
+                        )
+                        continue
+
+                    # Calculate correlation matrix
+                    corr_matrix = data.corr(method=method)
+
+                    # Create prettier labels for amplitudes and phases
+                    label_mapping = {}
+                    for col in columns:
+                        if (
+                            any(
+                                col in sublist
+                                for sublist in self.coherent_sums.values()
+                            )
+                            or col in self.phase_differences
+                        ):
+                            label_mapping[col] = utils.convert_amp_name(col)
+                        else:
+                            label_mapping[col] = col
+
+                    # Apply label mapping
+                    corr_matrix = corr_matrix.rename(
+                        index=label_mapping, columns=label_mapping
+                    )
+
+                    # Create the plot
+                    plt.figure(figsize=figsize)
+
+                    # Generate heatmap
+                    heatmap = sns.heatmap(
+                        corr_matrix,
+                        annot=annot,
+                        cmap=cmap,
+                        vmin=-1,
+                        vmax=1,
+                        center=0,
+                        square=True,
+                        fmt=".2f" if annot else "",
+                        cbar_kws={"label": f"{method.capitalize()} Correlation"},
+                    )
+
+                    # Customize plot appearance
+                    plt.title(
+                        (
+                            f"{method.capitalize()} Correlation Matrix for fit_index"
+                            f" {fit_index}"
+                        ),
+                        fontsize=14,
+                        pad=20,
+                    )
+                    plt.xticks(rotation=45, ha="right")
+                    plt.yticks(rotation=0)
+
+                    # Add grid for better readability
+                    heatmap.set_facecolor("white")
+
+                    # Tight layout to prevent label cutoff
+                    plt.tight_layout()
+
+                    # Save to PDF
+                    pdf.savefig(bbox_inches="tight", dpi=300)
+                    plt.close()
+                    num_plots += 1
+
+                print(f"Correlation matrices saved to: {pdf_path}")
+                print(f"Generated {num_plots} correlation matrix plots")
 
     def pairplot(
         self,
