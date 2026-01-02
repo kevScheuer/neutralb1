@@ -579,6 +579,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         """Plot wave intensities on diagonal elements of the matrix."""
 
         ax.set_ylim(0, max_intensity)
+        marker_alpha = 0.3 if self.truth_df is not None else 0.5
 
         # Emphasize diagonal with thick borders
         for spine in ax.spines.values():
@@ -610,9 +611,10 @@ class DiagnosticPlotter(BasePWAPlotter):
                 xerr=self._bin_width / 2,
                 y=self.fit_df[neg_amp],
                 yerr=yerr,
-                marker="v",
+                marker=".",
                 color="blue",
-                markersize=3,
+                alpha=marker_alpha,
+                markersize=1,
                 linewidth=1,
                 capsize=1,
                 label=r"$\varepsilon = -1$",
@@ -624,7 +626,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                     self._masses,
                     self.truth_df[neg_amp],
                     linestyle="-",
-                    linewidth=2,
+                    linewidth=1,
                     color="blue",
                     alpha=0.8,
                 )
@@ -642,9 +644,10 @@ class DiagnosticPlotter(BasePWAPlotter):
                 xerr=self._bin_width / 2,
                 y=self.fit_df[pos_amp],
                 yerr=yerr,
-                marker="^",
+                marker=".",
                 color="red",
-                markersize=3,
+                alpha=marker_alpha,
+                markersize=1,
                 linewidth=1,
                 capsize=1,
                 label=r"$\varepsilon = +1$",
@@ -656,7 +659,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                     self._masses,
                     self.truth_df[pos_amp],
                     linestyle="-",
-                    linewidth=2,
+                    linewidth=1,
                     color="red",
                     alpha=0.8,
                 )
@@ -676,6 +679,7 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         ax.set_ylim(-180, 180)
         ax.set_yticks(phase_ticks, [""] * len(phase_ticks))  # No labels to save space
+        marker_alpha = 0.3 if self.truth_df is not None else 0.5
 
         # Set column title for top row
         if row == 0:
@@ -705,8 +709,9 @@ class DiagnosticPlotter(BasePWAPlotter):
             phase_values.abs(),
             linestyle="",
             marker=".",
-            markersize=2,
+            markersize=1,
             color="red",
+            alpha=marker_alpha,
         )
 
         # Plot negative values (sign ambiguity)
@@ -715,8 +720,9 @@ class DiagnosticPlotter(BasePWAPlotter):
             -phase_values.abs(),
             linestyle="",
             marker=".",
-            markersize=2,
+            markersize=1,
             color="red",
+            alpha=marker_alpha,
         )
 
         # Add error bands if requested
@@ -742,7 +748,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 self._masses,
                 self.truth_df[phase_dif],
                 linestyle="-",
-                linewidth=2,
+                linewidth=1,
                 color="red",
                 alpha=0.8,
             )
@@ -760,6 +766,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         """Plot negative reflectivity phase differences in lower triangle."""
 
         ax.set_ylim(-180, 180)
+        marker_alpha = 0.3 if self.truth_df is not None else 0.5
 
         # Set y-axis labels only for first column
         if col == 0:
@@ -792,8 +799,9 @@ class DiagnosticPlotter(BasePWAPlotter):
             phase_values.abs(),
             linestyle="",
             marker=".",
-            markersize=2,
+            markersize=1,
             color="blue",
+            alpha=marker_alpha,
         )
 
         # Plot negative values (sign ambiguity)
@@ -802,8 +810,9 @@ class DiagnosticPlotter(BasePWAPlotter):
             -phase_values.abs(),
             linestyle="",
             marker=".",
-            markersize=2,
+            markersize=1,
             color="blue",
+            alpha=marker_alpha,
         )
 
         # Add error bands if requested
@@ -829,7 +838,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 self._masses,
                 self.truth_df[phase_dif],
                 linestyle="-",
-                linewidth=2,
+                linewidth=1,
                 color="blue",
                 alpha=0.8,
             )
