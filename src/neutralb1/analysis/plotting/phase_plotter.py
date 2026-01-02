@@ -12,7 +12,13 @@ class PhasePlotter(BasePWAPlotter):
     """Handles all strictly phase-related plotting methods."""
 
     def phase(
-        self, amp1: str, amp2: str, extend_range: bool = True
+        self,
+        amp1: str,
+        amp2: str,
+        extend_range: bool = True,
+        phase_kwargs: Optional[Dict[str, Any]] = None,
+        truth_kwargs: Optional[Dict[str, Any]] = None,
+        ax: Optional[matplotlib.axes.Axes] = None,
     ) -> matplotlib.axes.Axes:
         """Plot the phase difference between two amplitudes as a function of mass.
 
@@ -24,77 +30,92 @@ class PhasePlotter(BasePWAPlotter):
             extend_range (bool): Extends the y-axis from [-pi, pi) to [-2pi, 2pi) bounds
                 if True, and plots mirrored transparaent values. Useful for revealing
                 phase motions near the boundaries. Defaults to True.
+            phase_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
+                main phase difference errorbar plot. Defaults to None.
+            truth_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
+                truth phase plot. Defaults to None.
+            ax (Optional[matplotlib.axes.Axes]): directly provide axes object to plot
+                on.
+
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
         """
 
         phase_dif = self.phase_difference_dict[(amp1, amp2)]
-        color = "red" if amp1[0] == "p" else "blue"
 
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
+
         yerr = (
             self.get_bootstrap_error(phase_dif)
             if self.bootstrap_df is not None
             else self.fit_df[f"{phase_dif}_err"].abs()
         )
-        ax.errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df[phase_dif],
-            yerr=yerr,
-            linestyle="",
-            marker=".",
-            color=color,
-            label=utils.convert_amp_name(phase_dif),
-        )
+
+        # Set default parameters for main phase difference and allow kwargs to override
+        color = "red" if amp1[0] == "p" else "blue"
+        phase_params = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": self.fit_df[phase_dif],
+            "yerr": yerr,
+            "linestyle": "",
+            "marker": ".",
+            "markersize": 3,
+            "color": color,
+            "alpha": 0.5,
+            "label": utils.convert_amp_name(phase_dif),
+        }
+        if self.truth_df is not None:
+            # make data more transparent if truth is also plotted, but allow override
+            phase_params["alpha"] = 0.3
+        if phase_kwargs is not None:
+            phase_params.update(phase_kwargs)
+        handle = ax.errorbar(**phase_params)
+
         # plot the negative as well (natural sign ambiguity in the model)
-        ax.errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=-self.fit_df[phase_dif],
-            yerr=yerr,
-            linestyle="",
-            marker=".",
-            color=color,
-        )
+        phase_neg_params = phase_params.copy()
+        phase_neg_params["y"] = -self.fit_df[phase_dif]
+        phase_neg_params.pop("label", None)
+        ax.errorbar(**phase_neg_params)
 
         # plot the truth phase if available
         if self.truth_df is not None:
+            truth_params = {
+                "linestyle": "-",
+                "marker": "",
+                "color": color,
+            }
+            if truth_kwargs is not None:
+                truth_params.update(truth_kwargs)
             ax.plot(
                 self._masses,
                 self.truth_df[phase_dif],
-                linestyle="-",
-                marker="",
-                color=color,
+                linestyle=truth_params["linestyle"],
+                marker=truth_params["marker"],
+                color=truth_params["color"],
             )
 
         if extend_range:
             # add or subtract ambiguous 360 degree shifts. Positive values get shifted
             # down by 2pi, and negative values up by 2pi.
-            ax.errorbar(
-                x=self._masses,
-                xerr=self._bin_width / 2,
-                y=self.fit_df[phase_dif].abs() - 360.0,
-                yerr=yerr,
-                linestyle="",
-                marker=".",
-                color=color,
-                label=utils.convert_amp_name(phase_dif),
-            )
-            ax.errorbar(
-                x=self._masses,
-                xerr=self._bin_width / 2,
-                y=-(self.fit_df[phase_dif].abs()) + 360.0,
-                yerr=yerr,
-                linestyle="",
-                marker=".",
-                color=color,
-            )
+            phase_params_ext1 = phase_params.copy()
+            phase_params_ext1["y"] = self.fit_df[phase_dif].abs() - 360.0
+            phase_params_ext1["alpha"] = phase_params_ext1["alpha"] / 2.0
+            phase_params_ext1.pop("label", None)
+            ax.errorbar(**phase_params_ext1)
 
-        ax.legend()
+            phase_params_ext2 = phase_params.copy()
+            phase_params_ext2["y"] = -(self.fit_df[phase_dif].abs()) + 360.0
+            phase_params_ext2["alpha"] = phase_params_ext2["alpha"] / 2.0
+            phase_params_ext2.pop("label", None)
+            ax.errorbar(**phase_params_ext2)
+
+        if phase_params.get("label") != "":
+            ax.legend()
         if extend_range:
             ax.set_ylim(-360.0, 360.0)
-            ax.set_yticks(np.linspace(-360, 360, 11))
+            ax.set_yticks(np.linspace(-360, 360, 9))  # force to be in pi intervals
         else:
             ax.set_ylim(-180.0, 180.0)
             ax.set_yticks(np.linspace(-180, 180, 5))  # force to be in pi intervals
