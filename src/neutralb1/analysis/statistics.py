@@ -15,7 +15,6 @@ def normality_test(
     columns: List[str],
     alpha: float = 0.05,
     output: str = "./normality_test_results.pdf",
-    ignore_small_amps: bool = True,
     transform_small_amps: bool = True,
     small_amp_threshold: float = 0.05,
     skew_threshold: float = 0.5,
@@ -44,8 +43,6 @@ def normality_test(
             Defaults to 0.05.
         output (str, optional): Path to output PDF file for plots of failed tests.
             Defaults to "./normality_test_results.pdf".
-        ignore_small_amps (bool, optional): Whether to ignore amplitude distributions
-            with small fit fractions when testing for normality. Defaults to True.
         transform_small_amps (bool, optional): Whether to log-transform "small"
             amplitude distributions before testing for normality. Defaults to True.
         small_amp_threshold (float, optional): Threshold for fit fraction below which
@@ -93,26 +90,6 @@ def normality_test(
                 if values.max() > 180.0 or values.min() < -180.0:
                     raise ValueError("phase difference values must be within [-pi, pi]")
 
-                # skip normality test for phase differences with small amplitudes if
-                # configured to do so
-                amp1, amp2 = col.split("_")
-                amp1_ff = (
-                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                        amp1
-                    ].mean()
-                    / num_events
-                )
-                amp2_ff = (
-                    bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                        amp2
-                    ].mean()
-                    / num_events
-                )
-                if ignore_small_amps and (
-                    amp1_ff < small_amp_threshold or amp2_ff < small_amp_threshold
-                ):
-                    continue
-
                 values_rad = np.deg2rad(values.to_numpy())
                 loc = scipy.stats.circmean(values_rad, high=np.pi, low=0)
                 res = scipy.stats.goodness_of_fit(
@@ -137,9 +114,6 @@ def normality_test(
                     and fit_fraction < small_amp_threshold
                     and transform_small_amps
                 ):
-                    if ignore_small_amps:
-                        # skip normality test for small amplitudes
-                        continue
                     # log-transform
                     log_values = np.log1p(values)
 
