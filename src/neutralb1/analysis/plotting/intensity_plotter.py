@@ -24,6 +24,7 @@ class IntensityPlotter(BasePWAPlotter):
         Todo:
             - Handle very small mismatch between data widths and bar widths
             - add kwargs (see phase_plotter) for implementation example
+            - add option to pass ax directly for plotting into existing figure
         """
 
         # property map for consistent plotting
@@ -38,7 +39,11 @@ class IntensityPlotter(BasePWAPlotter):
             "3m": {"color": colors[7], "marker": "d"},
         }
         for d in jp_map.values():
-            d.update({"markersize": 6})
+            d.update({"markersize": 4})
+            if self.truth_df is not None:
+                d.update({"alpha": 0.5})
+            else:
+                d.update({"alpha": 0.7})
 
         fig, ax = plt.subplots()
 
@@ -57,6 +62,7 @@ class IntensityPlotter(BasePWAPlotter):
             y=self.data_df["events"].div(efficiency),
             yerr=self.data_df["events_err"].div(efficiency),
             marker=".",
+            markersize=1,
             linestyle="",
             color="black",
             label=data_label,
