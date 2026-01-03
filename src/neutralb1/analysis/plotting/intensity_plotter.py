@@ -1,3 +1,5 @@
+from typing import Optional
+
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -356,7 +358,12 @@ class IntensityPlotter(BasePWAPlotter):
 
         return axs
 
-    def moments(self, fractional: bool = False, sharey: bool = False) -> np.ndarray:
+    def moments(
+        self,
+        fractional: bool = False,
+        sharey: bool = False,
+        moments: Optional[list[str]] = None,
+    ) -> np.ndarray:
         """Plot all the projected moments in a grid format.
 
         Moments cannot be organized like what is done in :meth:`waves`, so they
@@ -367,6 +374,8 @@ class IntensityPlotter(BasePWAPlotter):
                 H0_0000 moment. Defaults to False.
             sharey (bool, optional): When true, shares the y-axis limits across all
                 moments. Defaults to False.
+            moments (list[str], optional): List of specific moment columns to plot.
+                If None (default), all available moments are plotted.
 
         Returns:
             np.ndarray: Array of axes for the moments.
@@ -377,11 +386,23 @@ class IntensityPlotter(BasePWAPlotter):
 
         assert self.proj_moments_df is not None, "No projected moments data available."
 
-        columns = [
-            col
-            for col in self.proj_moments_df.columns
-            if col.startswith("H") and col[1].isdigit()
-        ]
+        if moments is not None:
+            # validate requested moments
+            missing_moments = []
+            for moment in moments:
+                if moment not in self.proj_moments_df.columns:
+                    missing_moments.append(moment)
+            if missing_moments:
+                raise ValueError(
+                    f"Requested moments not found in data: {missing_moments}"
+                )
+            columns = sorted(moments)
+        else:
+            columns = [
+                col
+                for col in self.proj_moments_df.columns
+                if col.startswith("H") and col[1].isdigit()
+            ]
 
         n_moments = len(columns)
         marker_alpha = 0.5 if self.truth_proj_moments_df is None else 0.3
@@ -443,6 +464,10 @@ class IntensityPlotter(BasePWAPlotter):
                     truth_y = truth_y / truth_denom
 
                 ax.plot(self._masses, truth_y, linestyle="-", color="black")
+
+        # hide any unused subplots
+        for ax in axs.flatten()[n_moments:]:
+            ax.set_visible(False)
 
         # figure wide labels
         y_label = (
