@@ -14,61 +14,48 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 
 
 class RandomizedPlotter(BasePWAPlotter):
-    """Handles plots that rely on randomized parameter fitting
-
-    Todo:
-        - The weighted_residuals function currently assumes that either all columns
-            are moments or PWA results, and using it is very clunky.
-    """
+    """Handles plots that rely on randomized parameter fitting"""
 
     def randomized_summary(
         self,
         fit_index: int,
+        columns: list[str],
         likelihood_threshold: float = np.inf,
-        pwa_threshold: float = 0.1,
-        moment_threshold: float = 0.01,
-        columns: Optional[list[str]] = None,
-        return_significant_columns: bool = False,
+        use_truth_residual: bool = True,
         figsize: tuple = (16, 12),
-    ) -> matplotlib.figure.Figure | tuple[matplotlib.figure.Figure, list[str]]:
-        """Create a 2x2 summary plot with all randomized fit analysis plots.
+    ) -> matplotlib.figure.Figure:
+        """Create a 2x2 summary plot of the randomized fit results
 
         This method creates a comprehensive summary figure with four subplots:
         - Upper left: Likelihood distribution
-        - Upper right: Moment weighted residuals (for columns passing threshold).
-            Will only plot if all projected moment dataframes are provided, due to
-            bootstrap data being required for calculating errors.
-        - Bottom left: PWA weighted residuals (for columns passing threshold)
-        - Bottom right: Sum of the average squared weighted residuals of the PWA and
-            moments, vs. delta_lnL
+        - Upper right: Weighted residuals of moments passed to columns. Will only plot
+            if all projected moment dataframes are provided, due to bootstrap data being
+            required for calculating errors.
+        - Bottom left: Amplitude, phase, parameter, or all other weighted residuals
+            from columns.
+        - Bottom right: Average absolute weighted residuals of the PWA and moment data.
+            If moments are not provided, only PWA residuals are plotted against
+            delta_lnL.
 
         Args:
             fit_index (int): Index of the fit to analyze.
+            columns (list[str]): Columns to use in the weighted residuals plots
             likelihood_threshold (float, optional): Only randomized fits with
-                delta(-2lnL) below this threshold will be included in the plots.
+                [ -2ln(L_rand) - (-2ln(L_best)) ] > threshold will be included.
                 Defaults to np.inf (all fits included).
-            pwa_threshold (float, optional): Threshold for PWA fits if columns not
-                provided. Amplitude fit fractions, or average of the fit fractions that
-                make up a phase difference must surpass this to be included. Defaults to
-                0.1.
-            moment_threshold (float, optional): Threshold for moment fits if columns not
-                provided. Moment values must surpass this fraction of H0_0000 to be
-                included. Defaults to 0.01.
-            columns (Optional[list[str]]): Explicit columns to use in the weighted
-                residuals plots. If None (default), significant columns above the
-                thresholds are used.
-            return_significant_columns (bool, optional): If True, the significant
-                columns used in the weighted residuals plots are returned. Defaults to
-                False.
+            use_truth_residual (bool, optional): Whether to calculate residuals
+                relative to truth values, if available. Defaults to True. If False, or
+                truth values are not available, residuals are calculated relative
+                to the best fit values.
             figsize (tuple, optional): Size of the entire figure. Defaults to (16, 12).
 
         Returns:
             plt.Figure: The figure object containing all four subplots.
+        Todo:
+            - Add calculation of residuals relative to truth values, if available.
         """
 
-        data = self._prepare_randomized_data(
-            fit_index, columns, likelihood_threshold, pwa_threshold, moment_threshold
-        )
+        data = self._prepare_randomized_data(fit_index, columns, likelihood_threshold)
 
         # Create 2x2 subplot figure
         fig, axes = plt.subplots(2, 2, figsize=figsize, layout="constrained")
@@ -113,7 +100,7 @@ class RandomizedPlotter(BasePWAPlotter):
             data["bootstrap_df"],
         )
 
-        # Bottom right: Scatterplot of averaged squared weighted residuals
+        # Bottom right: Scatterplot of averaged absolute weighted residuals
         self._scatterplot(axes[1, 1], data)
 
         # Add colorbar to the right of the entire 2x2 grid
@@ -130,23 +117,13 @@ class RandomizedPlotter(BasePWAPlotter):
             label=r"$\Delta(-2\ln(\mathcal{L}))$",
         )
 
-        if return_significant_columns:
-            return fig, (
-                data["best_series"].index.tolist()
-                + data["proj_moments_series"].index.tolist()
-                if data["proj_moments_series"] is not None
-                else []
-            )
-
         return fig
 
     def _prepare_randomized_data(
         self,
         fit_index: int,
-        columns: list[str] | None,
+        columns: list[str],
         likelihood_threshold: float,
-        pwa_threshold: float,
-        moment_threshold: float,
     ) -> dict:
         """Prepare and extract relevant data for a given fit index and set of columns"""
 
@@ -155,50 +132,26 @@ class RandomizedPlotter(BasePWAPlotter):
         pwa_columns = []
         moment_columns = []
 
-        if columns is None:  # uses columns above thresholds
-            pwa_columns = self._find_significant_columns(
-                self._assert_series(self.fit_df.loc[fit_index]),
-                threshold=pwa_threshold,
-            )
-            if (
-                self.proj_moments_df is not None
-                and self.randomized_proj_moments_df is not None
-            ):
-                moment_columns = self._find_significant_columns(
-                    self._assert_series(
-                        self.proj_moments_df.loc[
-                            self.proj_moments_df["fit_index"] == fit_index
-                        ]
-                    ),
-                    threshold=moment_threshold,
-                )
-        else:  # explicit columns provided, separate into pwa and moment columns
-            for col in columns:
-                if col not in self.fit_df.columns and (
+        for col in columns:
+            if col.startswith("H") and col[1].isdigit():
+                if (
                     self.proj_moments_df is not None
                     and col not in self.proj_moments_df.columns
                 ):
-                    raise KeyError(
-                        f"Column '{col}' not found in either fit_df or proj_moments_df."
-                    )
-                if col.startswith("H") and col[1].isdigit():
-                    moment_columns.append(col)
-                else:
-                    pwa_columns.append(col)
-            pwa_columns = [
-                col for col in columns if not (col.startswith("H") and col[1].isdigit())
-            ]
-            moment_columns = [
-                col for col in columns if col.startswith("H") and col[1].isdigit()
-            ]
+                    raise KeyError(f"Column '{col}' not found in proj_moments_df.")
+                moment_columns.append(col)
+            else:
+                if col not in self.fit_df.columns:
+                    raise KeyError(f"Column '{col}' not found in fit_df.")
+                pwa_columns.append(col)
 
-            if moment_columns and (
-                self.proj_moments_df is None or self.randomized_proj_moments_df is None
-            ):
-                raise ValueError(
-                    "moment_columns provided but dataframes of projected moments from"
-                    " fits are None."
-                )
+        if moment_columns and (
+            self.proj_moments_df is None or self.randomized_proj_moments_df is None
+        ):
+            raise ValueError(
+                "moment_columns provided but dataframes of projected moments from"
+                " fits are None."
+            )
 
         # extract best fits and corresponding randomized fits for the requested index
         best_series = self._assert_series(self.fit_df.loc[fit_index])
@@ -227,7 +180,6 @@ class RandomizedPlotter(BasePWAPlotter):
             bootstrap_df = self.bootstrap_df.loc[
                 self.bootstrap_df["fit_index"] == fit_index
             ][pwa_columns]
-            bootstrap_df = bootstrap_df.iloc[likelihood_mask]
         else:
             bootstrap_df = None
 
@@ -250,7 +202,6 @@ class RandomizedPlotter(BasePWAPlotter):
             bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
                 self.bootstrap_proj_moments_df["fit_index"] == fit_index
             ][moment_columns]
-            bootstrap_proj_moments_df = bootstrap_proj_moments_df.iloc[likelihood_mask]
         else:
             bootstrap_proj_moments_df = None
 
@@ -272,50 +223,10 @@ class RandomizedPlotter(BasePWAPlotter):
         assert isinstance(series, pd.Series), "Result must be a Series"
         return series
 
-    def _find_significant_columns(
-        self, series: pd.Series, threshold: float
-    ) -> list[str]:
-        """Finds significant amplitudes, phase differences, or moments in a series."""
-
-        significant_columns = []
-        is_moment_dataframe = any(c.startswith("H0_") for c in series.index)
-
-        if is_moment_dataframe:
-            for col in series.index:
-                if not col.startswith("H"):
-                    continue
-
-                moment_fraction = abs(series[col] / series["H0_0000"])
-                if moment_fraction > threshold:
-                    significant_columns.append(col)
-        else:
-            total = (
-                "generated_events"
-                if self.is_acceptance_corrected
-                else "detected_events"
-            )
-
-            # find amplitude fit fractions above threshold
-            for amp in self.coherent_sums["eJPmL"]:
-                amp_fraction = series[amp] / series[total]
-                if abs(amp_fraction) > threshold:
-                    significant_columns.append(amp)
-
-            for phase in self.phase_differences:
-                # extract the amplitudes that make up the phase difference
-                amp1, amp2 = phase.split("_")
-                amp1_fraction = series[amp1] / series[total]
-                amp2_fraction = series[amp2] / series[total]
-
-                # use the average fraction of the two amplitudes to determine if phase
-                # difference is significant
-                if (abs(amp1_fraction) + abs(amp2_fraction)) / 2 > threshold:
-                    significant_columns.append(phase)
-
-        return significant_columns
-
     def _plot_likelihood_distribution(
-        self, ax: matplotlib.axes.Axes, data: dict[str, pd.Series | pd.DataFrame | None]
+        self,
+        ax: matplotlib.axes.Axes,
+        data: dict[str, np.ndarray | pd.Series | pd.DataFrame | None],
     ) -> matplotlib.axes.Axes:
         """Plot the distribution of likelihoods from randomized fits."""
 
@@ -451,6 +362,9 @@ class RandomizedPlotter(BasePWAPlotter):
             ha="right",
             rotation_mode="anchor",
         )
+        ax.set_ylabel(
+            r"Weighted Residuals $(x_\text{rand} - x_\text{best}) / \sigma_\text{best}$"
+        )
 
         # show 0, and 3 sigma lines
         ax.axhline(y=0, color="black", linestyle="-", alpha=0.5)
@@ -582,8 +496,14 @@ class RandomizedPlotter(BasePWAPlotter):
                 s=50,
             )
 
-            ax.set_xlabel("Distance (Moment Residuals)")
-            ax.set_ylabel("Distance (PWA Residuals)")
+            ax.set_xlabel(
+                r"Moments: $\Sigma |(x_\text{rand} - x_\text{best})"
+                r" / \sigma_\text{best}|$"
+            )
+            ax.set_ylabel(
+                r"PWA: $\Sigma |(x_\text{rand} - x_\text{best})"
+                r" / \sigma_\text{best}|$"
+            )
         else:
             # Create 1D scatterplot with PWA residuals on y-axis and delta_lnL on x-axis
             ax.scatter(
