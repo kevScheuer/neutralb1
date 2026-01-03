@@ -270,6 +270,21 @@ def get_phase_differences(df: pd.DataFrame) -> Set[str]:
     return set(get_phase_difference_dict(df).values())
 
 
+def get_moments(df: pd.DataFrame) -> Set[str]:
+    """Returns the set of all projected moment columns in the dataframe
+
+    Args:
+        df (pd.DataFrame): dataframe of projected moments loaded from csv
+    Returns:
+        set: set of all projected moment column names in the dataframe
+    """
+    moment_columns = set()
+    for column in df.columns:
+        if column.startswith("H") and "_" in column:
+            moment_columns.add(column)
+    return moment_columns
+
+
 def convert_amp_name(input_string: str) -> str:
     """Converts amplitude string to J^P L_m^(e) LaTeX style string
 

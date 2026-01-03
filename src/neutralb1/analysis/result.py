@@ -101,6 +101,9 @@ class ResultManager:
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
+        if self.proj_moments_df is not None:
+            self.moments = utils.get_moments(self.proj_moments_df)
+
         self.is_preprocessed = is_preprocessed
         self.is_acceptance_corrected = self._is_fit_acceptance_corrected()
 
@@ -493,7 +496,7 @@ class ResultManager:
         return self._plotter_factory
 
     def get_significant_amplitudes(
-        self, threshold: float = 0.05, fit_indices=None
+        self, threshold: float = 0.05, fit_indices: Optional[list[int]] = None
     ) -> set[str]:
         """Determine single amplitudes whose average fit fraction is above a threshold
 
@@ -502,15 +505,15 @@ class ResultManager:
         Args:
             threshold (float, optional): amplitudes with an average fit fraction above
                 this value are considered significant. Defaults to 0.05.
-            fit_indices (list, optional): Indices of the fit DataFrame to consider for
-                averaging. Defaults to None (all indices used)
+            fit_indices (list[int], optional): Indices of the fit DataFrame to consider
+                for averaging. Defaults to None (all indices used)
 
         Returns:
             set: A set of significant single amplitudes.
         """
 
         if fit_indices is None:
-            fit_indices = self.fit_df.index
+            fit_indices = list(self.fit_df.index)
 
         significant_amplitudes = set()
 
@@ -528,7 +531,7 @@ class ResultManager:
         return significant_amplitudes
 
     def get_significant_phases(
-        self, threshold: float = 0.05, fit_indices=None
+        self, threshold: float = 0.05, fit_indices: Optional[list[int]] = None
     ) -> set[str]:
         """Determine phase differences that are only between significant amplitudes
 
@@ -539,14 +542,14 @@ class ResultManager:
         Args:
             threshold (float, optional): amplitudes with an average fit fraction above
                 this value are considered significant. Defaults to 0.05.
-            fit_indices (list, optional): Indices of the fit DataFrame to consider for
-                averaging. Defaults to None (all indices used)
+            fit_indices (list[int], optional): Indices of the fit DataFrame to consider
+                for averaging. Defaults to None (all indices used).
         Returns:
             set: A set of significant phase differences.
         """
 
         if fit_indices is None:
-            fit_indices = self.fit_df.index
+            fit_indices = list(self.fit_df.index)
 
         significant_phases = set()
         significant_amplitudes = self.get_significant_amplitudes(threshold, fit_indices)
@@ -557,6 +560,41 @@ class ResultManager:
                 significant_phases.add(phase_dif)
 
         return significant_phases
+
+    def get_significant_moments(
+        self, threshold: float = 0.05, fit_indices: Optional[list[int]] = None
+    ) -> set[str]:
+        """Determine moments that have an average absolute fit fraction above threshold
+
+        Args:
+            threshold (float, optional): moments with an average absolute
+                fit fraction (|moment / H0_0000|) above this value are considered
+                significant. Defaults to 0.05.
+            fit_indices (list[int], optional): Indices of the fit DataFrame to consider
+                for averaging. Defaults to None (all indices used).
+
+        Raises:
+            ValueError: If the projected moments DataFrame is not available.
+
+        Returns:
+            set[str]: A set of significant moments.
+        """
+
+        if self.proj_moments_df is None:
+            raise ValueError("Projected moments DataFrame is not available.")
+
+        if fit_indices is None:
+            fit_indices = list(self.fit_df.index)
+
+        significant_moments = set()
+        for moment in self.moments:
+            h0 = self.proj_moments_df["H0_0000"]
+            fit_fractions = (self.proj_moments_df[moment] / h0).loc[fit_indices]
+            is_significant = fit_fractions.abs().mean() > threshold
+            if is_significant:
+                significant_moments.add(moment)
+
+        return significant_moments
 
     def _is_fit_acceptance_corrected(self) -> bool:
         """Check if the fit is using acceptance corrected amplitudes.
