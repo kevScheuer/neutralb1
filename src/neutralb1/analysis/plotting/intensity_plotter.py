@@ -127,6 +127,7 @@ class IntensityPlotter(BasePWAPlotter):
                         color=props["color"],
                     )
 
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax.set_xlabel(rf"{self.channel} inv. mass $(GeV)$", loc="right")
         ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
         ax.set_ylim(bottom=0.0)

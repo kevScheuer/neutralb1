@@ -260,6 +260,7 @@ class PhasePlotter(BasePWAPlotter):
                 color=phase_params["color"],
             )
 
+        axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         axs[0].set_ylim(bottom=0.0)
         axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
 
