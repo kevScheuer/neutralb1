@@ -51,11 +51,11 @@ class RandomizedPlotter(BasePWAPlotter):
 
         Returns:
             plt.Figure: The figure object containing all four subplots.
-        Todo:
-            - Add calculation of residuals relative to truth values, if available.
         """
 
-        data = self._prepare_randomized_data(fit_index, columns, likelihood_threshold)
+        data = self._prepare_randomized_data(
+            fit_index, columns, likelihood_threshold, use_truth_residual
+        )
 
         # Create 2x2 subplot figure
         fig, axes = plt.subplots(2, 2, figsize=figsize, layout="constrained")
@@ -89,6 +89,8 @@ class RandomizedPlotter(BasePWAPlotter):
                 data["rand_proj_moments_df"],
                 data["delta_lnL"],
                 data["bootstrap_proj_moments_df"],
+                data["truth_proj_moments_series"],
+                use_truth_residual,
             )
 
         # Bottom left: PWA weighted residuals
@@ -98,6 +100,8 @@ class RandomizedPlotter(BasePWAPlotter):
             data["rand_df"],
             data["delta_lnL"],
             data["bootstrap_df"],
+            data["truth_series"],
+            use_truth_residual,
         )
 
         # Bottom right: Scatterplot of averaged absolute weighted residuals
@@ -117,6 +121,18 @@ class RandomizedPlotter(BasePWAPlotter):
             label=r"$\Delta(-2\ln(\mathcal{L}))$",
         )
 
+        low_mass = self.data_df[self.data_df["fit_index"] == fit_index]["m_low"].values[
+            0
+        ]
+        high_mass = self.data_df[self.data_df["fit_index"] == fit_index][
+            "m_high"
+        ].values[0]
+
+        fig.suptitle(
+            rf"{low_mass:.3f} < {self.channel} inv. mass < {high_mass:.3f} $(GeV)$",
+            fontsize=20,
+        )
+
         return fig
 
     def _prepare_randomized_data(
@@ -124,6 +140,7 @@ class RandomizedPlotter(BasePWAPlotter):
         fit_index: int,
         columns: list[str],
         likelihood_threshold: float,
+        use_truth_residual: bool,
     ) -> dict:
         """Prepare and extract relevant data for a given fit index and set of columns"""
 
@@ -205,6 +222,27 @@ class RandomizedPlotter(BasePWAPlotter):
         else:
             bootstrap_proj_moments_df = None
 
+        # Extract truth data if requested and available
+        if use_truth_residual:
+            if self.truth_df is not None and pwa_columns:
+                truth_series = self._assert_series(self.truth_df.loc[fit_index])[
+                    pwa_columns
+                ]
+            else:
+                truth_series = None
+
+            if self.truth_proj_moments_df is not None and moment_columns:
+                truth_proj_moments_series = self._assert_series(
+                    self.truth_proj_moments_df.loc[
+                        self.truth_proj_moments_df["fit_index"] == fit_index
+                    ]
+                )[moment_columns]
+            else:
+                truth_proj_moments_series = None
+        else:
+            truth_series = None
+            truth_proj_moments_series = None
+
         return {
             "delta_lnL": delta_lnL,
             "best_series": best_series,
@@ -213,6 +251,8 @@ class RandomizedPlotter(BasePWAPlotter):
             "proj_moments_series": proj_moments_series,
             "rand_proj_moments_df": rand_proj_moments_df,
             "bootstrap_proj_moments_df": bootstrap_proj_moments_df,
+            "truth_series": truth_series,
+            "truth_proj_moments_series": truth_proj_moments_series,
         }
 
     def _assert_series(self, df: pd.DataFrame | pd.Series) -> pd.Series:
@@ -273,19 +313,27 @@ class RandomizedPlotter(BasePWAPlotter):
         rand_df: pd.DataFrame,
         delta_lnL: np.ndarray,
         bootstrap_df: Optional[pd.DataFrame] = None,
+        truth_series: Optional[pd.Series] = None,
+        use_truth_residual: bool = False,
     ) -> matplotlib.axes.Axes:
         """Calculate and plot the weighted residuals for randomized fits.
 
-        The weighted residuals are calculated as the difference
-        between the randomized fit values and the best fit values, divided by the
-        uncertainty (error) in the best fit values, calculated from the `_err` columns
-        or separate bootstrap samples, if provided. Points are automatically grouped
-        into four categories based on their delta_lnL values, with different line styles
-        and alpha values for each group.
+        The weighted residuals are calculated as the difference between the
+        randomized fit values and either the best fit values or truth values
+        (if use_truth_residual=True and truth_series is provided), divided by
+        the uncertainty (error) in the best fit values, calculated from the
+        `_err` columns or separate bootstrap samples, if provided. Points are
+        automatically grouped into four categories based on their delta_lnL
+        values, with different line styles and alpha values for each group.
         """
 
         weighted_residuals = self._calculate_weighted_residuals(
-            best_series, rand_df, bootstrap_df
+            best_series, rand_df, bootstrap_df, truth_series
+        )
+
+        # Determine reference value for ylabel
+        reference = (
+            "truth" if use_truth_residual and truth_series is not None else "best"
         )
 
         # remove columns who are purely NaN
@@ -363,7 +411,8 @@ class RandomizedPlotter(BasePWAPlotter):
             rotation_mode="anchor",
         )
         ax.set_ylabel(
-            r"Weighted Residuals $(x_\text{rand} - x_\text{best}) / \sigma_\text{best}$"
+            rf"Weighted Residuals $(x_\text{{rand}} - x_\text{{{reference}}})"
+            rf" / \sigma_\text{{best}}$"
         )
 
         # show 0, and 3 sigma lines
@@ -372,8 +421,12 @@ class RandomizedPlotter(BasePWAPlotter):
         ax.axhline(y=-3, color="red", linestyle="--", alpha=0.5)
 
         # make symmetric y-axis
-        y_max = np.nanmax([np.nanmax(res) for res in weighted_residuals.values()])
-        y_min = np.nanmin([np.nanmin(res) for res in weighted_residuals.values()])
+        y_max = max(
+            np.nanmax([np.nanmax(res) for res in weighted_residuals.values()]), 3
+        )
+        y_min = min(
+            np.nanmin([np.nanmin(res) for res in weighted_residuals.values()]), -3
+        )
         y_limit = max(abs(y_max), abs(y_min)) * 1.1  # add some padding
         ax.set_ylim(-y_limit, y_limit)
 
@@ -386,11 +439,15 @@ class RandomizedPlotter(BasePWAPlotter):
         best_series: pd.Series,
         rand_df: pd.DataFrame,
         bootstrap_df: Optional[pd.DataFrame] = None,
+        truth_series: Optional[pd.Series] = None,
     ) -> Dict[str, list[float]]:
-        """Compute error-weighted residuals between the best fit and randomized fits.
+        """Compute error-weighted residuals between randomized fits and a reference.
 
         The value is defined to be:
-            weighted_residual = (rand_value - best_value) / best_value_error
+            weighted_residual = (rand_value - reference_value) / reference_error
+
+        Where reference_value is either best_value (default) or truth_value (if
+        truth_series is provided), and reference_error is always from the best fit.
         """
         col_to_weighted_residuals = {}
 
@@ -400,9 +457,12 @@ class RandomizedPlotter(BasePWAPlotter):
             # phases are circular data, so flag them for special treatment
             is_phase = True if col in self.phase_differences else False
 
-            # extract the best, rand, and error value for this column
+            # extract the best, rand, truth (if available), and error value for column
             best_value = best_series[col]
             rand_array = rand_df[col].to_numpy()
+            reference_value = (
+                truth_series[col] if truth_series is not None else best_value
+            )
             if bootstrap_df is None:
                 best_err = best_series.get(f"{col}_err", np.nan)
             else:
@@ -428,11 +488,11 @@ class RandomizedPlotter(BasePWAPlotter):
                     # again, abs due to sign ambiguity
                     residuals = vectorized_circular_residual(
                         np.abs(rand_array),
-                        np.abs(best_value),
+                        np.abs(reference_value),
                         in_degrees=True,
                     )
                 else:
-                    residuals = rand_array - best_value
+                    residuals = rand_array - reference_value
 
                 weighted_residuals = residuals / best_err
 
@@ -452,8 +512,17 @@ class RandomizedPlotter(BasePWAPlotter):
         the PWA residuals on the y-axis. Points are always colored by delta_lnL.
         """
 
+        # Determine reference labels based on whether truth data is available
+        pwa_reference = "truth" if data["truth_series"] is not None else "best"
+        moment_reference = (
+            "truth" if data["truth_proj_moments_series"] is not None else "best"
+        )
+
         pwa_residuals = self._calculate_weighted_residuals(
-            data["best_series"], data["rand_df"], data["bootstrap_df"]
+            data["best_series"],
+            data["rand_df"],
+            data["bootstrap_df"],
+            data["truth_series"],
         )
         # user has already been warned about NaN columns in _plot_weighted_residuals,
         # just remove or ignore them here
@@ -477,6 +546,7 @@ class RandomizedPlotter(BasePWAPlotter):
                 data["proj_moments_series"],
                 data["rand_proj_moments_df"],
                 data["bootstrap_proj_moments_df"],
+                data["truth_proj_moments_series"],
             )
             moment_residuals = {
                 k: v for k, v in moment_residuals.items() if not np.all(np.isnan(v))
@@ -497,12 +567,14 @@ class RandomizedPlotter(BasePWAPlotter):
             )
 
             ax.set_xlabel(
-                r"Moments: $\Sigma |(x_\text{rand} - x_\text{best})"
-                r" / \sigma_\text{best}|$"
+                rf"Moments: $\frac{{1}}{{N}} \sum_i^N |(x_\text{{rand}}"
+                rf" - x_\text{{{moment_reference}}})"
+                rf" / \sigma_\text{{best}}|_i$"
             )
             ax.set_ylabel(
-                r"PWA: $\Sigma |(x_\text{rand} - x_\text{best})"
-                r" / \sigma_\text{best}|$"
+                rf"PWA: $\frac{{1}}{{N}} \sum_i^N |(x_\text{{rand}}"
+                rf" - x_\text{{{pwa_reference}}})"
+                rf" / \sigma_\text{{best}}|_i$"
             )
         else:
             # Create 1D scatterplot with PWA residuals on y-axis and delta_lnL on x-axis
