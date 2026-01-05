@@ -38,12 +38,14 @@ Steps:
 */
 
 #include <algorithm>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <complex>
-#include <map>
 #include <cmath>
+#include <complex>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "IUAmpTools/FitResults.h"
 #include "IUAmpTools/NormIntInterface.h"
@@ -131,7 +133,9 @@ struct ProdCoefficientPairKey
 
 // Global caches
 static std::map<CGKey, double> cg_cache;
-static std::map<ProdCoefficientPairKey, std::pair<ProdCoefficientPair, ProdCoefficientPair>> prod_coeff_pair_cache;
+static std::map<
+    ProdCoefficientPairKey, 
+    std::pair<ProdCoefficientPair, ProdCoefficientPair>> prod_coeff_pair_cache;
 
 // Threshold for considering a coefficient as effectively zero
 static const double THRESHOLD = 1e-10;
@@ -149,6 +153,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
 );
 std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
     const std::map<Moment, std::vector<ProdCoefficientPair>> &input_expressions);
+void write_moment_expressions_tex(
+    std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions,
+    std::string filename);
 double calculate_CGs(
     int Ji, int li, int mi, int Jj, int lj, int mj,
     int lambda_i, int lambda_j, const Moment &moment);
@@ -189,20 +196,28 @@ int main(int argc, char *argv[])
         return 1;
     }
     std::string reaction = reactions[0];
-
-    // STEPS 2 & 3: Calculate SDMEs and CG coefficients, then group by coefficient pairs
+    
+    // Find all non-zero production coefficient pairs for each moment
     std::map<Moment, std::vector<ProdCoefficientPair>> moment_expressions = 
     calculate_moment_expressions(
         moments,
         reaction,
         results
     );
+    std::cout << "Moment expressions built successfully\n";
 
-    std::cout << "\nMoment expressions built successfully\n";
-
+    // Combine the coefficients of all like pairs
     std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions =
     combine_like_terms(moment_expressions);
+    std::cout << "Combined like terms in moment expressions\n";
 
+    // At this point, we have combinations like c_i c_i* and 
+    // c_i c_j* +/- c_j c_i*, with respective coefficients. These can be combined and 
+    // written into a LaTeX format.
+    write_moment_expressions_tex(
+        combined_moment_expressions,
+        "moment_expressions.tex"
+    );
 
     return 0;
 }
@@ -239,6 +254,8 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                 {
                                     for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
                                     {
+                                        // get the 4 production coefficient pairs from 
+                                        // the SDME
                                         ProdCoefficientPair pair1_neg, pair2_neg;
                                         ProdCoefficientPair pair1_pos, pair2_pos;
                                         std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
@@ -251,7 +268,8 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                             Ji, mi, li,
                                             Jj, mj, lj,
                                             reaction, results);
-
+                                        
+                                        // normalization factor
                                         double norm = (
                                             std::sqrt(2 * li + 1) 
                                             * std::sqrt(2 * lj + 1)) / (2.0 * Jj + 1
@@ -261,6 +279,16 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                         pair1_pos.coefficient *= norm;
                                         pair2_pos.coefficient *= norm;
 
+                                        // special case due to -M and -Lambda symmetry
+                                        if (moment.Lambda == 0 && moment.M == 0)
+                                        {
+                                            pair1_neg.coefficient *= 0.5;
+                                            pair2_neg.coefficient *= 0.5;
+                                            pair1_pos.coefficient *= 0.5;
+                                            pair2_pos.coefficient *= 0.5;
+                                        }
+
+                                        // multiply by clebsch gordan coefficient
                                         double clebsch = calculate_CGs(
                                             Ji, li, mi, Jj, lj, mj, 
                                             lambda_i, lambda_j, moment
@@ -457,6 +485,47 @@ std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
     }
 
     return combined_expressions;
+}
+
+
+void write_moment_expressions_tex(
+    std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions,
+    std::string filename
+)
+{
+    std::ostringstream tex_content;
+    tex_content << "\\documentclass{article}\n";
+    tex_content << "\\usepackage{amsmath}\n";
+    tex_content << "\\begin{document}\n\n\n";
+    
+    for (const auto &entry : combined_moment_expressions)
+    {
+        const Moment &moment = entry.first;
+        const std::vector<ProdCoefficientPair> &pairs = entry.second;
+        
+        tex_content << "\\begin{equation*}\n";
+        tex_content << "H^{" << moment.alpha << "}(" 
+                    << moment.Jv << "," << moment.Lambda << "," 
+                    << moment.J << "," << moment.M << ") = ";
+
+
+        tex_content << "\n\\end{equation*}\n\n";
+    }
+
+
+    tex_content << "\n\n\n\\end{document}\n";
+
+    // write to file
+    std::string output_string = tex_content.str();
+    std::ofstream output_file(filename);
+    if (!output_file.is_open())
+    {
+        std::cerr << "Error: Could not open output file " << filename 
+        << " for writing." << "\n";
+    }
+    output_file.write(output_string.c_str(), output_string.size());
+    output_file.close();
+    return;
 }
 
 /**
