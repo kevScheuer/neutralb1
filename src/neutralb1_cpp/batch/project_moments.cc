@@ -28,20 +28,6 @@ fit, then a moment is the sum of moments calculated independently for each orien
 #include "neutralb1/AmplitudeParser.h"
 #include "neutralb1/fit_utils.h"
 
-struct Moment
-{
-    int alpha;
-    int Jv;
-    int Lambda;
-    int J;
-    int M;
-
-    std::string name() const
-    {
-        return "H" + std::to_string(alpha) + "_" + std::to_string(Jv) + std::to_string(Lambda) + std::to_string(J) + std::to_string(M);
-    }
-};
-
 // Structure to represent SDME calculation parameters as a cache key
 struct SDMEKey
 {
@@ -92,7 +78,6 @@ static std::map<SDMEKey, std::complex<double>> sdme_cache;
 static std::map<CGKey, double> cg_cache;
 
 // forward declarations
-std::vector<Moment> initialize_moments(const FitResults &results);
 complex<double> calculate_moment(
     const Moment &moment, const std::string &reaction, const FitResults &results);
 complex<double> calculate_SDME(
@@ -276,67 +261,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief Initialize the set of moments based on the fit results.
- *
- * @param[in] results The fit results containing the necessary data.
- * @return std::vector<Moment> A vector of all possible moments constructed from the
- *  fit results.
- */
-std::vector<Moment> initialize_moments(const FitResults &results)
-{
-    std::vector<Moment> moments;
-    int max_wave_J = find_max_J(results);
-
-    // prepare moment quantum numbers for the moments
-    std::vector<int> alpha_vector = {0, 1, 2};
-    std::vector<int> Jv_vector = {0, 2}; // CGs coefficient ensure Jv=1 is always 0
-    // moments with negative Lambda values are proportional to positive ones
-    std::vector<int> Lambda_vector = {0, 1, 2};
-    std::vector<int> J_vector;
-    for (int J = 0; J <= 2 * max_wave_J; ++J) // J defined to be >= 0
-    {
-        J_vector.push_back(J);
-    }
-    std::vector<int> M_vector; // similar to lambda, (-) M values are proportional to (+)
-    for (int m = 0; m <= 2 * max_wave_J; ++m)
-    {
-        M_vector.push_back(m);
-    }
-    for (int alpha : alpha_vector)
-    {
-        for (int Jv : Jv_vector)
-        {
-            for (int Lambda : Lambda_vector)
-            {
-                for (int J : J_vector)
-                {
-                    for (int M : M_vector)
-                    {
-                        // FILTER non-physical moments
-                        // Wigner D functions for these are always 0
-                        if (M > J || Lambda > J || Lambda > Jv)
-                            continue;
-                        // Wishart seciton 5.10.2 proves H2(Jv,0,J,0) = 0 for any Jv, J
-                        if (alpha == 2 && Lambda == 0 && M == 0)
-                            continue;
-
-                        // create a moment from these quantum numbers
-                        Moment moment;
-                        moment.alpha = alpha;
-                        moment.Jv = Jv;
-                        moment.Lambda = Lambda;
-                        moment.J = J;
-                        moment.M = M;
-
-                        moments.push_back(moment);
-                    }
-                }
-            }
-        }
-    }
-    return moments;
-}
 
 /**
  * @brief Calculate the value of a moment based on its quantum numbers and fit results.

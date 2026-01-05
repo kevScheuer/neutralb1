@@ -1,12 +1,12 @@
 /**
  * @file fit_utils.h
  * @author Kevin Scheuer
- * @brief Utility functions for handling AmpTools fit results 
- * 
+ * @brief Utility functions for handling AmpTools fit results
+ *
  */
 
-# ifndef FIT_UTILS_H
-# define FIT_UTILS_H
+#ifndef FIT_UTILS_H
+#define FIT_UTILS_H
 
 #include "IUAmpTools/FitResults.h"
 #include "TH1.h"
@@ -44,7 +44,7 @@ int calculate_system_parity(int L);
 complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
     int e_conj, int J_conj, int m_conj, int L_conj,
-    const std::string &reaction, const FitResults &results, 
+    const std::string &reaction, const FitResults &results,
     bool acceptance_corrected = true);
 
 /**
@@ -69,7 +69,7 @@ int find_max_J(const FitResults &results);
 
 /**
  * @brief Get the bin width of a 1D histogram
- * 
+ *
  * @param[in] h Pointer to the histogram
  * @return double The bin width of the histogram
  */
@@ -86,5 +86,44 @@ inline double get_bin_width(TH1F *h)
  * @return TString joined keys
  */
 TString join_keys(const std::map<TString, Int_t> &m, const TString &delimiter = ",");
+
+/**
+ * @brief Structure to hold vector-pseudoscalar moment quantum numbers
+ *
+ * @details The five quantum numbers needed to specify a moment:
+ * - alpha: indexes the intensity term
+ *  0: unpolarized, 1: polarized cos(2*Phi), 2: polarized sin(2*Phi)
+ * - Jv: related to spin of the vector meson
+ * - Lambda: related to helicity of the vector meson
+ * - J: total angular momentum of the moment
+ * - M: spin projection of the moment
+ */
+struct Moment
+{
+    int alpha;
+    int Jv;
+    int Lambda;
+    int J;
+    int M;
+
+    std::string name() const
+    {
+        return "H" +
+               std::to_string(alpha) + "_" +
+               std::to_string(Jv) +
+               std::to_string(Lambda) +
+               std::to_string(J) +
+               std::to_string(M);
+    }
+};
+
+/**
+ * @brief Initialize the set of moments based on the fit results.
+ *
+ * @param[in] results The fit results containing the necessary data.
+ * @return std::vector<Moment> A vector of all possible moments constructed from the
+ *  fit results.
+ */
+std::vector<Moment> initialize_moments(const FitResults &results);
 
 #endif // FIT_UTILS_H
