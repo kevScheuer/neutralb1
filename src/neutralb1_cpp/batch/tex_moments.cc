@@ -154,8 +154,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
 std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
     const std::map<Moment, std::vector<ProdCoefficientPair>> &input_expressions);
 void write_moment_expressions_tex(
-    std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions,
-    std::string filename);
+    const std::map<Moment, 
+    std::vector<ProdCoefficientPair>> &combined_moment_expressions,
+    const std::string &filename);
 double calculate_CGs(
     int Ji, int li, int mi, int Jj, int lj, int mj,
     int lambda_i, int lambda_j, const Moment &moment);
@@ -489,25 +490,167 @@ std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
 
 
 void write_moment_expressions_tex(
-    std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions,
-    std::string filename
+    const std::map<Moment, 
+    std::vector<ProdCoefficientPair>> &combined_moment_expressions,
+    const std::string &filename
 )
 {
+    std::map<int, char> sign_map = {
+        {-1, '-'},
+        {1, '+'}
+    };
+    std::map<int, char> l_int_to_char_map = {
+        {0, 'S'},
+        {1, 'P'},
+        {2, 'D'},
+        {3, 'F'},
+        {4, 'G'}
+    };
+
     std::ostringstream tex_content;
     tex_content << "\\documentclass{article}\n";
     tex_content << "\\usepackage{amsmath}\n";
-    tex_content << "\\begin{document}\n\n\n";
+    tex_content << "\\begin{document}\n\n\n";    
+
+    // TODO: if not first term, add "+ " beforehand unless coefficient is negative
     
     for (const auto &entry : combined_moment_expressions)
     {
         const Moment &moment = entry.first;
-        const std::vector<ProdCoefficientPair> &pairs = entry.second;
+        // make local copy, since we'll remove items as we process it
+        std::vector<ProdCoefficientPair> pairs = entry.second; 
         
         tex_content << "\\begin{equation*}\n";
         tex_content << "H^{" << moment.alpha << "}(" 
                     << moment.Jv << "," << moment.Lambda << "," 
-                    << moment.J << "," << moment.M << ") = ";
+                    << moment.J << "," << moment.M << ") = \n";
 
+        // First, write the amplitude terms |c_i|^2
+        std::vector<ProdCoefficientPair> pairs_to_remove;
+        for (auto it = pairs.begin(); it != pairs.end(); ++it)
+        {
+            const ProdCoefficientPair &pair = *it;
+            if (pair.e == pair.e_conj && pair.J == pair.J_conj &&
+                pair.m == pair.m_conj && pair.l == pair.l_conj)
+            {
+                int parity = calculate_system_parity(pair.l);
+
+                // TODO: this will fail expectedly for H2, but we need to understand
+                // where to place "i" in H2 at the end of the day
+                // if (pair.coefficient.imag() != 0.0)
+                // {
+                //     throw std::runtime_error("Warning: Amplitude term with non-zero imaginary part found for moment "
+                //         + moment.name() + ": " 
+                //         + std::to_string(pair.e) + std::to_string(pair.J) + std::to_string(pair.m) + std::to_string(pair.l) + " with coefficient "
+                //         + std::to_string(pair.coefficient.real()) + " + " + std::to_string(pair.coefficient.imag()) + "i\n");
+                // }
+
+                // Amplitude term
+                tex_content << pair.coefficient.real() << "|" 
+                            << pair.J << "^{" << sign_map[parity] << "}"
+                            << l_int_to_char_map.at(pair.l)
+                            << "_{" << pair.m << "}"
+                            << "^{(" << sign_map[pair.e] << ")}"
+                            << "|^2 ";
+                
+                if (std::next(it) != pairs.end())
+                    tex_content << "+ ";
+
+                // Mark for removal from main list
+                pairs_to_remove.push_back(pair);
+            }
+        }
+
+        // remove the amplitude terms we just wrote out from the main list
+        for (const auto &rem_pair : pairs_to_remove)
+        {
+            pairs.erase(
+                std::remove_if(
+                    pairs.begin(), pairs.end(),
+                    [&rem_pair](const ProdCoefficientPair &p) {
+                        return p == rem_pair;
+                    }
+                ),
+                pairs.end()
+            );
+        }
+        pairs_to_remove.clear();
+
+        // Next, write the interference terms
+        std::vector<bool> used(pairs.size(), false);
+        for (size_t i = 0; i < pairs.size(); ++i)
+        {
+            if (used[i]) continue;
+
+            const ProdCoefficientPair &pair = pairs[i];
+
+            size_t conj_index = pairs.size();
+            for (size_t j = i + 1; j < pairs.size(); ++j)
+            {
+                if (used[j]) continue;
+
+                const ProdCoefficientPair &p = pairs[j];
+                if (p.e == pair.e_conj && p.J == pair.J_conj &&
+                    p.m == pair.m_conj && p.l == pair.l_conj &&
+                    p.e_conj == pair.e && p.J_conj == pair.J &&
+                    p.m_conj == pair.m && p.l_conj == pair.l)
+                {
+                    conj_index = j;
+                    break;
+                }
+            }
+
+            // all interference pairs should have a matching conjugate term, otherwise
+            // our calculation failed somehow
+            if (conj_index == pairs.size())
+            {
+                throw std::runtime_error(
+                    "Could not find conjugate pair for interference term in moment "
+                    + moment.name() + ": pair "
+                    + std::to_string(pair.e) + std::to_string(pair.J) 
+                    + std::to_string(pair.m) + std::to_string(pair.l) + "\n");
+            }
+
+            const ProdCoefficientPair &conj_pair = pairs[conj_index];
+
+            // we expect conjugate pairs to have matching coefficients, otherwise
+            // something has gone wrong in our calculations
+            if (std::abs(pair.coefficient - conj_pair.coefficient) > THRESHOLD)
+            {
+                throw std::runtime_error("Warning: Interference term with unequal coefficients found for moment "
+                    + moment.name() + ": pairs "
+                    + std::to_string(pair.e) + std::to_string(pair.J) + std::to_string(pair.m) + std::to_string(pair.l) + " and "
+                    + std::to_string(conj_pair.e) + std::to_string(conj_pair.J) + std::to_string(conj_pair.m) + std::to_string(conj_pair.l)
+                    + " with coefficients "
+                    + std::to_string(pair.coefficient.real()) + " + " + std::to_string(pair.coefficient.imag()) + "i and "
+                    + std::to_string(conj_pair.coefficient.real()) + " + " + std::to_string(conj_pair.coefficient.imag()) + "i\n");
+            }
+
+            // having verified the coefficients are the same, we now have
+            // C (c_i c_j* + c_j c_i*) = 2C Re(c_i c_j*)
+
+            int parity = calculate_system_parity(pair.l);
+            int parity_conj = calculate_system_parity(pair.l_conj);            
+
+            // TODO: handle H2 case where coefficient is imag
+            tex_content << 2.0 * pair.coefficient.real()
+                        << "\\Re\\left["
+                        << pair.J << "^{" << sign_map[parity] << "}"
+                        << l_int_to_char_map.at(pair.l)
+                        << "_{" << pair.m << "}"
+                        << "^{(" << sign_map[pair.e] << ")}"
+                        << "\\left("
+                        << pair.J_conj << "^{" << sign_map[parity_conj] << "}"
+                        << l_int_to_char_map.at(pair.l_conj)
+                        << "_{" << pair.m_conj << "}"
+                        << "^{(" << sign_map[pair.e] << ")}"
+                        << "\\right)^\\ast"
+                        << "\\right]";                        
+
+            used[i] = true;
+            used[conj_index] = true;
+
+        } // finish loop over interference terms
 
         tex_content << "\n\\end{equation*}\n\n";
     }
@@ -525,6 +668,9 @@ void write_moment_expressions_tex(
     }
     output_file.write(output_string.c_str(), output_string.size());
     output_file.close();
+
+    std::cout << "Wrote moment expressions to TeX file: " << filename << "\n";
+
     return;
 }
 
