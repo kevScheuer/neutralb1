@@ -66,7 +66,8 @@ struct ProdCoefficientPair
     int e, J, m, l;
     int e_conj, J_conj, m_conj, l_conj;
 
-    complex<double> coefficient; // accumulated coefficient (Clebsch-Gordans, normalization, etc.)
+    // accumulated coefficient (Clebsch-Gordans, normalization, etc.)
+    complex<double> coefficient; 
 
     bool operator<(const ProdCoefficientPair &other) const
     {
@@ -111,11 +112,11 @@ struct CGKey
 // Global caches
 static std::map<CGKey, double> cg_cache;
 
-// Threshold for considering a CG coefficient as effectively zero
-static const double CG_THRESHOLD = 1e-10;
+// Threshold for considering a coefficient as effectively zero
+static const double THRESHOLD = 1e-10;
 
 // forward declarations
-std::map<Moment, ProdCoefficientPair> calculate_moment_expressions(
+std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
     const std::vector<Moment> &moments,
     const std::string &reaction,
     const FitResults &results);
@@ -165,12 +166,17 @@ int main(int argc, char *argv[])
     std::string reaction = reactions[0];
 
     // STEPS 2 & 3: Calculate SDMEs and CG coefficients, then group by coefficient pairs
-    std::map<Moment, ProdCoefficientPair> moment_expressions = calculate_moment_expressions(
+    std::map<Moment, std::vector<ProdCoefficientPair>> moment_expressions = 
+    calculate_moment_expressions(
         moments,
         reaction,
-        results);
+        results
+    );
 
     std::cout << "\nMoment expressions built successfully\n";
+
+    std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions =
+    combine_like_terms(moment_expressions);
 
     // // Print summary statistics
     // for (size_t i = 0; i < moment_expressions.size() && i < 5; ++i)
@@ -188,12 +194,12 @@ int main(int argc, char *argv[])
 }
 
 
-std::map<Moment, ProdCoefficientPair> calculate_moment_expressions(
+std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
     const std::vector<Moment> &moments,
     const std::string &reaction,
     const FitResults &results)
 {
-    std::map<Moment, ProdCoefficientPair> expressions;
+    std::map<Moment, std::vector<ProdCoefficientPair>> expressions;
 
     int max_J = find_max_J(results);
 
@@ -240,11 +246,21 @@ std::map<Moment, ProdCoefficientPair> calculate_moment_expressions(
                                     {
                                         double clebsch = calculate_CGs(
                                             Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, moment);
-                                            
-                                        // TODO: from here multiply coeff by CG, and determine if sum easy sum over the coefficients
-                                        // can be done. Otherwise, just store the full ProdCoefficientPair with accumulated coefficient,
-                                        // so long as it is above threshold (rename threshold limit to not be CG specific anymore).
 
+                                        pair1_neg.coefficient *= clebsch;
+                                        pair2_neg.coefficient *= clebsch;
+                                        pair1_pos.coefficient *= clebsch;
+                                        pair2_pos.coefficient *= clebsch;
+                                            
+                                        // accumulate contributions if above threshold
+                                        if (std::abs(pair1_neg.coefficient) > THRESHOLD)
+                                            expressions[moment].push_back(pair1_neg);                                        
+                                        if (std::abs(pair2_neg.coefficient) > THRESHOLD)
+                                            expressions[moment].push_back(pair2_neg);
+                                        if (std::abs(pair1_pos.coefficient) > THRESHOLD)
+                                            expressions[moment].push_back(pair1_pos);
+                                        if (std::abs(pair2_pos.coefficient) > THRESHOLD)
+                                            expressions[moment].push_back(pair2_pos);
                                     }
                                 }
                             }
@@ -357,6 +373,54 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
             else
                 second_pair.coefficient = complex<double>(0, e * s2);
     }
+}
+
+
+/**
+ * @brief Combine like terms in the moment expressions.
+ * 
+ * @details
+ * The moment expressions calculated in calculate_moment_expressions will contain 
+ * multiple instances of the same production coefficient pair, each with their own
+ * accumulated coefficient. This function combines those like terms by summing their
+ * coefficients. Any terms with coefficients that are effectively zero (below a defined
+ * threshold) are removed from the final expressions.
+ * 
+ * @param input_expressions moment and their associated production coefficient pairs
+ * @return std::map<Moment, std::vector<ProdCoefficientPair>> combined moment 
+ *  expressions with like terms combined
+ */
+std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
+    const std::map<Moment, std::vector<ProdCoefficientPair>> &input_expressions)
+{
+    std::map<Moment, std::vector<ProdCoefficientPair>> combined_expressions;
+
+    for (const auto &entry : input_expressions)
+    {
+        const Moment &moment = entry.first;
+        const std::vector<ProdCoefficientPair> &pairs = entry.second;
+
+        std::map<ProdCoefficientPair, complex<double>> temp_map;
+
+        // Combine like terms
+        for (const auto &pair : pairs)
+        {
+            temp_map[pair] += pair.coefficient;
+        }
+
+        // Filter out near-zero coefficients and store in combined_expressions
+        for (const auto &temp_entry : temp_map)
+        {
+            if (std::abs(temp_entry.second) > THRESHOLD)
+            {
+                ProdCoefficientPair combined_pair = temp_entry.first;
+                combined_pair.coefficient = temp_entry.second;
+                combined_expressions[moment].push_back(combined_pair);
+            }
+        }
+    }
+
+    return combined_expressions;
 }
 
 /**
