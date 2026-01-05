@@ -22,6 +22,60 @@ int calculate_system_parity(int L)
     return P;
 }
 
+std::vector<std::string> find_matching_amplitudes(
+    const AmplitudeParser &amp_to_find, 
+    const FitResults &results,
+    const bool skip_background)
+{
+    std::vector<std::string> matching_amplitudes;
+    std::string amp_name_to_find = amp_to_find.get_amplitude_name();
+
+    std::vector<std::string> amp_list = results.ampList();
+
+    // filter out isotropic background amplitudes if requested
+    if (skip_background)
+    {
+        amp_list.erase(
+            std::remove_if(
+                amp_list.begin(),
+                amp_list.end(),
+                [](const std::string &amp)
+                {
+                    return amp.find("isotropic") != std::string::npos ||
+                        amp.find("Background") != std::string::npos;
+                }),
+            amp_list.end());
+    }
+
+    // if reaction or sum is not specified, match all in that category
+    bool reaction_specified = !amp_to_find.get_amplitude_reaction().empty();
+    bool sum_specified = !amp_to_find.get_amplitude_sum().empty();
+
+    for (const std::string &i_amp : amp_list)
+    {
+        AmplitudeParser i_amp_parser(i_amp);
+
+        if (reaction_specified && 
+            i_amp_parser.get_amplitude_reaction() != amp_to_find.get_amplitude_reaction())
+        {
+            continue; // skip amplitudes not in the requested reaction
+        }
+
+        if (sum_specified && 
+            i_amp_parser.get_amplitude_sum() != amp_to_find.get_amplitude_sum())
+        {
+            continue; // skip amplitudes not in the requested sum
+        }
+
+        std::string i_amp_name = i_amp_parser.get_amplitude_name();
+        if (i_amp_name == amp_name_to_find)
+        {
+            matching_amplitudes.push_back(i_amp);
+        }
+    }
+    return matching_amplitudes;
+}
+
 complex<double> get_production_coefficient_pair(
     int e, int J, int m, int L,
     int e_conj, int J_conj, int m_conj, int L_conj,
@@ -32,49 +86,19 @@ complex<double> get_production_coefficient_pair(
     int P_conj = calculate_system_parity(L_conj);
 
     // construct the amplitude names in the vec-ps format
-    AmplitudeParser parser(e, J, P, m, L);
+    AmplitudeParser parser(e, J, P, m, L);    
     AmplitudeParser parser_conj(e_conj, J_conj, P_conj, m_conj, L_conj);
-    std::string amp_name_to_get = parser.get_amplitude_name();
-    std::string amp_conj_name_to_get = parser_conj.get_amplitude_name();
-
-    // we'll need to find the amplitude's value by looping through the available amplitude list
-    std::vector<std::string> amp_list = results.ampList();
-
-    // filter out isotropic background amplitudes
-    amp_list.erase(
-        std::remove_if(
-            amp_list.begin(),
-            amp_list.end(),
-            [](const std::string &amp)
-            {
-                return amp.find("isotropic") != std::string::npos ||
-                       amp.find("Background") != std::string::npos;
-            }),
-        amp_list.end());
-
+    
     // the production coefficient from constrained sums is equal, but their
-    // normalization integrals aren't, and so we need to capture both sums
-    std::vector<std::string> matching_amplitudes;
-    std::vector<std::string> matching_amplitudes_conj;
-    for (const std::string &i_amp : amp_list)
-    {
-        AmplitudeParser i_amp_parser(i_amp);
+    // normalization integrals aren't, so we do not specify the sums here
+    parser.set_amplitude_reaction(reaction);
+    parser_conj.set_amplitude_reaction(reaction);
 
-        if (i_amp_parser.get_amplitude_reaction() != reaction)
-        {
-            continue; // skip amplitudes not in the requested reaction
-        }
+    std::vector<std::string> matching_amplitudes = find_matching_amplitudes(
+        parser, results);
+    std::vector<std::string> matching_amplitudes_conj = find_matching_amplitudes(
+        parser_conj, results);
 
-        std::string i_amp_name = i_amp_parser.get_amplitude_name();
-        if (i_amp_name == amp_name_to_get)
-        {
-            matching_amplitudes.push_back(i_amp);
-        }
-        if (i_amp_name == amp_conj_name_to_get)
-        {
-            matching_amplitudes_conj.push_back(i_amp);
-        }
-    }
 
     // run some error checks
     if (matching_amplitudes.empty() || matching_amplitudes_conj.empty())
@@ -84,20 +108,20 @@ complex<double> get_production_coefficient_pair(
     if (matching_amplitudes.size() > 2)
     {
         throw std::runtime_error(
-            "Amplitude '" + amp_name_to_get +
+            "Amplitude '" + parser.get_amplitude_name() +
             "' was found in more than two coherent sums");
     }
     if (matching_amplitudes_conj.size() > 2)
     {
         throw std::runtime_error(
-            "Amplitude '" + amp_conj_name_to_get +
+            "Amplitude '" + parser_conj.get_amplitude_name() +
             "' was found in more than two coherent sums");
     }
     if (results.scaledProductionParameter(matching_amplitudes[0]) !=
         results.scaledProductionParameter(matching_amplitudes[1]))
     {
         throw std::runtime_error(
-            "Amplitude '" + amp_name_to_get +
+            "Amplitude '" + parser.get_amplitude_name() +
             "' has different production parameters in coherent sums,"
             " check that it is constrained in the fit");
     }
@@ -105,7 +129,7 @@ complex<double> get_production_coefficient_pair(
         results.scaledProductionParameter(matching_amplitudes_conj[1]))
     {
         throw std::runtime_error(
-            "Amplitude '" + amp_conj_name_to_get +
+            "Amplitude '" + parser_conj.get_amplitude_name() +
             "' has different production parameters in coherent sums,"
             " check that it is constrained in the fit");
     }

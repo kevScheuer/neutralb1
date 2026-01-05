@@ -11,6 +11,8 @@
 #include "IUAmpTools/FitResults.h"
 #include "TH1.h"
 
+#include "neutralb1/AmplitudeParser.h"
+
 /**
  * @brief Calculate the parity of the omega pi0 system
  *
@@ -18,6 +20,28 @@
  * @return int The calculated parity
  */
 int calculate_system_parity(int L);
+
+
+/**
+ * @brief Find all amplitudes matching the AmplitudeParser object passed.
+ * 
+ * @details
+ * At minimum, the AmplitudeParser object should have the e, J, P, m, and L values, and
+ * so this function will return all amplitudes in the FitResults that match those
+ * quantum numbers. If the reaction and/or sum fields of the AmplitudeParser object
+ * are also filled, then the search will be restricted to those as well.
+ * 
+ * @param[in] amp_to_find AmplitudeParser object specifying the quantum numbers (and 
+ *  optionally reaction and sum) to search for
+ * @param[in] results FitResults object containing the amplitudes to search through
+ * @param[in] skip_background Whether to skip isotropic background amplitudes. Defaults
+ *  to true.
+ * @return std::vector<std::string> Full amplitude strings matching amp_to_find
+ */
+std::vector<std::string> find_matching_amplitudes(
+    const AmplitudeParser &amp_to_find, 
+    const FitResults &results,
+    const bool skip_background = true);
 
 /**
  * @brief Get the production coefficient for the wave's quantum numbers.
