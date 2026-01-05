@@ -21,17 +21,16 @@
  */
 int calculate_system_parity(int L);
 
-
 /**
  * @brief Find all amplitudes matching the AmplitudeParser object passed.
- * 
+ *
  * @details
  * At minimum, the AmplitudeParser object should have the e, J, P, m, and L values, and
  * so this function will return all amplitudes in the FitResults that match those
  * quantum numbers. If the reaction and/or sum fields of the AmplitudeParser object
  * are also filled, then the search will be restricted to those as well.
- * 
- * @param[in] amp_to_find AmplitudeParser object specifying the quantum numbers (and 
+ *
+ * @param[in] amp_to_find AmplitudeParser object specifying the quantum numbers (and
  *  optionally reaction and sum) to search for
  * @param[in] results FitResults object containing the amplitudes to search through
  * @param[in] skip_background Whether to skip isotropic background amplitudes. Defaults
@@ -39,7 +38,7 @@ int calculate_system_parity(int L);
  * @return std::vector<std::string> Full amplitude strings matching amp_to_find
  */
 std::vector<std::string> find_matching_amplitudes(
-    const AmplitudeParser &amp_to_find, 
+    const AmplitudeParser &amp_to_find,
     const FitResults &results,
     const bool skip_background = true);
 
@@ -138,6 +137,25 @@ struct Moment
                std::to_string(Lambda) +
                std::to_string(J) +
                std::to_string(M);
+    }
+
+    bool operator<(const Moment &other) const
+    {
+        if (alpha != other.alpha)
+            return alpha < other.alpha;
+        if (Jv != other.Jv)
+            return Jv < other.Jv;
+        if (Lambda != other.Lambda)
+            return Lambda < other.Lambda;
+        if (J != other.J)
+            return J < other.J;
+        return M < other.M;
+    }
+    bool operator==(const Moment &other) const
+    {
+        return alpha == other.alpha && Jv == other.Jv &&
+               Lambda == other.Lambda && J == other.J &&
+               M == other.M;
     }
 };
 
