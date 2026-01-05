@@ -22,12 +22,16 @@ AmplitudeParser::AmplitudeParser(const char e, const char J, const char P,
     : m_e_char(e), m_J_char(J), m_P_char(P), m_m_char(m), m_L_char(L)
 {
     compute_integers();
+    m_reaction = "";
+    m_sum = "";
 }
 
 AmplitudeParser::AmplitudeParser(const int &e, const int &J, const int &P, const int &m, const int &L)
     : m_e_int(e), m_J_int(J), m_P_int(P), m_m_int(m), m_L_int(L)
 {
     compute_chars();
+    m_reaction = "";
+    m_sum = "";
 }
 
 void AmplitudeParser::parse_from_amplitude(const std::string &amplitude)

@@ -107,6 +107,7 @@ public:
     // Amplitude accessors
     std::string get_amplitude_reaction() const { return m_reaction; }; ///< Reaction part of the amplitude name
     std::string get_amplitude_sum() const { return m_sum; };           ///< Sum part of the amplitude name
+
     /**
      * @brief Get the amplitude name in the format eJPmL
      */
