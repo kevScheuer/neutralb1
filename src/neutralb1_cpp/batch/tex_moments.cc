@@ -109,8 +109,29 @@ struct CGKey
     }
 };
 
+struct ProdCoefficientPairKey
+{
+    int alpha;
+    int e;
+    int Ji;
+    int li;
+    int mi;
+    int Jj;
+    int lj;
+    int mj;
+    std::string reaction;
+
+    bool operator<(const ProdCoefficientPairKey &other) const
+    {
+        return std::tie(alpha, e, Ji, li, mi, Jj, lj, mj, reaction) <
+               std::tie(other.alpha, other.e, other.Ji, other.li, other.mi,
+                        other.Jj, other.lj, other.mj, other.reaction);
+    }
+};
+
 // Global caches
 static std::map<CGKey, double> cg_cache;
+static std::map<ProdCoefficientPairKey, std::pair<ProdCoefficientPair, ProdCoefficientPair>> prod_coeff_pair_cache;
 
 // Threshold for considering a coefficient as effectively zero
 static const double THRESHOLD = 1e-10;
@@ -132,6 +153,7 @@ double calculate_CGs(
     int Ji, int li, int mi, int Jj, int lj, int mj,
     int lambda_i, int lambda_j, const Moment &moment);
 int sign(int i);
+void clear_prod_coeff_pair_cache();
 
 int main(int argc, char *argv[])
 {
@@ -308,7 +330,15 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
     const std::string &reaction, const FitResults &results
 )
 {
-    // TODO: caching of the pair would go here
+    // Create cache key
+    ProdCoefficientPairKey key = {alpha, e, Ji, li, mi, Jj, lj, mj, reaction};
+
+    // Check if value is already cached
+    auto cache_it = prod_coeff_pair_cache.find(key);
+    if (cache_it != prod_coeff_pair_cache.end())
+    {
+        return cache_it->second;
+    }
     
     // the intensity component (alpha) determines what sign factors multiply the pair
     switch(alpha)
@@ -334,7 +364,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
             else
                 second_pair.coefficient = s2;
 
-            return {first_pair, second_pair}; 
+            auto result = std::make_pair(first_pair, second_pair);
+            prod_coeff_pair_cache[key] = result;
+            return result; 
         }
         case 1: {
             std::complex<double> pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
@@ -355,7 +387,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
             else
                 second_pair.coefficient = e * s2;
 
-            return {first_pair, second_pair};
+            auto result = std::make_pair(first_pair, second_pair);
+            prod_coeff_pair_cache[key] = result;
+            return result;
         }
         case 2: {
             std::complex<double> pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
@@ -374,7 +408,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
                 second_pair.coefficient = 0.0;
             else
                 second_pair.coefficient = complex<double>(0, e * s2);
-            return {first_pair, second_pair};
+            auto result = std::make_pair(first_pair, second_pair);
+            prod_coeff_pair_cache[key] = result;
+            return result;
         }
         default:
             // Should never reach here if alpha is valid (0, 1, or 2)
@@ -476,4 +512,15 @@ double calculate_CGs(
 int sign(int i)
 {
     return (i % 2 == 0) ? 1 : -1;
+}
+
+/**
+ * @brief Clear the production coefficient pair cache.
+ *
+ * This should be called when switching to a new fit file to ensure
+ * cached values from the previous file don't interfere.
+ */
+void clear_prod_coeff_pair_cache()
+{
+    prod_coeff_pair_cache.clear();
 }
