@@ -203,17 +203,6 @@ int main(int argc, char *argv[])
     std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions =
     combine_like_terms(moment_expressions);
 
-    // // Print summary statistics
-    // for (size_t i = 0; i < moment_expressions.size() && i < 5; ++i)
-    // {
-    //     const MomentExpression &expr = moment_expressions[i];
-    //     std::cout << "  " << expr.moment.name() << ": " 
-    //               << expr.coefficient_pair_cgs.size() << " unique coefficient pairs\n";
-    // }
-    // if (moment_expressions.size() > 5)
-    // {
-    //     std::cout << "  ... and " << (moment_expressions.size() - 5) << " more moments\n";
-    // }
 
     return 0;
 }
@@ -245,33 +234,37 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                         for (int mi = -Ji; mi <= Ji; ++mi)
                         {
                             for (int mj = -Jj; mj <= Jj; ++mj)
-                            {
-                                ProdCoefficientPair pair1_neg, pair2_neg;
-                                ProdCoefficientPair pair1_pos, pair2_pos;
-                                std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
-                                    moment.alpha, -1,
-                                    Ji, mi, li,
-                                    Jj, mj, lj,
-                                    reaction, results);
-                                std::tie(pair1_pos, pair2_pos) = get_sdme_pairs(
-                                    moment.alpha, 1,
-                                    Ji, mi, li,
-                                    Jj, mj, lj,
-                                    reaction, results);
-
-                                double norm = (std::sqrt(2 * li + 1) * std::sqrt(2 * lj + 1)) / (2.0 * Jj + 1);
-                                pair1_neg.coefficient *= norm;
-                                pair2_neg.coefficient *= norm;
-                                pair1_pos.coefficient *= norm;
-                                pair2_pos.coefficient *= norm;
-
+                            {                                
                                 for (int lambda_i = -1; lambda_i <= 1; ++lambda_i)
                                 {
                                     for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
                                     {
-                                        double clebsch = calculate_CGs(
-                                            Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, moment);
+                                        ProdCoefficientPair pair1_neg, pair2_neg;
+                                        ProdCoefficientPair pair1_pos, pair2_pos;
+                                        std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
+                                            moment.alpha, -1,
+                                            Ji, mi, li,
+                                            Jj, mj, lj,
+                                            reaction, results);
+                                        std::tie(pair1_pos, pair2_pos) = get_sdme_pairs(
+                                            moment.alpha, 1,
+                                            Ji, mi, li,
+                                            Jj, mj, lj,
+                                            reaction, results);
 
+                                        double norm = (
+                                            std::sqrt(2 * li + 1) 
+                                            * std::sqrt(2 * lj + 1)) / (2.0 * Jj + 1
+                                        );
+                                        pair1_neg.coefficient *= norm;
+                                        pair2_neg.coefficient *= norm;
+                                        pair1_pos.coefficient *= norm;
+                                        pair2_pos.coefficient *= norm;
+
+                                        double clebsch = calculate_CGs(
+                                            Ji, li, mi, Jj, lj, mj, 
+                                            lambda_i, lambda_j, moment
+                                        );
                                         pair1_neg.coefficient *= clebsch;
                                         pair2_neg.coefficient *= clebsch;
                                         pair1_pos.coefficient *= clebsch;
