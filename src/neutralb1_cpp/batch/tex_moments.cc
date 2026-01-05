@@ -121,10 +121,13 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
     const std::string &reaction,
     const FitResults &results);
 std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
-    const int alpha, const int e, const int Ji, const int mi, const int const li,
-    const int ej, const int Jj, const int mj, const int lj,
+    const int alpha, const int e, 
+    const int Ji, const int mi, const int li,
+    const int Jj, const int mj, const int lj,
     const std::string &reaction, const FitResults &results
 );
+std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
+    const std::map<Moment, std::vector<ProdCoefficientPair>> &input_expressions);
 double calculate_CGs(
     int Ji, int li, int mi, int Jj, int lj, int mj,
     int lambda_i, int lambda_j, const Moment &moment);
@@ -224,14 +227,14 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                 ProdCoefficientPair pair1_neg, pair2_neg;
                                 ProdCoefficientPair pair1_pos, pair2_pos;
                                 std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
-                                    moment.alpha, 
-                                    -1, Ji, mi, li,
-                                    -1, Jj, mj, lj,
+                                    moment.alpha, -1,
+                                    Ji, mi, li,
+                                    Jj, mj, lj,
                                     reaction, results);
                                 std::tie(pair1_pos, pair2_pos) = get_sdme_pairs(
-                                    moment.alpha,
-                                    1, Ji, mi, li,
-                                    1, Jj, mj, lj,
+                                    moment.alpha, 1,
+                                    Ji, mi, li,
+                                    Jj, mj, lj,
                                     reaction, results);
 
                                 double norm = (std::sqrt(2 * li + 1) * std::sqrt(2 * lj + 1)) / (2.0 * Jj + 1);
@@ -299,27 +302,25 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
  * @return std::pair<ProdCoefficientPair, ProdCoefficientPair> {text}
  */
 std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
-    const int alpha, const int e, const int Ji, const int mi, const int const li,
-    const int ej, const int Jj, const int mj, const int lj,
+    const int alpha, const int e, 
+    const int Ji, const int mi, const int li,
+    const int Jj, const int mj, const int lj,
     const std::string &reaction, const FitResults &results
 )
 {
     // TODO: caching of the pair would go here
-
-    std::complex<double> pair1_val, pair2_val;  // the two pairs of complex production coefficients
-    double s1, s2;                              // sign factors in the SDME formula    
-
+    
     // the intensity component (alpha) determines what sign factors multiply the pair
     switch(alpha)
     {
-        case 0:
-            pair1_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, mj, lj, reaction, results);
-            ProdCoefficientPair first_pair = {e, Ji, mi, li, e, Jj, mj, lj};
-            pair2_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, -mj, lj, reaction, results);
-            ProdCoefficientPair second_pair = {e, Ji, -mi, li, e, Jj, -mj, lj};
+        case 0: {
+            std::complex<double> pair1_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, mj, lj, reaction, results);
+            ProdCoefficientPair first_pair = {e, Ji, mi, li, e, Jj, mj, lj, 0.0};
+            std::complex<double> pair2_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, -mj, lj, reaction, results);
+            ProdCoefficientPair second_pair = {e, Ji, -mi, li, e, Jj, -mj, lj, 0.0};
 
-            s1 = 1.0;
-            s2 = sign(mi + mj + li + lj + Ji + Jj);
+            double s1 = 1.0;
+            double s2 = sign(mi + mj + li + lj + Ji + Jj);
 
             // if either amplitude was not found, the pair value will be 0. In this 
             // case, we set the coefficient to zero so that it is removed later            
@@ -334,14 +335,15 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
                 second_pair.coefficient = s2;
 
             return {first_pair, second_pair}; 
-        case 1:
-            pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
-            ProdCoefficientPair first_pair = {e, Ji, -mi, li, e, Jj, mj, lj};
-            pair2_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
-            ProdCoefficientPair second_pair = {e, Ji, mi, li, e, Jj, -mj, lj};            
+        }
+        case 1: {
+            std::complex<double> pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
+            ProdCoefficientPair first_pair = {e, Ji, -mi, li, e, Jj, mj, lj, 0.0};
+            std::complex<double> pair2_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
+            ProdCoefficientPair second_pair = {e, Ji, mi, li, e, Jj, -mj, lj, 0.0};            
 
-            s1 = sign(1 + mi + li + Ji);
-            s2 = sign(1 + mj + lj + Jj);
+            double s1 = sign(1 + mi + li + Ji);
+            double s2 = sign(1 + mj + lj + Jj);
 
             if (pair1_val == 0.0)
                 first_pair.coefficient = 0.0;
@@ -354,15 +356,15 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
                 second_pair.coefficient = e * s2;
 
             return {first_pair, second_pair};
-        case 2:
-            pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
-            ProdCoefficientPair first_pair = {e, Ji, -mi, li, e, Jj, mj, lj};
-            pair2_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
-            ProdCoefficientPair second_pair = {e, Ji, mi, li, e, Jj, -mj, lj};
+        }
+        case 2: {
+            std::complex<double> pair1_val = get_production_coefficient_pair(e, Ji, -mi, li, e, Jj, mj, lj, reaction, results);
+            ProdCoefficientPair first_pair = {e, Ji, -mi, li, e, Jj, mj, lj, 0.0};
+            std::complex<double> pair2_val = get_production_coefficient_pair(e, Ji, mi, li, e, Jj, -mj, lj, reaction, results);
+            ProdCoefficientPair second_pair = {e, Ji, mi, li, e, Jj, -mj, lj, 0.0};
 
-            s1 = sign(mi + li + Ji);
-            s2 = sign(mj + lj + Jj);
-
+            double s1 = sign(mi + li + Ji);
+            double s2 = sign(mj + lj + Jj);
             if (pair1_val == 0.0)
                 first_pair.coefficient = 0.0;
             else
@@ -372,6 +374,11 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
                 second_pair.coefficient = 0.0;
             else
                 second_pair.coefficient = complex<double>(0, e * s2);
+            return {first_pair, second_pair};
+        }
+        default:
+            // Should never reach here if alpha is valid (0, 1, or 2)
+            throw std::invalid_argument("Invalid alpha value in get_sdme_pairs: " + std::to_string(alpha));
     }
 }
 
