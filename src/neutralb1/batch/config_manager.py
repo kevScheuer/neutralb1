@@ -157,14 +157,14 @@ class ConfigManager:
             errors.append("Physics: waveset cannot be empty")
 
         if config.physics.phase_reference:
-            if (
-                config.physics.phase_reference[0][0]
-                == config.physics.phase_reference[1][0]
-                and not config.physics.single_refl
-            ):
-                errors.append(
-                    "Physics: phase_references must be in separate reflectivities"
-                )
+            if config.physics.single_refl == 0:
+                if (
+                    config.physics.phase_reference[0][0]
+                    == config.physics.phase_reference[1][0]
+                ):
+                    errors.append(
+                        "Physics: phase_references must be in separate reflectivities"
+                    )
             if any(
                 ref in config.physics.remove_waves
                 for ref in config.physics.phase_reference

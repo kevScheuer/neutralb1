@@ -116,7 +116,7 @@ class AmpToolsConfigWriter:
                         ref.lower() for ref in self.config.physics.phase_reference
                     ]:
                         phase_reference.append(wave)
-                if len(phase_reference) != 2:
+                if len(phase_reference) != 2 and self.config.physics.single_refl == 0:
                     raise ValueError(
                         "The phase reference waves"
                         f" {self.config.physics.phase_reference} were not"

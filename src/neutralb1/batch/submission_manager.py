@@ -203,6 +203,10 @@ class SubmissionManager:
             # the empty string means ds ratio defined but allowed to float
             waveset_dir = "_".join(sorted(config.physics.waveset)) + (f"_dsconstrained")
 
+        # attach single_refl to waveset directory if defined
+        if config.physics.single_refl != 0:
+            waveset_dir += f"_e{config.physics.single_refl:+}"
+
         return "/".join(
             [
                 volatile_dir,
