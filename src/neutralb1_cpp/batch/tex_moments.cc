@@ -257,6 +257,8 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                     {
                                         // get the 4 production coefficient pairs from 
                                         // the SDME
+                                        // TODO: reconsider if both reflectivities need to be included here, and whether we can 
+                                        // simply sum over them at the end like Jiawei has.
                                         ProdCoefficientPair pair1_neg, pair2_neg;
                                         ProdCoefficientPair pair1_pos, pair2_pos;
                                         std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
@@ -521,12 +523,13 @@ void write_moment_expressions_tex(
         // make local copy, since we'll remove items as we process it
         std::vector<ProdCoefficientPair> pairs = entry.second; 
         
-        tex_content << "\\begin{equation*}\n";
+        tex_content << "\\begin{gather*}\n";
         tex_content << "H^{" << moment.alpha << "}(" 
                     << moment.Jv << "," << moment.Lambda << "," 
                     << moment.J << "," << moment.M << ") = \n";
 
         // First, write the amplitude terms |c_i|^2
+        int counter = 0;
         std::vector<ProdCoefficientPair> pairs_to_remove;
         for (auto it = pairs.begin(); it != pairs.end(); ++it)
         {
@@ -582,6 +585,10 @@ void write_moment_expressions_tex(
                                 << "^{(" << sign_map[pair.e] << ")}"
                                 << "|^2\n";            
                 }
+
+                if (counter++ % 4 == 3)
+                    tex_content << "\\\\\n";
+
                 // Mark for removal from main list
                 pairs_to_remove.push_back(pair);
             }
@@ -675,20 +682,21 @@ void write_moment_expressions_tex(
                         << l_int_to_char_map.at(pair.l)
                         << "_{" << pair.m << "}"
                         << "^{(" << sign_map[pair.e] << ")}"
-                        << " \\left("
                         << pair.J_conj << "^{" << sign_map[parity_conj] << "}"
                         << l_int_to_char_map.at(pair.l_conj)
                         << "_{" << pair.m_conj << "}"
-                        << "^{(" << sign_map[pair.e] << ")}"
-                        << "\\right)^\\ast"
-                        << " \\right]\n";                        
+                        << "^{(" << sign_map[pair.e] << ")\\ast}"
+                        << " \\right]\n";           
+                        
+            if (counter++ % 2 == 1)
+                tex_content << "\\\\\n";
 
             used[i] = true;
             used[conj_index] = true;
 
         } // finish loop over interference terms
 
-        tex_content << "\n\\end{equation*}\n\n";
+        tex_content << "\\end{gather*}\n\n";
     }
 
 
