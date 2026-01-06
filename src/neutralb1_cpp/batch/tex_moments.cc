@@ -489,6 +489,7 @@ std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
 }
 
 
+// TODO: write docstring
 void write_moment_expressions_tex(
     const std::map<Moment, 
     std::vector<ProdCoefficientPair>> &combined_moment_expressions,
@@ -507,12 +508,12 @@ void write_moment_expressions_tex(
         {4, 'G'}
     };
 
+    // TODO: if both pairs of reflectivities are found, simply write out the moment
+    // with \sum_\varepsilon in front, change reflectivity symbols to \varepsilon
     std::ostringstream tex_content;
     tex_content << "\\documentclass{article}\n";
     tex_content << "\\usepackage{amsmath}\n";
     tex_content << "\\begin{document}\n\n\n";    
-
-    // TODO: if not first term, add "+ " beforehand unless coefficient is negative
     
     for (const auto &entry : combined_moment_expressions)
     {
@@ -535,27 +536,52 @@ void write_moment_expressions_tex(
             {
                 int parity = calculate_system_parity(pair.l);
 
-                // TODO: this will fail expectedly for H2, but we need to understand
-                // where to place "i" in H2 at the end of the day
-                // if (pair.coefficient.imag() != 0.0)
-                // {
-                //     throw std::runtime_error("Warning: Amplitude term with non-zero imaginary part found for moment "
-                //         + moment.name() + ": " 
-                //         + std::to_string(pair.e) + std::to_string(pair.J) + std::to_string(pair.m) + std::to_string(pair.l) + " with coefficient "
-                //         + std::to_string(pair.coefficient.real()) + " + " + std::to_string(pair.coefficient.imag()) + "i\n");
-                // }
+                double coeff;
+                if (moment.alpha ==2)
+                {
+                    if (pair.coefficient.real() != 0.0)
+                    {
+                        throw std::runtime_error("Warning: Amplitude term with non-zero real part found for H2 moment "
+                            + moment.name() + ": " 
+                            + std::to_string(pair.e) + std::to_string(pair.J) + std::to_string(pair.m) + std::to_string(pair.l) + " with coefficient "
+                            + std::to_string(pair.coefficient.real()) + " + " + std::to_string(pair.coefficient.imag()) + "i\n");
+                    }
+                    coeff = pair.coefficient.imag();
+                }
+                else
+                {
+                    if (pair.coefficient.imag() != 0.0)
+                    {
+                        throw std::runtime_error("Warning: Amplitude term with non-zero imaginary part found for moment "
+                            + moment.name() + ": " 
+                            + std::to_string(pair.e) + std::to_string(pair.J) + std::to_string(pair.m) + std::to_string(pair.l) + " with coefficient "
+                            + std::to_string(pair.coefficient.real()) + " + " + std::to_string(pair.coefficient.imag()) + "i\n");
+                    }
+                    coeff = pair.coefficient.real();
+                }                                    
 
-                // Amplitude term
-                tex_content << pair.coefficient.real() << "|" 
-                            << pair.J << "^{" << sign_map[parity] << "}"
-                            << l_int_to_char_map.at(pair.l)
-                            << "_{" << pair.m << "}"
-                            << "^{(" << sign_map[pair.e] << ")}"
-                            << "|^2 ";
-                
-                if (std::next(it) != pairs.end())
+                if (it != pairs.begin() && coeff >= 0.0)
                     tex_content << "+ ";
 
+                // Amplitude term
+                if (std::abs (coeff - 1.0) < THRESHOLD)
+                {
+                    tex_content << "|" 
+                                << pair.J << "^{" << sign_map[parity] << "}"
+                                << l_int_to_char_map.at(pair.l)
+                                << "_{" << pair.m << "}"
+                                << "^{(" << sign_map[pair.e] << ")}"
+                                << "|^2\n";            
+                }
+                else
+                {
+                    tex_content << coeff << "|" 
+                                << pair.J << "^{" << sign_map[parity] << "}"
+                                << l_int_to_char_map.at(pair.l)
+                                << "_{" << pair.m << "}"
+                                << "^{(" << sign_map[pair.e] << ")}"
+                                << "|^2\n";            
+                }
                 // Mark for removal from main list
                 pairs_to_remove.push_back(pair);
             }
@@ -632,20 +658,30 @@ void write_moment_expressions_tex(
             int parity = calculate_system_parity(pair.l);
             int parity_conj = calculate_system_parity(pair.l_conj);            
 
-            // TODO: handle H2 case where coefficient is imag
-            tex_content << 2.0 * pair.coefficient.real()
-                        << "\\Re\\left["
+            if (i != 0 && pair.coefficient.real() >= 0.0)
+                tex_content << "+ ";
+
+            // H2 moments are purely imaginary
+            double coeff;
+            if (moment.alpha ==2) 
+                coeff = pair.coefficient.imag();
+            else
+                coeff = pair.coefficient.real();
+
+            tex_content << 2.0 * coeff
+                        << "\t"
+                        << "\\Re\\left[ "
                         << pair.J << "^{" << sign_map[parity] << "}"
                         << l_int_to_char_map.at(pair.l)
                         << "_{" << pair.m << "}"
                         << "^{(" << sign_map[pair.e] << ")}"
-                        << "\\left("
+                        << " \\left("
                         << pair.J_conj << "^{" << sign_map[parity_conj] << "}"
                         << l_int_to_char_map.at(pair.l_conj)
                         << "_{" << pair.m_conj << "}"
                         << "^{(" << sign_map[pair.e] << ")}"
                         << "\\right)^\\ast"
-                        << "\\right]";                        
+                        << " \\right]\n";                        
 
             used[i] = true;
             used[conj_index] = true;
