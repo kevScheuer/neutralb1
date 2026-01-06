@@ -174,6 +174,11 @@ def save_standard_plots(result: ResultManager, output_dir: str, ac_str: str) -> 
     intensity.waves()
     plt.gcf().savefig(f"{output_dir}/plots/waves{ac_str}.pdf", bbox_inches="tight")
 
+    intensity.waves(fractional=True)
+    plt.gcf().savefig(
+        f"{output_dir}/plots/waves_fractional{ac_str}.pdf", bbox_inches="tight"
+    )
+
     if result.proj_moments_df is not None:
         intensity.moments()
         plt.gcf().savefig(
