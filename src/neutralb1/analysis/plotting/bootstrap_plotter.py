@@ -789,11 +789,12 @@ class BootstrapPlotter(BasePWAPlotter):
     def joyplot(
         self,
         columns: list[str],
-        fits: Optional[list[str]] = None,
-        colormap: Optional[str] = None,
+        fit_indices: Optional[list[int]] = None,
+        colormap: str = "Accent",
         sparse_labels: bool = True,
-        overlap: float = 2.0,
+        overlap: float = 1.0,
         show_truth: bool = True,
+        truth_scaling: float = 1.0,
         figsize: Optional[tuple] = None,
         **kwargs,
     ) -> np.ndarray:
@@ -805,7 +806,7 @@ class BootstrapPlotter(BasePWAPlotter):
 
         Args:
             columns (list[str]): Bootstrap DataFrame columns to plot.
-            fits (list[str], optional): Specific fit files to include. If None,
+            fit_indices (list[int], optional): Specific fit indices to include. If None,
                 uses all available fits. Defaults to None.
             colormap (str, optional): Matplotlib colormap name. Defaults to 'Accent'.
             sparse_labels (bool): If True, only label mass bins at multiples of 0.1 GeV.
@@ -815,6 +816,9 @@ class BootstrapPlotter(BasePWAPlotter):
             show_truth (bool): Whether to overlay truth values as vertical lines.
                 Defaults to True.
             figsize (tuple, optional): Figure size. If None, calculated automatically.
+            truth_scaling (float): Truth lines are set to match the maximum of the kde,
+                but this often leads to visual clutter. This scaling factor multiplies
+                the truth line height for clarity. Defaults to 1.0 (no scaling).
             **kwargs: Additional arguments passed to joypy.joyplot.
 
         Raises:
@@ -827,6 +831,8 @@ class BootstrapPlotter(BasePWAPlotter):
         Warning:
             Mixing different parameter types (e.g., phases and intensities) may
             result in misleading visualizations due to different scales.
+        Todo:
+            - allow colormap that is just list of colors
         """
 
         # Validate bootstrap DataFrame
@@ -856,12 +862,28 @@ class BootstrapPlotter(BasePWAPlotter):
         # Handle colormap
         color_list = self._process_colormap(colormap, len(columns))
 
-        # Prepare data
-        plot_data = self._prepare_joyplot_data(fits)
+        # Determine fit indices to use
+        if fit_indices is None:
+            fit_indices = self.fit_df.index.tolist()
+        if not fit_indices:
+            raise ValueError("No valid fit files found.")
+
+        # Extract bootstrap data
+        bootstrap_data = self.bootstrap_df[
+            self.bootstrap_df["fit_index"].isin(fit_indices)
+        ]
+
+        # Extract fit data
+        fit_data = self.fit_df.loc[fit_indices][columns]
+
+        # Extract truth data if available
+        truth_data = None
+        if self.truth_df is not None:
+            truth_data = self.truth_df[self.truth_df["fit_index"].isin(fit_indices)]
 
         # Set up axis limits and labels
         x_limits, y_labels = self._setup_joyplot_axes(
-            plot_data["bootstrap_data"], plot_data["truth_data"], columns, sparse_labels
+            bootstrap_data, truth_data, columns, sparse_labels
         )
 
         # Configure joyplot parameters
@@ -871,13 +893,16 @@ class BootstrapPlotter(BasePWAPlotter):
 
         # Create the joyplot
         fig, axes = joypy.joyplot(
-            plot_data["bootstrap_data"], by="fit_index", column=columns, **joy_kwargs
+            bootstrap_data, by="fit_index", column=columns, **joy_kwargs
         )
 
+        # Add nominal fit result as dot overlay
+        self._add_joyplot_fit_point(axes, fit_data, columns, color_list)
+
         # Add truth value overlays
-        if show_truth and plot_data["truth_data"] is not None:
+        if show_truth and truth_data is not None:
             self._add_joyplot_truth_lines(
-                axes, plot_data["truth_data"], columns, color_list
+                axes, truth_data, columns, color_list, truth_scaling
             )
 
         # Update legend labels to pretty format
@@ -886,14 +911,8 @@ class BootstrapPlotter(BasePWAPlotter):
         plt.suptitle("Bootstrap Parameter Distributions", fontsize=16, y=1.02)
         return axes
 
-    def _process_colormap(self, colormap: Optional[str], n_colors: int) -> list:
+    def _process_colormap(self, colormap: str, n_colors: int) -> list:
         """Process and validate colormap, returning list of colors."""
-
-        if colormap is None:
-            colormap = "Accent"
-
-        if not isinstance(colormap, str):
-            raise TypeError("Colormap must be a string.")
 
         if colormap not in matplotlib.colormaps:
             available_maps = ", ".join(list(matplotlib.colormaps.keys())[:10])
@@ -913,34 +932,6 @@ class BootstrapPlotter(BasePWAPlotter):
             color_list = color_list[:n_colors]
 
         return color_list
-
-    def _prepare_joyplot_data(self, fits: Optional[list]) -> dict:
-        """Prepare data for joyplot, handling fit selection and truth values."""
-
-        # Determine fit indices to use
-        if fits is None:
-            fit_indices = self.fit_df.index.tolist()
-        else:
-            fit_indices = self.fit_df[self.fit_df["file"].isin(fits)].index.tolist()
-
-        if not fit_indices:
-            raise ValueError("No valid fit files found.")
-
-        # Extract bootstrap data (already validated above)
-        bootstrap_data = self.bootstrap_df[  # type: ignore
-            self.bootstrap_df["fit_index"].isin(fit_indices)  # type: ignore
-        ].copy()
-
-        # Extract truth data if available
-        truth_data = None
-        if self.truth_df is not None:
-            truth_data = self.truth_df[self.truth_df.index.isin(fit_indices)].copy()
-
-        return {
-            "bootstrap_data": bootstrap_data,
-            "truth_data": truth_data,
-            "fit_indices": fit_indices,
-        }
 
     def _setup_joyplot_axes(
         self,
@@ -1000,10 +991,10 @@ class BootstrapPlotter(BasePWAPlotter):
                 labels.append(label)
             else:
                 # Only label bins at "nice" intervals
-                tolerance = 1e-5
+                tolerance = 1e-1
                 if (
-                    idx == 0
-                    or idx == len(data_subset) - 1  # First/last bin
+                    idx == 0  # first bin
+                    or idx == len(data_subset) - 1  # last bin
                     or abs(low * 100 % 10) < tolerance  # Multiple of 0.1 GeV
                     or abs(low * 100 % 10 - 10) < tolerance
                 ):
@@ -1030,13 +1021,15 @@ class BootstrapPlotter(BasePWAPlotter):
             "range_style": "own",
             "x_range": list(x_limits),
             "overlap": overlap,
-            "linewidth": 1.5,
-            "alpha": 0.8,
+            "linewidth": 1.0,
             "legend": True,
-            "grid": "y",
+            "grid": "both",
             "yrot": 0,  # No rotation for y-axis labels
+            "ylim": "own",
             "loc": "lower right",  # Legend location
         }
+        # reduce alpha if truth is used
+        default_kwargs["alpha"] = 0.6 if self.truth_df is not None else 0.8
 
         # Handle figure size
         if figsize is not None:
@@ -1044,8 +1037,8 @@ class BootstrapPlotter(BasePWAPlotter):
         else:
             # Auto-calculate based on number of bins and columns
             n_bins = len(y_labels)
-            width = max(10, len(color_list) * 2)
-            height = max(8, n_bins * 0.8)
+            width = max(15, len(color_list) * 2)
+            height = max(10, n_bins * 0.15)
             default_kwargs["figsize"] = (width, height)
 
         # Handle color assignment (avoid joypy bug with single colors)
@@ -1059,12 +1052,48 @@ class BootstrapPlotter(BasePWAPlotter):
 
         return default_kwargs
 
+    def _add_joyplot_fit_point(
+        self,
+        axes: list,
+        fit_data: pd.DataFrame,
+        columns: list,
+        color_list: list,
+    ) -> None:
+        """Add nominal fit result points to each subplot."""
+
+        fit_indices = fit_data.index.tolist()
+
+        for fit_idx, ax in zip(fit_indices, axes):
+            # Get maximum y-values for each KDE curve
+            y_maxes = []
+            for line in ax.lines:
+                if hasattr(line, "get_ydata"):
+                    y_data = line.get_ydata()
+                    if len(y_data) > 0:
+                        y_maxes.append(y_data.max())
+
+            y_max = max(y_maxes) if y_maxes else 1.0
+
+            for col, color in zip(columns, color_list):
+                x1 = fit_data.loc[fit_idx, col]
+                ax.plot(
+                    [x1],
+                    [y_max * 0.05],
+                    marker="o",
+                    color=color,
+                    markersize=2,
+                    markeredgecolor="black",
+                    markeredgewidth=1,
+                    zorder=150,
+                )
+
     def _add_joyplot_truth_lines(
         self,
         axes: list,
         truth_data: pd.DataFrame,
         columns: list,
         color_list: list,
+        truth_scaling: float,
     ) -> None:
         """Add vertical truth value lines to each subplot."""
 
@@ -1079,23 +1108,34 @@ class BootstrapPlotter(BasePWAPlotter):
                     if len(y_data) > 0:
                         y_maxes.append(y_data.max())
 
-            # Ensure we have enough y_max values
-            while len(y_maxes) < len(columns):
-                y_maxes.append(1.0)  # Default fallback
+            y_max = max(y_maxes) if y_maxes else 1.0
 
             # Plot truth lines for each column
-            for col, color, y_max in zip(columns, color_list, y_maxes):
-                truth_value = truth_data.loc[fit_idx, col]
+            zorder = 200
+            for col, color in zip(columns, color_list):
+                true_val = truth_data.loc[fit_idx, col]
+
+                y_max *= truth_scaling
 
                 ax.plot(
-                    [truth_value, truth_value],
+                    [true_val, true_val],
                     [0.0, y_max],
                     color=color,
                     linestyle="-",
-                    linewidth=3,
+                    linewidth=2,
                     alpha=0.9,
-                    zorder=200,  # Ensure lines appear on top
+                    zorder=zorder,
                 )
+                ax.plot(  # black outline for visibility
+                    [true_val, true_val],
+                    [0.0, y_max],
+                    color="black",
+                    linestyle="-",
+                    linewidth=4,
+                    alpha=0.9,
+                    zorder=zorder - 1,
+                )
+                zorder += 2
 
     def _update_joyplot_legend(self, axes: list) -> None:
         """Update legend labels to use pretty amplitude names."""
