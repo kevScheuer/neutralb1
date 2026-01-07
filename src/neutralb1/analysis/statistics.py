@@ -19,6 +19,7 @@ def normality_test(
     small_amp_threshold: float = 0.05,
     skew_threshold: float = 0.5,
     n_mc_samples: int = 1000,
+    is_acc_corrected: bool = False,
 ) -> None:
     """Test normality of bootstrap distributions for specified columns.
 
@@ -52,7 +53,10 @@ def normality_test(
             Defaults to 1.0.
         n_mc_samples (int, optional): Number of Monte Carlo samples for circular
             normality test. Increasing will increase accuracy but also computation time.
-            Defaults to 1000.
+        Defaults to 1000.
+        is_acc_corrected (bool, optional): Whether the fit results are
+            acceptance-corrected. If True, uses generated_events instead of
+            detected_events for fit fraction calculations. Defaults to False.
     Raises:
         KeyError: If any specified column is not found in either DataFrame.
         ValueError: If phase difference values are not within [-180, 180] degrees.
@@ -61,7 +65,8 @@ def normality_test(
         None: Generates a PDF file with probability plots for failed normality tests.
 
     Todo:
-        - handle acc_corrected (detected_events -> generated_events)
+        - the quantiles for the von Mises distribution don't seem to align properly when
+            the data crosses the -pi to pi boundary. Need to investigate further.
     """
 
     # check that columns exist in both dataframes
@@ -79,7 +84,7 @@ def normality_test(
     failed_dict = {}  # to store {fit_index: {column : p_value}}
     for fit_index in bootstrap_df["fit_index"].unique():
         num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-            "detected_events"
+            "generated_events" if is_acc_corrected else "detected_events"
         ].mean()
 
         for col in columns:
@@ -193,7 +198,11 @@ def normality_test(
                     fit_fraction = (
                         values.mean()
                         / bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                            "detected_events"
+                            (
+                                "generated_events"
+                                if is_acc_corrected
+                                else "detected_events"
+                            )
                         ].mean()
                     )
 
@@ -249,7 +258,7 @@ def normality_test(
                         inset_ax.tick_params(labelsize=8)
                 else:
                     scipy.stats.probplot(values, dist="norm", plot=ax)
-                    ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
+                    ax.set_title(f"{col}: p={p_value:.3e}")
 
                     # add inset with histogram and fitted normal distribution
                     inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
@@ -288,6 +297,7 @@ def bias_test(
     columns: List[str],
     output: str = "./bias_test_results.pdf",
     threshold: float = 0.05,
+    is_acc_corrected: bool = False,
 ) -> None:
     """Test whether the mean of bootstrap samples is consistent with fit results.
 
@@ -305,15 +315,15 @@ def bias_test(
             | (bootstrap_mean - fit_value) / d | > threshold are flagged. For circular
             data (phase differences), d = π. All other data, d = fit_value.
             Defaults to 0.05.
+        is_acc_corrected (bool, optional): Whether the fit results are
+            acceptance-corrected. If True, uses generated_events instead of
+            detected_events for fit fraction calculations. Defaults to False.
 
     Raises:
         KeyError: If any specified column is not found in either DataFrame.
 
     Returns:
         None: Generates a PDF file with histograms for failed bias tests.
-
-    Todo:
-        - handle acc_corrected (detected_events -> generated_events)
     """
 
     # check that columns exist in both dataframes
@@ -331,7 +341,7 @@ def bias_test(
     for fit_index in bootstrap_df["fit_index"].unique():
         fit_value_row = fit_df.loc[fit_index]
         num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-            "detected_events"
+            "generated_events" if is_acc_corrected else "detected_events"
         ].mean()
 
         for col in columns:
@@ -399,7 +409,7 @@ def bias_test(
                 values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
                 fit_value = fit_df.loc[fit_index][col]
                 num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
-                    "detected_events"
+                    "generated_events" if is_acc_corrected else "detected_events"
                 ].mean()
 
                 if col in phases:
