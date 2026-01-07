@@ -1,3 +1,4 @@
+import importlib.resources
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -39,9 +40,8 @@ class FactoryPlotter:
         self.truth_proj_moments_df = truth_proj_moments_df
         self.is_acceptance_corrected = is_acceptance_corrected
 
-        # Set the matplotlib style for consistent plotting
-        WORKSPACE_DIR = utils.get_workspace_dir()
-        plt.style.use(f"{WORKSPACE_DIR}/config/neutralb1.mplstyle")
+        style_path = str(importlib.resources.files("neutralb1") / "neutralb1.mplstyle")
+        plt.style.use(style_path)
 
     @property
     def intensity(self):
