@@ -153,6 +153,9 @@ std::pair<ProdCoefficientPair, ProdCoefficientPair> get_sdme_pairs(
 );
 std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
     const std::map<Moment, std::vector<ProdCoefficientPair>> &input_expressions);
+bool verify_reflectivities(
+    const std::map<Moment, std::vector<ProdCoefficientPair>> &combined_moment_expressions
+);
 void write_moment_expressions_tex(
     const std::map<Moment, 
     std::vector<ProdCoefficientPair>> &combined_moment_expressions,
@@ -162,6 +165,7 @@ double calculate_CGs(
     int lambda_i, int lambda_j, const Moment &moment);
 int sign(int i);
 void clear_prod_coeff_pair_cache();
+
 
 int main(int argc, char *argv[])
 {
@@ -210,6 +214,25 @@ int main(int argc, char *argv[])
     // Combine the coefficients of all like pairs
     std::map<Moment, std::vector<ProdCoefficientPair>> combined_moment_expressions =
     combine_like_terms(moment_expressions);
+    if (!verify_reflectivities(combined_moment_expressions))
+    {
+        std::cerr << "Error: Reflectivity terms verification failed\n";
+        return 1;
+    }
+    // since reflectivity terms are correct, we can drop half of them since we'll write
+    // it out as a sum
+    for (auto &entry : combined_moment_expressions)
+    {
+        std::vector<ProdCoefficientPair> &pairs = entry.second;
+        pairs.erase(
+            std::remove_if(
+                pairs.begin(), pairs.end(),
+                [](const ProdCoefficientPair &pair) { return pair.e == -1; }
+            ),
+            pairs.end()
+        );
+    }
+
     std::cout << "Combined like terms in moment expressions\n";
 
     // At this point, we have combinations like c_i c_i* and 
@@ -257,8 +280,6 @@ std::map<Moment, std::vector<ProdCoefficientPair>> calculate_moment_expressions(
                                     {
                                         // get the 4 production coefficient pairs from 
                                         // the SDME
-                                        // TODO: reconsider if both reflectivities need to be included here, and whether we can 
-                                        // simply sum over them at the end like Jiawei has.
                                         ProdCoefficientPair pair1_neg, pair2_neg;
                                         ProdCoefficientPair pair1_pos, pair2_pos;
                                         std::tie(pair1_neg, pair2_neg) = get_sdme_pairs(
@@ -491,7 +512,20 @@ std::map<Moment, std::vector<ProdCoefficientPair>> combine_like_terms(
 }
 
 
-// TODO: write docstring
+/**
+ * @brief Write the moment expressions to a TeX file.
+ * 
+ * @details
+ * All intensity terms |c_i|^2 are written first, followed by all interference terms
+ * Re(c_i c_j*). Checks are in place to ensure that coefficients are purely real (H0, H1)
+ * or purely imaginary (H2) as expected, and that every interference term has a matching
+ * conjugate pair to form the real part. It also ensures these pairs have matching 
+ * coefficients. Any discrepancies will throw runtime errors.
+ * 
+ * @param combined_moment_expressions map of moments to their combined production
+ *  coefficient pairs
+ * @param filename output TeX file path
+ */
 void write_moment_expressions_tex(
     const std::map<Moment, 
     std::vector<ProdCoefficientPair>> &combined_moment_expressions,
@@ -510,8 +544,6 @@ void write_moment_expressions_tex(
         {4, 'G'}
     };
 
-    // TODO: if both pairs of reflectivities are found, simply write out the moment
-    // with \sum_\varepsilon in front, change reflectivity symbols to \varepsilon
     std::ostringstream tex_content;
     tex_content << "\\documentclass{article}\n";
     tex_content << "\\usepackage{amsmath}\n";
@@ -523,10 +555,20 @@ void write_moment_expressions_tex(
         // make local copy, since we'll remove items as we process it
         std::vector<ProdCoefficientPair> pairs = entry.second; 
         
-        tex_content << "\\begin{gather*}\n";
-        tex_content << "H^{" << moment.alpha << "}(" 
-                    << moment.Jv << "," << moment.Lambda << "," 
-                    << moment.J << "," << moment.M << ") = \n";
+        tex_content << "\\begin{gather*}\n";        
+        if (moment.alpha == 0 || moment.alpha == 1)
+        {   
+            tex_content << "H^{" << moment.alpha << "}(" 
+                        << moment.Jv << "," << moment.Lambda << "," 
+                        << moment.J << "," << moment.M << ") = \\sum_\\varepsilon \n";            
+        }
+        else if (moment.alpha == 2)
+        { // alpha == 2 moments are purely imaginary, so divide by i
+            tex_content << "\\frac{H^{" << moment.alpha << "}(" 
+                        << moment.Jv << "," << moment.Lambda << "," 
+                        << moment.J << "," << moment.M << ")}{i}"
+                        << " = \\sum_\\varepsilon \n";
+        }
 
         // First, write the amplitude terms |c_i|^2
         int counter = 0;
@@ -573,7 +615,7 @@ void write_moment_expressions_tex(
                                 << pair.J << "^{" << sign_map[parity] << "}"
                                 << l_int_to_char_map.at(pair.l)
                                 << "_{" << pair.m << "}"
-                                << "^{(" << sign_map[pair.e] << ")}"
+                                << "^{(\\varepsilon)}"
                                 << "|^2\n";            
                 }
                 else
@@ -582,7 +624,7 @@ void write_moment_expressions_tex(
                                 << pair.J << "^{" << sign_map[parity] << "}"
                                 << l_int_to_char_map.at(pair.l)
                                 << "_{" << pair.m << "}"
-                                << "^{(" << sign_map[pair.e] << ")}"
+                                << "^{(\\varepsilon)}"
                                 << "|^2\n";            
                 }
 
@@ -681,11 +723,11 @@ void write_moment_expressions_tex(
                         << pair.J << "^{" << sign_map[parity] << "}"
                         << l_int_to_char_map.at(pair.l)
                         << "_{" << pair.m << "}"
-                        << "^{(" << sign_map[pair.e] << ")}"
+                        << "^{(\\varepsilon)}"
                         << pair.J_conj << "^{" << sign_map[parity_conj] << "}"
                         << l_int_to_char_map.at(pair.l_conj)
                         << "_{" << pair.m_conj << "}"
-                        << "^{(" << sign_map[pair.e] << ")\\ast}"
+                        << "^{(\\varepsilon)\\ast}"
                         << " \\right]\n";           
                         
             if (counter++ % 2 == 1)
@@ -716,6 +758,106 @@ void write_moment_expressions_tex(
     std::cout << "Wrote moment expressions to TeX file: " << filename << "\n";
 
     return;
+}
+
+
+/**
+ * @brief Check that all reflectivity pairs are present and have correct coefficients.
+ * 
+ * @details
+ * We don't need to include all reflectivity pairs in the final moment expressions, 
+ * since they are summed over. The get_sdme_pairs function unfortunately has to 
+ * explicitly include them to identify unique production coefficient pairings. So here
+ * we check that every pair has its opposite reflectivity pair present, and that their
+ * coefficients are correct (same for H0, opposite for H1 and H2). If any issues are
+ * found, return false.
+ * 
+ * @param combined_moment_expressions map of moments to their combined production
+ *  coefficient pairs
+ * @return true All reflectivity pairs verified
+ * @return false Reflectivity pair verification failed
+ */
+bool verify_reflectivities(
+    const std::map<Moment, std::vector<ProdCoefficientPair>> &combined_moment_expressions
+)
+{
+    for (const auto &entry : combined_moment_expressions)
+    {
+        const Moment &moment = entry.first;
+        const std::vector<ProdCoefficientPair> &pairs = entry.second;
+
+        std::vector<bool> used(pairs.size(), false);
+        for (size_t i = 0; i < pairs.size(); ++i)
+        {
+            if (used[i]) continue;
+
+            const ProdCoefficientPair &pair = pairs[i];
+
+            // find the production coefficient pair that has the opposite reflectivity 
+            // values
+            size_t conj_index = pairs.size();
+            for (size_t j = i + 1; j < pairs.size(); ++j)
+            {
+                if (used[j]) continue;
+
+                const ProdCoefficientPair &p = pairs[j];
+                if (p.e == (-1)*pair.e_conj 
+                    && p.J == pair.J_conj && p.m == pair.m_conj && p.l == pair.l_conj 
+                    && p.e_conj == (-1)*pair.e 
+                    && p.J_conj == pair.J && p.m_conj == pair.m && p.l_conj == pair.l)
+                {
+                    conj_index = j;
+                    break;
+                }
+            }
+
+            
+            if (conj_index == pairs.size())
+            {
+                std::cerr << "Could not find opposite reflectivity pair for moment "
+                    << moment.name() << ": pair "
+                    << std::to_string(pair.e) << std::to_string(pair.J) 
+                    << std::to_string(pair.m) << std::to_string(pair.l) << "\n";
+                return false;
+            }
+
+            const ProdCoefficientPair &conj_pair = pairs[conj_index];
+
+            // verify that its coefficient is the same (H0) or opposite (H1, H2) sign.
+            // This also ensures that magnitudes are equal.
+            if (moment.alpha == 0)
+            {
+                if (std::abs(pair.coefficient - conj_pair.coefficient) > THRESHOLD)
+                {
+                    std::cerr << "Warning: Opposite reflectivity pair with unequal coefficients found for H0 moment "
+                        << moment.name() << ": pairs "
+                        << std::to_string(pair.e) << std::to_string(pair.J) << std::to_string(pair.m) << std::to_string(pair.l) << " and "
+                        << std::to_string(conj_pair.e) << std::to_string(conj_pair.J) << std::to_string(conj_pair.m) << std::to_string(conj_pair.l)
+                        << " with coefficients "
+                        << std::to_string(pair.coefficient.real()) << " + " << std::to_string(pair.coefficient.imag()) << "i and "
+                        << std::to_string(conj_pair.coefficient.real()) << " + " << std::to_string(conj_pair.coefficient.imag()) << "i\n";
+                    return false;
+                }
+            }
+            else // H1 or H2
+            {
+                if (std::abs(pair.coefficient + conj_pair.coefficient) > THRESHOLD)
+                {
+                    std::cerr << "Warning: Opposite reflectivity pair with non-opposite coefficients found for H1/H2 moment "
+                        << moment.name() << ": pairs "
+                        << std::to_string(pair.e) << std::to_string(pair.J) << std::to_string(pair.m) << std::to_string(pair.l) << " and "
+                        << std::to_string(conj_pair.e) << std::to_string(conj_pair.J) << std::to_string(conj_pair.m) << std::to_string(conj_pair.l)
+                        << " with coefficients "
+                        << std::to_string(pair.coefficient.real()) << " + " << std::to_string(pair.coefficient.imag()) << "i and "
+                        << std::to_string(conj_pair.coefficient.real()) << " + " << std::to_string(conj_pair.coefficient.imag()) << "i\n";
+                    return false;
+                }
+            }
+            used[i] = true;
+            used[conj_index] = true;
+        } // finish loop over pairs
+    }
+    return true;
 }
 
 /**
