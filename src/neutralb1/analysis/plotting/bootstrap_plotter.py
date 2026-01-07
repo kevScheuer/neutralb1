@@ -790,7 +790,7 @@ class BootstrapPlotter(BasePWAPlotter):
         self,
         columns: list[str],
         fit_indices: Optional[list[int]] = None,
-        colormap: str = "Accent",
+        colormap: str | list[str] = "Accent",
         sparse_labels: bool = True,
         overlap: float = 1.0,
         show_truth: bool = True,
@@ -808,7 +808,9 @@ class BootstrapPlotter(BasePWAPlotter):
             columns (list[str]): Bootstrap DataFrame columns to plot.
             fit_indices (list[int], optional): Specific fit indices to include. If None,
                 uses all available fits. Defaults to None.
-            colormap (str, optional): Matplotlib colormap name. Defaults to 'Accent'.
+            colormap (str | list[str], optional): Either a matplotlib colormap name or a
+                list of color specifications (hex, RGB tuples, or named colors).
+                Defaults to 'Accent'.
             sparse_labels (bool): If True, only label mass bins at multiples of 0.1 GeV.
                 Defaults to True.
             overlap (float): Vertical overlap between distributions. Higher values
@@ -822,8 +824,9 @@ class BootstrapPlotter(BasePWAPlotter):
             **kwargs: Additional arguments passed to joypy.joyplot.
 
         Raises:
-            ValueError: If bootstrap DataFrame is None or columns are missing.
-            TypeError: If colormap is not a valid string.
+            ValueError: If bootstrap DataFrame is None, columns are missing, or
+                colormap string is invalid.
+            TypeError: If colormap is neither a string nor a list.
 
         Returns:
             None: Displays the joyplot.
@@ -831,8 +834,6 @@ class BootstrapPlotter(BasePWAPlotter):
         Warning:
             Mixing different parameter types (e.g., phases and intensities) may
             result in misleading visualizations due to different scales.
-        Todo:
-            - allow colormap that is just list of colors
         """
 
         # Validate bootstrap DataFrame
@@ -911,27 +912,61 @@ class BootstrapPlotter(BasePWAPlotter):
         plt.suptitle("Bootstrap Parameter Distributions", fontsize=16, y=1.02)
         return axes
 
-    def _process_colormap(self, colormap: str, n_colors: int) -> list:
-        """Process and validate colormap, returning list of colors."""
+    def _process_colormap(self, colormap: str | list[str], n_colors: int) -> list:
+        """Process and validate colormap, returning list of colors.
 
-        if colormap not in matplotlib.colormaps:
-            available_maps = ", ".join(list(matplotlib.colormaps.keys())[:10])
-            raise ValueError(
-                f"'{colormap}' is not a valid matplotlib colormap. "
-                f"Available options include: {available_maps}..."
-            )
+        Args:
+            colormap (str | list[str]): Either a matplotlib colormap name or a list
+                of color specifications.
+            n_colors (int): Number of colors needed.
 
-        # Get colors from colormap
-        color_list = list(matplotlib.colormaps[colormap].colors)  # type: ignore
+        Returns:
+            list: List of color specifications with length n_colors.
 
-        # Repeat colormap if too short
-        if len(color_list) < n_colors:
-            repeats = (n_colors // len(color_list)) + 1
-            color_list = (color_list * repeats)[:n_colors]
-        else:
-            color_list = color_list[:n_colors]
+        Raises:
+            ValueError: If colormap string is not a valid matplotlib colormap.
+            TypeError: If colormap is neither a string nor a list.
+        """
 
-        return color_list
+        # Handle list of colors
+        if isinstance(colormap, list):
+            if not colormap:
+                raise ValueError("Color list cannot be empty.")
+
+            # Repeat color list if too short
+            if len(colormap) < n_colors:
+                repeats = (n_colors // len(colormap)) + 1
+                color_list = (colormap * repeats)[:n_colors]
+            else:
+                color_list = colormap[:n_colors]
+
+            return color_list
+
+        # Handle colormap string
+        if isinstance(colormap, str):
+            if colormap not in matplotlib.colormaps:
+                available_maps = ", ".join(list(matplotlib.colormaps.keys())[:10])
+                raise ValueError(
+                    f"'{colormap}' is not a valid matplotlib colormap. "
+                    f"Available options include: {available_maps}..."
+                )
+
+            # Get colors from colormap
+            color_list = list(matplotlib.colormaps[colormap].colors)  # type: ignore
+
+            # Repeat colormap if too short
+            if len(color_list) < n_colors:
+                repeats = (n_colors // len(color_list)) + 1
+                color_list = (color_list * repeats)[:n_colors]
+            else:
+                color_list = color_list[:n_colors]
+
+            return color_list
+
+        # Invalid type
+        raise TypeError(
+            f"colormap must be either a string or a list, got {type(colormap).__name__}"
+        )
 
     def _setup_joyplot_axes(
         self,
