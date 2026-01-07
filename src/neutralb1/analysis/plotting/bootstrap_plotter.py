@@ -15,12 +15,7 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 
 
 class BootstrapPlotter(BasePWAPlotter):
-    """Handles plots that rely on bootstrap results.
-
-    Todo:
-        - All methods that use multiple batches of fits should use fit_index as the
-            selection criteria, not file names.
-    """
+    """Handles plots that rely on bootstrap results."""
 
     def correlation_matrix(
         self,
