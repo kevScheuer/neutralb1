@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import matplotlib.axes
 import matplotlib.pyplot as plt
@@ -137,7 +137,12 @@ class IntensityPlotter(BasePWAPlotter):
 
         return ax
 
-    def waves(self, fractional: bool = False, sharey: bool = False) -> np.ndarray:
+    def waves(
+        self,
+        fractional: bool = False,
+        sharey: bool = False,
+        reflectivity: Literal["positive", "negative", "both"] = "both",
+    ) -> np.ndarray:
         """Plot all the wave intensities in a grid format.
 
         Creates a grid plot where columns represent spin-projections (m) and rows
@@ -148,7 +153,8 @@ class IntensityPlotter(BasePWAPlotter):
             fractional (bool): If True, scales all values by dividing by the total
                 intensity in each bin. Defaults to False.
             sharey (bool): If True, each row shares a y-axis scale. Defaults to False.
-
+            reflectivity (Literal["positive", "negative", "both"]): Specifies which
+                reflectivity waves to plot. Defaults to "both".
         Returns:
             np.ndarray: Array of matplotlib.axes.Axes objects for further customization.
 
@@ -238,7 +244,10 @@ class IntensityPlotter(BasePWAPlotter):
 
                 # Plot negative reflectivity contribution
                 neg_amp_name = f"m{JPmL}"
-                if neg_amp_name in self.coherent_sums["eJPmL"]:
+                if neg_amp_name in self.coherent_sums["eJPmL"] and reflectivity in [
+                    "negative",
+                    "both",
+                ]:
                     y_errs = (
                         self.get_bootstrap_error(neg_amp_name)
                         if self.bootstrap_df is not None
@@ -282,7 +291,10 @@ class IntensityPlotter(BasePWAPlotter):
 
                 # Plot positive reflectivity contribution
                 pos_amp_name = f"p{JPmL}"
-                if pos_amp_name in self.coherent_sums["eJPmL"]:
+                if pos_amp_name in self.coherent_sums["eJPmL"] and reflectivity in [
+                    "positive",
+                    "both",
+                ]:
                     y_errs = (
                         self.get_bootstrap_error(pos_amp_name)
                         if self.bootstrap_df is not None
