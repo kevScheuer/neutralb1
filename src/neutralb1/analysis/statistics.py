@@ -20,7 +20,7 @@ def normality_test(
     skew_threshold: float = 0.5,
     n_mc_samples: int = 1000,
     is_acc_corrected: bool = False,
-) -> None:
+) -> dict[str, float]:
     """Test normality of bootstrap distributions for specified columns.
 
     This function handles 3 cases:
@@ -62,7 +62,8 @@ def normality_test(
         ValueError: If phase difference values are not within [-180, 180] degrees.
         TypeError: If amplitude fit value or number of events are not numeric types.
     Returns:
-        None: Generates a PDF file with probability plots for failed normality tests.
+        dict[str, float]: column (keys) and their number of failures divided by total
+            number of fit_indices (values).
 
     Todo:
         - the quantiles for the von Mises distribution don't seem to align properly when
@@ -140,7 +141,7 @@ def normality_test(
     # Make probability plots for the failed tests against the appropriate distribution
     if not failed_dict:
         print("All normality tests passed.")
-        return
+        return {}
 
     with PdfPages(output) as pdf:
         for fit_index, col_dict in failed_dict.items():
@@ -288,7 +289,21 @@ def normality_test(
             plt.close(fig)
         print("Normality test results saved to:", output)
 
-    return
+    # calculate failure rates for each column
+    failure_rates = {}
+    total_fits = len(bootstrap_df["fit_index"].unique())
+    for col in columns:
+        num_failures = sum(
+            1 for fit_index in failed_dict if col in failed_dict[fit_index]
+        )
+        failure_rates[col] = num_failures / total_fits
+
+    # sort by failure rate descending
+    failure_rates = dict(
+        sorted(failure_rates.items(), key=lambda item: item[1], reverse=True)
+    )
+
+    return failure_rates
 
 
 def bias_test(
@@ -298,7 +313,7 @@ def bias_test(
     output: str = "./bias_test_results.pdf",
     threshold: float = 0.05,
     is_acc_corrected: bool = False,
-) -> None:
+) -> dict[str, float]:
     """Test whether the mean of bootstrap samples is consistent with fit results.
 
     For each column, calculates the bias as (bootstrap mean - fit value). If the
@@ -323,7 +338,8 @@ def bias_test(
         KeyError: If any specified column is not found in either DataFrame.
 
     Returns:
-        None: Generates a PDF file with histograms for failed bias tests.
+        dict[str, float]: column (keys) and their number of failures divided by total
+            number of fit_indices (values).
     """
 
     # check that columns exist in both dataframes
@@ -383,7 +399,7 @@ def bias_test(
     # Make plots for the failed tests
     if not failed_dict:
         print("All bias tests passed.")
-        return
+        return {}
 
     with PdfPages(output) as pdf:
         for fit_index, col_dict in failed_dict.items():
@@ -535,7 +551,21 @@ def bias_test(
             plt.close(fig)
         print("Bias test results saved to:", output)
 
-    return
+    # calculate failure rates for each column
+    failure_rates = {}
+    total_fits = len(bootstrap_df["fit_index"].unique())
+    for col in columns:
+        num_failures = sum(
+            1 for fit_index in failed_dict if col in failed_dict[fit_index]
+        )
+        failure_rates[col] = num_failures / total_fits
+
+    # sort by failure rate descending
+    failure_rates = dict(
+        sorted(failure_rates.items(), key=lambda item: item[1], reverse=True)
+    )
+
+    return failure_rates
 
 
 def report_correlations(
