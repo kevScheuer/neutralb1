@@ -409,7 +409,11 @@ class BootstrapPlotter(BasePWAPlotter):
         # Update labels to prettier versions
         self._update_pairplot_labels(pg)
 
-        plt.tight_layout()
+        # Add legend with mass ranges for each fit index
+        self._add_mass_range_legend(pg, fit_indices, palette)
+
+        # Use tight_layout but leave room for the legend on the right
+        plt.tight_layout(rect=(0.0, 0.0, 1.0, 1.0))
 
         return pg
 
@@ -780,6 +784,43 @@ class BootstrapPlotter(BasePWAPlotter):
                     ax.set_ylim(0, 1)
                 elif row_label in self.phase_differences:
                     ax.set_ylim(-180, 180)
+
+    def _add_mass_range_legend(
+        self, pg: sns.PairGrid, fit_indices: list[int], palette
+    ) -> None:
+        """Add a legend showing mass ranges for each fit index."""
+        from matplotlib.patches import Patch
+
+        # Create legend handles and labels
+        legend_handles = []
+        legend_labels = []
+
+        for fit_idx, color in zip(fit_indices, palette):
+            # Extract mass range for this fit index
+            mass_low = self.data_df[self.data_df["fit_index"] == fit_idx][
+                "m_low"
+            ].values[0]
+            mass_high = self.data_df[self.data_df["fit_index"] == fit_idx][
+                "m_high"
+            ].values[0]
+
+            # Create patch with the color
+            legend_handles.append(Patch(facecolor=color, edgecolor="black"))
+            legend_labels.append(
+                rf"{mass_low:.3f} $\leq M_{self.channel} \leq$ {mass_high:.3f}"
+            )
+
+        # Add legend to the right of the figure, outside the plot area
+        pg.figure.legend(
+            legend_handles,
+            legend_labels,
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            frameon=True,
+            fancybox=True,
+            shadow=True,
+            title="Mass Range (GeV)",
+        )
 
     def joyplot(
         self,
