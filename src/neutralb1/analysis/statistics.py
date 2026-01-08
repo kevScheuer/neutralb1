@@ -383,8 +383,8 @@ def bias_test(
 
             elif any(col in sublist for sublist in coherent_sums.values()):
                 bootstrap_mean = values.mean()
-                bias = (bootstrap_mean - fit_value) / safe_fit_value
-                fractional_bias = abs(bias)
+                bias = (bootstrap_mean - fit_value) / num_events
+                fractional_bias = abs(bias / (safe_fit_value / num_events))
 
             else:
                 bootstrap_mean = values.mean()
@@ -530,7 +530,6 @@ def bias_test(
             fig.suptitle(f"Bias Test Failures for Fit Index {fit_index}", fontsize=16)
 
             legend_handles = []
-            legend_loc = "outside upper right" if len(axes) > 1 else "outside right"
             if dist_handle is not None and isinstance(dist_handle, (list, tuple)):
                 # ax.hist returns (n, bins, patches) - we want the patches
                 if len(dist_handle) == 3:
@@ -545,8 +544,10 @@ def bias_test(
             if fit_handle is not None and hasattr(fit_handle, "get_label"):
                 legend_handles.append(fit_handle)
 
-            if legend_handles:
-                fig.legend(handles=legend_handles, loc=legend_loc)
+            if legend_handles and len(axes) > 1:
+                fig.legend(handles=legend_handles, loc="outside upper right")
+            elif legend_handles:
+                axes[0].legend()
             pdf.savefig(fig)
             plt.close(fig)
         print("Bias test results saved to:", output)
