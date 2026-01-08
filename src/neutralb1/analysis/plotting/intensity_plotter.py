@@ -128,7 +128,7 @@ class IntensityPlotter(BasePWAPlotter):
                     )
 
         ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        ax.set_xlabel(rf"{self.channel} inv. mass $(GeV)$", loc="right")
+        ax.set_xlabel(rf"${self.channel}$ inv. mass $(GeV)$", loc="right")
         ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
         ax.set_ylim(bottom=0.0)
         ax.legend()
@@ -356,7 +356,7 @@ class IntensityPlotter(BasePWAPlotter):
             else f"Events / {self._bin_width:.3f} GeV"
         )
 
-        fig.supxlabel(rf"{self.channel} inv. mass (GeV)", fontsize=24, x=0.53)
+        fig.supxlabel(rf"${self.channel}$ inv. mass (GeV)", fontsize=24, x=0.53)
         fig.supylabel(y_label, fontsize=24)
 
         # Add legend if we have plot handles

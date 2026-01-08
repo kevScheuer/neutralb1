@@ -267,7 +267,7 @@ class PhasePlotter(BasePWAPlotter):
         axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi intervals
         axs[1].set_ylim([-180, 180])
         axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center")
-        axs[1].set_xlabel(rf"{self.channel} inv. mass $(GeV)$", loc="right")
+        axs[1].set_xlabel(rf"${self.channel}$ inv. mass $(GeV)$", loc="right")
 
         axs[0].legend(loc="upper right")
 

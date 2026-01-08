@@ -129,7 +129,7 @@ class RandomizedPlotter(BasePWAPlotter):
         ].values[0]
 
         fig.suptitle(
-            rf"{low_mass:.3f} < {self.channel} inv. mass < {high_mass:.3f} $(GeV)$",
+            rf"{low_mass:.3f} < ${self.channel}$ inv. mass < {high_mass:.3f} $(GeV)$",
             fontsize=20,
         )
 

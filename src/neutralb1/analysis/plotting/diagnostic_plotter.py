@@ -211,7 +211,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_phase.set_ylim(-180, 180)
         ax_phase.legend()
 
-        ax_corr.set_xlabel(rf"{self.channel} inv. mass (GeV)", loc="right")
+        ax_corr.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
         ax_corr.set_ylabel("ρ(D/S, D-S)", loc="top")
         ax_corr.set_ylim(-1, 1)
         ax_corr.axhline(y=0, color="black", linestyle="-")
@@ -384,7 +384,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_ratio.legend()
 
         ax_phase.set_xlabel(
-            rf"{self.channel} inv. mass (GeV)", loc="right", fontsize=12
+            rf"${self.channel}$ inv. mass (GeV)", loc="right", fontsize=12
         )
         ax_phase.set_ylabel("D-S Phase (°)", loc="top", fontsize=12)
         ax_phase.set_yticks(np.linspace(-180, 180, 5))
@@ -532,7 +532,7 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Configure figure-wide labels and styling
         fig.text(
-            0.53, 0.04, rf"{self.channel} inv. mass (GeV)", ha="center", fontsize=14
+            0.53, 0.04, rf"${self.channel}$ inv. mass (GeV)", ha="center", fontsize=14
         )
         fig.text(
             0.03,

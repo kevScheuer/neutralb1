@@ -22,7 +22,7 @@ class BasePWAPlotter:
         truth_df: Optional[pd.DataFrame] = None,
         truth_proj_moments_df: Optional[pd.DataFrame] = None,
         is_acceptance_corrected: bool = False,
-        channel: Optional[str] = r"$\omega\pi^0$",
+        channel: Optional[str] = r"\omega\pi^0",
     ) -> None:
         """Initialize base plotter with common data and utilities.
 
@@ -46,7 +46,7 @@ class BasePWAPlotter:
             is_acceptance_corrected (bool, optional): Whether the fit is acceptance
                 corrected. Defaults to False.
             channel (str, optional): The channel label to be used in plot axes. Defaults
-                to r"$\\omega\\pi^0$".
+                to r"\\omega\\pi^0".
         """
 
         # no need to copy DataFrames here, as they will not be modified
