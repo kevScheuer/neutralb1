@@ -157,6 +157,9 @@ def normality_test(
             )
             axes = axes.flatten() if num_plots > 1 else [axes]
 
+            samples_handle = None
+            fit_handle = None
+
             # loop through each failed column and make the probability plot
             for ax, (col, p_value) in zip(axes, col_dict.items()):
                 values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
@@ -176,8 +179,16 @@ def normality_test(
                         f"{utils.convert_amp_name(col)} (circular): p={p_value:.3e}"
                     )
 
+                    # Extract line handles for legend
+                    lines = ax.get_lines()
+                    if len(lines) >= 2:
+                        samples_handle = lines[0]  # scatter points
+                        fit_handle = lines[1]  # reference line
+                        samples_handle.set_label("Bootstrap Samples")
+                        fit_handle.set_label("Normal Best Fit")
+
                     # add inset with histogram and fitted von Mises distribution
-                    inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                    inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
                     inset_ax.hist(values_rad, bins=30, density=True, alpha=0.7)
                     x_range = np.linspace(
                         values_rad.min() - 0.1 * values_rad.min(),
@@ -190,7 +201,6 @@ def normality_test(
                         "r-",
                         lw=2,
                     )
-                    inset_ax.tick_params(labelsize=8)
 
                 elif any(col in sublist for sublist in coherent_sums.values()):
                     # amplitude QQ plot against normal distribution
@@ -220,8 +230,16 @@ def normality_test(
                             f" (log-transformed): p={p_value:.3e}"
                         )
 
+                        # Extract line handles for legend
+                        lines = ax.get_lines()
+                        if len(lines) >= 2:
+                            samples_handle = lines[0]  # scatter points
+                            fit_handle = lines[1]  # reference line
+                            samples_handle.set_label("Bootstrap Samples")
+                            fit_handle.set_label("Normal Best Fit")
+
                         # add inset with histogram and fitted lognorm distribution
-                        inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                        inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
                         inset_ax.hist(values, bins=30, density=True, alpha=0.7)
                         x_range = np.linspace(
                             values.min() - 0.1 * values.min(),
@@ -236,13 +254,20 @@ def normality_test(
                             "r-",
                             lw=2,
                         )
-                        inset_ax.tick_params(labelsize=8)
                     else:
                         scipy.stats.probplot(values, dist="norm", plot=ax)
                         ax.set_title(f"{utils.convert_amp_name(col)}: p={p_value:.3e}")
 
+                        # Extract line handles for legend
+                        lines = ax.get_lines()
+                        if len(lines) >= 2:
+                            samples_handle = lines[0]  # scatter points
+                            fit_handle = lines[1]  # reference line
+                            samples_handle.set_label("Bootstrap Samples")
+                            fit_handle.set_label("Normal Best Fit")
+
                         # add inset with histogram and fitted normal distribution
-                        inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                        inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
                         inset_ax.hist(values, bins=30, density=True, alpha=0.7)
                         x_range = np.linspace(
                             values.min() - 0.1 * values.min(),
@@ -256,13 +281,20 @@ def normality_test(
                             "r-",
                             lw=2,
                         )
-                        inset_ax.tick_params(labelsize=8)
                 else:
                     scipy.stats.probplot(values, dist="norm", plot=ax)
                     ax.set_title(f"{col}: p={p_value:.3e}")
 
+                    # Extract line handles for legend
+                    lines = ax.get_lines()
+                    if len(lines) >= 2:
+                        samples_handle = lines[0]  # scatter points
+                        fit_handle = lines[1]  # reference line
+                        samples_handle.set_label("Bootstrap Samples")
+                        fit_handle.set_label("Normal Best Fit")
+
                     # add inset with histogram and fitted normal distribution
-                    inset_ax = ax.inset_axes([0.6, 0.05, 0.35, 0.35])
+                    inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
                     inset_ax.hist(values, bins=30, density=True, alpha=0.7)
                     x_range = np.linspace(
                         values.min() - 0.1 * values.min(),
@@ -273,7 +305,13 @@ def normality_test(
                     inset_ax.plot(
                         x_range, scipy.stats.norm.pdf(x_range, mu, sigma), "r-", lw=2
                     )
-                    inset_ax.tick_params(labelsize=8)
+
+                inset_ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+                inset_ax.tick_params(labelsize=8)
+
+                # ensure locations are centered
+                ax.set_xlabel("Theoretical Quantiles", loc="center")
+                ax.set_ylabel("Ordered Values", loc="center")
 
                 # finish loop over columns
 
@@ -284,6 +322,16 @@ def normality_test(
             fig.suptitle(
                 f"Normality Test Failures for Fit Index {fit_index}", fontsize=16
             )
+
+            # Add legend
+            if samples_handle is not None and fit_handle is not None:
+                legend_handles = [samples_handle, fit_handle]
+                if len(axes) > 1:
+                    fig.legend(
+                        handles=legend_handles, loc="outside upper right", fontsize=14
+                    )
+                else:
+                    axes[0].legend(loc="upper left", fontsize=14)
 
             pdf.savefig(fig)
             plt.close(fig)
