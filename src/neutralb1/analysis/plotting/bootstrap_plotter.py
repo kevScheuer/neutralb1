@@ -1208,6 +1208,29 @@ class BootstrapPlotter(BasePWAPlotter):
                 )
                 zorder += 2
 
+                # plot negative of truth line for phase differences
+                if col in self.phase_differences:
+                    zorder += 1
+                    ax.plot(
+                        [-true_val, -true_val],
+                        [0.0, y_max],
+                        color=color,
+                        linestyle="--",
+                        linewidth=2,
+                        alpha=0.9,
+                        zorder=zorder,
+                    )
+                    ax.plot(  # black outline for visibility
+                        [-true_val, -true_val],
+                        [0.0, y_max],
+                        color="black",
+                        linestyle="--",
+                        linewidth=4,
+                        alpha=0.9,
+                        zorder=zorder - 1,
+                    )
+                    zorder += 2
+
     def _update_joyplot_legend(self, axes: list) -> None:
         """Update legend labels to use pretty amplitude names."""
 
