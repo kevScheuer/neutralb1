@@ -368,7 +368,7 @@ std::pair<TString, TString> load_final_cuts(
         FSCut::defineCut("chi2", "Chi2DOF<10");  // kinematic fit quality cut
         FSCut::defineCut( // classifier probability that showers are from neutral particles
             "shQuality", 
-            "ShQualityP4a>0.5&&ShQualityP4b>0.5&&ShQualityP5a>0.5&&ShQualityP5b>0.3" 
+            "ShQualityP4a>0.3&&ShQualityP4b>0.3&&ShQualityP5a>0.3&&ShQualityP5b>0.3" 
         );
         FSCut::defineCut( // require bachelor pi0 moving forward in CM frame
             TString::Format("pzPi0_perm%d", perm_id),
