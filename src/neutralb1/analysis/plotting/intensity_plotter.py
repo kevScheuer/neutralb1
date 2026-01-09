@@ -436,7 +436,7 @@ class IntensityPlotter(BasePWAPlotter):
 
         for ax, col in zip(axs.flatten(), columns):
             ax.set_title(col, fontsize=14)
-            ax.set_xlabel(rf"{self.channel} inv. mass (GeV)", fontsize=12)
+            ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", fontsize=12)
 
             if not fractional:
                 ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
