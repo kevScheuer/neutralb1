@@ -373,6 +373,8 @@ class ResultManager:
         # add missing columns to the truth DataFrame. Useful for waveset comparisons
         # where the fit DataFrame has a different set of columns than the truth
         if self.truth_df is not None:
+            # BUG: some sort of highly fragmented output and failure here
+            print("Adding missing columns to truth DataFrame...")
             self.truth_df = preprocessing.add_missing_columns(
                 self.fit_df, self.truth_df
             )
