@@ -42,6 +42,8 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 # Specify the source directory for Python packages
 wheel.packages = ["src/neutralb1"]
+# Enable C++ compilation
+wheel.py-api = "py3"
 # Configure build directory
 build-dir = "build/python"
 # Configure CMake
@@ -49,5 +51,3 @@ cmake.source-dir = "."
 cmake.build-type = "Release"
 cmake.args = ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
 cmake.define = {}
-# Enable C++ compilation
-wheel.py-api = "py3"
