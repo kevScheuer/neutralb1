@@ -732,7 +732,7 @@ class AmpToolsConfigWriter:
         )
 
         # setup whether the ratio and phase will be fixed values, or bounded within a range
-        ratio_opt = "fixed" if ds_option == "fixed" else "bounded 0.0 1.0"
+        ratio_opt = "fixed" if ds_option == "fixed" else "bounded 0.01 1.0"
         phase_opt = (
             "fixed"
             if ds_option == "fixed" or is_phaselock
