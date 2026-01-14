@@ -40,8 +40,8 @@ void plot_dalitz_xy()
                        "FSRoot-skimmed-trees/final-amptools-trees/";
 
     // input files
-    TString data_signal = tree_dir + "PARA_0_allPeriods_data_signal.root";
-    TString data_sideband = tree_dir + "PARA_0_allPeriods_data_background.root";
+    TString data_signal = tree_dir + "allPeriods_data_signal.root";
+    TString data_sideband = tree_dir + "allPeriods_data_background.root";
     TString mc_signal = tree_dir + "PARA_0_allPeriods_ver03.1_mc_signal.root";
     TString mc_sideband = tree_dir + "PARA_0_allPeriods_ver03.1_mc_background.root";
 
@@ -196,10 +196,13 @@ void plot_dalitz(
         }
     }
 
-    h_dalitz_xy_total->SetZTitle("Events");
+    
 
     // create canvas and draw
     TCanvas *c1 = new TCanvas("c1", "Dalitz XY Plot", 800, 600);
+    c1->SetRightMargin(0.15); // pad for z-axis color scale
+    h_dalitz_xy_total->SetZTitle("Events");
+    h_dalitz_xy_total->GetZaxis()->SetTitleOffset(1.2);
     h_dalitz_xy_total->Draw("COLZ");
     c1->SaveAs(output_file);
     delete c1;
