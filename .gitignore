@@ -55,3 +55,4 @@ notebooks/deprecated/
 *.so
 **/DSelector_omegapi_all_*
 scripts/sbatch_jobs/*
+scripts/misc/*
