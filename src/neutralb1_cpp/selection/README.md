@@ -27,3 +27,6 @@ Almost every script utilizes to establish common tree names, categories, mode in
 * `friend_reorder.cc` creates convenient friend trees that establish signal and sideband regions for every event, such that loading the friend tree directly allows one to select them by choosing `signal==1` or `sideband==1`. The friend trees are split by permutation, so both can be added to the same histogram as intended by the norwegian method.
   * Many of the scripts will use these as they are *much* faster to load and cut on
 * `van_hove_analysis.cc` studies where the baryon systems show up in the different momentum regions, and how cuts on the momenta can influence the angular distributions
+
+# Miscellaneous Scripts
+In the [misc directory](./misc/) one can find other small scripts to aid the analysis process, such as [mass resolution studies](./misc/mass_resolution.cc).

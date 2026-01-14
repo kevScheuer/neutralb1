@@ -1,10 +1,10 @@
 /**
- * @file mass_resolution.cc
+ * @file t_resolution.cc
  * @author Kevin Scheuer
- * @brief Quick script to determine mass resolution from signal MC
+ * @brief Quick script to determine -t resolution from signal MC
  * 
- * Our signal MC files can be used to determine the mass resolution by subtracting 
- * the masses of the generated and reconstructed 4-momenta of the omega pi0 system, 
+ * Our signal MC files can be used to determine the -t resolution by subtracting 
+ * the generated and reconstructed 4-momenta of the photon and proton difference,
  * and fitting the resulting distribution to a Gaussian.
  */
 
@@ -20,11 +20,11 @@
 
 #include "FSMode/FSModeHistogram.h"
 
-#include "fsroot_setup.cc"
+#include "../fsroot_setup.cc"
 
 TString combine_signal_mc_files(TString mc_dir, bool make_file);
 
-void mass_resolution(bool make_file = true)
+void t_resolution(bool make_file = true)
 {
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(false);
@@ -36,12 +36,13 @@ void mass_resolution(bool make_file = true)
     "FSRoot-skimmed-trees/final-amptools-trees/";
     TString combined_file = combine_signal_mc_files(mc_dir, make_file);
 
-    // get the mass difference histogram
-    TH1F *h_mass_diff = FSModeHistogram::getTH1F(
+    // get the t difference histogram
+    TString t_diff_expr = "(-1*MASS2(1,-GLUEXTARGET) - -1*MCMASS2(1,-GLUEXTARGET))";
+    TH1F *h_t = FSModeHistogram::getTH1F(
         combined_file,
         NT,
         CATEGORY,
-        "MASS(2,3,4,5)-MCMASS(2,3,4,5)",
+        t_diff_expr,
         "(100, -0.1, 0.1)",
         ""
     );
@@ -55,9 +56,9 @@ void mass_resolution(bool make_file = true)
     );
     
     // Set initial parameter estimates for better convergence
-    double max_val = h_mass_diff->GetMaximum();
-    double mean_val = h_mass_diff->GetMean();
-    double rms_val = h_mass_diff->GetRMS();
+    double max_val = h_t->GetMaximum();
+    double mean_val = h_t->GetMean();
+    double rms_val = h_t->GetRMS();
     
     // First Gaussian: narrower core
     double_gaus->SetParameter(0, 0.7 * max_val);  // amplitude
@@ -69,9 +70,9 @@ void mass_resolution(bool make_file = true)
     double_gaus->SetParameter(4, mean_val);       // mean
     double_gaus->SetParameter(5, 1.5 * rms_val);  // sigma
     
-    h_mass_diff->Fit("double_gaus", "R");
+    h_t->Fit("double_gaus", "R");
     
-    TF1 *fit = h_mass_diff->GetFunction("double_gaus");
+    TF1 *fit = h_t->GetFunction("double_gaus");
     double amp1 = fit->GetParameter(0);
     double mean1 = fit->GetParameter(1);
     double sigma1 = fit->GetParameter(2);
@@ -91,11 +92,11 @@ void mass_resolution(bool make_file = true)
     std::cout << "Mass resolution (sigma): " << sigma_avg << " +/- " << sigma_avg_err << " GeV\n";
     
     // draw histogram with fit and save as PDF
-    TCanvas *c = new TCanvas("c_mass_diff", "Mass Resolution", 800, 600);
-    h_mass_diff->SetTitle(
-        ";M_{kinfit}(#omega#pi^{0}) - M_{generated}(#omega#pi^{0}) [GeV];Entries"
+    TCanvas *c = new TCanvas("c_t_diff", "t Resolution", 800, 600);
+    h_t->SetTitle(
+        ";-t_{kinfit} - -t_{generated} [GeV^{2}];Entries"
     );
-    h_mass_diff->Draw();
+    h_t->Draw();
     fit->Draw("same");
     
     // Add fit parameters to plot
@@ -105,15 +106,15 @@ void mass_resolution(bool make_file = true)
     pt->SetTextSize(0.028);
     pt->AddText("Double Gaussian Fit");
     pt->AddText(TString::Format("Gaus 1: A = %.1f #pm %.1f", amp1, amp1_err));
-    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV", mean1, mean1_err));
-    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV", sigma1, sigma1_err));
+    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV^{2}", mean1, mean1_err));
+    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV^{2}", sigma1, sigma1_err));
     pt->AddText(TString::Format("Gaus 2: A = %.1f #pm %.1f", amp2, amp2_err));
-    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV", mean2, mean2_err));
-    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV", sigma2, sigma2_err));
-    pt->AddText(TString::Format("Avg #sigma = %.4f #pm %.4f GeV", sigma_avg, sigma_avg_err));
+    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV^{2}", mean2, mean2_err));
+    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV^{2}", sigma2, sigma2_err));
+    pt->AddText(TString::Format("Avg #sigma = %.4f #pm %.4f GeV^{2}", sigma_avg, sigma_avg_err));
     pt->Draw();
     
-    c->SaveAs("mass_resolution.pdf");
+    c->SaveAs("t_resolution.pdf");
     delete c;
 
     return;
