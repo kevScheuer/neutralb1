@@ -12,12 +12,18 @@ from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
 class IntensityPlotter(BasePWAPlotter):
     """Handles all strictly intensity-related plotting methods."""
 
-    def jp(self, data_label: str = "Total (GlueX Phase-I)") -> matplotlib.axes.Axes:
+    def jp(
+        self,
+        data_label: str = "Total (GlueX Phase-I)",
+        ax: Optional[matplotlib.axes.Axes] = None,
+    ) -> matplotlib.axes.Axes:
         """Plot each JP contribution to the total intensity as a function of mass.
 
         Args:
             data_label (str): Label for the data in the plot. Defaults to "Total
                 (GlueX Phase-I)".
+            ax (matplotlib.axes.Axes, optional): Axes object to plot on. If None,
+                a new figure and axes will be created. Defaults to None.
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
 
@@ -45,7 +51,8 @@ class IntensityPlotter(BasePWAPlotter):
             else:
                 d.update({"alpha": 0.7})
 
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
 
         # acceptance correct the data points using the efficiency, if needed
         if self.is_acceptance_corrected:

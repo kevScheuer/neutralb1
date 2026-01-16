@@ -131,6 +131,8 @@ class PhasePlotter(BasePWAPlotter):
         amp1_kwargs: Optional[Dict[str, Any]] = None,
         amp2_kwargs: Optional[Dict[str, Any]] = None,
         phase_kwargs: Optional[Dict[str, Any]] = None,
+        amp_ax: Optional[matplotlib.axes.Axes] = None,
+        phase_ax: Optional[matplotlib.axes.Axes] = None,
     ) -> np.ndarray:
         """Plot the mass distributions and phase difference of two amplitudes together
 
@@ -143,17 +145,32 @@ class PhasePlotter(BasePWAPlotter):
                 amplitude axes for amp2 (axes 0). Defaults to None.
             phase_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
                 phase axes (axes 1). Defaults to None.
+            amp_ax (Optional[matplotlib.axes.Axes]): directly provide axes object to
+                plot amplitudes on. If None, a new figure and axes will be created.
+                Defaults to None.
+            phase_ax (Optional[matplotlib.axes.Axes]): directly provide axes object to
+                plot phase on. If None, a new figure and axes will be created.
+                Defaults to None.
 
         Returns:
             matplotlib.axes.Axes: The axes object for further customization.
         """
-        fig, axs = plt.subplots(
-            2,
-            1,
-            sharex=True,
-            gridspec_kw={"wspace": 0.0, "hspace": 0.07},
-            height_ratios=[3, 1],
-        )
+        if amp_ax is None and phase_ax is None:
+            fig, axs = plt.subplots(
+                2,
+                1,
+                sharex=True,
+                gridspec_kw={"wspace": 0.0, "hspace": 0.07},
+                height_ratios=[3, 1],
+            )
+        elif (amp_ax is not None and phase_ax is None) or (
+            amp_ax is None and phase_ax is not None
+        ):
+            raise ValueError(
+                "Both amp_ax and phase_ax must be provided, or neither to create new."
+            )
+        else:
+            axs = np.array([amp_ax, phase_ax])
 
         # plot the two amplitudes on the first subplot
         amp1_err = (
