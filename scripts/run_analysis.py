@@ -36,6 +36,10 @@ def main() -> int:
 
     args = parse_args()
 
+    # strip whitespace from input and output paths
+    args["input"] = args["input"].strip()
+    args["output"] = args["output"].strip()
+
     if args["input"].endswith(".pkl"):  # load previously saved preprocessed results
         if not os.path.exists(args["input"]):
             raise FileNotFoundError(f"File {args['input']} does not exist.")
@@ -208,6 +212,9 @@ def stitch_angle_pdfs(t_bin_dir: str, output_path: str) -> None:
     Returns:
         None: Saves the combined PDF to the specified output path.
     """
+    # strip whitespace from input path
+    t_bin_dir = t_bin_dir.strip()
+
     # Find all angle PDF files matching the pattern
     pdf_pattern = os.path.join(t_bin_dir, "mass*", "distributions", "angles.pdf")
     pdf_files = glob.glob(pdf_pattern)
