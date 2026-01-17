@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pypdf import PdfReader, PdfWriter
 
+import neutralb1.analysis.statistics as nb_stats
 import neutralb1.utils as utils
 from neutralb1.analysis.result import ResultManager
 
@@ -139,6 +140,48 @@ def main() -> int:
 
     print("Results ready.")
 
+    if args["no_statistics"]:
+        print("Skipping statistical analysis as per --no-statistics flag.")
+    elif result.bootstrap_df is not None:
+        print("Running statistical analysis...")
+        nb_stats.normality_test(
+            result.fit_df,
+            result.bootstrap_df,
+            list(result.get_significant_amplitudes())
+            + list(result.get_significant_phases()),
+            output=f"{args['output']}/plots/normality_test{ac_str}.pdf",
+            is_acc_corrected=args["acceptance_corrected"],
+        )
+        nb_stats.bias_test(
+            result.fit_df,
+            result.bootstrap_df,
+            list(result.get_significant_amplitudes())
+            + list(result.get_significant_phases()),
+            output=f"{args['output']}/plots/bias_test{ac_str}.pdf",
+            is_acc_corrected=args["acceptance_corrected"],
+        )
+        if (
+            result.bootstrap_proj_moments_df is not None
+            and result.proj_moments_df is not None
+        ):
+            nb_stats.normality_test(
+                result.proj_moments_df,
+                result.bootstrap_proj_moments_df,
+                list(result.get_significant_moments()),
+                output=f"{args['output']}/plots/normality_test_moments{ac_str}.pdf",
+                is_acc_corrected=args["acceptance_corrected"],
+            )
+            nb_stats.bias_test(
+                result.proj_moments_df,
+                result.bootstrap_proj_moments_df,
+                list(result.get_significant_moments()),
+                output=f"{args['output']}/plots/bias_test_moments{ac_str}.pdf",
+                is_acc_corrected=args["acceptance_corrected"],
+            )
+        print("Statistical analysis completed.")
+    else:
+        print("No bootstrap data available; skipping statistical analysis.")
+
     if args["no_plots"]:
         print("Skipping plotting as per --no-plots flag.")
         return 0
@@ -150,6 +193,7 @@ def main() -> int:
     if not args["input"].endswith(".pkl"):
         combined_angles_path = f"{args['output']}/plots/combined_angles.pdf"
         stitch_angle_pdfs(args["input"], combined_angles_path)
+        print("Stitched angular distribution PDFs.")
 
     return 0
 
@@ -305,6 +349,14 @@ def parse_args() -> Dict[str, Any]:
         "--preview",
         action="store_true",
         help="If set, run in preview mode (print out what files will be combined).",
+    )
+    parser.add_argument(
+        "--no-statistics",
+        action="store_true",
+        help=(
+            "If set, skip normality and bias testing of bootstrap distributions ("
+            "if available)."
+        ),
     )
 
     return vars(parser.parse_args())
