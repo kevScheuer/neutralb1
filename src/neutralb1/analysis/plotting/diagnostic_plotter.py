@@ -1,5 +1,5 @@
 import warnings
-from typing import Tuple
+from typing import Optional, Tuple
 
 import matplotlib.axes
 import matplotlib.container
@@ -19,6 +19,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         show_e852_reference: bool = True,
         figsize: tuple = (10, 8),
         exclude_waves=None,
+        axs: Optional[np.ndarray] = None,
     ) -> matplotlib.axes.Axes | np.ndarray:
         """Plot the ratio and phase between D and S waves.
 
@@ -35,6 +36,9 @@ class DiagnosticPlotter(BasePWAPlotter):
                 S or D wave from a reflectivity + m-projection pair is in this list,
                 that pair will be excluded e.g. ["p1ppS"] also excludes "p1ppD".
                 Defaults to None.
+            axs (np.ndarray, optional): Array of matplotlib.axes.Axes objects to plot
+                on. If None, new figure and axes will be created. For dsratio plots,
+                expects array of 3 axes [ax_ratio, ax_phase, ax_corr]. Defaults to None.
 
         Returns:
             matplotlib.axes.Axes | np.ndarray: Single axes object or array of axes
@@ -64,7 +68,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Two different plotting modes based on available data
         if "dsratio" in self.fit_df.columns:
             return self._plot_ds_ratio_with_correlation(
-                show_e852_reference, e852_ratio, e852_phase, figsize
+                show_e852_reference, e852_ratio, e852_phase, figsize, axs
             )
         else:
             if exclude_waves is None:
@@ -77,6 +81,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 e852_phase,
                 figsize,
                 exclude_waves,
+                axs,
             )
 
     def _plot_ds_ratio_with_correlation(
@@ -85,18 +90,20 @@ class DiagnosticPlotter(BasePWAPlotter):
         e852_ratio: float,
         e852_phase: float,
         figsize: tuple,
+        axs: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Plot D/S ratio with covariance when ratio is directly fitted."""
 
-        fig, axs = plt.subplots(
-            3,
-            1,
-            sharex=True,
-            figsize=figsize,
-            gridspec_kw={"wspace": 0.0, "hspace": 0.12},
-            layout="constrained",
-        )
-
+        if axs is None:
+            fig, axs = plt.subplots(
+                3,
+                1,
+                sharex=True,
+                figsize=figsize,
+                gridspec_kw={"wspace": 0.0, "hspace": 0.12},
+                layout="constrained",
+            )
+        assert axs is not None
         ax_ratio, ax_phase, ax_corr = axs
 
         # Plot ratio
@@ -228,6 +235,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         e852_phase: float,
         figsize: tuple,
         exclude_waves: list,
+        axs: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Plot D/S ratio calculated from individual amplitudes."""
 
@@ -235,14 +243,19 @@ class DiagnosticPlotter(BasePWAPlotter):
         marker_map = {"q": "h", "p": "^", "0": ".", "m": "v", "n": "s"}
         color_map = {"p": "red", "m": "blue"}
 
-        fig = plt.figure(figsize=figsize, dpi=300, layout="constrained")
-        subfigs = fig.subfigures(1, 2, width_ratios=[2, 1])
+        if axs is None:
+            fig = plt.figure(figsize=figsize, dpi=300, layout="constrained")
+            subfigs = fig.subfigures(1, 2, width_ratios=[2, 1])
 
-        # Left subfigure: ratio and phase vs mass
-        ax_ratio, ax_phase = subfigs[0].subplots(2, 1, sharex=True)
+            # Left subfigure: ratio and phase vs mass
+            ax_ratio, ax_phase = subfigs[0].subplots(2, 1, sharex=True)
 
-        # Right subfigure: correlation plot
-        ax_corr = subfigs[1].subplots()
+            # Right subfigure: correlation plot
+            ax_corr = subfigs[1].subplots()
+
+            axs = np.array([ax_ratio, ax_phase, ax_corr])
+        else:
+            ax_ratio, ax_phase, ax_corr = axs
 
         # Plot E852 reference lines
         if show_e852_reference:
@@ -262,21 +275,23 @@ class DiagnosticPlotter(BasePWAPlotter):
             )
             ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
 
-            # Reference lines on correlation plot
-            ax_corr.axhline(
-                y=e852_phase,
+            # Add reference point to correlation plot
+            ax_corr.plot(
+                e852_ratio,
+                e852_phase,
+                marker="*",
+                markersize=10,
                 color="black",
-                linestyle="--",
                 alpha=0.7,
-                label=f"E852 phase (±{e852_phase}°)",
+                label="E852",
             )
-            ax_corr.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
-            ax_corr.axvline(
-                x=e852_ratio,
+            ax_corr.plot(
+                e852_ratio,
+                -e852_phase,
+                marker="*",
+                markersize=10,
                 color="black",
-                linestyle="-",
                 alpha=0.7,
-                label=f"E852 ratio ({e852_ratio})",
             )
 
         # Process each D wave and find corresponding S wave
@@ -397,7 +412,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_corr.set_ylim(-180, 180)
         ax_corr.legend(fontsize=10)
 
-        return np.array([ax_ratio, ax_phase, ax_corr])
+        return axs
 
     def _calculate_ds_ratio(self, d_wave: str, s_wave: str) -> tuple:
         """Calculate D/S ratio and propagate errors."""
