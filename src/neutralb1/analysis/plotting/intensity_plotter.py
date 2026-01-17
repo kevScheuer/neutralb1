@@ -1,8 +1,10 @@
-from typing import Literal, Optional
+import warnings
+from typing import Any, Literal, Optional
 
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from uncertainties import ufloat, unumpy
 
 import neutralb1.utils as utils
@@ -508,3 +510,142 @@ class IntensityPlotter(BasePWAPlotter):
         plt.minorticks_on()
 
         return axs
+
+    def plot(
+        self,
+        cols: list[str],
+        fractional: bool = False,
+        ax: Optional[matplotlib.axes.Axes] = None,
+        col_kwargs: Optional[dict[str, dict[str, Any]]] = None,
+    ) -> matplotlib.axes.Axes:
+        """Generic plotter for any intensity-related quantity.
+
+        Args:
+            cols (list[str]): List of coherent sums or moments to plot.
+            fractional (bool, optional): Whether to plot fit fractions instead of raw
+                intensities. Defaults to False.
+            ax (Optional[matplotlib.axes.Axes], optional): Matplotlib Axes object to
+                plot on. Defaults to None.
+            col_kwargs (Optional[dict[str, dict[str, Any]]], optional): Additional
+                keyword arguments for each col's plot. Defaults to None.
+
+        Raises:
+            ValueError: If any requested wave is not found in the fit results.
+        Returns:
+            matplotlib.axes.Axes: The axes object containing the plot.
+        """
+
+        if ax is None:
+            fig, ax = plt.subplots(layout="constrained")
+
+        for col in cols:
+            if col in self.fit_df.columns:
+                y = self.fit_df[col]
+            elif (
+                self.proj_moments_df is not None and col in self.proj_moments_df.columns
+            ):
+                y = self.proj_moments_df[col]
+            else:
+                raise ValueError(f"Requested column '{col}' not found in fit results.")
+
+            yerr = (
+                self.get_bootstrap_error(col)
+                if self.bootstrap_df is not None
+                else (
+                    self.fit_df[f"{col}_err"]
+                    if col in self.fit_df.columns
+                    else pd.Series(np.zeros_like(self.fit_df[col]))  # moment case
+                )
+            )
+            kwargs = {
+                "x": self._masses,
+                "xerr": self._bin_width / 2,
+                "y": y,
+                "yerr": yerr,
+                "linestyle": "",
+                "marker": ".",
+                "markersize": 4,
+                "alpha": 0.5,  # let default matplotlib colors be used
+                "label": utils.convert_amp_name(col),
+            }
+            if self.truth_df is not None:
+                # make data more transparent to see truth line better
+                kwargs["alpha"] = 0.3
+            if fractional:  # change coherent sums to their fit fractions
+                num_events_col = (
+                    "generated_events"
+                    if self.is_acceptance_corrected
+                    else "detected_events"
+                )
+                total_intensity = unumpy.uarray(
+                    self.fit_df[num_events_col].to_numpy(),
+                    self.fit_df[f"{num_events_col}_err"].to_numpy(),
+                )
+                y_values = unumpy.uarray(
+                    y.to_numpy(),
+                    yerr.to_numpy(),
+                )
+                y_values = y_values / total_intensity
+                kwargs["y"] = unumpy.nominal_values(y_values)
+                kwargs["yerr"] = unumpy.std_devs(y_values)
+
+            if col_kwargs and col in col_kwargs:
+                # update base kwargs with any user-provided ones
+                kwargs.update(col_kwargs[col])
+            elif col_kwargs and col not in col_kwargs:
+                warnings.warn(
+                    f"No kwargs provided for '{col}' in col_kwargs."
+                    " Using default plotting properties."
+                )
+
+            ax.errorbar(**kwargs)
+
+            # plot truth info if available
+            if self.truth_df is not None:
+
+                if col in self.truth_df.columns:
+                    truth_y = self.truth_df[col]
+                elif (
+                    self.truth_proj_moments_df is not None
+                    and col in self.truth_proj_moments_df.columns
+                ):
+                    truth_y = self.truth_proj_moments_df[col]
+                else:
+                    continue  # skip if truth info not available for this col
+
+                if fractional:
+                    truth_num_events_col = (
+                        "generated_events"
+                        if self.is_acceptance_corrected
+                        else "detected_events"
+                    )
+                    truth_total = self.truth_df[truth_num_events_col]
+                    truth_y = truth_y / truth_total
+
+                truth_kwargs = kwargs.copy()  # already has user customizations
+
+                # remove unnecessary error bars for truth line
+                truth_kwargs.pop("yerr", None)
+                truth_kwargs.pop("xerr", None)
+
+                # change kwargs for line plot
+                truth_kwargs.update(
+                    {
+                        "y": truth_y,
+                        "linestyle": "-",
+                        "marker": "",
+                        "alpha": 0.8,
+                        "color": truth_kwargs.get("color", "black"),
+                    }
+                )
+                ax.plot(**truth_kwargs)
+
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
+        if fractional:
+            ax.set_ylabel(f"Fit Fraction / {self._bin_width:.3f} GeV", loc="top")
+        else:
+            ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
+        ax.legend()
+
+        return ax
