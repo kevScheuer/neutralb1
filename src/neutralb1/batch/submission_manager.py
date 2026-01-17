@@ -194,6 +194,8 @@ class SubmissionManager:
             else:
                 truth_subdir = "truth"
 
+        # Handle modifications to the waveset directory name
+
         # attach ds ratio to waveset directory
         if config.physics.ds_ratio:
             waveset_dir = "_".join(sorted(config.physics.waveset)) + (
@@ -206,6 +208,13 @@ class SubmissionManager:
         # attach single_refl to waveset directory if defined
         if config.physics.single_refl != 0:
             waveset_dir += f"_e{config.physics.single_refl:+}"
+
+        # denote removed waves in the waveset directory
+        if config.physics.remove_waves:
+            removed_waves_str = "nowaves-" + "-".join(
+                sorted(config.physics.remove_waves)
+            )
+            waveset_dir += f"_{removed_waves_str}"
 
         return "/".join(
             [
