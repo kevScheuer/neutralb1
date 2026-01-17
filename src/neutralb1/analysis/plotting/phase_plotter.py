@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
+from uncertainties import unumpy
 
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
@@ -128,6 +129,7 @@ class PhasePlotter(BasePWAPlotter):
         self,
         amp1: str,
         amp2: str,
+        fractional: bool = False,
         amp1_kwargs: Optional[Dict[str, Any]] = None,
         amp2_kwargs: Optional[Dict[str, Any]] = None,
         phase_kwargs: Optional[Dict[str, Any]] = None,
@@ -139,6 +141,8 @@ class PhasePlotter(BasePWAPlotter):
         Args:
             amp1 (str): first amplitude in eJPmL format
             amp2 (str): second amplitude in eJPmL format
+            fractional (bool): If True, scales all values by dividing by the total
+                intensity in each bin. Defaults to False.
             amp1_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
                 amplitude axes for amp1 (axes 0). Defaults to None.
             amp2_kwargs (Optional[Dict[str, Any]]): Additional kwargs passed to the
@@ -172,7 +176,24 @@ class PhasePlotter(BasePWAPlotter):
         else:
             axs = np.array([amp_ax, phase_ax])
 
-        # plot the two amplitudes on the first subplot
+        # Prepare normalization data if fractional plotting is requested
+        num_events_col = (
+            "generated_events" if self.is_acceptance_corrected else "detected_events"
+        )
+        if fractional:
+            total_intensity = unumpy.uarray(
+                self.fit_df[num_events_col].to_numpy(),
+                self.fit_df[f"{num_events_col}_err"].to_numpy(),
+            )
+        else:
+            # to make plotting code simpler, define total_intensity as ones with zero
+            # error when not fractional
+            total_intensity = unumpy.uarray(
+                np.ones_like(self.fit_df[num_events_col]),
+                np.zeros_like(self.fit_df[f"{num_events_col}_err"]),
+            )
+
+        # get errors
         amp1_err = (
             self.get_bootstrap_error(amp1)
             if self.bootstrap_df is not None
@@ -183,12 +204,26 @@ class PhasePlotter(BasePWAPlotter):
             if self.bootstrap_df is not None
             else self.fit_df[f"{amp2}_err"]
         )
+
+        # Apply normalization if fractional
+        amp1_values = unumpy.uarray(
+            self.fit_df[amp1].to_numpy(),
+            amp1_err.to_numpy(),
+        )
+        amp1_values = amp1_values / total_intensity
+
+        amp2_values = unumpy.uarray(
+            self.fit_df[amp2].to_numpy(),
+            amp2_err.to_numpy(),
+        )
+        amp2_values = amp2_values / total_intensity
+
         # Set default parameters for amp1 and allow kwargs to override
         amp1_params = {
             "x": self._masses,
             "xerr": self._bin_width / 2,
-            "y": self.fit_df[amp1],
-            "yerr": amp1_err,
+            "y": unumpy.nominal_values(amp1_values),
+            "yerr": unumpy.std_devs(amp1_values),
             "marker": "o",
             "linestyle": "",
             "markersize": 5,
@@ -207,8 +242,8 @@ class PhasePlotter(BasePWAPlotter):
         amp2_params = {
             "x": self._masses,
             "xerr": self._bin_width / 2,
-            "y": self.fit_df[amp2],
-            "yerr": amp2_err,
+            "y": unumpy.nominal_values(amp2_values),
+            "yerr": unumpy.std_devs(amp2_values),
             "marker": "s",
             "linestyle": "",
             "markersize": 5,
@@ -224,16 +259,24 @@ class PhasePlotter(BasePWAPlotter):
         axs[0].errorbar(**amp2_params)
 
         if self.truth_df is not None:
+            truth_amp1 = self.truth_df[amp1]
+            truth_amp2 = self.truth_df[amp2]
+            if fractional:
+                truth_total = self.truth_df[num_events_col]
+
+                truth_amp1 = truth_amp1 / truth_total
+                truth_amp2 = truth_amp2 / truth_total
+
             axs[0].plot(
                 self._masses,
-                self.truth_df[amp1],
+                truth_amp1,
                 linestyle="-",
                 marker="",
                 color=amp1_params["color"],
             )
             axs[0].plot(
                 self._masses,
-                self.truth_df[amp2],
+                truth_amp2,
                 linestyle="-",
                 marker="",
                 color=amp2_params["color"],
@@ -279,13 +322,19 @@ class PhasePlotter(BasePWAPlotter):
 
         axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         axs[0].set_ylim(bottom=0.0)
-        axs[0].set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
+        y_label = (
+            f"Fit Fraction / {self._bin_width:.3f} GeV"
+            if fractional
+            else f"Events / {self._bin_width:.3f} GeV"
+        )
+        axs[0].set_ylabel(y_label, loc="top")
 
         axs[1].set_yticks(np.linspace(-180, 180, 5))  # force to be in pi intervals
         axs[1].set_ylim([-180, 180])
         axs[1].set_ylabel(r"Phase Diff. ($^{\circ}$)", loc="center")
         axs[1].set_xlabel(rf"${self.channel}$ inv. mass $(GeV)$", loc="right")
 
-        axs[0].legend(loc="upper right")
+        if axs[0].get_legend_handles_labels()[0]:
+            axs[0].legend(loc="upper right")
 
         return axs

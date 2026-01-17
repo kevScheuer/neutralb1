@@ -541,10 +541,12 @@ class IntensityPlotter(BasePWAPlotter):
         for col in cols:
             if col in self.fit_df.columns:
                 y = self.fit_df[col]
+                label = utils.convert_amp_name(col)
             elif (
                 self.proj_moments_df is not None and col in self.proj_moments_df.columns
             ):
                 y = self.proj_moments_df[col]
+                label = utils.convert_moment_name(col)
             else:
                 raise ValueError(f"Requested column '{col}' not found in fit results.")
 
@@ -566,7 +568,7 @@ class IntensityPlotter(BasePWAPlotter):
                 "marker": ".",
                 "markersize": 4,
                 "alpha": 0.5,  # let default matplotlib colors be used
-                "label": utils.convert_amp_name(col),
+                "label": label,
             }
             if self.truth_df is not None:
                 # make data more transparent to see truth line better
@@ -646,6 +648,8 @@ class IntensityPlotter(BasePWAPlotter):
             ax.set_ylabel(f"Fit Fraction / {self._bin_width:.3f} GeV", loc="top")
         else:
             ax.set_ylabel(f"Events / {self._bin_width:.3f} GeV", loc="top")
-        ax.legend()
+
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend()
 
         return ax
