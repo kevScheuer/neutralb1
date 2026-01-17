@@ -598,6 +598,41 @@ class ResultManager:
 
         return significant_moments
 
+    def get_mass_centers(self) -> list[float]:
+        """Get the mass centers from the data DataFrame."""
+        return self.data_df["m_center"].astype(float).round(3).tolist()
+
+    def get_mass_edges(
+        self, fit_index: Optional[int] = None
+    ) -> tuple[tuple[float, float], ...] | tuple[float, float]:
+        """Get the mass bin edges from the data DataFrame.
+
+        Args:
+            fit_index (Optional[int], optional): If specified, only the mass edges
+                for this fit index are returned. Defaults to None.
+
+        Returns:
+            tuple[tuple[float, float], ...] | tuple[float, float]: The mass bin edges.
+        """
+
+        if fit_index is not None:
+            low_edge = (
+                self.data_df[self.data_df["fit_index"] == fit_index]["m_low"]
+                .astype(float)
+                .round(3)
+            )
+            high_edge = (
+                self.data_df[self.data_df["fit_index"] == fit_index]["m_high"]
+                .astype(float)
+                .round(3)
+            )
+            return (low_edge.iloc[0], high_edge.iloc[0])
+
+        low_edges = self.data_df["m_low"].astype(float).round(3).to_list()
+        high_edges = self.data_df["m_high"].astype(float).round(3).to_list()
+
+        return tuple(zip(low_edges, high_edges))
+
     def _is_fit_acceptance_corrected(self) -> bool:
         """Check if the fit is using acceptance corrected amplitudes.
 
