@@ -633,6 +633,21 @@ class ResultManager:
 
         return tuple(zip(low_edges, high_edges))
 
+    def get_t_edges(self) -> tuple[float, float]:
+        """Get the t bin edges from the data DataFrame.
+
+        Current structure assumes a fit is defined within a single t bin, so this
+        is only one value
+
+        Returns:
+            tuple[float, float]: The t bin edges.
+        """
+
+        t_low = self.data_df["t_low"].astype(float).round(2).iloc[0]
+        t_high = self.data_df["t_high"].astype(float).round(2).iloc[0]
+
+        return (t_low, t_high)
+
     def _is_fit_acceptance_corrected(self) -> bool:
         """Check if the fit is using acceptance corrected amplitudes.
 
