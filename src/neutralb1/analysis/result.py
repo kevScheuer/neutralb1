@@ -101,10 +101,12 @@ class ResultManager:
         self.coherent_sums = utils.get_coherent_sums(self.fit_df)
         self.phase_difference_dict = utils.get_phase_difference_dict(self.fit_df)
         self.phase_differences = utils.get_phase_differences(self.fit_df)
-        if self.proj_moments_df is not None:
-            self.moments = utils.get_moments(self.proj_moments_df)
 
         self.is_preprocessed = is_preprocessed
+
+        if self.proj_moments_df is not None and self.is_preprocessed:
+            self.moments = utils.get_moments(self.proj_moments_df)
+
         self.is_acceptance_corrected = self._is_fit_acceptance_corrected()
 
         # private attributes
@@ -380,6 +382,9 @@ class ResultManager:
             )
 
         self.is_preprocessed = True  # set flag to True after preprocessing is done
+        if self.proj_moments_df is not None:
+            # we can get moments now that the names have been properly handled
+            self.moments = utils.get_moments(self.proj_moments_df)
         return
 
     def summary(self) -> None:

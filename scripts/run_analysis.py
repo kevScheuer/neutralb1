@@ -140,7 +140,7 @@ def main() -> int:
 
     print("Results ready.")
 
-    pathlib.Path.mkdir(pathlib.Path(f"{args['output_dir']}/plots/"), exist_ok=True)
+    pathlib.Path.mkdir(pathlib.Path(f"{args['output']}/plots/"), exist_ok=True)
 
     if args["no_statistics"]:
         print("Skipping statistical analysis as per --no-statistics flag.")
