@@ -140,6 +140,8 @@ def main() -> int:
 
     print("Results ready.")
 
+    pathlib.Path.mkdir(pathlib.Path(f"{args['output_dir']}/plots/"), exist_ok=True)
+
     if args["no_statistics"]:
         print("Skipping statistical analysis as per --no-statistics flag.")
     elif result.bootstrap_df is not None:
@@ -209,8 +211,6 @@ def save_standard_plots(result: ResultManager, output_dir: str, ac_str: str) -> 
     Returns:
         None, just saves plot pdfs to output_dir.
     """
-
-    pathlib.Path.mkdir(pathlib.Path(f"{output_dir}/plots/"), exist_ok=True)
 
     matplotlib.use("Agg")
 
