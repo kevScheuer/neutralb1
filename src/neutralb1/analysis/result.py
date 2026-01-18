@@ -2,6 +2,7 @@ import pickle
 import warnings
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 import neutralb1.utils as utils
@@ -652,6 +653,30 @@ class ResultManager:
         t_high = self.data_df["t_high"].astype(float).round(2).iloc[0]
 
         return (t_low, t_high)
+
+    def get_fit_indices(
+        self, mass_low: Optional[float] = None, mass_high: Optional[float] = None
+    ) -> list[int]:
+        """Get the list of fit indices from the fit DataFrame.
+
+        Args:
+            mass_low (float, optional): If specified, only fit indices that correspond
+                to a mass bin above this value are returned. Defaults to None.
+            mass_high (float, optional): If specified, only fit indices that correspond
+                to a mass bin below this value are returned. Defaults to None.
+
+        Returns:
+            list[int]: The list of fit indices.
+        """
+
+        if mass_low is not None and mass_high is not None:
+            filtered_df = self.data_df[
+                (self.data_df["m_low"] >= mass_low)
+                & (self.data_df["m_high"] <= mass_high)
+            ]
+            return list(filtered_df["fit_index"].unique())
+
+        return list(self.fit_df.index)
 
     def _is_fit_acceptance_corrected(self) -> bool:
         """Check if the fit is using acceptance corrected amplitudes.
