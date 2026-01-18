@@ -567,7 +567,7 @@ def bias_test(
                         linewidth=2,
                         label="Fit Value",
                     )
-                    ax.set_title(f"{utils.convert_amp_name(col)}: bias={bias:.1e}")
+                    ax.set_title(f"{col}: bias={bias:.1e}")
 
                 ax.set_ylabel("Counts")
 
