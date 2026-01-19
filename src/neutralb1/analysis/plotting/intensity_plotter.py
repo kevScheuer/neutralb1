@@ -556,7 +556,9 @@ class IntensityPlotter(BasePWAPlotter):
                 else (
                     self.fit_df[f"{col}_err"]
                     if col in self.fit_df.columns
-                    else pd.Series(np.zeros_like(self.fit_df[col]))  # moment case
+                    else pd.Series(np.zeros_like(self.fit_df["likelihood"]))
+                    # else is for moment case,
+                    # chose likelihood column just to get a correct length
                 )
             )
             kwargs = {
