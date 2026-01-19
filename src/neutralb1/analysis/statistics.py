@@ -619,17 +619,18 @@ def bias_test(
 
 def report_correlations(
     df: pd.DataFrame,
+    columns: List[str],
     fit_indices: Optional[List[int]] = None,
     correlation_threshold: float = 0.8,
     report_average: bool = True,
-    drop_columns: Optional[List[str]] = None,
-) -> None:
+) -> dict[str, float]:
     """Report correlations between variables in a DataFrame.
 
     Assumes that the DataFrame contains bootstrap samples for different fit indices.
 
     Args:
         df (pd.DataFrame): The input DataFrame.
+        columns (List[str]): List of column names to test for correlations.
         fit_indices (Optional[List[int]], optional): The fit indices to consider.
             Defaults to None.
         correlation_threshold (float, optional): The correlation threshold for
@@ -637,40 +638,38 @@ def report_correlations(
         report_average (bool, optional): Whether to report the correlations averaged
             across the fit_indices, or when False, report the correlations in each
             index. Defaults to True.
-        drop_columns (Optional[List[str]], optional): Columns to drop from the
-            analysis. Defaults to None.
 
     Raises:
         ValueError: If no fit indices are found in the DataFrame.
+        KeyError: If any specified column is not found in the DataFrame.
 
     Returns:
-        None: Prints out pairs of variables with high correlations.
+        dict[tuple[str, str], float]: column pair (keys) and their number of high
+            correlation instances divided by total number of fit_indices (values).
+            Tuples are sorted alphabetically to ensure (a, b) and (b, a) are treated
+            the same.
     """
 
     if fit_indices is None:
         fit_indices = df["fit_index"].unique().tolist()
 
-    if fit_indices == []:
+    if fit_indices == [] or fit_indices is None:
         raise ValueError("No fit indices provided or found in DataFrame")
 
-    # drop error columns and non-numeric fit result info columns
-    cols_to_drop = (
-        [c for c in df.columns if c.endswith("_err")]
-        + [
-            "likelihood",
-            "detected_events",
-            "generated_events",
-            "eMatrixStatus",
-            "lastMinuitCommandStatus",
-        ]
-        + (drop_columns if drop_columns is not None else [])
-    )
+    # check that columns exist in dataframe
+    for col in columns:
+        if col not in df.columns:
+            raise KeyError(f"Column {col} not found in df")
+
+    # keep only the specified columns plus fit_index
+    cols_to_keep = ["fit_index"] + columns
 
     # get coherent sums for later filtering
     coh_sums = utils.get_coherent_sums(df)
 
     stacked_df = (
-        df.select_dtypes(include="number")  # only numeric columns
+        df[cols_to_keep]
+        .select_dtypes(include="number")  # only numeric columns
         .assign(  # resolve sign ambiguity of phase differences
             **{
                 col: df[col].abs()
@@ -678,7 +677,6 @@ def report_correlations(
                 if col in utils.get_phase_differences(df)
             }
         )
-        .drop(columns=cols_to_drop)
         .groupby("fit_index")  # group bootstrap samples by fit index
         .corr()  # calculate correlation matrix for each group
         .abs()  # take absolute value of correlations for later averaging
@@ -710,6 +708,9 @@ def report_correlations(
         )
     ]
 
+    # track which column pairs have high correlations in each fit_index
+    failed_dict = {}  # to store {fit_index: set of column pairs with high correlations}
+
     if report_average:  # average the correlations over the fit indices
         avg_corrs = stacked_df.groupby(["var1", "var2"])[
             "correlation"
@@ -718,6 +719,19 @@ def report_correlations(
             avg_corr = avg_corrs.loc[(var1, var2)]
             if avg_corr >= correlation_threshold:  # only report high correlations
                 print(f"{var1} \t{var2}\t:{avg_corr:.2f}")
+
+                # Track column pairs with high correlations per fit_index
+                pair_data = stacked_df[
+                    (stacked_df["var1"] == var1) & (stacked_df["var2"] == var2)
+                ]
+                for _, row in pair_data.iterrows():
+                    if row["correlation"] >= correlation_threshold:
+                        fit_index = row["fit_index"]
+                        if fit_index not in failed_dict:
+                            failed_dict[fit_index] = set()
+                        # Sort tuple alphabetically to normalize ordering
+                        pair = tuple(sorted([var1, var2]))
+                        failed_dict[fit_index].add(pair)
     else:  # report correlations for each fit index separately
         for _, row in stacked_df.iterrows():
             if row["correlation"] >= correlation_threshold:  # only report high corrs
@@ -726,8 +740,35 @@ def report_correlations(
                     f"\t{row['var1']} \t{row['var2']}"
                     f"\t:{row['correlation']:.2f}"
                 )
+                # Track column pair for this fit_index
+                fit_index = row["fit_index"]
+                if fit_index not in failed_dict:
+                    failed_dict[fit_index] = set()
+                # Sort tuple alphabetically to normalize ordering
+                pair = tuple(sorted([row["var1"], row["var2"]]))
+                failed_dict[fit_index].add(pair)
 
-    return None
+    # calculate failure rates for each column pair
+    failure_rates = {}
+    total_fits = len(fit_indices)
+
+    # Collect all unique pairs across all fit indices
+    all_pairs = set()
+    for pairs_set in failed_dict.values():
+        all_pairs.update(pairs_set)
+
+    for pair in all_pairs:
+        num_failures = sum(
+            1 for fit_index in failed_dict if pair in failed_dict[fit_index]
+        )
+        failure_rates[pair] = num_failures / total_fits
+
+    # sort by failure rate descending
+    failure_rates = dict(
+        sorted(failure_rates.items(), key=lambda item: item[1], reverse=True)
+    )
+
+    return failure_rates
 
 
 def _same_coherent_sum_key(var1: str, var2: str, coh_sums: dict) -> bool:
