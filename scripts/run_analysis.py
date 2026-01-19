@@ -14,7 +14,9 @@ Todo:
 """
 
 import argparse
+import contextlib
 import glob
+import io
 import os
 import pathlib
 import pickle
@@ -47,11 +49,7 @@ def main() -> int:
         with open(args["input"], "rb") as f:
             data = pickle.load(f)
         result = ResultManager(**data)
-        ac_str = (
-            "_acceptance_corrected"
-            if result.plot.intensity.is_acceptance_corrected
-            else ""
-        )
+        ac_str = "_acceptance_corrected" if result.is_acceptance_corrected else ""
         print("Loaded preprocessed results from pickle file.")
     else:
         # collect raw csv files
@@ -146,40 +144,7 @@ def main() -> int:
         print("Skipping statistical analysis as per --no-statistics flag.")
     elif result.bootstrap_df is not None:
         print("Running statistical analysis...")
-        nb_stats.normality_test(
-            result.fit_df,
-            result.bootstrap_df,
-            list(result.get_significant_amplitudes())
-            + list(result.get_significant_phases()),
-            output=f"{args['output']}/plots/normality_test{ac_str}.pdf",
-            is_acc_corrected=args["acceptance_corrected"],
-        )
-        nb_stats.bias_test(
-            result.fit_df,
-            result.bootstrap_df,
-            list(result.get_significant_amplitudes())
-            + list(result.get_significant_phases()),
-            output=f"{args['output']}/plots/bias_test{ac_str}.pdf",
-            is_acc_corrected=args["acceptance_corrected"],
-        )
-        if (
-            result.bootstrap_proj_moments_df is not None
-            and result.proj_moments_df is not None
-        ):
-            nb_stats.normality_test(
-                result.proj_moments_df,
-                result.bootstrap_proj_moments_df,
-                list(result.get_significant_moments()),
-                output=f"{args['output']}/plots/normality_test_moments{ac_str}.pdf",
-                is_acc_corrected=args["acceptance_corrected"],
-            )
-            nb_stats.bias_test(
-                result.proj_moments_df,
-                result.bootstrap_proj_moments_df,
-                list(result.get_significant_moments()),
-                output=f"{args['output']}/plots/bias_test_moments{ac_str}.pdf",
-                is_acc_corrected=args["acceptance_corrected"],
-            )
+        statistical_analysis(result, args["output"], args["no_log"])
         print("Statistical analysis completed.")
     else:
         print("No bootstrap data available; skipping statistical analysis.")
@@ -301,6 +266,114 @@ def stitch_angle_pdfs(t_bin_dir: str, output_path: str) -> None:
     print(f"Combined PDF saved to: {output_path}")
 
 
+def statistical_analysis(
+    result: ResultManager,
+    output_path: str,
+    no_log: bool,
+) -> None:
+    """Perform statistical tests of fit result
+
+    Args:
+        result (ResultManager): fit results to analyze
+        output_path (str): directory to save statistical analysis plots and log
+        no_log (bool): if true, do not create a log file with test results
+    """
+
+    is_acc_corrected = result.is_acceptance_corrected
+    ac_str = "_acceptance_corrected" if is_acc_corrected else ""
+    assert result.bootstrap_df is not None
+
+    normality_failures = nb_stats.normality_test(
+        result.fit_df,
+        result.bootstrap_df,
+        list(result.get_significant_amplitudes())
+        + list(result.get_significant_phases()),
+        output=f"{output_path}/plots/normality_test{ac_str}.pdf",
+        is_acc_corrected=is_acc_corrected,
+    )
+    bias_failures = nb_stats.bias_test(
+        result.fit_df,
+        result.bootstrap_df,
+        list(result.get_significant_amplitudes())
+        + list(result.get_significant_phases()),
+        output=f"{output_path}/plots/bias_test{ac_str}.pdf",
+        is_acc_corrected=is_acc_corrected,
+    )
+    # Capture correlation report output
+    corr_output = io.StringIO()
+    with contextlib.redirect_stdout(corr_output):
+        corr_failures = nb_stats.report_correlations(
+            result.bootstrap_df,
+            list(result.get_significant_amplitudes())
+            + list(result.get_significant_phases()),
+            report_average=False,
+        )
+    if (
+        result.bootstrap_proj_moments_df is not None
+        and result.proj_moments_df is not None
+    ):
+        normality_failures_moments = nb_stats.normality_test(
+            result.proj_moments_df,
+            result.bootstrap_proj_moments_df,
+            list(result.get_significant_moments()),
+            output=f"{output_path}/plots/normality_test_moments{ac_str}.pdf",
+            is_acc_corrected=is_acc_corrected,
+        )
+        bias_failures_moments = nb_stats.bias_test(
+            result.proj_moments_df,
+            result.bootstrap_proj_moments_df,
+            list(result.get_significant_moments()),
+            output=f"{output_path}/plots/bias_test_moments{ac_str}.pdf",
+            is_acc_corrected=is_acc_corrected,
+        )
+        # Capture correlation report output for moments
+        corr_output_moments = io.StringIO()
+        with contextlib.redirect_stdout(corr_output_moments):
+            corr_failures_moments = nb_stats.report_correlations(
+                result.bootstrap_proj_moments_df,
+                list(result.get_significant_moments()),
+                report_average=False,
+            )
+    if not no_log:
+        # Save statistical analysis results to a log file
+        with open(f"{output_path}/statistical_analysis_log.txt", "w") as log_file:
+            log_file.write("Normality Test Failures:\n")
+            for col, rate in normality_failures.items():
+                log_file.write(f"{col}:\t{rate:.2%}\n")
+
+            log_file.write("\nBias Test Failures:\n")
+            for col, rate in bias_failures.items():
+                log_file.write(f"{col}:\t{rate:.2%}\n")
+
+            log_file.write("\nCorrelation Test Failures:\n")
+            for pair, rate in corr_failures.items():
+                log_file.write(f"{pair[0]} <-> {pair[1]}:\t{rate:.2%}\n")
+
+            log_file.write("\nDetailed Correlations:\n")
+            log_file.write(corr_output.getvalue())
+
+            if (
+                result.bootstrap_proj_moments_df is not None
+                and result.proj_moments_df is not None
+            ):
+                log_file.write("\nNormality Test Failures (Moments):\n")
+                for col, rate in normality_failures_moments.items():  # type: ignore
+                    log_file.write(f"{col}:\t{rate:.2%}\n")
+
+                log_file.write("\nBias Test Failures (Moments):\n")
+                for col, rate in bias_failures_moments.items():  # type: ignore
+                    log_file.write(f"{col}:\t{rate:.2%}\n")
+
+                log_file.write("\nCorrelation Test Failures (Moments):\n")
+                for pair, rate in corr_failures_moments.items():  # type: ignore
+                    log_file.write(f"{pair[0]} <-> {pair[1]}:\t{rate:.2%}\n")
+
+                log_file.write("\nDetailed Correlations (Moments):\n")
+                log_file.write(corr_output_moments.getvalue())  # type: ignore
+
+    return
+
+
 def parse_args() -> Dict[str, Any]:
     parser = argparse.ArgumentParser(
         description=(
@@ -356,6 +429,14 @@ def parse_args() -> Dict[str, Any]:
         help=(
             "If set, skip normality and bias testing of bootstrap distributions ("
             "if available)."
+        ),
+    )
+    parser.add_argument(
+        "--no-log",
+        action="store_true",
+        help=(
+            "If set, do not create a log file in the output directory that contains"
+            " output of statistics reports"
         ),
     )
 
