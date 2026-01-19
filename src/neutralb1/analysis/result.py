@@ -639,6 +639,15 @@ class ResultManager:
 
         return tuple(zip(low_edges, high_edges))
 
+    def get_mass_bin_width(self) -> float:
+        """Get the average mass bin width from the data DataFrame.
+
+        Returns:
+            float: The average mass bin width.
+        """
+
+        return float(round((self.data_df["m_high"] - self.data_df["m_low"]).mean(), 3))
+
     def get_t_edges(self) -> tuple[float, float]:
         """Get the t bin edges from the data DataFrame.
 
