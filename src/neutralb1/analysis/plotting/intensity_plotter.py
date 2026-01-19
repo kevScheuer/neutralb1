@@ -567,7 +567,7 @@ class IntensityPlotter(BasePWAPlotter):
                 "linestyle": "",
                 "marker": ".",
                 "markersize": 4,
-                "alpha": 0.5,  # let default matplotlib colors be used
+                "alpha": 1.0,  # let default matplotlib colors be used
                 "label": label,
             }
             if self.truth_df is not None:
@@ -636,7 +636,7 @@ class IntensityPlotter(BasePWAPlotter):
                         "y": truth_y,
                         "linestyle": "-",
                         "marker": "",
-                        "alpha": 0.8,
+                        "alpha": 1.0,
                         "color": truth_kwargs.get("color", "black"),
                     }
                 )
