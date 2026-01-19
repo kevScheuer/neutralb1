@@ -643,6 +643,7 @@ class IntensityPlotter(BasePWAPlotter):
                 ax.plot(**truth_kwargs)
 
         ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        ax.set_ylim(bottom=0.0)
         ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
         if fractional:
             ax.set_ylabel(f"Fit Fraction / {self._bin_width:.3f} GeV", loc="top")
