@@ -28,6 +28,7 @@ from typing import Any, Dict
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.backends.backend_pdf import PdfPages
 from pypdf import PdfReader, PdfWriter
 
 import neutralb1.analysis.statistics as nb_stats
@@ -154,6 +155,9 @@ def main() -> int:
         return 0
     print("Generating standard plots...")
     save_standard_plots(result, args["output"], ac_str)
+    if result.randomized_df is not None:
+        print("Generating randomized fit summaries...")
+        plot_random_summaries(result, args["output"])
     print("Plotting completed.")
 
     # If input was a t-bin directory (not a .pkl file), also stitch angle PDFs
@@ -372,6 +376,31 @@ def statistical_analysis(
                 log_file.write(corr_output_moments.getvalue())  # type: ignore
 
     return
+
+
+def plot_random_summaries(result: ResultManager, output_path: str) -> None:
+    """Generate summary plots for randomized fit results.
+
+    Args:
+        output_path (str): Directory where the randomized fit results are stored
+
+    Returns:
+        None, saves pdf with all summaries to output_path/plots/randomized_summaries.pdf
+    """
+
+    assert result.randomized_df is not None
+
+    cols = result.get_significant_amplitudes().union(result.get_significant_phases())
+    if result.randomized_proj_moments_df is not None:
+        cols = cols.union(result.get_significant_moments())
+
+    with PdfPages(f"{output_path}/plots/randomized_summaries.pdf") as pdf:
+        for fit_index in result.randomized_df["fit_index"].unique():
+            fig = result.plot.randomized.randomized_summary(
+                fit_index, list(cols), likelihood_threshold=10.0
+            )
+            pdf.savefig(fig)
+            plt.close(fig)
 
 
 def parse_args() -> Dict[str, Any]:
