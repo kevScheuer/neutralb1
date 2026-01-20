@@ -256,7 +256,7 @@ class AmpToolsConfigWriter:
                 "reflectivity": [-1, 1],
                 "spin": 3,
                 "parity": -1,
-                "m": [-3, -2, -1, 0, 1, 2, 3],
+                "m": [-2, -1, 0, 1, 2],
                 "l": [3],
             },
         }
