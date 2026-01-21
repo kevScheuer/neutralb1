@@ -649,7 +649,10 @@ class IntensityPlotter(BasePWAPlotter):
                 ax.plot(truth_x, truth_y, **truth_kwargs)
 
         ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        ax.set_ylim(bottom=0.0)
+        if self.proj_moments_df is not None and all(
+            cols[i] not in self.proj_moments_df.columns for i in range(len(cols))
+        ):  # if all cols are amplitudes, set y-limit to 0
+            ax.set_ylim(bottom=0.0)
         ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
         if fractional:
             ax.set_ylabel(f"Fit Fraction / {self._bin_width:.3f} GeV", loc="top")
