@@ -228,12 +228,12 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "markersize": 5,
             "color": "black",
-            "alpha": 0.5,
+            "alpha": 1.0,
             "label": utils.convert_amp_name(amp1),
         }
         if self.truth_df is not None:
             # make data more transparent if truth is also plotted, but allow override
-            amp1_params["alpha"] = 0.3
+            amp1_params["alpha"] = 0.5
         if amp1_kwargs is not None:  # override defaults
             amp1_params.update(amp1_kwargs)
         axs[0].errorbar(**amp1_params)
@@ -248,12 +248,12 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "markersize": 5,
             "color": "gray",
-            "alpha": 0.5,
+            "alpha": 1.0,
             "label": utils.convert_amp_name(amp2),
         }
         if self.truth_df is not None:
             # make data more transparent if truth is also plotted, but allow override
-            amp2_params["alpha"] = 0.3
+            amp2_params["alpha"] = 0.5
         if amp2_kwargs is not None:  # override defaults
             amp2_params.update(amp2_kwargs)
         axs[0].errorbar(**amp2_params)
@@ -298,11 +298,11 @@ class PhasePlotter(BasePWAPlotter):
             "linestyle": "",
             "marker": ".",
             "color": "black",
-            "alpha": 0.5,
+            "alpha": 1.0,
         }
         if self.truth_df is not None:
             # make data more transparent if truth is also plotted, but allow override
-            phase_params["alpha"] = 0.3
+            phase_params["alpha"] = 0.5
         if phase_kwargs is not None:
             phase_params.update(phase_kwargs)  # override defaults
         axs[1].errorbar(**phase_params)
