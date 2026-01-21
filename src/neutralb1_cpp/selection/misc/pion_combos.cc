@@ -233,7 +233,16 @@ void pion_combos()
                 
         // draw histograms and save as PDF
         TCanvas *c = new TCanvas("c_pion_combos", "Pion Combinations", 800, 400);
-        c->Divide(2, 2);        
+        c->Divide(2, 2);
+        
+        // Set margins for all pads to prevent x-axis title cutoff and reduce whitespace
+        for (int i = 1; i <= 4; i++) {
+            c->cd(i);
+            gPad->SetBottomMargin(0.20);  // Increase bottom margin for x-axis title
+            gPad->SetLeftMargin(0.11);     // Adequate left margin for y-axis title
+            gPad->SetRightMargin(0.04);    // Reduce right margin
+            gPad->SetTopMargin(0.05);      // Reduce top margin
+        }
 
         double bin_width = h_p_pi0bach_sig_data->GetXaxis()->GetBinWidth(1);
 
