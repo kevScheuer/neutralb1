@@ -633,16 +633,19 @@ class IntensityPlotter(BasePWAPlotter):
                 truth_kwargs.pop("xerr", None)
 
                 # change kwargs for line plot
+                truth_x = truth_kwargs.pop("x")
+                del truth_kwargs["y"]
+
                 truth_kwargs.update(
                     {
-                        "y": truth_y,
                         "linestyle": "-",
                         "marker": "",
                         "alpha": 1.0,
                         "color": truth_kwargs.get("color", "black"),
+                        "label": "",  # no label for truth line
                     }
                 )
-                ax.plot(**truth_kwargs)
+                ax.plot(truth_x, truth_y, **truth_kwargs)
 
         ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax.set_ylim(bottom=0.0)
