@@ -1180,13 +1180,12 @@ class BootstrapPlotter(BasePWAPlotter):
                         y_maxes.append(y_data.max())
 
             y_max = max(y_maxes) if y_maxes else 1.0
+            y_max *= truth_scaling
 
             # Plot truth lines for each column
             zorder = 200
             for col, color in zip(columns, color_list):
                 true_val = truth_data.loc[fit_idx, col]
-
-                y_max *= truth_scaling
 
                 ax.plot(
                     [true_val, true_val],
@@ -1210,12 +1209,11 @@ class BootstrapPlotter(BasePWAPlotter):
 
                 # plot negative of truth line for phase differences
                 if col in self.phase_differences:
-                    zorder += 1
                     ax.plot(
                         [-true_val, -true_val],
                         [0.0, y_max],
                         color=color,
-                        linestyle="--",
+                        linestyle="-",
                         linewidth=2,
                         alpha=0.9,
                         zorder=zorder,
@@ -1224,7 +1222,7 @@ class BootstrapPlotter(BasePWAPlotter):
                         [-true_val, -true_val],
                         [0.0, y_max],
                         color="black",
-                        linestyle="--",
+                        linestyle="-",
                         linewidth=4,
                         alpha=0.9,
                         zorder=zorder - 1,
