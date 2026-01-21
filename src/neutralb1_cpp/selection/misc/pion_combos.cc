@@ -203,6 +203,42 @@ void pion_combos()
         TH1F *h_p_piminus_final_data = (TH1F*)h_p_piminus_sig_data->Clone("h_p_piminus_final_data");
         h_p_piminus_final_data->Add(h_p_piminus_bkg_data, -1.0);
 
+        // ==== proton + omega =====
+        TH1F *h_p_omega_sig_data = FSModeHistogram::getTH1F(
+            signal_file,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%i,%i,%i,%i)", PROTON, PI0_OMEGA, PIPLUS, PIMINUS),
+            "(100, 2.2, 4.2)",
+            selection.Data()
+        );
+        TH1F *h_p_omega_bkg_data = FSModeHistogram::getTH1F(
+            background_file,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%i,%i,%i,%i)", PROTON, PI0_OMEGA, PIPLUS, PIMINUS),
+            "(100, 2.2, 4.2)",
+            (selection+"*weight").Data()
+        );
+        TH1F *h_p_omega_sig_mc = FSModeHistogram::getTH1F(
+            mc_signal_file,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%i,%i,%i,%i)", PROTON, PI0_OMEGA, PIPLUS, PIMINUS),
+            "(100, 2.2, 4.2)",
+            selection.Data()
+        );
+        TH1F *h_p_omega_bkg_mc = FSModeHistogram::getTH1F(
+            mc_background_file,
+            NT,
+            CATEGORY,
+            TString::Format("MASS(%i,%i,%i,%i)", PROTON, PI0_OMEGA, PIPLUS, PIMINUS),
+            "(100, 2.2, 4.2)",
+            (selection+"*weight").Data()
+        );
+        TH1F *h_p_omega_final_data = (TH1F*)h_p_omega_sig_data->Clone("h_p_omega_final_data");
+        h_p_omega_final_data->Add(h_p_omega_bkg_data, -1.0);
+
 
         // scale mc histograms to match data maximum
         h_p_pi0bach_sig_mc->Scale(
@@ -229,14 +265,20 @@ void pion_combos()
         h_p_piminus_bkg_mc->Scale(
             h_p_piminus_bkg_data->GetMaximum() / h_p_piminus_bkg_mc->GetMaximum()
         );
+        h_p_omega_sig_mc->Scale(
+            h_p_omega_sig_data->GetMaximum() / h_p_omega_sig_mc->GetMaximum()
+        );
+        h_p_omega_bkg_mc->Scale(
+            h_p_omega_bkg_data->GetMaximum() / h_p_omega_bkg_mc->GetMaximum()
+        );
 
                 
         // draw histograms and save as PDF
-        TCanvas *c = new TCanvas("c_pion_combos", "Pion Combinations", 800, 400);
-        c->Divide(2, 2);
+        TCanvas *c = new TCanvas("c_pion_combos", "Pion Combinations", 1200, 400);
+        c->Divide(3, 2);
         
         // Set margins for all pads to prevent x-axis title cutoff and reduce whitespace
-        for (int i = 1; i <= 4; i++) {
+        for (int i = 1; i <= 6; i++) {
             c->cd(i);
             gPad->SetBottomMargin(0.20);  // Increase bottom margin for x-axis title
             gPad->SetLeftMargin(0.11);     // Adequate left margin for y-axis title
@@ -255,6 +297,8 @@ void pion_combos()
         h_p_piplus_sig_data->GetYaxis()->SetLabelSize(0.05);
         h_p_piminus_sig_data->GetXaxis()->SetLabelSize(0.05);
         h_p_piminus_sig_data->GetYaxis()->SetLabelSize(0.05);
+        h_p_omega_sig_data->GetXaxis()->SetLabelSize(0.05);
+        h_p_omega_sig_data->GetYaxis()->SetLabelSize(0.05);
 
         h_p_pi0bach_sig_data->GetXaxis()->SetTitleSize(0.06);
         h_p_pi0bach_sig_data->GetYaxis()->SetTitleSize(0.06);
@@ -264,11 +308,14 @@ void pion_combos()
         h_p_piplus_sig_data->GetYaxis()->SetTitleSize(0.06);
         h_p_piminus_sig_data->GetXaxis()->SetTitleSize(0.06);
         h_p_piminus_sig_data->GetYaxis()->SetTitleSize(0.06);
+        h_p_omega_sig_data->GetXaxis()->SetTitleSize(0.06);
+        h_p_omega_sig_data->GetYaxis()->SetTitleSize(0.06);
 
         h_p_pi0bach_sig_data->GetYaxis()->SetTitleOffset(0.7);
         h_p_pi0omega_sig_data->GetYaxis()->SetTitleOffset(0.7);
         h_p_piplus_sig_data->GetYaxis()->SetTitleOffset(0.7);
         h_p_piminus_sig_data->GetYaxis()->SetTitleOffset(0.7);
+        h_p_omega_sig_data->GetYaxis()->SetTitleOffset(0.7);
 
         // signal mc signal is kCyan+2
         // background is kRed+1
@@ -370,6 +417,27 @@ void pion_combos()
         h_p_piminus_final_data->Draw("E SAME");
         h_p_piminus_sig_mc->Draw("E SAME");
         h_p_piminus_bkg_mc->Draw("E SAME");        
+        
+        c->cd(5);
+        h_p_omega_sig_data->SetTitle(
+            TString::Format(";p'#omega inv. mass (GeV);Entries / %.3f GeV", bin_width));
+        h_p_omega_sig_data->SetLineColor(kBlue);
+        h_p_omega_bkg_data->SetLineColor(kRed+1);
+        h_p_omega_sig_mc->SetLineColorAlpha(kCyan+2, 0.6);
+        h_p_omega_sig_mc->SetMarkerColorAlpha(kCyan+2, 0.6);
+        h_p_omega_sig_mc->SetMarkerStyle(24);
+        h_p_omega_sig_mc->SetMarkerSize(0.4);
+        h_p_omega_bkg_mc->SetLineColorAlpha(kRed-7, 0.6);
+        h_p_omega_bkg_mc->SetMarkerColorAlpha(kRed-7, 0.6);
+        h_p_omega_bkg_mc->SetMarkerStyle(25);
+        h_p_omega_bkg_mc->SetMarkerSize(0.4);
+        h_p_omega_final_data->SetLineColor(kBlack);
+        h_p_omega_final_data->SetMarkerStyle(1);
+        h_p_omega_sig_data->Draw("HIST");
+        h_p_omega_bkg_data->Draw("HIST SAME");
+        h_p_omega_final_data->Draw("E SAME");
+        h_p_omega_sig_mc->Draw("E SAME");
+        h_p_omega_bkg_mc->Draw("E SAME");
         
         c->SaveAs(TString::Format("pion_combos_%.2f_%.2f.pdf", low, high));
         delete c;
