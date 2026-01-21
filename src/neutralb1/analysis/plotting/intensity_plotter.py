@@ -441,6 +441,7 @@ class IntensityPlotter(BasePWAPlotter):
             figsize=(15, 5 * np.ceil(n_moments / 3)),
             sharex=True,
             sharey=sharey,
+            squeeze=False,
         )
 
         for ax, col in zip(axs.flatten(), columns):
