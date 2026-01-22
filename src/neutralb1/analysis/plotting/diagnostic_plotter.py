@@ -874,6 +874,9 @@ class DiagnosticPlotter(BasePWAPlotter):
             fit2_df (pd.Series): Series containing the second fit results.
             columns (list): List of column names to compare between the two fits.
             figsize (tuple): Figure size in inches (width, height). Defaults to (15, 6).
+
+        Todo:
+            outdated, does not function as intended
         """
 
         # complain if columns are not in both dataframes
@@ -957,4 +960,114 @@ class DiagnosticPlotter(BasePWAPlotter):
         )
 
         plt.tight_layout()
+        return ax
+
+    def decompose_moment(
+        self,
+        moment: str,
+        amp_terms: list[str],
+        interference_terms: list[tuple[str, str]],
+        coefficients: list[float],
+        highlight_terms: Optional[list[str]] | Optional[list[tuple[str, str]]] = None,
+        ax: Optional[matplotlib.axes.Axes] = None,
+    ) -> matplotlib.axes.Axes:
+        """_summary_
+
+        Todo:
+            Cannot be correctly calculated due to the normalization integrals for
+                the interference terms not being available, and so we cannot
+                correctly calculate them.
+            For now, no error is calculated since we would need to take into account
+                correlations for interference terms. Intensity error free though
+            Later, this should read in a file that is in a machine-readable format to
+                interpret the moment -> PWA equations, so it can automatically
+                determine the columns. Then one simply can ask for what columns they
+                want separated. Maybe just a lookup table that is stored once?
+        """
+
+        if self.proj_moments_df is None:
+            raise ValueError(
+                "Projected moments data is not available for decomposition."
+            )
+        if moment not in self.proj_moments_df.columns:
+            raise KeyError(f"Moment '{moment}' not found in projected moments data.")
+        if len(coefficients) != len(amp_terms) + len(interference_terms):
+            raise ValueError("Number of coefficients does not match number of terms.")
+
+        reflectivities = ["p", "m"]
+
+        # Sum over reflectivities.
+        # We'll attach the reflectivity to each term in the loop
+        amp_values = []
+        interference_values = []
+        for refl in reflectivities:
+
+            # reflectivity sign that mutliplies all terms in the sum
+            sign = 1 if moment[1] == "0" else -1
+
+            # Calculate |x|^2 terms
+            for coeff, a_term in zip(coefficients[: len(amp_terms)], amp_terms):
+                if a_term not in self.fit_df.columns:
+                    raise KeyError(
+                        f"Amplitude term '{a_term}' not found in fit results."
+                    )
+                amp_values.append(sign * coeff * self.fit_df[f"{refl}{a_term}"])
+
+            # Calculate 2Re(x.y*) interference terms
+            for coeff, inter_term in zip(
+                coefficients[len(amp_terms) :], interference_terms
+            ):
+                amp1, amp2 = inter_term
+                if amp1 not in self.fit_df.columns or amp2 not in self.fit_df.columns:
+                    raise KeyError(
+                        f"Interference term '{inter_term}' not found in fit results."
+                    )
+                re_amp1 = np.sqrt(self.fit_df[f"{refl}{amp1}"])
+                re_amp2 = np.sqrt(self.fit_df[f"{refl}{amp2}"])
+
+                phase = self.phase_difference_dict[(f"{refl}{amp1}", f"{refl}{amp2}")]
+                cos_term = np.cos(np.deg2rad(self.fit_df[phase]))
+
+                # coefficient should already include the "2" factor from 2Re(x.y*)
+                interference_values.append(sign * coeff * re_amp1 * re_amp2 * cos_term)
+
+        # For right now, lets just create the plot to see if moment and this
+        # calculate one match. Then we'll remove the highlighted terms from the loop
+        # and have it plotted, while all other terms get summed over
+
+        # === Create plot ===
+        if ax is None:
+            fig, ax = plt.subplots(layout="constrained")
+
+        moment_values = self.proj_moments_df[moment]
+        moment_err = (
+            self.get_bootstrap_error(moment)
+            if self.bootstrap_proj_moments_df is not None
+            else np.zeros_like(moment_values)
+        )
+        # ax.errorbar(
+        #     x=self._masses,
+        #     xerr=self._bin_width / 2,
+        #     y=moment_values,
+        #     yerr=moment_err,
+        #     color="black",
+        #     linestyle="",
+        #     marker=".",
+        #     capsize=2,
+        # )
+        ax.plot(
+            self._masses,
+            moment_values - (sum(amp_values) + sum(interference_values)),
+            color="red",
+            linestyle="-",
+            label="Reconstructed Moment",
+        )
+
+        ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)")
+        ax.set_ylabel(f"{moment} / {self._bin_width:.3f} GeV")
+        ax.legend()
+
+        # TODO: consider doing fit fractions or log plot
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
         return ax
