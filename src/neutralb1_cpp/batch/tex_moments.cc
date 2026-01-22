@@ -533,6 +533,12 @@ void write_moment_expressions_tex(
                         << " = \\sum_\\varepsilon \n";
         }
 
+        // H1, H2 moments are multiplied by sign of reflectivity
+        if (moment.alpha == 1 || moment.alpha == 2)
+        {
+            tex_content << "\\varepsilon \\bigg\\{";
+        }
+
         // First, write the amplitude terms |c_i|^2
         int counter = 0;
         std::vector<ProdCoefficientPair> pairs_to_remove;
@@ -604,8 +610,7 @@ void write_moment_expressions_tex(
                         return p == rem_pair;
                     }),
                 pairs.end());
-        }
-        pairs_to_remove.clear();
+        }        
 
         // Next, write the interference terms
         std::vector<bool> used(pairs.size(), false);
@@ -655,9 +660,7 @@ void write_moment_expressions_tex(
 
             int parity = calculate_system_parity(pair.l);
             int parity_conj = calculate_system_parity(pair.l_conj);
-
-            if (i != 0 && pair.coefficient.real() >= 0.0)
-                tex_content << "+ ";
+            
 
             // H2 moments are purely imaginary
             double coeff;
@@ -665,6 +668,11 @@ void write_moment_expressions_tex(
                 coeff = pair.coefficient.imag();
             else
                 coeff = pair.coefficient.real();
+
+            // negative terms already have minus sign, so write plus sign if needed.
+            // First condition ensures that plus sign is written after amplitude terms
+            if (!pairs_to_remove.empty() && coeff >= 0.0)
+                tex_content << "+ ";
 
             tex_content << 2.0 * coeff
                         << "\t"
@@ -686,6 +694,12 @@ void write_moment_expressions_tex(
             used[conj_index] = true;
 
         } // finish loop over interference terms
+
+        // Close big bracket for reflectivity multiplication
+        if (moment.alpha == 1 || moment.alpha == 2)
+        {
+            tex_content << "\\bigg\\}";
+        }
 
         tex_content << "\\end{gather*}\n\n";
     }
