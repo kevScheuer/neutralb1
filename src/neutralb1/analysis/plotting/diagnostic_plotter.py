@@ -262,11 +262,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         legend_handles = []
         legend_labels = []
 
-        # Determine which reflectivity to use for legend
-        # Use positive reflectivity if available, otherwise negative
-        has_positive_reflectivity = any(wave[0] == "p" for wave in d_waves)
-        legend_reflectivity = "p" if has_positive_reflectivity else "m"
-
         # Plot E852 reference lines
         if show_e852_reference:
             h1 = ax_ratio.axhline(
@@ -393,10 +388,8 @@ class DiagnosticPlotter(BasePWAPlotter):
                         alpha=0.8,
                     )
 
-            # Add to legend (only for positive reflectivity)
-            if epsilon == "p":
-                legend_handles.append(h1)
-                legend_labels.append(label)
+            legend_handles.append(h1)
+            legend_labels.append(label)
 
             linestyle_idx += 1
 
