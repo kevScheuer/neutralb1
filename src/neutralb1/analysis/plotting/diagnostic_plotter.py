@@ -242,59 +242,53 @@ class DiagnosticPlotter(BasePWAPlotter):
         # Marker and color maps for different quantum numbers
         marker_map = {"q": "h", "p": "^", "0": ".", "m": "v", "n": "s"}
         color_map = {"p": "red", "m": "blue"}
+        linestyle_map = ["-", "--", "-.", ":"]
 
         if axs is None:
-            fig = plt.figure(figsize=figsize, dpi=300, layout="constrained")
-            subfigs = fig.subfigures(1, 2, width_ratios=[2, 1])
-
-            # Left subfigure: ratio and phase vs mass
-            ax_ratio, ax_phase = subfigs[0].subplots(2, 1, sharex=True)
-
-            # Right subfigure: correlation plot
-            ax_corr = subfigs[1].subplots()
-
-            axs = np.array([ax_ratio, ax_phase, ax_corr])
+            fig, axs = plt.subplots(
+                3,
+                1,
+                sharex=True,
+                figsize=figsize,
+                gridspec_kw={"wspace": 0.0, "hspace": 0.12},
+                layout="constrained",
+            )
         else:
-            ax_ratio, ax_phase, ax_corr = axs
+            fig = axs[0].get_figure()
+        assert axs is not None
+        ax_ratio, ax_phase, ax_corr = axs
+
+        # Collect handles and labels for unified legend
+        legend_handles = []
+        legend_labels = []
+
+        # Determine which reflectivity to use for legend
+        # Use positive reflectivity if available, otherwise negative
+        has_positive_reflectivity = any(wave[0] == "p" for wave in d_waves)
+        legend_reflectivity = "p" if has_positive_reflectivity else "m"
 
         # Plot E852 reference lines
         if show_e852_reference:
-            ax_ratio.axhline(
+            h1 = ax_ratio.axhline(
                 y=e852_ratio,
                 color="black",
                 linestyle="-",
                 alpha=0.7,
-                label=f"E852 ratio ({e852_ratio})",
             )
-            ax_phase.axhline(
+            h2 = ax_phase.axhline(
                 y=e852_phase,
                 color="black",
-                linestyle="--",
+                linestyle="-",
                 alpha=0.7,
-                label=f"E852 phase (±{e852_phase}°)",
             )
             ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
-
-            # Add reference point to correlation plot
-            ax_corr.plot(
-                e852_ratio,
-                e852_phase,
-                marker="*",
-                markersize=10,
-                color="black",
-                alpha=0.7,
-                label="E852",
-            )
-            ax_corr.plot(
-                e852_ratio,
-                -e852_phase,
-                marker="*",
-                markersize=10,
-                color="black",
-                alpha=0.7,
+            legend_handles.extend([h1, h2])
+            legend_labels.extend(
+                [f"E852 ratio ({e852_ratio})", f"E852 phase (±{e852_phase}°)"]
             )
 
         # Process each D wave and find corresponding S wave
+        linestyle_idx = 0
         for d_wave in d_waves:
             # Find corresponding S wave (same quantum numbers except L)
             s_wave = d_wave[:-1] + "S"
@@ -306,6 +300,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             # Extract quantum numbers for styling
             epsilon = d_wave[0]  # reflectivity
             m = d_wave[-2]  # m-projection
+            linestyle = linestyle_map[linestyle_idx % len(linestyle_map)]
 
             # Calculate ratio and errors
             ratio, ratio_err = self._calculate_ds_ratio(d_wave, s_wave)
@@ -329,7 +324,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             label = utils.convert_amp_name(d_wave).replace("D", "(D/S)")
 
             # Plot ratio vs mass
-            ax_ratio.errorbar(
+            h1 = ax_ratio.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=ratio,
@@ -339,9 +334,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 linestyle="",
                 markersize=6,
                 capsize=2,
-                label=(
-                    label if epsilon == "p" else None
-                ),  # Only label positive reflectivity
             )
 
             # Plot phase vs mass
@@ -371,46 +363,112 @@ class DiagnosticPlotter(BasePWAPlotter):
                 capsize=2,
             )
 
-            # Plot correlation (ratio vs phase)
-            ax_corr.plot(
-                ratio,
-                phase,
-                marker=marker_map[m],
-                color=color_map[epsilon],
-                linestyle="",
-                markersize=6,
-                label=label,
-            )
+            # Plot truth data if available
+            if self.truth_df is not None:
+                # Calculate truth ratio
+                if d_wave in self.truth_df.columns and s_wave in self.truth_df.columns:
+                    truth_d = self.truth_df[d_wave]
+                    truth_s = self.truth_df[s_wave]
+                    safe_d = np.where(truth_d == 0, np.finfo(float).eps, truth_d)
+                    safe_s = np.where(truth_s == 0, np.finfo(float).eps, truth_s)
+                    truth_ratio = np.sqrt(safe_d) / np.sqrt(safe_s)
 
-            # Plot sign ambiguity on correlation plot
-            ax_corr.plot(
-                ratio,
-                -phase,
-                marker=marker_map[m],
-                color=color_map[epsilon],
-                linestyle="",
-                markersize=6,
-                alpha=0.6,
-            )
+                    ax_ratio.plot(
+                        self._masses,
+                        truth_ratio,
+                        linestyle=linestyle,
+                        linewidth=1.5,
+                        color=color_map[epsilon],
+                        alpha=0.8,
+                    )
 
-        # Configure left subplot axes
-        ax_ratio.set_ylabel("D/S Ratio", loc="top", fontsize=12)
+                # Plot truth phase
+                if phase_dif_name in self.truth_df.columns:
+                    ax_phase.plot(
+                        self._masses,
+                        self.truth_df[phase_dif_name],
+                        linestyle=linestyle,
+                        linewidth=1.5,
+                        color=color_map[epsilon],
+                        alpha=0.8,
+                    )
+
+            # Add to legend (only for positive reflectivity)
+            if epsilon == "p":
+                legend_handles.append(h1)
+                legend_labels.append(label)
+
+            linestyle_idx += 1
+
+        # Configure axes
+        ax_ratio.set_ylabel("D/S Ratio", loc="top")
         ax_ratio.set_yscale("log")
-        ax_ratio.legend()
 
-        ax_phase.set_xlabel(
-            rf"${self.channel}$ inv. mass (GeV)", loc="right", fontsize=12
-        )
-        ax_phase.set_ylabel("D-S Phase (°)", loc="top", fontsize=12)
+        ax_phase.set_ylabel("D-S Phase (°)", loc="top")
         ax_phase.set_yticks(np.linspace(-180, 180, 5))
         ax_phase.set_ylim(-180, 180)
 
         # Configure correlation plot
-        ax_corr.set_xlabel("D/S Ratio", loc="right", fontsize=12)
-        ax_corr.set_ylabel("D-S Phase (°)", loc="top", fontsize=12)
-        ax_corr.set_yticks(np.linspace(-180, 180, 5))
-        ax_corr.set_ylim(-180, 180)
-        ax_corr.legend(fontsize=10)
+        ax_corr.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
+        ax_corr.set_ylabel("ρ(D, S)", loc="top")
+        ax_corr.set_ylim(-1, 1)
+        ax_corr.axhline(y=0, color="black", linestyle="-")
+
+        # Plot bootstrap correlations if available
+        linestyle_idx = 0
+        if self.bootstrap_df is not None:
+            for d_wave in d_waves:
+                # Find corresponding S wave
+                s_wave = d_wave[:-1] + "S"
+                if s_wave not in s_waves:
+                    continue
+                if d_wave in exclude_waves or s_wave in exclude_waves:
+                    continue
+
+                # Extract quantum numbers for styling
+                epsilon = d_wave[0]
+                m = d_wave[-2]
+                linestyle = linestyle_map[linestyle_idx % len(linestyle_map)]
+
+                # Calculate bootstrap correlation
+                bootstrap_correlation = (
+                    self.bootstrap_df.drop("file", axis=1)
+                    .groupby("fit_index")
+                    .corr()
+                    .unstack()[(d_wave, s_wave)]
+                )
+
+                ax_corr.plot(
+                    self._masses,
+                    bootstrap_correlation,
+                    marker=marker_map[m],
+                    color=color_map[epsilon],
+                    linestyle="",
+                    markersize=6,
+                )
+
+                linestyle_idx += 1
+        else:
+            # Add text indicating bootstrap data not available
+            ax_corr.text(
+                0.5,
+                0.5,
+                "Bootstrap data not available",
+                ha="center",
+                va="center",
+                transform=ax_corr.transAxes,
+                fontsize=12,
+            )
+
+        # Add unified legend on the right side of the figure
+        if legend_handles:
+            fig.legend(
+                handles=legend_handles,
+                labels=legend_labels,
+                loc="center left",
+                bbox_to_anchor=(1.0, 0.5),
+                fontsize=10,
+            )
 
         return axs
 
