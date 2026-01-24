@@ -210,9 +210,12 @@ def add_missing_columns(
     if not missing_cols:
         return target_df
 
-    return target_df.assign(**{col: 0 for col in missing_cols}).astype(
-        {col: "int8" for col in missing_cols}
+    # Create DataFrame with missing columns all at once to avoid fragmentation
+    missing_data = pd.DataFrame(
+        {col: pd.Series(0, index=target_df.index, dtype="int8") for col in missing_cols}
     )
+
+    return pd.concat([target_df, missing_data], axis=1)
 
 
 def wrap_radians(num: float) -> float:
