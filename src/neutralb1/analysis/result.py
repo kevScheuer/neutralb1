@@ -381,6 +381,11 @@ class ResultManager:
             self.truth_df = preprocessing.add_missing_columns(
                 self.fit_df, self.truth_df
             )
+        if self.truth_proj_moments_df is not None and self.proj_moments_df is not None:
+            print("Adding missing columns to truth projected moments DataFrame...")
+            self.truth_proj_moments_df = preprocessing.add_missing_columns(
+                self.proj_moments_df, self.truth_proj_moments_df
+            )
 
         self.is_preprocessed = True  # set flag to True after preprocessing is done
         if self.proj_moments_df is not None:
