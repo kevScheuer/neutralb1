@@ -667,15 +667,13 @@ def report_correlations(
     # get coherent sums for later filtering
     coh_sums = utils.get_coherent_sums(df)
 
+    phase_cols = [c for c in cols_to_keep if c in utils.get_phase_differences(df)]
+
     stacked_df = (
         df[cols_to_keep]
         .select_dtypes(include="number")  # only numeric columns
-        .assign(  # resolve sign ambiguity of phase differences
-            **{
-                col: df[col].abs()
-                for col in df.columns
-                if col in utils.get_phase_differences(df)
-            }
+        .replace(  # resolve sign ambiguity of phase differences
+            {col: df[col].abs() for col in phase_cols}
         )
         .groupby("fit_index")  # group bootstrap samples by fit index
         .corr()  # calculate correlation matrix for each group
