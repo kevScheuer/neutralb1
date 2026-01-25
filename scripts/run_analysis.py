@@ -145,7 +145,9 @@ def main() -> int:
         print("Skipping statistical analysis as per --no-statistics flag.")
     elif result.bootstrap_df is not None:
         print("Running statistical analysis...")
-        statistical_analysis(result, args["output"], args["no_log"])
+        statistical_analysis(
+            result, args["output"], args["no_log"], args["significance_threshold"]
+        )
         print("Statistical analysis completed.")
     else:
         print("No bootstrap data available; skipping statistical analysis.")
@@ -157,7 +159,7 @@ def main() -> int:
     save_standard_plots(result, args["output"], ac_str)
     if result.randomized_df is not None:
         print("Generating randomized fit summaries...")
-        plot_random_summaries(result, args["output"])
+        plot_random_summaries(result, args["output"], args["significance_threshold"])
     print("Plotting completed.")
 
     # If input was a t-bin directory (not a .pkl file), also stitch angle PDFs
@@ -271,9 +273,7 @@ def stitch_angle_pdfs(t_bin_dir: str, output_path: str) -> None:
 
 
 def statistical_analysis(
-    result: ResultManager,
-    output_path: str,
-    no_log: bool,
+    result: ResultManager, output_path: str, no_log: bool, sig_threshold: float
 ) -> None:
     """Perform statistical tests of fit result
 
@@ -281,6 +281,7 @@ def statistical_analysis(
         result (ResultManager): fit results to analyze
         output_path (str): directory to save statistical analysis plots and log
         no_log (bool): if true, do not create a log file with test results
+        sig_threshold (float): threshold for significance of amplitudes/phases/moments
     """
 
     is_acc_corrected = result.is_acceptance_corrected
@@ -290,17 +291,18 @@ def statistical_analysis(
     normality_failures = nb_stats.normality_test(
         result.fit_df,
         result.bootstrap_df,
-        list(result.get_significant_amplitudes())
-        + list(result.get_significant_phases()),
+        result.coherent_sums["eJPmL"]  # include all amplitudes
+        + list(result.get_significant_phases(threshold=sig_threshold)),
         output=f"{output_path}/plots/normality_test{ac_str}.pdf",
         is_acc_corrected=is_acc_corrected,
     )
     bias_failures = nb_stats.bias_test(
         result.fit_df,
         result.bootstrap_df,
-        list(result.get_significant_amplitudes())
-        + list(result.get_significant_phases()),
+        list(result.get_significant_amplitudes(threshold=sig_threshold))
+        + list(result.get_significant_phases(threshold=sig_threshold)),
         output=f"{output_path}/plots/bias_test{ac_str}.pdf",
+        threshold=0.1,
         is_acc_corrected=is_acc_corrected,
     )
     # Capture correlation report output
@@ -308,8 +310,8 @@ def statistical_analysis(
     with contextlib.redirect_stdout(corr_output):
         corr_failures = nb_stats.report_correlations(
             result.bootstrap_df,
-            list(result.get_significant_amplitudes())
-            + list(result.get_significant_phases()),
+            result.coherent_sums["eJPmL"]  # include all amplitudes
+            + list(result.get_significant_phases(threshold=sig_threshold)),
             report_average=False,
         )
     if (
@@ -319,15 +321,16 @@ def statistical_analysis(
         normality_failures_moments = nb_stats.normality_test(
             result.proj_moments_df,
             result.bootstrap_proj_moments_df,
-            list(result.get_significant_moments()),
+            list(result.get_significant_moments(threshold=0.0)),  # include all moments
             output=f"{output_path}/plots/normality_test_moments{ac_str}.pdf",
             is_acc_corrected=is_acc_corrected,
         )
         bias_failures_moments = nb_stats.bias_test(
             result.proj_moments_df,
             result.bootstrap_proj_moments_df,
-            list(result.get_significant_moments()),
+            list(result.get_significant_moments(threshold=sig_threshold)),
             output=f"{output_path}/plots/bias_test_moments{ac_str}.pdf",
+            threshold=0.1,
             is_acc_corrected=is_acc_corrected,
         )
         # Capture correlation report output for moments
@@ -335,7 +338,7 @@ def statistical_analysis(
         with contextlib.redirect_stdout(corr_output_moments):
             corr_failures_moments = nb_stats.report_correlations(
                 result.bootstrap_proj_moments_df,
-                list(result.get_significant_moments()),
+                list(result.get_significant_moments(threshold=0.0)),
                 report_average=False,
             )
     if not no_log:
@@ -378,11 +381,15 @@ def statistical_analysis(
     return
 
 
-def plot_random_summaries(result: ResultManager, output_path: str) -> None:
+def plot_random_summaries(
+    result: ResultManager, output_path: str, sig_threshold: float
+) -> None:
     """Generate summary plots for randomized fit results.
 
     Args:
+        result (ResultManager): The ResultManager instance containing fit results.
         output_path (str): Directory where the randomized fit results are stored
+        sig_threshold (float): threshold for significance of amplitudes/phases/moments
 
     Returns:
         None, saves pdf with all summaries to output_path/plots/randomized_summaries.pdf
@@ -390,14 +397,35 @@ def plot_random_summaries(result: ResultManager, output_path: str) -> None:
 
     assert result.randomized_df is not None
 
-    cols = result.get_significant_amplitudes().union(result.get_significant_phases())
+    cols = result.get_significant_amplitudes(threshold=sig_threshold).union(
+        result.get_significant_phases(threshold=sig_threshold)
+    )
     if result.randomized_proj_moments_df is not None:
-        cols = cols.union(result.get_significant_moments())
+        cols = cols.union(result.get_significant_moments(threshold=sig_threshold))
 
     with PdfPages(f"{output_path}/plots/randomized_summaries.pdf") as pdf:
         for fit_index in result.randomized_df["fit_index"].unique():
             fig = result.plot.randomized.randomized_summary(
-                fit_index, list(cols), likelihood_threshold=10.0
+                fit_index,
+                list(cols),
+                likelihood_threshold=10.0,
+                use_truth_residual=False,
+            )
+            pdf.savefig(fig)
+            plt.close(fig)
+
+    if result.truth_df is None:
+        return  # skip randomized summaries with truth comparison
+
+    # these are helpful to see how the rand fits are distributed around the truth, but
+    # it crucially leaves out waves that are not in the truth model
+    with PdfPages(f"{output_path}/plots/randomized_summaries_truth.pdf") as pdf:
+        for fit_index in result.randomized_df["fit_index"].unique():
+            fig = result.plot.randomized.randomized_summary(
+                fit_index,
+                list(cols),
+                likelihood_threshold=10.0,
+                use_truth_residual=True,
             )
             pdf.savefig(fig)
             plt.close(fig)
@@ -466,6 +494,17 @@ def parse_args() -> Dict[str, Any]:
         help=(
             "If set, do not create a log file in the output directory that contains"
             " output of statistics reports"
+        ),
+    )
+    parser.add_argument(
+        "-s",
+        "--significance-threshold",
+        type=float,
+        default=0.02,
+        help=(
+            "Threshold for significance (percentage of fit fraction) when"
+            " selecting amplitudes, phases, and moments for statistical analysis and"
+            " randomized summaries."
         ),
     )
 
