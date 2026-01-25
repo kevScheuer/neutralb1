@@ -52,6 +52,7 @@ class RandomizedPlotter(BasePWAPlotter):
         Returns:
             plt.Figure: The figure object containing all four subplots.
         """
+        assert self.randomized_df is not None, "randomized_df must be provided"
 
         data = self._prepare_randomized_data(
             fit_index, columns, likelihood_threshold, use_truth_residual
@@ -131,6 +132,57 @@ class RandomizedPlotter(BasePWAPlotter):
         fig.suptitle(
             rf"{low_mass:.3f} < ${self.channel}$ inv. mass < {high_mass:.3f} $(GeV)$",
             fontsize=20,
+        )
+
+        # finally, put convergence rates as a legend in the first axes
+        num_rand_fits = len(
+            self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+        )
+        num_failed = len(
+            self.randomized_df.loc[
+                (self.randomized_df["fit_index"] == fit_index)
+                & (self.randomized_df["lastMinuitCommandStatus"] != 0)
+            ]
+        )
+        num_bad_matrix = len(
+            self.randomized_df.loc[
+                (self.randomized_df["fit_index"] == fit_index)
+                & (self.randomized_df["eMatrixStatus"] != 3)
+                & (self.randomized_df["lastMinuitCommandStatus"] == 0)
+            ]
+        )
+        num_success = len(
+            self.randomized_df.loc[
+                (self.randomized_df["fit_index"] == fit_index)
+                & (self.randomized_df["lastMinuitCommandStatus"] == 0)
+                & (self.randomized_df["eMatrixStatus"] == 3)
+            ]
+        )
+
+        convergence_text = (
+            f"Total Randomized Fits: {num_rand_fits}\n"
+            f"Successful Fits: {num_success} "
+            f"({(num_success / num_rand_fits):.2%})\n"
+            f"Failed Fits: {num_failed} "
+            f"({(num_failed / num_rand_fits):.2%})\n"
+            f"Converged, bad error matrix: {num_bad_matrix} "
+            f"({(num_bad_matrix / num_rand_fits):.2%})"
+        )
+
+        axes[0, 0].text(
+            0.2,
+            0.85,
+            convergence_text,
+            ha="left",
+            va="center",
+            fontsize=14,
+            transform=axes[0, 0].transAxes,
+            bbox=dict(
+                alpha=0.5,
+                edgecolor="black",
+                facecolor="gray",
+                boxstyle="round,pad=0.5",
+            ),
         )
 
         return fig
