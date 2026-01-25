@@ -163,6 +163,9 @@ def normality_test(
             # loop through each failed column and make the probability plot
             for ax, (col, p_value) in zip(axes, col_dict.items()):
                 values = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][col]
+                num_events = bootstrap_df.loc[bootstrap_df["fit_index"] == fit_index][
+                    "generated_events" if is_acc_corrected else "detected_events"
+                ].mean()
 
                 if col in phases:
                     # circular data QQ plot against von Mises distribution
@@ -240,14 +243,16 @@ def normality_test(
 
                         # add inset with histogram and fitted lognorm distribution
                         inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
-                        inset_ax.hist(values, bins=30, density=True, alpha=0.7)
+                        # Convert to fit fractions for display
+                        fit_fractions = values / num_events
+                        inset_ax.hist(fit_fractions, bins=30, density=True, alpha=0.7)
                         x_range = np.linspace(
-                            values.min() - 0.1 * values.min(),
-                            values.max() + 0.1 * values.max(),
+                            fit_fractions.min() - 0.1 * fit_fractions.min(),
+                            fit_fractions.max() + 0.1 * fit_fractions.max(),
                             200,
                         )
-                        # fit lognorm to original (non-transformed) data
-                        shape, loc, scale = scipy.stats.lognorm.fit(values)
+                        # fit lognorm to fit fraction data
+                        shape, loc, scale = scipy.stats.lognorm.fit(fit_fractions)
                         inset_ax.plot(
                             x_range,
                             scipy.stats.lognorm.pdf(x_range, shape, loc, scale),
@@ -268,13 +273,15 @@ def normality_test(
 
                         # add inset with histogram and fitted normal distribution
                         inset_ax = ax.inset_axes([0.6, 0.06, 0.35, 0.35])
-                        inset_ax.hist(values, bins=30, density=True, alpha=0.7)
+                        # Convert to fit fractions for display
+                        fit_fractions = values / num_events
+                        inset_ax.hist(fit_fractions, bins=30, density=True, alpha=0.7)
                         x_range = np.linspace(
-                            values.min() - 0.1 * values.min(),
-                            values.max() + 0.1 * values.max(),
+                            fit_fractions.min() - 0.1 * fit_fractions.min(),
+                            fit_fractions.max() + 0.1 * fit_fractions.max(),
                             200,
                         )
-                        mu, sigma = values.mean(), values.std()
+                        mu, sigma = fit_fractions.mean(), fit_fractions.std()
                         inset_ax.plot(
                             x_range,
                             scipy.stats.norm.pdf(x_range, mu, sigma),
