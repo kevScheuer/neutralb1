@@ -125,8 +125,16 @@ int main(int argc, char *argv[])
     std::vector<std::string> reactions;                                                    // tracks reactions in a fit result
     std::vector<Moment> moments;                                                           // vector of all moments to be calculated
 
-    // Collect all rows in a stringstream to minimize I/O operations
+    // Collect row in a stringstream to minimize I/O operations
     std::stringstream csv_data;
+
+    // open csv file
+    std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
+    if (!csv_file.is_open())
+    {
+        std::cerr << "Error: Could not open output file " << csv_name << " for writing." << std::endl;
+        return 1;
+    }
 
     // track whether the header has been written, and the order of the columns
     bool is_header_written = false;
@@ -244,18 +252,13 @@ int main(int argc, char *argv[])
         }
         csv_data << "\n";
 
+        // Write the row immediately and clear csv_data
+        csv_file << csv_data.str();
+        csv_data.str("");
+        csv_data.clear();
     } // end of file iteration
 
-    // Write all collected data to the CSV file at once
-    std::ofstream csv_file(csv_name, std::ios::out | std::ios::trunc);
-    if (!csv_file.is_open())
-    {
-        std::cerr << "Error: Could not open output file " << csv_name << " for writing." << std::endl;
-        return 1;
-    }
-    csv_file << csv_data.str();
     csv_file.close();
-
     std::cout << "Projected moments written to " << csv_name << "\n";
 
     return 0;
@@ -316,9 +319,7 @@ complex<double> calculate_moment(
 
     if (moment.Lambda == 0 && moment.M == 0)
     {
-        // cannot determine where this 1/2 factor is from...
-        // Is definitely needed to get H0_0000 == # of events, and the values to align
-        // with the fitted moments
+        // special case where symmetry across +/− lambda and +/− m double counts
         moment_value *= 0.5;
     }
     return moment_value;
@@ -396,7 +397,7 @@ complex<double> calculate_SDME(
     if (alpha == 2)
     {
         sdme *= complex<double>(0, 1); // needs a factor of i outside the loop
-        sdme *= -1.0;
+        sdme *= -1.0; // TODO: fix this in sign factor of SDME
     }
 
     // Cache the calculated value
@@ -509,7 +510,7 @@ void precompute_caches(
                                 {
                                     for (int lambda_j = -1; lambda_j <= 1; ++lambda_j)
                                     {
-                                        for (const Moment mom : moments)
+                                        for (const Moment& mom : moments)
                                         {
                                             // This will calculate and cache the CG value
                                             calculate_CGs(Ji, li, mi, Jj, lj, mj, lambda_i, lambda_j, mom);
