@@ -8,6 +8,7 @@ recognized lines to the cfg file.
     This file (and other batch files) are currently tuned specifically to omegapi0
 """
 
+import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import product
@@ -160,9 +161,17 @@ class AmpToolsConfigWriter:
                     self.config.data.orientations,
                     self.config.general.reaction,
                 )
-            # write ds ratio if 1p amp is used, and if DS ratio isn't free
-            if self.config.physics.ds_ratio != "free" and any(
-                wave.spin == 1 and wave.parity == 1 for wave in waves
+            # write ds ratio if not free, and S and D waves are present
+            if (
+                self.config.physics.ds_ratio != "free"
+                and any(
+                    wave.spin == 1 and wave.parity == 1 and wave.l == 0
+                    for wave in waves
+                )
+                and any(
+                    wave.spin == 1 and wave.parity == 1 and wave.l == 2
+                    for wave in waves
+                )
             ):
                 self._write_ds_ratio(
                     cfg_file,
@@ -710,16 +719,17 @@ class AmpToolsConfigWriter:
     ) -> None:
         """Writes lines in cfg file template for a D to S wave ratio to be set
 
-        Initialized (and optionally fixed) values are E852 parameters. The ratio can be
-        fixed to E852 values, split between two reflectivities, or left to float between 0
-        and 1.
+        The parameters are initialized (and optionally fixed) to E852 values. ds_option
+        allows for fixing the ratio to E852 values, splitting it between reflectivities,
+        only using one reflectivity, or letting it float between 0 and 1.
 
         Args:
             cfg_file (TextIO): cfg file being written to
             waves (List[Wave]): list of Wave dataclasses that contain all necessary info
                 See 'get_waves_and_breit_wigners' for details
-            ds_option (str): user option to fix the ratio to E852 values, split it between,
-                reflectivities, or let float between 0 and 1
+            ds_option (str): user option to fix the ratio to E852 values, split it
+                between reflectivities, apply to one reflectivity, or let float between
+                0 and 1
             is_phaselock (bool): user option to constrain phases between eJPl amplitudes.
                 In this function it fixes the "dsphase" parameter to 0
             orientations (List[str]): diamond orientation settings
@@ -745,6 +755,12 @@ class AmpToolsConfigWriter:
         if ds_option == "split":
             ratios = ["dsratio_p", "dsratio_m"]
             phases = ["dphase_p", "dphase_m"]
+        elif ds_option == "positive":
+            ratios = ["dsratio_p"]
+            phases = ["dphase_p"]
+        elif ds_option == "negative":
+            ratios = ["dsratio_m"]
+            phases = ["dphase_m"]
         else:
             ratios = ["dsratio"]
             phases = ["dphase"]
@@ -756,25 +772,54 @@ class AmpToolsConfigWriter:
                     f"parameter {phase} {phase_val} {phase_opt}\n"
                 )
                 if ds_option != "fixed":
-                    cfg_file.write(f"parRange {ratio} 0.0 1.0\n")
+                    cfg_file.write(f"parRange {ratio} 0.01 1.0\n")
                 if not is_phaselock and ds_option != "fixed":
                     cfg_file.write(f"parRange {phase} -3.14159 3.14159\n")
 
                 for sum_label, refl_sign in REFLECTIVITY_DICT.items():
                     for wave in waves:
+                        # Select only D waves with matching reflectivity
                         if wave.reflectivity != refl_sign or (
                             wave.spin != 1 or wave.parity != 1 or wave.l != 2
                         ):
                             continue
 
+                        # warn if matching S-wave is not in waves
+                        matching_s_wave = next(
+                            (
+                                w
+                                for w in waves
+                                if w.spin == 1
+                                and w.parity == 1
+                                and w.m == wave.m
+                                and w.l == 0
+                                and w.reflectivity == wave.reflectivity
+                            ),
+                            None,
+                        )
+                        if matching_s_wave is None:
+                            warnings.warn(
+                                f"D wave {wave.name} present in waveset, but matching"
+                                " S wave not found. Skipping D/S ratio constraint for"
+                                " this wave."
+                            )
+
+                        # match reflectivity if using reflectivity-specific ratios
+                        if "_p" in ratio and wave.reflectivity != 1:
+                            continue
+                        if "_m" in ratio and wave.reflectivity != -1:
+                            continue
+
                         # write out the D wave amplitude line
                         cfg_file.write(
-                            f"amplitude {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
+                            f"amplitude"
+                            f" {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
                             f"{wave.name} ComplexCoeff [{ratio}] [{phase}] MagPhi\n"
                         )
                         # constrain the D wave to the S wave
                         cfg_file.write(
-                            f"constrain {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
+                            f"constrain"
+                            f" {reaction}_{POL_DICT[ont]['angle']}::{sum_label}::"
                             f"{wave.name} {reaction}_{POL_DICT[ont]['angle']}::"
                             f"{sum_label}::{wave.name.replace("D", "S")}\n"
                         )

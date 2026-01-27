@@ -172,6 +172,29 @@ class ConfigManager:
                 errors.append(
                     "Physics: phase_reference waves cannot be in remove_waves"
                 )
+        if config.physics.ds_ratio not in [
+            "",
+            "free",
+            "fixed",
+            "split",
+            "positive",
+            "negative",
+        ]:
+            errors.append(
+                'Physics: ds_ratio must be one of "", "free", "fixed", "split",'
+                ' "positive", or "negative"'
+            )
+        if (
+            config.physics.ds_ratio == "positive" and config.physics.single_refl == -1
+        ) or (
+            config.physics.ds_ratio == "negative" and config.physics.single_refl == 1
+        ):
+            errors.append(
+                "Physics: opposite reflectivities are being required by the ds_ratio"
+                " positive/negative constraints and single_refl setting."
+            )
+        if config.physics.frame not in ["", "GJ", "Adair"]:
+            errors.append('Physics: frame must be one of "", "GJ", or "Adair"')
 
         # ===DATA===
         # ensure only one set of bin arguments are passed

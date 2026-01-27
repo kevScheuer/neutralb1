@@ -26,7 +26,8 @@ class PhysicsConfig:
             automatically determined from the waveset
         phase_reference (List[str]): Phase reference waves in eJPmL format.
         phaselock (bool): Enable phaselock model for common phases across m-projections.
-        ds_ratio (str): D/S wave ratio constraint ("", "free", "fixed", "split").
+        ds_ratio (str): D/S wave ratio constraint ("", "free", "fixed", "split",
+            "positive", "negative").
         frame (str): Decay frame ("", "GJ", "Adair").
         single_refl (int): Single reflectivity constraint (-1, 0, or 1).
         init_refl (int): Initialize reflectivity (-1, 0, or 1).
