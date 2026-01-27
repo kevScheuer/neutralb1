@@ -671,7 +671,7 @@ void write_moment_expressions_tex(
 
             // negative terms already have minus sign, so write plus sign if needed.
             // First condition ensures that plus sign is written after amplitude terms
-            if (!pairs_to_remove.empty() && coeff >= 0.0)
+            if ((!pairs_to_remove.empty() || i > 0) && coeff >= 0.0)
                 tex_content << "+ ";
 
             tex_content << 2.0 * coeff
