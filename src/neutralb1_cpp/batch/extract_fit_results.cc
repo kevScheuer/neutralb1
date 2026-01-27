@@ -25,17 +25,21 @@
  * It also assumes that reflectivity sums do not mix and are constrained across sums,
  * meaning that phase differences can not be computed between negative and positive
  * reflectivity waves.
- * 
+ *
  * The script can also optionally call the extract_bin_info program to extract
  * the bin information from the data files used in the fit.
  *
- * note: 
+ * note:
  * this script is "reaction" independent, meaning if multiple reactions are in the
  *    fit, it assumes the phase differences are common across all of them. It also means
  *    that coherent sums are calculated over all reactions. This is so that multiple
  *    orientations, typically denoted using the "reaction", can be fit simultaneously and
  *    have their fit results extracted in one go.
-*/
+ *
+ * Todo:
+ *  - if the normalization integrals can be included in the phaseDiff calculation of
+ *      Amptools, then we omit the need to correct the dphases here
+ */
 
 #include <cstring>
 #include <complex>
@@ -48,7 +52,7 @@
 #include <cstdlib> // for system()
 
 #include "IUAmpTools/FitResults.h"
-#include "neutralb1/file_utils.h" // for read_file_list
+#include "neutralb1/file_utils.h"      // for read_file_list
 #include "neutralb1/AmplitudeParser.h" // for parse_amplitude
 
 // forward declarations
@@ -59,9 +63,11 @@ void fill_maps(
     std::map<std::string, std::map<std::string, std::vector<std::string>>> &coherent_sums,
     std::map<std::string, std::pair<std::string, std::string>> &phase_diffs);
 std::pair<double, double> corrected_dphase(
-    std::string phase1_amplitude, 
-    std::string phase2_amplitude, 
-    FitResults &results);
+    std::string phase1_amplitude,
+    std::string phase2_amplitude,
+    FitResults &results,
+    bool is_dphase_pos,
+    bool is_dphase_neg);
 
 int main(int argc, char *argv[])
 {
@@ -75,13 +81,14 @@ int main(int argc, char *argv[])
     std::string csv_name = argv[2];
     bool is_acceptance_corrected = (std::string(argv[3]) == "1");
     bool extract_data = (std::string(argv[4]) == "1");
-    std::string mass_branch = (argc == 6) ? argv[5] : "M4Pi";        
+    std::string mass_branch = (argc == 6) ? argv[5] : "M4Pi";
 
     // file path is a text file with a list of AmpTools output files, each on a newline
     // load this into a vector using the utility function
     std::vector<std::string> file_vector = read_file_list(file_path);
-    
-    if (file_vector.empty()) {
+
+    if (file_vector.empty())
+    {
         std::cerr << "Error: Could not read file list from " << file_path << std::endl;
         return 1;
     }
@@ -160,12 +167,21 @@ int main(int argc, char *argv[])
 
         // flag if dphase parameter is used, will affect phase differences later
         bool is_dphase_present = false;
+        bool is_dphase_pos = false;
+        bool is_dphase_neg = false;
         for (const auto &par_name : results.parNameList())
         {
             if (par_name.find("dphase") != std::string::npos)
             {
                 is_dphase_present = true;
-                break;
+            }
+            if (par_name.find("dphase_p") != std::string::npos)
+            {
+                is_dphase_pos = true;
+            }
+            if (par_name.find("dphase_m") != std::string::npos)
+            {
+                is_dphase_neg = true;
             }
         }
 
@@ -258,14 +274,12 @@ int main(int argc, char *argv[])
         {
             std::string phase1 = it->second.first;
             std::string phase2 = it->second.second;
-            
+
             // if dphase parameter is used, need to specially handle it
-            if (is_dphase_present && 
-                (phase1.find("D") != std::string::npos 
-                || phase2.find("D") != std::string::npos)
-            )
+            if (is_dphase_present &&
+                (phase1.find("D") != std::string::npos || phase2.find("D") != std::string::npos))
             {
-                auto phase_diff = corrected_dphase(phase1, phase2, results);
+                auto phase_diff = corrected_dphase(phase1, phase2, results, is_dphase_pos, is_dphase_neg);
                 csv_data << phase_diff.first << ","; // value
                 csv_data << phase_diff.second;       // error
             }
@@ -293,7 +307,7 @@ int main(int argc, char *argv[])
     if (extract_data)
     {
         std::cout << "\nExtracting bin information...\n";
-        
+
         // Construct output filename for bin info (replace fits.csv with data.csv)
         std::string bin_info_csv = csv_name;
         size_t pos = bin_info_csv.rfind("fits.csv");
@@ -314,13 +328,13 @@ int main(int argc, char *argv[])
                 bin_info_csv += "_data.csv";
             }
         }
-        
+
         // Construct command to call extract_bin_info
         std::string command = "extract_bin_info " + file_path + " " + bin_info_csv + " " + mass_branch;
-        
+
         std::cout << "Running command: " << command << "\n";
         int result = std::system(command.c_str());
-        
+
         if (result != 0)
         {
             std::cerr << "Warning: extract_bin_info returned non-zero exit code: " << result << "\n";
@@ -369,17 +383,20 @@ void fill_maps(
 
             // split the "eJPmL" part of the amplitude into its components
             std::string e, J, P, m, L;
-            try {
+            try
+            {
                 AmplitudeParser parser(amplitude);
                 e = parser.get_e_char();
                 J = parser.get_J_char();
                 P = parser.get_P_char();
                 m = parser.get_m_char();
                 L = parser.get_L_char();
-            } catch (const std::exception &e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cerr << "Error parsing amplitude '" << amplitude << "': " << e.what() << std::endl;
                 continue;
-            }            
+            }
             std::string eJPmL = e + J + P + m + L;
 
             // store the production coefficients
@@ -436,21 +453,49 @@ void fill_maps(
 
 /**
  * @brief Correct the phase difference between two amplitudes, when one is a D-wave
- * 
+ *
  * The function will automatically determine which amplitude is the D-wave,
  * and apply the appropriate correction to the phase difference.
- * 
+ *
  * @param phase1_amplitude "full" amplitude name of the first amplitude
  * @param phase2_amplitude "full" amplitude name of the second amplitude
  * @param results the FitResults object containing the fit parameters
- * @return std::pair<double, double> The corrected phase difference and its error
- * @note This assumes the "dsratio" and "dphase" parameters are present, and dphase is in radians
+ * @param is_dphase_pos whether the dphase_p parameter is used
+ * @param is_dphase_neg whether the dphase_m parameter is used
+ * @return std::pair<double, double> The corrected phase difference and its error, or
+ *  the uncorrected phase difference if the appropriate dphase parameter is not used
+ * @note This assumes "dsratio" and "dphase" parameters are present, and dphase is in radians
  */
 std::pair<double, double> corrected_dphase(
-    std::string phase1_amplitude, 
-    std::string phase2_amplitude, 
-    FitResults &results)
+    std::string phase1_amplitude,
+    std::string phase2_amplitude,
+    FitResults &results,
+    bool is_dphase_pos,
+    bool is_dphase_neg)
 {
+    // -- ensure we're using the right dphase parameter based on reflectivity --
+    double ratio, dphase;
+    if ((is_dphase_pos && (phase1_amplitude[0] != 'p' || phase2_amplitude[0] != 'p')) ||
+        (is_dphase_neg && (phase1_amplitude[0] != 'm' || phase2_amplitude[0] != 'm')))
+    {
+        return results.phaseDiff(phase1_amplitude, phase2_amplitude);
+    }
+    else if (is_dphase_pos && (phase1_amplitude[0] == 'p' || phase2_amplitude[0] == 'p'))
+    {
+        ratio = results.parValue("dsratio_p");
+        dphase = results.parValue("dphase_p");
+    }
+    else if (is_dphase_neg && (phase1_amplitude[0] == 'm' || phase2_amplitude[0] == 'm'))
+    {
+        ratio = results.parValue("dsratio_m");
+        dphase = results.parValue("dphase_m");
+    }
+    else
+    {
+        ratio = results.parValue("dsratio");
+        dphase = results.parValue("dphase");
+    }
+
     // --- determine which amplitude is the D-wave ---
     AmplitudeParser parser1(phase1_amplitude);
     AmplitudeParser parser2(phase2_amplitude);
@@ -458,34 +503,34 @@ std::pair<double, double> corrected_dphase(
     std::string other_amp;
     bool is_d_amp_first;
 
-    if (parser1.get_L_char() == 'D' && parser2.get_L_char() == 'D') 
+    if (parser1.get_L_char() == 'D' && parser2.get_L_char() == 'D')
     {
         // by definition this difference is zero since dphase is common to all D waves
-        return std::make_pair(0.0, 0.0); 
+        return std::make_pair(0.0, 0.0);
     }
-    else if (parser1.get_L_char() == 'D') 
+    else if (parser1.get_L_char() == 'D')
     {
         d_amp = phase1_amplitude;
         other_amp = phase2_amplitude;
         is_d_amp_first = true;
-    } 
-    else if (parser2.get_L_char() == 'D') {
+    }
+    else if (parser2.get_L_char() == 'D')
+    {
         d_amp = phase2_amplitude;
         other_amp = phase1_amplitude;
         is_d_amp_first = false;
-    } 
-    else {
+    }
+    else
+    {
         throw std::invalid_argument("Neither amplitude is a D-wave");
     }
 
     // --- get production coefficients ---
     complex<double> other_prod_coeff = results.productionParameter(other_amp);
     complex<double> d_prod_coeff = results.productionParameter(d_amp);
-    
+
     // the d-wave needs to be modified by the "extra" complex parameter we gave it
-    double ratio = results.parValue("dsratio");
-    double dphase = results.parValue("dphase");
-    complex<double> extra_param = std::polar(ratio , dphase);
+    complex<double> extra_param = std::polar(ratio, dphase);
 
     d_prod_coeff *= extra_param;
 
