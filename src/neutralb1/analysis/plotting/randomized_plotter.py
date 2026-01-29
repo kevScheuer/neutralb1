@@ -23,6 +23,8 @@ class RandomizedPlotter(BasePWAPlotter):
         likelihood_threshold: float = np.inf,
         use_truth_residual: bool = True,
         figsize: tuple = (16, 12),
+        ignore_failed_fits: bool = True,
+        ignore_bad_matrix: bool = True,
     ) -> matplotlib.figure.Figure:
         """Create a 2x2 summary plot of the randomized fit results
 
@@ -48,6 +50,8 @@ class RandomizedPlotter(BasePWAPlotter):
                 truth values are not available, residuals are calculated relative
                 to the best fit values.
             figsize (tuple, optional): Size of the entire figure. Defaults to (16, 12).
+            ignore_failed_fits (bool, optional): Dont plot points from fits that did
+                not converge (lastMinuitCommandStatus != 0). Defaults to True.
 
         Returns:
             plt.Figure: The figure object containing all four subplots.
@@ -55,7 +59,12 @@ class RandomizedPlotter(BasePWAPlotter):
         assert self.randomized_df is not None, "randomized_df must be provided"
 
         data = self._prepare_randomized_data(
-            fit_index, columns, likelihood_threshold, use_truth_residual
+            fit_index,
+            columns,
+            likelihood_threshold,
+            use_truth_residual,
+            ignore_failed_fits,
+            ignore_bad_matrix,
         )
 
         # Create 2x2 subplot figure
@@ -193,6 +202,8 @@ class RandomizedPlotter(BasePWAPlotter):
         columns: list[str],
         likelihood_threshold: float,
         use_truth_residual: bool,
+        ignore_failed_fits: bool,
+        ignore_bad_matrix: bool = True,
     ) -> dict:
         """Prepare and extract relevant data for a given fit index and set of columns"""
 
@@ -232,17 +243,21 @@ class RandomizedPlotter(BasePWAPlotter):
             [ll - best_series["likelihood"] for ll in rand_df["likelihood"]]
         )
 
-        # filter based on likelihood threshold
-        likelihood_mask = delta_lnL <= likelihood_threshold
-        delta_lnL = delta_lnL[likelihood_mask]
-        rand_df = rand_df.iloc[likelihood_mask]
+        # filter based on likelihood threshold, and ignoring failed fits / error
+        # matrices if requested
+        mask = delta_lnL <= likelihood_threshold
+        if ignore_failed_fits:
+            mask &= rand_df["lastMinuitCommandStatus"] == 0
+        if ignore_bad_matrix:
+            mask &= rand_df["eMatrixStatus"] == 3
 
+        # now limit the dataframes to just the columns we'll be using
         pwa_error_columns = [f"{col}_err" for col in pwa_columns]
         pwa_columns += pwa_error_columns
 
-        # now limit the dataframes to just the columns we'll be using
+        delta_lnL = delta_lnL[mask]
+        rand_df = rand_df[mask][pwa_columns]
         best_series = best_series[pwa_columns]
-        rand_df = rand_df[pwa_columns]
 
         # check if the other dataframes exist, and do the same selection
         if self.bootstrap_df is not None:
@@ -254,22 +269,23 @@ class RandomizedPlotter(BasePWAPlotter):
 
         if self.proj_moments_df is not None:
             proj_moments_series = self._assert_series(
-                self.proj_moments_df.loc[self.proj_moments_df["fit_index"] == fit_index]
+                self.proj_moments_df.loc[
+                    (self.proj_moments_df["fit_index"] == fit_index)
+                ]
             )[moment_columns]
         else:
             proj_moments_series = None
 
         if self.randomized_proj_moments_df is not None:
             rand_proj_moments_df = self.randomized_proj_moments_df.loc[
-                self.randomized_proj_moments_df["fit_index"] == fit_index
-            ][moment_columns]
-            rand_proj_moments_df = rand_proj_moments_df.iloc[likelihood_mask]
+                (self.randomized_proj_moments_df["fit_index"] == fit_index)
+            ][mask][moment_columns]
         else:
             rand_proj_moments_df = None
 
         if self.bootstrap_proj_moments_df is not None:
             bootstrap_proj_moments_df = self.bootstrap_proj_moments_df.loc[
-                self.bootstrap_proj_moments_df["fit_index"] == fit_index
+                (self.bootstrap_proj_moments_df["fit_index"] == fit_index)
             ][moment_columns]
         else:
             bootstrap_proj_moments_df = None
@@ -456,11 +472,15 @@ class RandomizedPlotter(BasePWAPlotter):
 
         # Customize the plot
         ax.set_xticks(range(len(columns)))
+
+        # map fontsize of labels to number of columns
+        fontsize = int(np.interp(len(columns), [1, 60], [16, 2]))
         ax.set_xticklabels(
             [self._get_pretty_label(col) for col in columns],
             rotation=45,
             ha="right",
             rotation_mode="anchor",
+            fontsize=fontsize,
         )
         ax.set_ylabel(
             rf"Weighted Residuals $(x_\text{{rand}} - x_\text{{{reference}}})"
