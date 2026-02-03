@@ -20,6 +20,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         figsize: tuple = (10, 8),
         exclude_waves=None,
         axs: Optional[np.ndarray] = None,
+        force_free_plotting: bool = False,
     ) -> matplotlib.axes.Axes | np.ndarray:
         """Plot the ratio and phase between D and S waves.
 
@@ -39,6 +40,10 @@ class DiagnosticPlotter(BasePWAPlotter):
             axs (np.ndarray, optional): Array of matplotlib.axes.Axes objects to plot
                 on. If None, new figure and axes will be created. For dsratio plots,
                 expects array of 3 axes [ax_ratio, ax_phase, ax_corr]. Defaults to None.
+            force_free_plotting: the plotter automatically detects if dsratio/phase
+                parameters are set and uses those to plot, but setting this to true will
+                skip this and plot the ratio and phase of the wave independently.
+                Defaults to False.
 
         Returns:
             matplotlib.axes.Axes | np.ndarray: Single axes object or array of axes
@@ -65,8 +70,13 @@ class DiagnosticPlotter(BasePWAPlotter):
         e852_ratio = 0.27
         e852_phase = 10.54
 
-        # Two different plotting modes based on available data
-        if "dsratio" in self.fit_df.columns:
+        # Two different plotting modes based on whether the ds ratio parameter is
+        # defined or not
+        dsratio_options = ["dsratio", "dsratio_p", "dsratio_m"]
+        if (
+            not set(dsratio_options).isdisjoint(self.fit_df.columns)
+            and not force_free_plotting
+        ):
             return self._plot_ds_ratio_with_correlation(
                 show_e852_reference, e852_ratio, e852_phase, figsize, axs
             )
@@ -106,7 +116,7 @@ class DiagnosticPlotter(BasePWAPlotter):
         assert axs is not None
         ax_ratio, ax_phase, ax_corr = axs
 
-        # Plot ratio
+        # Plot ratio and phase of e852 values
         if show_e852_reference:
             ax_ratio.axhline(
                 y=e852_ratio,
@@ -115,26 +125,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 alpha=0.7,
                 label=f"E852 ratio ({e852_ratio})",
             )
-
-        yerr = (
-            self.get_bootstrap_error("dsratio")
-            if self.bootstrap_df is not None
-            else self.fit_df["dsratio_err"]
-        )
-
-        ax_ratio.errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df["dsratio"],
-            yerr=yerr,
-            color="black",
-            linestyle="",
-            marker=".",
-            capsize=2,
-        )
-
-        # Plot phase
-        if show_e852_reference:
             ax_phase.axhline(
                 y=e852_phase,
                 color="black",
@@ -144,68 +134,35 @@ class DiagnosticPlotter(BasePWAPlotter):
             )
             ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
 
-        yerr = (
-            self.get_bootstrap_error("dphase")
-            if self.bootstrap_df is not None
-            else self.fit_df["dphase_err"].abs()
-        )
-        ax_phase.errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=self.fit_df["dphase"],
-            yerr=yerr,
-            color="black",
-            linestyle="",
-            marker=".",
-            capsize=2,
-        )
-        ax_phase.errorbar(
-            x=self._masses,
-            xerr=self._bin_width / 2,
-            y=-self.fit_df["dphase"],
-            yerr=yerr,
-            color="black",
-            linestyle="",
-            marker=".",
-            capsize=2,
-        )
-
-        # Plot correlation
-        if "cov_dsratio_dphase" in self.fit_df.columns:
-            color = "tab:blue" if self.bootstrap_df is not None else "black"
-            correlation = (
-                self.fit_df["cov_dsratio_dphase"]
-                / (self.fit_df["dsratio_err"] * self.fit_df["dphase_err"])
-            ).fillna(0)
-
-            ax_corr.plot(
-                self._masses,
-                correlation,
-                color=color,
-                linestyle="",
-                marker=".",
-                markersize=4,
-                label="MINUIT Correlation",
+        if "dsratio" in self.fit_df.columns:
+            self._plot_ratio_from_parameter(
+                "dsratio",
+                "dphase",
+                "black",
+                show_e852_reference,
+                ax_ratio,
+                ax_phase,
+                ax_corr,
             )
-
-        if self.bootstrap_df is not None:
-            color = (
-                "tab:orange" if "cov_dsratio_dphase" in self.fit_df.columns else "black"
+        if "dsratio_p" in self.fit_df.columns:
+            self._plot_ratio_from_parameter(
+                "dsratio_p",
+                "dphase_p",
+                "tab:red",
+                show_e852_reference,
+                ax_ratio,
+                ax_phase,
+                ax_corr,
             )
-            bootstrap_correlation = (
-                self.bootstrap_df.drop("file", axis=1)
-                .groupby("fit_index")
-                .corr()
-                .unstack()[("dsratio", "dphase")]
-            )
-            ax_corr.plot(
-                self._masses,
-                bootstrap_correlation,
-                color=color,
-                linestyle="",
-                marker=".",
-                markersize=8,
-                label="Bootstrap Correlation",
+        if "dsratio_m" in self.fit_df.columns:
+            self._plot_ratio_from_parameter(
+                "dsratio_m",
+                "dphase_m",
+                "tab:blue",
+                show_e852_reference,
+                ax_ratio,
+                ax_phase,
+                ax_corr,
             )
 
         # Configure axes
@@ -225,6 +182,77 @@ class DiagnosticPlotter(BasePWAPlotter):
         ax_corr.legend()
 
         return axs
+
+    def _plot_ratio_from_parameter(
+        self,
+        ratio_parameter: str,
+        phase_parameter: str,
+        color: str,
+        show_e852_reference: bool,
+        ax_ratio: matplotlib.axes.Axes,
+        ax_phase: matplotlib.axes.Axes,
+        ax_corr: matplotlib.axes.Axes,
+    ):
+        yerr = (
+            self.get_bootstrap_error(ratio_parameter)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{ratio_parameter}_err"]
+        )
+
+        ax_ratio.errorbar(
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=self.fit_df[ratio_parameter],
+            yerr=yerr,
+            color=color,
+            linestyle="",
+            marker=".",
+            capsize=2,
+        )
+
+        yerr = (
+            self.get_bootstrap_error(phase_parameter)
+            if self.bootstrap_df is not None
+            else self.fit_df[f"{phase_parameter}_err"].abs()
+        )
+        ax_phase.errorbar(
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=self.fit_df[phase_parameter],
+            yerr=yerr,
+            color=color,
+            linestyle="",
+            marker=".",
+            capsize=2,
+        )
+        ax_phase.errorbar(
+            x=self._masses,
+            xerr=self._bin_width / 2,
+            y=-self.fit_df[phase_parameter],
+            yerr=yerr,
+            color=color,
+            linestyle="",
+            marker=".",
+            capsize=2,
+        )
+
+        # Plot correlation
+        if self.bootstrap_df is not None:
+            bootstrap_correlation = (
+                self.bootstrap_df.drop("file", axis=1)
+                .groupby("fit_index")
+                .corr()
+                .unstack()[(ratio_parameter, phase_parameter)]
+            )
+            ax_corr.plot(
+                self._masses,
+                bootstrap_correlation,
+                color=color,
+                linestyle="",
+                marker=".",
+                markersize=8,
+                label="Bootstrap Correlation",
+            )
 
     def _plot_ds_ratio_from_amplitudes(
         self,
