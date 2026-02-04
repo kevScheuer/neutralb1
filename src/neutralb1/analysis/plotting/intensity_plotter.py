@@ -410,6 +410,7 @@ class IntensityPlotter(BasePWAPlotter):
         Todo:
             - add kwargs that are applied to each plot
                 (see phase_plotter) for implementation example
+            - allow for axes to be passed
         """
 
         assert self.proj_moments_df is not None, "No projected moments data available."
