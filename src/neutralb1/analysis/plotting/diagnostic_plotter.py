@@ -140,7 +140,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 color="black",
                 linestyle="-",
                 alpha=1.0,
-                label=f"E852 phase (±{e852_phase}°)",
+                label=f"E852 phase ({e852_phase}°)",
             )
             ax_phase.plot(
                 e852_mass_range,
@@ -303,10 +303,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         assert axs is not None
         ax_ratio, ax_phase, ax_corr = axs
 
-        # Collect handles and labels for unified legend
-        legend_handles = []
-        legend_labels = []
-
         # Plot E852 reference lines
         if show_e852_reference:
             e852_mass_range = [1.155, 1.315]
@@ -315,12 +311,13 @@ class DiagnosticPlotter(BasePWAPlotter):
             e852_phase = 10.54
             e852_phase_uncertainty = 6.417
 
-            h1 = ax_ratio.plot(
+            ax_ratio.plot(
                 e852_mass_range,
                 [e852_ratio, e852_ratio],
                 color="black",
                 linestyle="-",
                 alpha=1.0,
+                label=f"E852 ratio ({e852_ratio})",
             )
             ax_ratio.fill_between(
                 e852_mass_range,
@@ -330,12 +327,13 @@ class DiagnosticPlotter(BasePWAPlotter):
                 alpha=0.3,
             )
 
-            h2 = ax_phase.plot(
+            ax_phase.plot(
                 e852_mass_range,
                 [e852_phase, e852_phase],
                 color="black",
                 linestyle="-",
                 alpha=1.0,
+                label=f"E852 phase ({e852_phase}°)",
             )
             ax_phase.plot(
                 e852_mass_range,
@@ -350,11 +348,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 e852_phase + e852_phase_uncertainty,
                 color="gray",
                 alpha=0.3,
-            )
-
-            legend_handles.extend([h1, h2])
-            legend_labels.extend(
-                [f"E852 ratio ({e852_ratio})", f"E852 phase (±{e852_phase}°)"]
             )
 
         # Process each D wave and find corresponding S wave
@@ -390,11 +383,8 @@ class DiagnosticPlotter(BasePWAPlotter):
                 else self.fit_df[f"{phase_dif_name}_err"].abs()
             )
 
-            # Create label
-            label = utils.convert_amp_name(d_wave).replace("D", "(D/S)")
-
             # Plot ratio vs mass
-            h1 = ax_ratio.errorbar(
+            ax_ratio.errorbar(
                 x=self._masses,
                 xerr=self._bin_width / 2,
                 y=ratio,
@@ -404,6 +394,7 @@ class DiagnosticPlotter(BasePWAPlotter):
                 linestyle="",
                 markersize=6,
                 capsize=2,
+                label=utils.convert_amp_name(d_wave).replace("D", "(D/S)"),
             )
 
             # Plot phase vs mass
@@ -463,18 +454,17 @@ class DiagnosticPlotter(BasePWAPlotter):
                         alpha=0.8,
                     )
 
-            legend_handles.append(h1)
-            legend_labels.append(label)
-
             linestyle_idx += 1
 
         # Configure axes
         ax_ratio.set_ylabel("D/S Ratio", loc="top")
         ax_ratio.set_yscale("log")
+        ax_ratio.legend(fontsize=12)
 
         ax_phase.set_ylabel("D-S Phase (°)", loc="top")
         ax_phase.set_yticks(np.linspace(-180, 180, 5))
         ax_phase.set_ylim(-180, 180)
+        ax_phase.legend(fontsize=12)
 
         # Configure correlation plot
         ax_corr.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
@@ -520,22 +510,12 @@ class DiagnosticPlotter(BasePWAPlotter):
             # Add text indicating bootstrap data not available
             ax_corr.text(
                 0.5,
-                0.5,
+                0.6,
                 "Bootstrap data not available",
                 ha="center",
                 va="center",
                 transform=ax_corr.transAxes,
                 fontsize=12,
-            )
-
-        # Add unified legend on the right side of the figure
-        if legend_handles:
-            fig.legend(
-                handles=legend_handles,
-                labels=legend_labels,
-                loc="center left",
-                bbox_to_anchor=(1.0, 0.5),
-                fontsize=10,
             )
 
         return axs
