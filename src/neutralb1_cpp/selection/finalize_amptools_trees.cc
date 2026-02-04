@@ -335,8 +335,10 @@ std::pair<TString, TString> load_final_cuts(
     FSCut::defineCut("z", "ProdVz>=51.2&&ProdVz<=78.8");
     // rf sideband subtraction
     FSCut::defineCut("rf", "abs(RFDeltaT)<2.0", "abs(RFDeltaT)>2.0", 0.125);
+    FSCut::defineCut("MM2", "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.05"); // remove events with large missing mass2 
     single_vec.push_back("t");
     single_vec.push_back("z");
+    single_vec.push_back("MM2");
     sideband_vec.push_back("rf");
 
     // ==== systematic cuts ====
@@ -348,7 +350,6 @@ std::pair<TString, TString> load_final_cuts(
     {     
         FSCut::defineCut("unusedE", "EnUnusedSh<0.1"); // energy of unmatched showers in time with combo but not part of the combo
         FSCut::defineCut("unusedTracks", "NumUnusedTracks<1"); // number charged particle tracks not used in combo
-        FSCut::defineCut("MM2", "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.05"); // remove events with large missing mass2
         FSCut::defineCut("chi2", "Chi2DOF<5");  // kinematic fit quality cut
         FSCut::defineCut( // classifier probability that showers are from neutral particles
             "shQuality", 
@@ -364,7 +365,6 @@ std::pair<TString, TString> load_final_cuts(
     {
         FSCut::defineCut("unusedE", "EnUnusedSh<0.5"); // energy of unmatched showers in time with combo but not part of the combo
         FSCut::defineCut("unusedTracks", "NumUnusedTracks<4"); // number charged particle tracks not used in combo
-        FSCut::defineCut("MM2", "abs(RMASS2(GLUEXTARGET,B,-1,-2,-3,-4,-5))<0.08"); // remove events with large missing mass2
         FSCut::defineCut("chi2", "Chi2DOF<10");  // kinematic fit quality cut
         FSCut::defineCut( // classifier probability that showers are from neutral particles
             "shQuality", 
@@ -378,7 +378,6 @@ std::pair<TString, TString> load_final_cuts(
     }
     single_vec.push_back("unusedE");
     single_vec.push_back("unusedTracks");
-    single_vec.push_back("MM2");
     single_vec.push_back("chi2");
     single_vec.push_back("shQuality");
     single_vec.push_back(TString::Format("pzPi0_perm%d", perm_id));
