@@ -66,10 +66,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 "D/S ratio analysis requires both wave types."
             )
 
-        # E852 reference values
-        e852_ratio = 0.27
-        e852_phase = 10.54
-
         # Two different plotting modes based on whether the ds ratio parameter is
         # defined or not
         dsratio_options = ["dsratio", "dsratio_p", "dsratio_m"]
@@ -78,7 +74,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             and not force_free_plotting
         ):
             return self._plot_ds_ratio_with_correlation(
-                show_e852_reference, e852_ratio, e852_phase, figsize, axs
+                show_e852_reference, figsize, axs
             )
         else:
             if exclude_waves is None:
@@ -87,8 +83,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 d_waves,
                 s_waves,
                 show_e852_reference,
-                e852_ratio,
-                e852_phase,
                 figsize,
                 exclude_waves,
                 axs,
@@ -97,8 +91,6 @@ class DiagnosticPlotter(BasePWAPlotter):
     def _plot_ds_ratio_with_correlation(
         self,
         show_e852_reference: bool,
-        e852_ratio: float,
-        e852_phase: float,
         figsize: tuple,
         axs: Optional[np.ndarray] = None,
     ) -> np.ndarray:
@@ -118,28 +110,58 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Plot ratio and phase of e852 values
         if show_e852_reference:
-            ax_ratio.axhline(
-                y=e852_ratio,
+            # E852 mass range and uncertainty
+            e852_mass_range = [1.155, 1.315]
+            e852_ratio = 0.269
+            e852_ratio_uncertainty = 0.019
+            e852_phase = 10.54
+            e852_phase_uncertainty = 6.417
+
+            # Plot E852 ratio as limited line with uncertainty box
+            ax_ratio.plot(
+                e852_mass_range,
+                [e852_ratio, e852_ratio],
                 color="black",
                 linestyle="-",
-                alpha=0.7,
+                alpha=1.0,
                 label=f"E852 ratio ({e852_ratio})",
             )
-            ax_phase.axhline(
-                y=e852_phase,
+            ax_ratio.fill_between(
+                e852_mass_range,
+                e852_ratio - e852_ratio_uncertainty,
+                e852_ratio + e852_ratio_uncertainty,
+                color="gray",
+                alpha=0.3,
+            )
+
+            ax_phase.plot(
+                e852_mass_range,
+                [e852_phase, e852_phase],
                 color="black",
-                linestyle="--",
-                alpha=0.7,
+                linestyle="-",
+                alpha=1.0,
                 label=f"E852 phase (±{e852_phase}°)",
             )
-            ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
+            ax_phase.plot(
+                e852_mass_range,
+                [-e852_phase, -e852_phase],
+                color="black",
+                linestyle="-",
+                alpha=1.0,
+            )
+            ax_phase.fill_between(
+                e852_mass_range,
+                e852_phase - e852_phase_uncertainty,
+                e852_phase + e852_phase_uncertainty,
+                color="gray",
+                alpha=0.3,
+            )
 
         if "dsratio" in self.fit_df.columns:
             self._plot_ratio_from_parameter(
                 "dsratio",
                 "dphase",
                 "black",
-                show_e852_reference,
                 ax_ratio,
                 ax_phase,
                 ax_corr,
@@ -149,7 +171,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 "dsratio_p",
                 "dphase_p",
                 "tab:red",
-                show_e852_reference,
                 ax_ratio,
                 ax_phase,
                 ax_corr,
@@ -159,7 +180,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 "dsratio_m",
                 "dphase_m",
                 "tab:blue",
-                show_e852_reference,
                 ax_ratio,
                 ax_phase,
                 ax_corr,
@@ -188,7 +208,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         ratio_parameter: str,
         phase_parameter: str,
         color: str,
-        show_e852_reference: bool,
         ax_ratio: matplotlib.axes.Axes,
         ax_phase: matplotlib.axes.Axes,
         ax_corr: matplotlib.axes.Axes,
@@ -259,8 +278,6 @@ class DiagnosticPlotter(BasePWAPlotter):
         d_waves: list,
         s_waves: list,
         show_e852_reference: bool,
-        e852_ratio: float,
-        e852_phase: float,
         figsize: tuple,
         exclude_waves: list,
         axs: Optional[np.ndarray] = None,
@@ -292,19 +309,49 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Plot E852 reference lines
         if show_e852_reference:
-            h1 = ax_ratio.axhline(
-                y=e852_ratio,
+            e852_mass_range = [1.155, 1.315]
+            e852_ratio = 0.269
+            e852_ratio_uncertainty = 0.019
+            e852_phase = 10.54
+            e852_phase_uncertainty = 6.417
+
+            h1 = ax_ratio.plot(
+                e852_mass_range,
+                [e852_ratio, e852_ratio],
                 color="black",
                 linestyle="-",
-                alpha=0.7,
+                alpha=1.0,
             )
-            h2 = ax_phase.axhline(
-                y=e852_phase,
+            ax_ratio.fill_between(
+                e852_mass_range,
+                e852_ratio - e852_ratio_uncertainty,
+                e852_ratio + e852_ratio_uncertainty,
+                color="gray",
+                alpha=0.3,
+            )
+
+            h2 = ax_phase.plot(
+                e852_mass_range,
+                [e852_phase, e852_phase],
                 color="black",
                 linestyle="-",
-                alpha=0.7,
+                alpha=1.0,
             )
-            ax_phase.axhline(y=-e852_phase, color="black", linestyle="--", alpha=0.7)
+            ax_phase.plot(
+                e852_mass_range,
+                [-e852_phase, -e852_phase],
+                color="black",
+                linestyle="-",
+                alpha=1.0,
+            )
+            ax_phase.fill_between(
+                e852_mass_range,
+                e852_phase - e852_phase_uncertainty,
+                e852_phase + e852_phase_uncertainty,
+                color="gray",
+                alpha=0.3,
+            )
+
             legend_handles.extend([h1, h2])
             legend_labels.extend(
                 [f"E852 ratio ({e852_ratio})", f"E852 phase (±{e852_phase}°)"]
