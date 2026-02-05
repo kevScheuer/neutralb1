@@ -823,3 +823,41 @@ def _filter_production_coefficients(var1: str, var2: str) -> bool:
         return False
 
     return True
+
+
+def likelihood_ratio_test(
+    simple_model_likelihoods: list[float],
+    simple_model_free_params: int,
+    complex_model_likelihoods: list[float],
+    complex_model_free_params: int
+) -> list[float]:
+    """Perform likelihood ratio test between two models.
+
+    Likelihoods (L) here are already assumed to be -2ln(L).
+
+    Args:
+        simple_model_likelihoods (list[float]): List of likelihoods for the simpler 
+            model, or model with less free parameters. We require that this model is 
+            a subset of the complex model, i.e. is the same model with only some 
+            free parameters removed.
+        simple_model_free_params (int): number of free parameters, or degrees of 
+            freedom, for the simple model.
+        complex_model_likelihoods (list[float]): List of likelihoods for the complex
+            model, or model with more free parameters.
+        complex_model_free_params (int):  number of free parameters, or degrees of 
+            freedom, for the complex model
+        
+    Returns:
+        p_values (list[float]): p values of lrt test. For an alpha=0.05, p-values 
+            greater than alpha indicates we fail to reject the null hypothesis and our
+            complex model does not fit the data significantly more than the simpler 
+            model.
+    """
+
+    p_values = []
+
+    ratio = np.array(simple_model_likelihoods) - np.array(complex_model_likelihoods)
+    delta_dof = complex_model_free_params - simple_model_free_params
+    p_values = 1 - scipy.stats.chi2.cdf(ratio, df=delta_dof)
+
+    return list(p_values)

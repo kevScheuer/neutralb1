@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import neutralb1.analysis.statistics as stats
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
+from neutralb1.analysis.result import ResultManager
 
 
 class DiagnosticPlotter(BasePWAPlotter):
@@ -187,7 +189,6 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         # Configure axes
         ax_ratio.set_ylabel("D/S Ratio", loc="top")
-        ax_ratio.set_ylim(0, 1)
         ax_ratio.legend()
 
         ax_phase.set_ylabel("D-S Phase (°)", loc="top")
@@ -963,6 +964,77 @@ class DiagnosticPlotter(BasePWAPlotter):
                 color="blue",
                 alpha=0.8,
             )
+
+    def lrt_pvalues(
+        self,
+        alternative_result: ResultManager,
+        free_parameters: int,
+        alternative_free_parameters: int,
+        alpha: float = 0.05,
+        ax: Optional[matplotlib.axes.Axes] = None,
+        **kwargs,
+    ) -> matplotlib.axes.Axes:
+        """p-values of likelihood ratio test between this result and alternative result
+
+        Args:
+            alternative_result (ResultManager): alternative fit result, assuming it
+                shares the same base model and only differs according to the number
+                of free parameters
+            free_parameters (int): these are typically the number of free production
+                coefficients in the AmpTools fit
+            alternative_free_parameters (int): free parameters for alternative model
+            alpha (float, optional): Signifigance level plotted as a horizontal red
+                line. Defaults to 0.05.
+            ax (Optional[matplotlib.axes.Axes], optional): axes object to plot on.
+                Defaults to None.
+
+        Returns:
+            matplotlib.axes.Axes: axes object with the plotted p-values
+        """
+
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        simple_model_likelihoods = []
+        complex_model_likelihoods = []
+
+        # determine which result is simple (less free params) or complex
+        if alternative_free_parameters > free_parameters:
+            simple_model_likelihoods = list(self.fit_df["likelihood"])
+            simple_model_free_params = free_parameters
+            complex_model_likelihoods = list(alternative_result.fit_df["likelihood"])
+            complex_model_free_params = alternative_free_parameters
+        else:
+            simple_model_likelihoods = list(alternative_result.fit_df["likelihood"])
+            simple_model_free_params = alternative_free_parameters
+            complex_model_likelihoods = list(self.fit_df["likelihood"])
+            complex_model_free_params = free_parameters
+
+        p_values = stats.likelihood_ratio_test(
+            simple_model_likelihoods,
+            simple_model_free_params,
+            complex_model_likelihoods,
+            complex_model_free_params,
+        )
+
+        ax.axhline(0.05, color="red", linestyle="--", label="p=0.05")
+
+        base_kwargs = {
+            "marker": ".",
+            "linestyle": "",
+            "color": "black",
+            "alpha": 1.0,
+            "label": f"LRT p-values",
+        }
+        if kwargs:
+            base_kwargs.update(kwargs)
+
+        ax.plot(self._masses, p_values, **base_kwargs)
+        ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
+        ax.set_ylabel("p-value", loc="top")
+        ax.legend()
+
+        return ax
 
     def compare_results(
         self, fit1: pd.Series, fit2: pd.Series, columns: list, figsize=(15, 6)
