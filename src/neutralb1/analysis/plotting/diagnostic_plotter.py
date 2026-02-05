@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import matplotlib.axes
 import matplotlib.container
@@ -10,7 +12,9 @@ import pandas as pd
 import neutralb1.analysis.statistics as stats
 import neutralb1.utils as utils
 from neutralb1.analysis.plotting.base_plotter import BasePWAPlotter
-from neutralb1.analysis.result import ResultManager
+
+if TYPE_CHECKING:
+    from neutralb1.analysis.result import ResultManager
 
 
 class DiagnosticPlotter(BasePWAPlotter):
