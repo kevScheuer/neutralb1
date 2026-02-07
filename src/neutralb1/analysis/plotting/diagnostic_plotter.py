@@ -60,6 +60,9 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         Note:
             E852 reference values: D/S ratio = 0.27, D-S phase = ±10.54°
+
+        Todo:
+            - remove figsize and make figure common across both plotting methods
         """
 
         # Check if we have D and S waves
