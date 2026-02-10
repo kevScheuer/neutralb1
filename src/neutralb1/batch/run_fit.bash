@@ -225,8 +225,7 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
 
     # replace data reader with bootstrap version for just the "data" file    
     sed -i -e '/data/s/FSRootDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit.cfg
-    # sed -i -e '/data/s/FSRootDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit_moment.cfg
-    # TODO: do we want to bootstrap background as well?
+    # sed -i -e '/data/s/FSRootDataReader \([^ ]\+\) \([^ ]\+\) \([^ ]\+\)/FSRootDataReaderBootstrap \1 \2 \3 0/' bootstrap_fit_moment.cfg    
 
     all_amplitude_bootstrap_start_time=$(date +%s)
     # perform requested number N of bootstrap fits, using seeds 1,2,..N
@@ -272,6 +271,13 @@ if [ $my_num_bootstrap_fits -ne 0 ]; then
     mv -f "$my_reaction"_.ni bootstrap/
     mv -f bootstrap_fit.cfg bootstrap/
     # mv -f bootstrap_fit_moment.cfg bootstrap/
+
+    # Quit job if fit failed
+    if ! ls bootstrap/"$my_reaction"_*.fit 1> /dev/null 2>&1; then
+        echo -e "\n\nError: All Bootstrap fits failed, no .fit files found in bootstrap subdirectory. Exiting."
+        exit 1
+    fi
+
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap.csv --no-data --verbose
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_acceptance_corrected.csv -a --no-data --verbose
     uv run convert_to_csv -i $(ls bootstrap/"$my_reaction"_*.fit | grep -v '_moment') -o $(pwd)/bootstrap/bootstrap_projected_moments.csv --moments --no-data --verbose
