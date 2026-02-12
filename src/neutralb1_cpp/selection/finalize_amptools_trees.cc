@@ -77,8 +77,11 @@ void combine_permutations(TString NT, int period);
 void combine_total();
 
 // CONSTANTS
+// NOTE: This output directory is not really constant, it depends on whether the 
+// nominal or systematic cuts are being used, but since its only really ran once, we'll
+// just keep it simple here.
 const TString TREE_OUTPUT_DIR = "/lustre24/expphy/volatile/halld/home/kscheuer/"
-    "FSRoot-skimmed-trees/final-amptools-trees/";
+    "FSRoot-skimmed-trees/systematic-trees/";
 const double OMEGA_MASS = 0.7826; // PDG omega mass in GeV
 const double SIGNAL_HALF_WIDTH = 0.028; // half width of selected signal region in GeV
 const double SIDEBAND_GAP = SIGNAL_HALF_WIDTH*2; // how far from omega mass the sideband starts
@@ -368,12 +371,12 @@ std::pair<TString, TString> load_final_cuts(
         FSCut::defineCut("chi2", "Chi2DOF<10");  // kinematic fit quality cut
         FSCut::defineCut( // classifier probability that showers are from neutral particles
             "shQuality", 
-            "ShQualityP4a>0.3&&ShQualityP4b>0.3&&ShQualityP5a>0.3&&ShQualityP5b>0.3" 
+            "ShQualityP4a>0.0&&ShQualityP4b>0.0&&ShQualityP5a>0.0&&ShQualityP5b>0.0" 
         );
         FSCut::defineCut( // require bachelor pi0 moving forward in CM frame
             TString::Format("pzPi0_perm%d", perm_id),
             TString::Format(
-                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.3", PI0_BACHELOR   
+                "MOMENTUMZBOOST(%d;B,GLUEXTARGET)>-0.4", PI0_BACHELOR   
             )); 
     }
     single_vec.push_back("unusedE");
