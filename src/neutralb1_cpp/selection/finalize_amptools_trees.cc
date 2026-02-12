@@ -368,7 +368,7 @@ std::pair<TString, TString> load_final_cuts(
     {
         FSCut::defineCut("unusedE", "EnUnusedSh<0.5"); // energy of unmatched showers in time with combo but not part of the combo
         FSCut::defineCut("unusedTracks", "NumUnusedTracks<4"); // number charged particle tracks not used in combo
-        FSCut::defineCut("chi2", "Chi2DOF<10");  // kinematic fit quality cut
+        FSCut::defineCut("chi2", "Chi2DOF<8");  // kinematic fit quality cut
         FSCut::defineCut( // classifier probability that showers are from neutral particles
             "shQuality", 
             "ShQualityP4a>0.0&&ShQualityP4b>0.0&&ShQualityP5a>0.0&&ShQualityP5b>0.0" 
