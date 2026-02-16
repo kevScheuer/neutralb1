@@ -1043,6 +1043,134 @@ class DiagnosticPlotter(BasePWAPlotter):
 
         return ax
 
+    def convergence_rates(
+        self, ax: Optional[matplotlib.axes.Axes] = None, **kwargs
+    ) -> matplotlib.axes.Axes:
+        """Plot convergence rates as a function of mass.
+
+        Plots the percentage of successful, failed, and converged (but bad error
+        matrix) randomized fits for each mass bin. Requires randomized fit data
+        to be available.
+
+        Args:
+            ax (Optional[matplotlib.axes.Axes]): Axes object to plot on. If None,
+                a new figure and axes will be created. Defaults to None.
+            **kwargs: Keyword arguments to update plotting styles for each category.
+                Supported keys:
+                - "successful_kwargs": dict of kwargs for successful fits
+                - "failed_kwargs": dict of kwargs for failed fits
+                - "bad_matrix_kwargs": dict of kwargs for converged, bad error matrix
+
+        Returns:
+            matplotlib.axes.Axes: The axes object for further customization.
+
+        Raises:
+            AssertionError: If randomized_df is None.
+        """
+        assert (
+            self.randomized_df is not None
+        ), "randomized_df must be provided to plot convergence rates"
+
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        # Calculate convergence rates for each fit_index (mass bin)
+        success_rates = []
+        failed_rates = []
+        bad_matrix_rates = []
+
+        for fit_index in self.fit_df.index:
+            num_rand_fits = len(
+                self.randomized_df.loc[self.randomized_df["fit_index"] == fit_index]
+            )
+
+            if num_rand_fits == 0:
+                # Skip bins with no randomized fits
+                success_rates.append(np.nan)
+                failed_rates.append(np.nan)
+                bad_matrix_rates.append(np.nan)
+                continue
+
+            num_failed = len(
+                self.randomized_df.loc[
+                    (self.randomized_df["fit_index"] == fit_index)
+                    & (self.randomized_df["lastMinuitCommandStatus"] != 0)
+                ]
+            )
+            num_bad_matrix = len(
+                self.randomized_df.loc[
+                    (self.randomized_df["fit_index"] == fit_index)
+                    & (self.randomized_df["eMatrixStatus"] != 3)
+                    & (self.randomized_df["lastMinuitCommandStatus"] == 0)
+                ]
+            )
+            num_success = len(
+                self.randomized_df.loc[
+                    (self.randomized_df["fit_index"] == fit_index)
+                    & (self.randomized_df["lastMinuitCommandStatus"] == 0)
+                    & (self.randomized_df["eMatrixStatus"] == 3)
+                ]
+            )
+
+            # Convert to percentages
+            success_rates.append((num_success / num_rand_fits) * 100)
+            failed_rates.append((num_failed / num_rand_fits) * 100)
+            bad_matrix_rates.append((num_bad_matrix / num_rand_fits) * 100)
+
+        # Define default plotting styles for each category
+        successful_kwargs = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": success_rates,
+            "marker": ".",
+            "color": "tab:blue",
+            "linestyle": "",
+            "label": "Successful",
+        }
+
+        failed_kwargs = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": failed_rates,
+            "marker": "x",
+            "color": "tab:red",
+            "linestyle": "",
+            "label": "Failed",
+        }
+
+        bad_matrix_kwargs = {
+            "x": self._masses,
+            "xerr": self._bin_width / 2,
+            "y": bad_matrix_rates,
+            "marker": "s",
+            "color": "tab:orange",
+            "linestyle": "",
+            "label": "Converged, bad error matrix",
+        }
+
+        # Update with user-provided kwargs
+        if "successful_kwargs" in kwargs:
+            successful_kwargs.update(kwargs["successful_kwargs"])
+        if "failed_kwargs" in kwargs:
+            failed_kwargs.update(kwargs["failed_kwargs"])
+        if "bad_matrix_kwargs" in kwargs:
+            bad_matrix_kwargs.update(kwargs["bad_matrix_kwargs"])
+
+        # Plot the convergence rates
+        ax.errorbar(**successful_kwargs)
+        ax.errorbar(**failed_kwargs)
+        ax.errorbar(**bad_matrix_kwargs)
+
+        # Configure axes
+        ax.set_xlabel(rf"${self.channel}$ inv. mass (GeV)", loc="right")
+        ax.set_ylabel("Convergence Rate (%)", loc="top")
+        ax.set_ylim(0, 105)
+        ax.axhline(100, color="black", linestyle="--", linewidth=1.0, alpha=0.7)
+        ax.grid(True, alpha=0.8)
+        ax.legend()
+
+        return ax
+
     def compare_results(
         self, fit1: pd.Series, fit2: pd.Series, columns: list, figsize=(15, 6)
     ) -> matplotlib.axes.Axes:
