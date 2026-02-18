@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
@@ -829,28 +830,28 @@ def likelihood_ratio_test(
     simple_model_likelihoods: list[float],
     simple_model_free_params: int,
     complex_model_likelihoods: list[float],
-    complex_model_free_params: int
+    complex_model_free_params: int,
 ) -> list[float]:
     """Perform likelihood ratio test between two models.
 
     Likelihoods (L) here are already assumed to be -2ln(L).
 
     Args:
-        simple_model_likelihoods (list[float]): List of likelihoods for the simpler 
-            model, or model with less free parameters. We require that this model is 
-            a subset of the complex model, i.e. is the same model with only some 
+        simple_model_likelihoods (list[float]): List of likelihoods for the simpler
+            model, or model with less free parameters. We require that this model is
+            a subset of the complex model, i.e. is the same model with only some
             free parameters removed.
-        simple_model_free_params (int): number of free parameters, or degrees of 
+        simple_model_free_params (int): number of free parameters, or degrees of
             freedom, for the simple model.
         complex_model_likelihoods (list[float]): List of likelihoods for the complex
             model, or model with more free parameters.
-        complex_model_free_params (int):  number of free parameters, or degrees of 
+        complex_model_free_params (int):  number of free parameters, or degrees of
             freedom, for the complex model
-        
+
     Returns:
-        p_values (list[float]): p values of lrt test. For an alpha=0.05, p-values 
+        p_values (list[float]): p values of lrt test. For an alpha=0.05, p-values
             greater than alpha indicates we fail to reject the null hypothesis and our
-            complex model does not fit the data significantly more than the simpler 
+            complex model does not fit the data significantly more than the simpler
             model.
     """
 
@@ -861,3 +862,67 @@ def likelihood_ratio_test(
     p_values = 1 - scipy.stats.chi2.cdf(ratio, df=delta_dof)
 
     return list(p_values)
+
+
+def weighted_average(
+    values: list[float],
+    uncertainties: list[float],
+    suppress_warnings: bool = False,
+    large_chi2_cutoff=30,
+) -> tuple[float, float]:
+    """Calculate the weighted average and uncertainty of a set of values.
+
+    Uses the PDG formula for weighted average and uncertainty:
+    weighted_avg = sum(w_i * x_i) / sum(w_i)
+    weighted_uncertainty = sqrt(1 / sum(w_i))
+    where w_i = 1 / sigma_i^2 is the weight for each value based on its uncertainty.
+
+    Per the PDG, if the chisquared (sum(w_i * (x_i - weighted_avg)^2)) per degree of
+    freedom (N-1) is greater than 1, the returned uncertainty will be increased by a
+    scale factor S = sqrt(chisquared / (N-1)). If the chisquared per degree of freedom
+    is greater than the large_chi2_cutoff, no scale is applied, and a warning will be
+    issued that the returned average may not be reliable.
+
+    Args:
+        values (list[float]): The values to average.
+        uncertainties (list[float]): The uncertainties (sigma)associated with each
+            value.
+        suppress_warnings (bool): Whether to suppress warnings about high chi-squared
+            per degree of freedom. Defaults to False.
+        large_chi2_cutoff (float): The cutoff for chi-squared per degree of freedom
+            above which no scale factor will be applied and a warning will be issued.
+            Defaults to 30.
+
+    Returns:
+        tuple[float, float]: The weighted average and its uncertainty.
+    """
+
+    if len(values) != len(uncertainties):
+        raise ValueError("Values and uncertainties must have the same length")
+
+    weights = 1 / np.square(uncertainties)
+    weighted_avg = np.sum(weights * values) / np.sum(weights)
+    weighted_uncertainty = np.sqrt(1 / np.sum(weights))
+
+    # calculate a chisquare to check if errors should be shifted by a scale factor
+    chisquared = np.sum(weights * np.square(weighted_avg - np.array(values)))
+    N = len(values)
+
+    if chisquared / (N - 1) < 1:
+        pass  # no reason to worry
+    elif chisquared / (N - 1) > large_chi2_cutoff:
+        if not suppress_warnings:
+            warnings.warn(
+                f"High chi-squared per degree of freedom in weighted average"
+                f" calculation: {chisquared / (N-1)}, reconsider taking this average"
+            )
+    elif chisquared / (N - 1) > 1:
+        if not suppress_warnings:
+            warnings.warn(
+                f"Chi-squared per degree of freedom is >1 and <{large_chi2_cutoff},"
+                f" returned error will be increased by a scale factor"
+                f" S = sqrt(chi-squared / (N-1)) = {np.sqrt(chisquared / (N-1))}"
+            )
+        weighted_uncertainty *= np.sqrt(chisquared / (N - 1))
+
+    return weighted_avg, weighted_uncertainty
