@@ -867,6 +867,7 @@ def likelihood_ratio_test(
 def weighted_average(
     values: list[float],
     uncertainties: list[float],
+    scale: bool = True,
     suppress_warnings: bool = False,
     large_chi2_cutoff=30,
 ) -> tuple[float, float]:
@@ -878,15 +879,17 @@ def weighted_average(
     where w_i = 1 / sigma_i^2 is the weight for each value based on its uncertainty.
 
     Per the PDG, if the chisquared (sum(w_i * (x_i - weighted_avg)^2)) per degree of
-    freedom (N-1) is greater than 1, the returned uncertainty will be increased by a
-    scale factor S = sqrt(chisquared / (N-1)). If the chisquared per degree of freedom
-    is greater than the large_chi2_cutoff, no scale is applied, and a warning will be
-    issued that the returned average may not be reliable.
+    freedom (N-1) is greater than 1 (and scale == true), the returned uncertainty will
+    be increased by a scale factor S = sqrt(chisquared / (N-1)). If the chisquared per
+    degree of freedom is greater than the large_chi2_cutoff, no scale is applied, and a
+    warning will be issued that the returned average may not be reliable.
 
     Args:
         values (list[float]): The values to average.
         uncertainties (list[float]): The uncertainties (sigma)associated with each
             value.
+        scale (bool): Whether to apply the PDG scale factor to the uncertainty if
+            the chi-squared per degree of freedom is greater than 1. Defaults to True.
         suppress_warnings (bool): Whether to suppress warnings about high chi-squared
             per degree of freedom. Defaults to False.
         large_chi2_cutoff (float): The cutoff for chi-squared per degree of freedom
@@ -903,6 +906,9 @@ def weighted_average(
     weights = 1 / np.square(uncertainties)
     weighted_avg = np.sum(weights * values) / np.sum(weights)
     weighted_uncertainty = np.sqrt(1 / np.sum(weights))
+
+    if not scale:
+        return weighted_avg, weighted_uncertainty
 
     # calculate a chisquare to check if errors should be shifted by a scale factor
     chisquared = np.sum(weights * np.square(weighted_avg - np.array(values)))
