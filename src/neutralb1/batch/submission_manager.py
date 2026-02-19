@@ -103,6 +103,7 @@ class SubmissionManager:
                         config.data.energy[1],
                         low_mass,
                         high_mass,
+                        systematics_tag=config.data.get_systematics_tag(),
                     )
 
                     if config.compute.test:  # provide cfg file to user if running test
@@ -226,7 +227,7 @@ class SubmissionManager:
                 f"{config.data.data_version}{config.data.data_option}",
                 f"{config.data.phasespace_version}{config.data.phasespace_option}",
                 waveset_dir,
-                "nominal",  # TODO: here is where additional systematics subdirs could be added
+                config.data.get_systematics_tag(),
                 f"t_{low_t:.2f}-{high_t:.2f}",
                 f"mass_{low_mass:.3f}-{high_mass:.3f}",
                 truth_subdir,

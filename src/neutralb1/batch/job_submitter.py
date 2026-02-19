@@ -106,8 +106,17 @@ class JobSubmitter:
         else:
             raise ValueError(f"Could not parse t/mass bins from directory: {job_dir}")
 
-        # build shell commands directly into files since its simpler
-        # TODO: here is where additional systematic cuts could be added from pwa config
+        # create the extra arguments that may have a systematic variation in them
+        optional_cut_args = config.data.get_optional_cut_args()
+        optional_cut_str = ""
+        if optional_cut_args:
+            optional_cut_str = " " + " ".join(optional_cut_args)
+
+        # the gen phasespace file doesn't have any of these extra branches and doesn't
+        # need to be systematically varied
+        if "gen" in src_file:
+            optional_cut_str = ""
+
         script_command = (
             "source setup_gluex.sh version.xml &&"
             " export PATH="  # path export hard-coded for now
@@ -119,11 +128,12 @@ class JobSubmitter:
             f" {low_t} {high_t}"
             f" {low_energy} {high_energy}"
             f" {low_mass} {high_mass}"
+            f"{optional_cut_str}"
         )
 
         # Create directories
         log_dir = self._get_log_directory(config, job_dir)
-        log_dir = log_dir.replace("/log/", f"{file_name.replace('.root','')}/log/")
+        log_dir = log_dir.replace("/log/", f"/{file_name.replace('.root','')}/log/")
 
         job_id = self.submit_slurm_job(
             job_name,
@@ -135,7 +145,7 @@ class JobSubmitter:
             config.compute.email,
             config.compute.email_type,
             "00:30:00",  # copy_tree_with_cuts should not take long
-            "5000M",  # 5 G should be enough memory
+            "2000M",  # 2 G should be enough memory
             1,  # MPI cant help, so request one CPU
             config.compute.test,
         )

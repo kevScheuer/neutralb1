@@ -8,11 +8,41 @@ using dataclasses and YAML serialization.
 # available at submission
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import neutralb1.utils as utils
 
 WORKSPACE_DIR = utils.get_workspace_dir()
+
+
+def _format_cut_value(value: float) -> str:
+    """Format cut values consistently for paths and CLI arguments.
+
+    Args:
+        value (float): Numeric cut value.
+
+    Returns:
+        str: String representation with at least one decimal place.
+    """
+
+    formatted = f"{value:.6f}".rstrip("0").rstrip(".")
+    if "." not in formatted:
+        formatted = f"{formatted}.0"
+    return formatted
+
+
+# Central definition of the nominal (default) systematic-cut ranges.
+# Keys must match the variable names used by copy_tree_with_cuts.
+NOMINAL_CUT_RANGES: Dict[str, Tuple[float, float]] = {
+    "unusedE": (-0.1, 0.1),
+    "unusedTracks": (-0.1, 1.0),
+    "chi2": (-0.1, 5.0),
+    "PzCMrecoilPi": (-0.1, 100.0),
+    "shQualityP2a": (0.5, 1.1),
+    "shQualityP2b": (0.5, 1.1),
+    "shQualityP3a": (0.5, 1.1),
+    "shQualityP3b": (0.5, 1.1),
+}
 
 
 @dataclass
@@ -95,7 +125,156 @@ class DataConfig:
     phasespace_version: str = "ver03"
     phasespace_option: str = ""
     truth_file: str = ""
-    # TODO: for systematics, could add additional cut parameters here
+    # Below are the nominal cut values, which we can vary for systematics
+
+    # cuts that have lower bound of -0.1, aside from PzCMrecoilPi, cant' go negative,
+    # and so this ensures that the nominal selection includes all events at or above 0.
+    unusedE: List[float] = field(default_factory=lambda: [-0.1, 0.1])
+    unusedTracks: List[float] = field(default_factory=lambda: [-0.1, 1.0])
+    chi2: List[float] = field(default_factory=lambda: [-0.1, 5.0])
+    PzCMrecoilPi: List[float] = field(
+        default_factory=lambda: [-0.1, 100.0]
+    )  # 100 basically ensures no upper cut
+    shQualityP2a: List[float] = field(
+        default_factory=lambda: [0.5, 1.1]
+    )  # upper limit it can be is 1.0
+    shQualityP2b: List[float] = field(default_factory=lambda: [0.5, 1.1])
+    shQualityP3a: List[float] = field(default_factory=lambda: [0.5, 1.1])
+    shQualityP3b: List[float] = field(default_factory=lambda: [0.5, 1.1])
+
+    def get_cut_ranges(self) -> Dict[str, Tuple[float, float]]:
+        """Return the configured cut ranges as a mapping.
+
+        Returns:
+            Dict[str, Tuple[float, float]]: Map of variable name to (min, max).
+        """
+
+        return {
+            "unusedE": (float(self.unusedE[0]), float(self.unusedE[1])),
+            "unusedTracks": (
+                float(self.unusedTracks[0]),
+                float(self.unusedTracks[1]),
+            ),
+            "chi2": (float(self.chi2[0]), float(self.chi2[1])),
+            "PzCMrecoilPi": (
+                float(self.PzCMrecoilPi[0]),
+                float(self.PzCMrecoilPi[1]),
+            ),
+            "shQualityP2a": (
+                float(self.shQualityP2a[0]),
+                float(self.shQualityP2a[1]),
+            ),
+            "shQualityP2b": (
+                float(self.shQualityP2b[0]),
+                float(self.shQualityP2b[1]),
+            ),
+            "shQualityP3a": (
+                float(self.shQualityP3a[0]),
+                float(self.shQualityP3a[1]),
+            ),
+            "shQualityP3b": (
+                float(self.shQualityP3b[0]),
+                float(self.shQualityP3b[1]),
+            ),
+        }
+
+    def get_systematics_tag(self) -> str:
+        """Compute the systematic tag for paths based on deviations from nominal.
+
+        This enforces that at most one cut range differs from the nominal range, so
+        that the systematic is uniquely identifiable (e.g. "chi2_0.0_4.0"). If
+        nothing differs, returns "nominal".
+
+        Raises:
+            ValueError: If more than one cut range differs from nominal.
+
+        Returns:
+            str: Systematics tag string for directory naming.
+        """
+
+        diffs = self._get_non_nominal_cuts()
+        if not diffs:
+            return "nominal"
+
+        if len(diffs) > 1:
+            diff_names = ", ".join(sorted(diffs.keys()))
+            raise ValueError(
+                "Multiple systematic cuts differ from nominal. Set only one at a "
+                f"time. Differences: {diff_names}"
+            )
+
+        var, (low, high) = next(iter(diffs.items()))
+        return f"{var}_{_format_cut_value(low)}_{_format_cut_value(high)}"
+
+    def get_optional_cut_args(self) -> List[str]:
+        """Build optional cut arguments for copy_tree_with_cuts.
+
+        By default, this passes *all* nominal cut ranges to copy_tree_with_cuts so the
+        produced per-bin ROOT files always include the nominal selection. If exactly
+        one configured cut differs from nominal, that one cut range replaces the
+        nominal range in the arguments.
+
+        Raises:
+            ValueError: If more than one cut range differs from nominal.
+
+        Returns:
+            List[str]: Optional cut arguments for copy_tree_with_cuts, e.g.
+            ["chi2:0.0:5.0", "unusedE:0.0:0.1", ...].
+        """
+
+        diffs = self._get_non_nominal_cuts()
+        if len(diffs) > 1:
+            diff_names = ", ".join(sorted(diffs.keys()))
+            raise ValueError(
+                "Multiple systematic cuts differ from nominal. Set only one at a "
+                f"time. Differences: {diff_names}"
+            )
+
+        merged: Dict[str, Tuple[float, float]] = dict(NOMINAL_CUT_RANGES)
+        if diffs:
+            var, (low, high) = next(iter(diffs.items()))
+            merged[var] = (float(low), float(high))
+
+        return [
+            f"{var}:{_format_cut_value(low)}:{_format_cut_value(high)}"
+            for var, (low, high) in sorted(merged.items())
+        ]
+
+    def get_systematic_cut_range(self) -> Optional[Tuple[str, float, float]]:
+        """Return the unique non-nominal systematic cut, if any.
+
+        Raises:
+            ValueError: If more than one cut range differs from nominal.
+
+        Returns:
+            Optional[Tuple[str, float, float]]: (variable, low, high) if a single cut
+            differs from nominal; otherwise None.
+        """
+
+        diffs = self._get_non_nominal_cuts()
+        if not diffs:
+            return None
+
+        if len(diffs) > 1:
+            diff_names = ", ".join(sorted(diffs.keys()))
+            raise ValueError(
+                "Multiple systematic cuts differ from nominal. Set only one at a "
+                f"time. Differences: {diff_names}"
+            )
+
+        var, (low, high) = next(iter(diffs.items()))
+        return var, low, high
+
+    def _get_non_nominal_cuts(self) -> Dict[str, Tuple[float, float]]:
+        """Return mapping of all cut ranges that differ from nominal."""
+
+        non_nominal: Dict[str, Tuple[float, float]] = {}
+        current = self.get_cut_ranges()
+        for var, (low, high) in current.items():
+            nominal_low, nominal_high = NOMINAL_CUT_RANGES[var]
+            if (low, high) != (nominal_low, nominal_high):
+                non_nominal[var] = (low, high)
+        return non_nominal
 
 
 @dataclass

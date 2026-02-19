@@ -23,10 +23,6 @@ class DataManager:
 
     This class handles the copying and cutting of ROOT data files to the
     volatile directory with appropriate kinematic cuts applied.
-
-    Todo:
-        - the log dir appears to be broken, run test for unmade data and check the slurm
-            script
     """
 
     def __init__(self):
@@ -60,6 +56,8 @@ class DataManager:
         skip_input = False
 
         job_ids = []
+
+        systematics_tag = config.data.get_systematics_tag()
 
         for run_period in config.data.run_periods:
             # Track what files need to be copied to what directories on volatile
@@ -122,6 +120,7 @@ class DataManager:
                         energy_max,
                         low_mass,
                         high_mass,
+                        systematics_tag=systematics_tag,
                     )
 
                     # Check if files exist for this bin
@@ -187,6 +186,7 @@ class DataManager:
         energy_max: float,
         low_mass: float,
         high_mass: float,
+        systematics_tag: str = "nominal",
     ) -> str:
         """Create consistent volatile path for pre-selected data files.
 
@@ -199,12 +199,10 @@ class DataManager:
             energy_max (float): Maximum beam energy.
             low_mass (float): Low mass edge.
             high_mass (float): High mass edge.
+            systematics_tag (str): Tag for systematic variation, default is "nominal".
 
         Returns:
             str: Path to volatile directory for this kinematic bin.
-
-        TODO: for systematics, change out "nominal" for whatever cut is being varied,
-        and its value
         """
         return "/".join(
             [
@@ -212,7 +210,7 @@ class DataManager:
                 "ampToolsFits",
                 reaction,
                 "data_files",
-                "nominal",
+                systematics_tag,
                 f"t_{low_t:.2f}-{high_t:.2f}",
                 f"E_{energy_min:.2f}-{energy_max:.2f}",
                 f"mass_{low_mass:.3f}-{high_mass:.3f}",
