@@ -10,6 +10,8 @@
  * used to select the best combination, and these will be saved to new files.
  */
 
+#include "TSystem.h"
+
 #include "FSBasic/FSHistogram.h"
 #include "FSBasic/FSCut.h"
 #include "FSBasic/FSTree.h"
@@ -24,16 +26,21 @@ TString CATEGORY("pi0pi0pippim");
 
 void skim_best_chi2(int period, int group)
 {
+    setup(false);
     for (int subgroup : {0,1,2,3,4,5,6,7,8,9})
     {
-
         TString input_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/data/tree_pi0pi0pippim__B4_FSROOT_0%i%i%i*.root", period, group, subgroup);
         // signal includes thrown and reconstructed
         TString signal_mc_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_massDepFit_201*ver03.1/tree_pi0pi0pippim__B4_FSROOT_0%i%i%i*.root", period, group, subgroup);
         TString phasespace_mc_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace*ver03/tree_pi0pi0pippim__B4_FSROOT_0%i%i%i*.root", period, group, subgroup);
         TString gen_phasespace_mc_files = TString::Format("/cache/halld/home/jrsteven/flattened/omegapi_gx1_pwa/ver01/tree_pi0pi0pippim__B4/omegapi_phasespace*ver03/tree_thrown_FSROOT_MCGEN_0%i%i%i*.root", period, group, subgroup);
 
-        setup(false);
+        // Check if files exist by expanding wildcards
+        TString expanded_files = gSystem->GetFromPipe(TString::Format("ls %s 2>/dev/null | head -1", input_files.Data()));
+        if (expanded_files.IsWhitespace()) {
+            std::cout << "No files found for period=" << period << " group=" << group << " subgroup=" << subgroup << ", skipping..." << std::endl;
+            continue;
+        }
 
         // Following this document https://halldweb.jlab.org/DocDB/0065/006572/003/RankingMethods_in_FSRoot.pdf
         // only a few cuts commute with the chi2 ranking method.     
