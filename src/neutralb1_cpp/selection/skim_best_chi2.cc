@@ -128,6 +128,7 @@ void skim_best_chi2(int period, int group)
         chi2_output_phasespace_mc.ReplaceAll("GENERAL", "bestChi2").ReplaceAll("general/", "best-chi2/");
 
         FSCut::defineCut("chi2rank", "Chi2RankHybrid==1");
+        FSTree::removeFriendTree("Chi2RankHybrid"); // remove from previous iteration
         FSTree::addFriendTree("Chi2RankHybrid");
         FSModeTree::skimTree(
             output_data,
