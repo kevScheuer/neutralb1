@@ -38,7 +38,10 @@ NOMINAL_CUT_RANGES: Dict[str, Tuple[float, float]] = {
     "unusedTracks": (-0.1, 1.0),
     "chi2": (-0.1, 5.0),
     "PzCMrecoilPi": (-0.1, 100.0),
-    "shQualityP2a": (0.5, 1.1),
+    "shQualityP2a": (
+        0.5,
+        1.1,
+    ),  # TODO: there should be one shQuality cut in the submission YAML, that affects all 4 of these
     "shQualityP2b": (0.5, 1.1),
     "shQualityP3a": (0.5, 1.1),
     "shQualityP3b": (0.5, 1.1),
@@ -291,6 +294,8 @@ class ComputeConfig:
         email (str): Email address for notifications.
         email_type (List[str]): When to send emails.
         time_limit (str): SLURM time limit.
+        cpus_per_task (int): Number of CPU cores per task (only used if n_gpus=0).
+        threads_per_core (int): Number of threads per core (only used if n_gpus=0).
         test (bool): Test mode (don't actually submit jobs).
     """
 
@@ -303,6 +308,8 @@ class ComputeConfig:
     email: str = ""
     email_type: List[str] = field(default_factory=lambda: ["BEGIN", "END", "FAIL"])
     time_limit: str = "01:00:00"
+    cpus_per_task: int = 1
+    threads_per_core: int = 1
     test: bool = False
 
 

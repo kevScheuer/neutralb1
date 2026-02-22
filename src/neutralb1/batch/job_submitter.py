@@ -70,6 +70,8 @@ class JobSubmitter:
             config.compute.time_limit,
             config.compute.mem_per_cpu,
             config.compute.n_cpus,
+            config.compute.cpus_per_task,
+            config.compute.threads_per_core,
             config.compute.test,
         )
 
@@ -135,6 +137,10 @@ class JobSubmitter:
         log_dir = self._get_log_directory(config, job_dir)
         log_dir = log_dir.replace("/log/", f"/{file_name.replace('.root','')}/log/")
 
+        # override email type to only include 'FAIL' if requested, since these jobs are
+        # very fast and we don't want to be spammed with emails for every single one
+        email_type = ["FAIL"] if "FAIL" in config.compute.email_type else []
+
         job_id = self.submit_slurm_job(
             job_name,
             script_command,
@@ -143,10 +149,12 @@ class JobSubmitter:
             "",  # GPU unnecessary for data file jobs
             0,
             config.compute.email,
-            config.compute.email_type,
-            "00:30:00",  # copy_tree_with_cuts should not take long
+            email_type,
+            "00:15:00",  # copy_tree_with_cuts should not take long
             "2000M",  # 2 G should be enough memory
             1,  # MPI cant help, so request one CPU
+            config.compute.cpus_per_task,
+            config.compute.threads_per_core,
             config.compute.test,
         )
 
@@ -165,6 +173,8 @@ class JobSubmitter:
         time_limit: str,
         mem_per_cpu: str,
         n_cpus: int,
+        cpus_per_task: int,
+        threads_per_core: int,
         is_test: bool = False,
     ) -> str:
         """Submit a SLURM job to the ifarm
@@ -181,6 +191,8 @@ class JobSubmitter:
             time_limit (str): Max wall-time in Hour:Min:Sec.
             mem_per_cpu (str): Memory per CPU
             n_cpus (int): Number of MPI CPUs to use (only used if n_gpus=0).
+            cpus_per_task (int): Number of CPU cores per task (only used if n_gpus=0).
+            threads_per_core (int): Number of threads per core (only used if n_gpus=0).
             is_test (bool): If True, will not submit the job to the farm.
 
         Returns:
@@ -198,6 +210,8 @@ class JobSubmitter:
             time_limit,
             mem_per_cpu,
             n_cpus,
+            cpus_per_task,
+            threads_per_core,
         )
 
         temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -240,6 +254,8 @@ class JobSubmitter:
         time_limit: str,
         mem_per_cpu: str,
         n_cpus: int,
+        cpus_per_task: int,
+        threads_per_core: int,
     ) -> str:
         """Create slurm script using defaults and user-provided values.
 
@@ -288,19 +304,18 @@ class JobSubmitter:
                     f"#SBATCH --gres=gpu:{gpu_type}:{n_gpus}",
                     f"#SBATCH --ntasks={n_gpus+1}",  # +1 for CPU core needed
                     f"#SBATCH --mem-per-cpu={mem_per_cpu}",
-                    "#SBATCH --ntasks-per-core=1",
+                    "#SBATCH --ntasks-per-core=1",  # below are always 1 for GPU jobs
                     "#SBATCH --cpus-per-task=1",
                     "#SBATCH --threads-per-core=1",
                 ]
             )
         else:
-            # TODO: these need to be tuned later for optimal MPI CPU performance
             script_lines.extend(
                 [
                     "#SBATCH --partition=ifarm",
                     f"#SBATCH --ntasks={n_cpus}",
-                    "#SBATCH --cpus-per-task=8",
-                    "#SBATCH --threads-per-core=2",
+                    f"#SBATCH --cpus-per-task={cpus_per_task}",
+                    f"#SBATCH --threads-per-core={threads_per_core}",
                 ]
             )
 
