@@ -166,9 +166,6 @@ int main(int argc, char *argv[])
             double n_nominal    = count_events(nominal_ec,    t_min, t_max, mass_min_bin, mass_max_bin);
             double n_systematic = count_events(systematic_ec, t_min, t_max, mass_min_bin, mass_max_bin, nominal_cuts);
 
-            std::cout << "  [mass " << mass_min_bin << ", " << mass_max_bin << "] "
-                      << "Nominal: " << n_nominal << ", Systematic: " << n_systematic << "\n";
-
             if (n_nominal == 0)
             {
                 std::cerr << "Warning: No nominal events in bin t: [" << t_min << ", " << t_max
