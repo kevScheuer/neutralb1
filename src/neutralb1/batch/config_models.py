@@ -38,14 +38,15 @@ NOMINAL_CUT_RANGES: Dict[str, Tuple[float, float]] = {
     "unusedTracks": (-0.1, 1.0),
     "chi2": (-0.1, 5.0),
     "PzCMrecoilPi": (-0.1, 100.0),
-    "shQualityP2a": (
-        0.5,
-        1.1,
-    ),  # TODO: there should be one shQuality cut in the submission YAML, that affects all 4 of these
+    "shQualityP2a": (0.5, 1.1),
     "shQualityP2b": (0.5, 1.1),
     "shQualityP3a": (0.5, 1.1),
     "shQualityP3b": (0.5, 1.1),
 }
+
+# shQuality sub-field names affected by the shQuality group cut.
+_SH_QUALITY_SUFFIXES = ("P2a", "P2b", "P3a", "P3b")
+_SH_QUALITY_FIELDS = tuple(f"shQuality{s}" for s in _SH_QUALITY_SUFFIXES)
 
 
 @dataclass
@@ -106,6 +107,10 @@ class DataConfig:
         phasespace_option (str): Phasespace option string.
         cut_recoil_pi_mass (float): Recoiling_proton + pion mass cut.
         truth_file (str): Optional truth file for MC studies.
+        shQuality (List[float]): Convenience field to set all four shQuality*
+            sub-fields (P2a, P2b, P3a, P3b) simultaneously. When non-empty,
+            overrides the individual shQualityP2a/b/P3a/b fields on
+            initialization. Leave empty to set each sub-field individually.
     """
 
     orientations: List[str] = field(default_factory=lambda: ["PARA_0"])
@@ -144,6 +149,19 @@ class DataConfig:
     shQualityP2b: List[float] = field(default_factory=lambda: [0.5, 1.1])
     shQualityP3a: List[float] = field(default_factory=lambda: [0.5, 1.1])
     shQualityP3b: List[float] = field(default_factory=lambda: [0.5, 1.1])
+    # Group convenience field — when set, propagates to all four sub-fields above.
+    shQuality: List[float] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Propagate the shQuality group field to all four sub-fields.
+
+        If shQuality is provided (non-empty), it overrides shQualityP2a,
+        shQualityP2b, shQualityP3a, and shQualityP3b so that a single YAML
+        entry controls all four photon shower-quality cuts simultaneously.
+        """
+        if self.shQuality:
+            for field_name in _SH_QUALITY_FIELDS:
+                setattr(self, field_name, list(self.shQuality))
 
     def get_cut_ranges(self) -> Dict[str, Tuple[float, float]]:
         """Return the configured cut ranges as a mapping.
@@ -236,7 +254,12 @@ class DataConfig:
         merged: Dict[str, Tuple[float, float]] = dict(NOMINAL_CUT_RANGES)
         if diffs:
             var, (low, high) = next(iter(diffs.items()))
-            merged[var] = (float(low), float(high))
+            if var == "shQuality":
+                # Expand the group key back to the four individual CLI keys.
+                for field_name in _SH_QUALITY_FIELDS:
+                    merged[field_name] = (float(low), float(high))
+            else:
+                merged[var] = (float(low), float(high))
 
         return [
             f"{var}:{_format_cut_value(low)}:{_format_cut_value(high)}"
@@ -269,7 +292,12 @@ class DataConfig:
         return var, low, high
 
     def _get_non_nominal_cuts(self) -> Dict[str, Tuple[float, float]]:
-        """Return mapping of all cut ranges that differ from nominal."""
+        """Return mapping of all cut ranges that differ from nominal.
+
+        When all four shQuality* sub-fields share the same non-nominal range,
+        they are collapsed into a single ``"shQuality"`` entry so that the
+        caller sees at most one logical systematic variation.
+        """
 
         non_nominal: Dict[str, Tuple[float, float]] = {}
         current = self.get_cut_ranges()
@@ -277,6 +305,17 @@ class DataConfig:
             nominal_low, nominal_high = NOMINAL_CUT_RANGES[var]
             if (low, high) != (nominal_low, nominal_high):
                 non_nominal[var] = (low, high)
+
+        # Collapse all four shQuality sub-fields into a single "shQuality" entry
+        # when they all carry the same non-nominal range.
+        sh_diffs = {v: r for v, r in non_nominal.items() if v in _SH_QUALITY_FIELDS}
+        if sh_diffs and len(sh_diffs) == len(_SH_QUALITY_FIELDS):
+            ranges = set(sh_diffs.values())
+            if len(ranges) == 1:  # all four are identical
+                for v in _SH_QUALITY_FIELDS:
+                    del non_nominal[v]
+                non_nominal["shQuality"] = ranges.pop()
+
         return non_nominal
 
 
