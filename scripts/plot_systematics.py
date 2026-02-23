@@ -204,7 +204,7 @@ def plot(
 
     # determine a radial scale factor to keep residuals within a reasonable distance
     # from their baseline rings
-    max_ring_excursion = 0.22  # max radial distance from base ring for largest residual
+    max_ring_excursion = 0.1  # max radial distance from base ring for largest residual
     largest_abs_residual = max(
         np.max(np.abs(unp.nominal_values(residual)))
         for residual in normalized_residuals
@@ -265,7 +265,7 @@ def plot(
         # label the rings
         ax.annotate(
             rf"{label}",
-            xy=(theta_min, base_r + 0.05),
+            xy=(theta_min, base_r + 0.01),  # TODO: adjust offset when all rings done
             xytext=(-10, 0),
             textcoords="offset points",
             ha="right",
@@ -275,15 +275,20 @@ def plot(
             color=colors[ring_idx],
         )
 
-        # add star markers for largest residuals in subgroups with same base variable
+        # add star markers for largest residuals in subgroups with same base variable,
+        # but only where the residual also exceeds the significance threshold
         if label in largest_mask_dict:
-            mask = largest_mask_dict[label]
+            sig_mask = np.abs(
+                unp.nominal_values(res)
+            ) > significance_threshold * unp.std_devs(res)
+            mask = largest_mask_dict[label] & sig_mask
             theta_masked = theta[mask]
             base_r_masked = base_r + radial_scale * unp.nominal_values(res)[mask]
             ax.plot(
                 theta_masked,
                 base_r_masked,
                 marker="*",
+                linestyle="",
                 color=colors[ring_idx],
                 markersize=6,
                 markeredgecolor="black",
