@@ -78,35 +78,27 @@ class JobSubmitter:
         return job_id
 
     def submit_data_job(
-        self, config: PWAConfig, src_file: str, job_dir: str, file_name: str
+        self, config: PWAConfig, src_file: str, job_dirs: List[str], file_name: str
     ) -> str:
-        """Submit a job to create cut data files.
+        """Submit a single job to copy one file to multiple directories with cuts.
+
+        Each directory receives its own copy_tree_with_cuts call within a single
+        SLURM job, so the environment is sourced once and all copies run sequentially.
 
         Args:
             config (PWAConfig): Configuration object.
             src_file (str): Source ROOT file path.
-            job_dir (str): Directory where the job will run.
-            file_name (str): Name of the data file being processed to be added to log
+            job_dirs (List[str]): Directories the file should be copied into.
+            file_name (str): Name of the data file being processed, used in the log
                 directory name.
+
         Returns:
-            str: Job ID of the submitted job.
+            str: Job ID of the submitted job, or "" if job_dirs is empty.
         """
-        job_name = job_dir.replace("/", "_")
+        if not job_dirs:
+            return ""
 
-        # Use regex to extract t and mass bin values from the directory path
-        t_match = re.search(r"t_([0-9.]+)-([0-9.]+)", job_dir)
-        mass_match = re.search(r"mass_([0-9.]+)-([0-9.]+)", job_dir)
-        energy_match = re.search(r"E_([0-9.]+)-([0-9.]+)", job_dir)
-
-        if t_match and mass_match and energy_match:
-            low_t = float(t_match.group(1))
-            high_t = float(t_match.group(2))
-            low_mass = float(mass_match.group(1))
-            high_mass = float(mass_match.group(2))
-            low_energy = float(energy_match.group(1))
-            high_energy = float(energy_match.group(2))
-        else:
-            raise ValueError(f"Could not parse t/mass bins from directory: {job_dir}")
+        job_name = job_dirs[0].replace("/", "_")
 
         # create the extra arguments that may have a systematic variation in them
         optional_cut_args = config.data.get_optional_cut_args()
@@ -119,22 +111,48 @@ class JobSubmitter:
         if "gen" in src_file:
             optional_cut_str = ""
 
-        script_command = (
-            "source setup_gluex.sh version.xml &&"
-            " export PATH="  # path export hard-coded for now
+        # Source the environment once, then run copy_tree_with_cuts for every directory
+        setup_command = (
+            "source setup_gluex.sh version.xml"
+            " && export PATH="  # path export hard-coded for now
             '"/w/halld-scshelf2101/kscheuer/neutralb1/build/release/bin:$PATH"'
-            " && copy_tree_with_cuts"
-            f" {src_file}"
-            f" {job_dir}"
-            f" {config.data.tree_name}"
-            f" {low_t} {high_t}"
-            f" {low_energy} {high_energy}"
-            f" {low_mass} {high_mass}"
-            f"{optional_cut_str}"
         )
 
-        # Create directories
-        log_dir = self._get_log_directory(config, job_dir)
+        copy_commands = []
+        for job_dir in job_dirs:
+            # Use regex to extract t, mass, and energy bin values from the directory
+            t_match = re.search(r"t_([0-9.]+)-([0-9.]+)", job_dir)
+            mass_match = re.search(r"mass_([0-9.]+)-([0-9.]+)", job_dir)
+            energy_match = re.search(r"E_([0-9.]+)-([0-9.]+)", job_dir)
+
+            if t_match and mass_match and energy_match:
+                low_t = float(t_match.group(1))
+                high_t = float(t_match.group(2))
+                low_mass = float(mass_match.group(1))
+                high_mass = float(mass_match.group(2))
+                low_energy = float(energy_match.group(1))
+                high_energy = float(energy_match.group(2))
+            else:
+                raise ValueError(
+                    f"Could not parse t/mass/energy bins from directory: {job_dir}"
+                )
+
+            copy_commands.append(
+                "copy_tree_with_cuts"
+                f" {src_file}"
+                f" {job_dir}"
+                f" {config.data.tree_name}"
+                f" {low_t} {high_t}"
+                f" {low_energy} {high_energy}"
+                f" {low_mass} {high_mass}"
+                f"{optional_cut_str}"
+            )
+
+        script_command = setup_command + " && \\\n" + " && \\\n".join(copy_commands)
+
+        # Use the first directory for the SLURM working dir and log location
+        running_dir = job_dirs[0]
+        log_dir = self._get_log_directory(config, running_dir)
         log_dir = log_dir.replace("/log/", f"/{file_name.replace('.root','')}/log/")
 
         # override email type to only include 'FAIL' if requested, since these jobs are
@@ -144,13 +162,13 @@ class JobSubmitter:
         job_id = self.submit_slurm_job(
             job_name,
             script_command,
-            job_dir,
+            running_dir,
             log_dir,
             "",  # GPU unnecessary for data file jobs
             0,
             config.compute.email,
             email_type,
-            "00:15:00",  # copy_tree_with_cuts should not take long
+            "02:00:00",  # copy_tree_with_cuts should not take long
             "2000M",  # 2 G should be enough memory
             1,  # MPI cant help, so request one CPU
             config.compute.cpus_per_task,

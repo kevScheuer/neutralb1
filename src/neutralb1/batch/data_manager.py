@@ -51,10 +51,6 @@ class DataManager:
         # Extract energy range
         energy_min, energy_max = config.data.energy
 
-        # If user wants to skip being asked about every job submission,
-        # this will become True
-        skip_input = False
-
         job_ids = []
 
         systematics_tag = config.data.get_systematics_tag()
@@ -133,39 +129,41 @@ class DataManager:
 
             # If any files need to be cut and copied for this run period
             if any(dirs for dirs in src_files_to_copy_to_dir.values() if dirs):
-                if not skip_input and not config.compute.test:
+                if not config.compute.test:
                     response = input(
                         f"Data files for {run_period} need to be created. "
-                        f"Submit jobs to create them? (y/n/a for all): "
+                        f"Submit jobs to create them? (y/n): "
                     )
-                    if response.lower() == "a":
-                        skip_input = True
-                    elif response.lower() != "y":
+                    if response.lower() != "y":
                         continue
 
-                # Submit jobs to create the files
+                # Submit one job per source file covering all destination directories
                 for src_file, dirs in src_files_to_copy_to_dir.items():
+                    if not dirs:
+                        continue
+
                     if config.compute.test:
                         print(
                             f"Test mode: file {src_file} would be copied to directories"
                             f"\n\t{'\n\t'.join(dirs)}"
                         )
-
-                    for dir in dirs:
-                        if not config.compute.test:
+                    else:
+                        for dir in dirs:
                             self._prepare_job_directory(dir)
-                        try:
-                            job_id = self.job_submitter.submit_data_job(
-                                config, src_file, dir, os.path.basename(src_file)
-                            )
-                        except Exception as e:
-                            print(
-                                f"Failed to submit job to copy {src_file} to {dir}: {e}"
-                            )
-                            job_id = ""
 
-                        if job_id:
-                            job_ids.append(job_id)
+                    try:
+                        job_id = self.job_submitter.submit_data_job(
+                            config, src_file, dirs, os.path.basename(src_file)
+                        )
+                    except Exception as e:
+                        print(
+                            f"Failed to submit job to copy {src_file} to"
+                            f" {len(dirs)} directories: {e}"
+                        )
+                        job_id = ""
+
+                    if job_id:
+                        job_ids.append(job_id)
 
         if job_ids and not config.compute.test:
             print(
