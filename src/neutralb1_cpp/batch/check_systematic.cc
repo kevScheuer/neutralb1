@@ -122,16 +122,37 @@ int main(int argc, char *argv[])
     std::string min_val  = systematic.substr(first_colon + 1, second_colon - first_colon - 1);
     std::string max_val  = systematic.substr(second_colon + 1);
 
-    if (nominal_cuts.find(var_name) == nominal_cuts.end())
+    // shQuality is a special case, as it needs to be applied across all 4 photons
+    if (var_name == "shQuality")
     {
-        std::cerr << "Exiting: Systematic variation branch not found in nominal cuts: " << var_name << "\n";
-        return 1;
-    }
-    nominal_cuts[var_name] = {std::stof(min_val), std::stof(max_val)};
+        for (const auto &suffix : {"P2a", "P2b", "P3a", "P3b"})
+        {
+            TString cut_name = TString::Format("shQuality%s", suffix);
+            if (nominal_cuts.find(cut_name) == nominal_cuts.end())
+            {
+                std::cerr << "Exiting: Systematic variation branch not found in nominal cuts: " << cut_name << "\n";
+                return 1;
+            }
+            nominal_cuts[cut_name] = {std::stof(min_val), std::stof(max_val)};
 
-    std::cout << "Replaced nominal cut for " << var_name
-              << " with new cut: " << nominal_cuts[var_name].first
-              << " < " << var_name << " < " << nominal_cuts[var_name].second << "\n";
+            std::cout << "Replaced nominal cut for " << cut_name
+                      << " with new cut: " << nominal_cuts[cut_name].first
+                      << " < " << cut_name << " < " << nominal_cuts[cut_name].second << "\n";
+        }
+    }
+    else
+    {
+        if (nominal_cuts.find(var_name) == nominal_cuts.end())
+        {
+            std::cerr << "Exiting: Systematic variation branch not found in nominal cuts: " << var_name << "\n";
+            return 1;
+        }
+        nominal_cuts[var_name] = {std::stof(min_val), std::stof(max_val)};
+
+        std::cout << "Replaced nominal cut for " << var_name
+                << " with new cut: " << nominal_cuts[var_name].first
+                << " < " << var_name << " < " << nominal_cuts[var_name].second << "\n";
+    }
 
     // Load all events into memory ONCE.
     std::cout << "Loading nominal events into memory...\n";
