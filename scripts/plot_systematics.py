@@ -65,8 +65,12 @@ def main() -> None:
             col,
         )
 
-        fig.savefig(f"{args['output']}_{col}.pdf", dpi=200, bbox_inches="tight")
-        print(f"Saved plot to: {args['output']}_{col}.pdf")
+        fig.savefig(
+            f"{args['output']}_{col}_t_{t_low}_{t_high}.pdf",
+            dpi=200,
+            bbox_inches="tight",
+        )
+        print(f"Saved plot to: {args['output']}_{col}_t_{t_low}_{t_high}.pdf")
 
 
 def find_common_base_variables(labels: list[str]) -> dict[str, list[str]]:
