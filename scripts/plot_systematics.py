@@ -30,6 +30,13 @@ matplotlib.use("Agg")  # Use non-interactive backend for script usage
 def main() -> None:
     args = parse_args()
 
+    # ensure output has a filename
+    if args["output"].endswith("/"):
+        args["output"] = args["output"][:-1] + "/systematics_residuals"
+    # ensure it doesn't already end with .pdf
+    if args["output"].endswith(".pdf"):
+        args["output"] = args["output"][:-4]
+
     # load in our data
     with open(args["nominal"], "rb") as f:
         data = pkl.load(f)
