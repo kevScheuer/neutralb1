@@ -355,6 +355,101 @@ def largest_residual_mask(
     return largest_mask
 
 
+# I've deprecated the function because the table was unnecessary at the end of the day,
+# but I'm keeping the code here in case it becomes useful in the future. It creates a
+# LaTeX table of the maximum significant residuals. The original issue though was that
+# each column had a different, very long, label that produced it that I can't
+# fit into the table.
+def create_latex_table(
+    mass_edges: tuple[tuple[float, float], ...],
+    col_to_normalized_residuals: dict[str, list[np.ndarray]],
+    labels: list[str],
+    t_low: float,
+    t_high: float,
+) -> str:
+
+    # header style is very specific to my style, in future one can just only print
+    # the body of the table
+    table_header = rf"""
+    \begin{{table}}
+        \centering
+        \caption*{{${t_low} \leq -t \leq {t_high}~\unit{{GeV^2}}$}}
+        \begin{{tabular}}{{rl|rr|rr|rr}}
+        \rowcolor{{white}}
+        & & \multicolumn{{2}}{{c|}}{{$\bm{{1^+S_0^{{(+)}}}}$}}
+        & \multicolumn{{2}}{{c|}}{{$\bm{{1^-P_{+1}^{{(+)}}}}$}}
+        & \multicolumn{{2}}{{c}}{{$\bm{{\phi}}$}}
+        \\
+        \rowcolor{{white}}
+        \multirow{{-2}}{{*}}{{\textbf{{Mass Bin}}}}
+        & \multirow{{-2}}{{*}}{{\textbf{{Variation}}}}
+        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
+        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
+        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
+        \\ \hline
+    """
+
+    # fixed columns I know we'll be plotting
+    col_s = "p1p0S"
+    col_p = "p1mpP"
+    col_phi = "phi"
+
+    table_body = ""
+    for i, (m_low, m_high) in enumerate(mass_edges):
+        mass_bin_str = rf"[{m_low:.2f}, {m_high:.2f}]"
+
+        max_res_s = unp.uarray(0.0, 0.0)
+        max_res_s_err = unp.uarray(0.0, 0.0)
+        max_res_p = unp.uarray(0.0, 0.0)
+        max_res_p_err = unp.uarray(0.0, 0.0)
+        max_res_phi = unp.uarray(0.0, 0.0)
+        max_res_phi_err = unp.uarray(0.0, 0.0)
+
+        # for this mass bin, identify the maximum significant residual. If no residuals
+        # are significant, the entry will simply be a "-".
+        for label in labels:
+            res_s = col_to_normalized_residuals[col_s][labels.index(label)][i]
+            res_p = col_to_normalized_residuals[col_p][labels.index(label)][i]
+            res_phi = col_to_normalized_residuals[col_phi][labels.index(label)][i]
+
+            sig_threshold_s = 4.0 * unp.std_devs(res_s)
+            sig_threshold_p = 4.0 * unp.std_devs(res_p)
+            sig_threshold_phi = 4.0 * unp.std_devs(res_phi)
+
+            if abs(unp.nominal_values(res_s)) > sig_threshold_s:
+                if abs(unp.nominal_values(res_s)) > abs(unp.nominal_values(max_res_s)):
+                    max_res_s = unp.nominal_values(res_s)
+                    max_res_s_err = unp.std_devs(res_s)
+            if abs(unp.nominal_values(res_p)) > sig_threshold_p:
+                if abs(unp.nominal_values(res_p)) > abs(unp.nominal_values(max_res_p)):
+                    max_res_p = unp.nominal_values(res_p)
+                    max_res_p_err = unp.std_devs(res_p)
+            if abs(unp.nominal_values(res_phi)) > sig_threshold_phi:
+                if abs(unp.nominal_values(res_phi)) > abs(
+                    unp.nominal_values(max_res_phi)
+                ):
+                    max_res_phi = unp.nominal_values(res_phi)
+                    max_res_phi_err = unp.std_devs(res_phi)
+
+            # the label shown here would be incorrect, as it only applies to one of
+            # residuals for a column, and not all as it implies
+            table_body += (
+                rf"{mass_bin_str} & {label}"
+                rf" & {max_res_s:.3f} & {max_res_s_err:.3f}"
+                rf" & {max_res_p:.3f} & {max_res_p_err:.3f}"
+                rf" & {max_res_phi:.3f} & {max_res_phi_err:.3f} \\ " + "\n"
+            )
+
+    table_footer = r"""
+        \end{tabular}
+        \caption{CAPTION HERE}
+        \label{tab:LABEL HERE}
+    \end{table}
+    """
+
+    return table_header + table_body + table_footer
+
+
 def parse_args() -> dict[str, Any]:
     parser = argparse.ArgumentParser(
         description=(
@@ -405,6 +500,15 @@ def parse_args() -> dict[str, Any]:
         help=(
             "Path and base name for output plot file (without extension). The plot will"
             " be saved as {output}.pdf."
+        ),
+    )
+    parser.add_argument(
+        "--csv",
+        action="store_true",
+        help=(
+            "If set, create a CSV file of the unnormalized residuals and their"
+            " uncertainties. This is so they can be read in and used for plotting."
+            " The table will be saved as {output}.csv."
         ),
     )
 
