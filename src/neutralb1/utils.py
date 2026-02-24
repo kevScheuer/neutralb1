@@ -434,10 +434,10 @@ def circular_residual(
     Args:
         angle1 (float): First angle
         angle2 (float): Second angle
-        in_degrees (bool, optional): When True, indicates that the input angles are in
-            degrees. The calculation and output will also be in degrees. Defaults to
-            False, in which case the input angles are in radians and the output will be
-            in radians.
+        in_degrees (bool, optional): When True, indicates that the input angles,
+            including 'low' and 'high' arguments, are in degrees. The output will also
+            be in degrees. Defaults to False, in which case the input angles are in
+            radians and the output will be in radians.
         low (float, optional): Lower bound of the circular range. Defaults to -π.
         high (float, optional): Upper bound of the circular range. Defaults to π.
 
@@ -453,7 +453,7 @@ def circular_residual(
     diff = angle1 - angle2
     period = high - low
     # Wrap to [low, high)
-    wrapped = (diff - low) % period + low
+    wrapped = min(diff, period - diff)
 
     if in_degrees:
         wrapped = np.rad2deg(wrapped)
