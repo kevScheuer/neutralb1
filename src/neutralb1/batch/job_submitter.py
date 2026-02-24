@@ -107,9 +107,13 @@ class JobSubmitter:
             optional_cut_str = " " + " ".join(optional_cut_args)
 
         # the gen phasespace file doesn't have any of these extra branches and doesn't
-        # need to be systematically varied
+        # need to be systematically varied. It also needs more time than others due
+        # to the large file size
         if "gen" in src_file:
             optional_cut_str = ""
+            time_limit = "10:00:00"
+        else:
+            time_limit = "02:00:00"
 
         # Source the environment once, then run copy_tree_with_cuts for every directory
         setup_command = (
@@ -168,7 +172,7 @@ class JobSubmitter:
             0,
             config.compute.email,
             email_type,
-            "02:00:00",  # copy_tree_with_cuts should not take long
+            time_limit,
             "2000M",  # 2 G should be enough memory
             1,  # MPI cant help, so request one CPU
             config.compute.cpus_per_task,
