@@ -5,6 +5,13 @@ Each variable is represented as a concentric ring and each mass bin is mapped to
 an angular location. Residuals are shown as radial offsets from each variable's
 baseline ring, with radial error bars representing residual uncertainty.
 
+TODO:
+    - only give star marker to largest variation across all systematics, not just
+        the one in each subgroup.
+    - phases need to use the circular nature of the variable to compute residuals and
+        significance properly. We also need to account for the sign ambiguity, so
+        must compute residuals of absolute values of phases, then apply circular
+        statistics.
 """
 
 from __future__ import annotations
@@ -18,6 +25,7 @@ import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from matplotlib.projections.polar import PolarAxes
 from uncertainties import unumpy as unp
 
@@ -58,6 +66,10 @@ def main() -> None:
     phase = nominal_result.phase_difference_dict[("p1p0S", "p1mpP")]
     t_low, t_high = nominal_result.get_t_edges()
 
+    # for creating the csv of systematic uncertainties. the list is in the same order
+    # as the mass bins
+    col_to_sig_unnormalized_residuals: dict[str, list[float]] = {}
+
     for col in ["p1p0S", "p1mpP", phase]:
         normalized_residuals = normalized_residuals_with_errors(
             nominal_result, systematic_results, col
@@ -78,6 +90,25 @@ def main() -> None:
             bbox_inches="tight",
         )
         print(f"Saved plot to: {args['output']}_{col}_t_{t_low}_{t_high}.pdf")
+
+        if args["csv"]:
+            unnormalized_abs_residuals = max_unnormalized_absolute_residuals(
+                nominal_result, systematic_results, col
+            )
+            col_to_sig_unnormalized_residuals[col] = unnormalized_abs_residuals
+
+    if args["csv"]:
+        csv_df = pd.DataFrame(
+            {
+                "m_center": mass_bins,
+                **col_to_sig_unnormalized_residuals,
+            }
+        )
+        csv_df.to_csv(f"{args['output']}_t_{t_low}_{t_high}.csv", index=False)
+        print(
+            f"Saved CSV of significant unnormalized residuals to:"
+            f" {args['output']}_t_{t_low}_{t_high}.csv"
+        )
 
 
 def find_common_base_variables(labels: list[str]) -> dict[str, list[str]]:
@@ -348,11 +379,60 @@ def largest_residual_mask(
         group_residuals = np.array(
             [res for res, label in zip(residuals, labels) if label in group_labels]
         )
-        max_indices = np.argmax(abs(group_residuals), axis=0)
+        max_indices = np.argmax(np.abs(unp.nominal_values(group_residuals)), axis=0)
         for idx, label in enumerate(group_labels):
             largest_mask[label] = max_indices == idx
 
     return largest_mask
+
+
+def max_unnormalized_absolute_residuals(
+    nominal_result: ResultManager, systematic_results: list[ResultManager], column: str
+) -> list[float]:
+    """Compute the maximum absolute residual across all variations in each mass bin
+
+    Args:
+        nominal_result (ResultManager): Best fit result to compare to
+        systematic_results (list[ResultManager]): result from a systematic variation
+        column (str): the column in the fit_df to compute residuals for (e.g. "p1p0S")
+
+    Returns:
+        list[float]: list of maximum unnormalized residuals across all systematic
+            variations, in order of mass bins
+    """
+
+    assert (
+        column in nominal_result.fit_df.columns
+    ), f"Column '{column}' not found in nominal result dataframe"
+
+    nominal_array = unp.uarray(
+        nominal_result.fit_df[column].to_numpy(),
+        nominal_result.fit_df[f"{column}_err"].to_numpy(),
+    )
+
+    max_residuals: list[float] = []
+    for i in range(len(nominal_array)):
+        max_res = 0.0
+
+        # find max significant residual across all variations for this mass bin.
+        for sys_result in systematic_results:
+            assert (
+                column in sys_result.fit_df.columns
+            ), f"Column '{column}' not found in systematic result dataframe"
+
+            sys_array = unp.uarray(
+                sys_result.fit_df[column].to_numpy(),
+                sys_result.fit_df[f"{column}_err"].to_numpy(),
+            )
+
+            residual: float = unp.nominal_values(nominal_array - sys_array)[i]
+            significance_threshold = 4.0 * unp.std_devs(nominal_array[i])
+            if abs(residual) > significance_threshold:
+                max_res = max(max_res, abs(residual))
+
+        max_residuals.append(max_res)
+
+    return max_residuals
 
 
 # I've deprecated the function because the table was unnecessary at the end of the day,
