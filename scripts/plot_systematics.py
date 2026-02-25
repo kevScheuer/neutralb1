@@ -5,9 +5,8 @@ Each variable is represented as a concentric ring and each mass bin is mapped to
 an angular location. Residuals are shown as radial offsets from each variable's
 baseline ring, with radial error bars representing residual uncertainty.
 
-TODO:
-    - only give star marker to largest variation across all systematics, not just
-        the one in each subgroup.
+Todo:
+    - some variations bleed into other rings
 """
 
 from __future__ import annotations
@@ -20,10 +19,8 @@ import matplotlib
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from matplotlib.projections.polar import PolarAxes
-from uncertainties import unumpy as unp
 
 import neutralb1.utils as utils
 from neutralb1.analysis.result import ResultManager
@@ -229,9 +226,13 @@ def plot(
         else:
             colors.append("black")  # default color if no base variable match
 
-    # here we create a mask for each label that identifies the largest residuals across
-    # subgroups with the same base variable, for each mass bin
-    largest_mask_dict = largest_residual_mask(labels, residuals)
+    # here we create a mask for each label that identifies the largest significant
+    # residuals across all variations for each mass bin, so we can mark them with stars
+    # on the plot
+    significance_threshold = 4.0
+    largest_sig_mask_dict = largest_sig_residual_mask(
+        labels, residuals, residual_errors, significance_threshold
+    )
 
     # determine a radial scale factor to keep residuals within a reasonable distance
     # from their baseline rings
@@ -262,7 +263,6 @@ def plot(
         )
 
         # draw guide lines for significance threshold
-        significance_threshold = 4.0
         guide_delta = np.full_like(res, radial_scale * significance_threshold)
         ax.plot(
             theta,
@@ -294,11 +294,10 @@ def plot(
             color=colors[ring_idx],
         )
 
-        # add star markers for largest residuals in subgroups with same base variable,
-        # but only where the residual also exceeds the significance threshold
-        if label in largest_mask_dict:
-            sig_mask = np.abs(res) > significance_threshold * res_err
-            mask = largest_mask_dict[label] & sig_mask
+        # add star markers for the globally largest significant residual across all
+        # variations at each mass bin
+        if label in largest_sig_mask_dict:
+            mask = largest_sig_mask_dict[label]
             theta_masked = theta[mask]
             base_r_masked = base_r + (radial_scale * res[mask] / res_err[mask])
             ax.plot(
@@ -342,34 +341,48 @@ def plot(
     return fig
 
 
-def largest_residual_mask(
-    labels: list[str], residuals: list[np.ndarray]
+def largest_sig_residual_mask(
+    labels: list[str],
+    residuals: list[np.ndarray],
+    residual_errors: list[np.ndarray],
+    significance_threshold: float,
 ) -> dict[str, np.ndarray]:
-    """Mask each label to identify biggest residuals within subgroup for each mass bin
+    """Mask each label to identify the globally largest significant residual across all
+    variations for each mass bin.
+
+    A bin is only unmasked for the variation with the largest absolute residual if that
+    residual also exceeds the significance threshold. Bins where no variation is
+    significant are masked for all labels.
 
     Args:
         labels (list[str]): List of labels, e.g. ["chi2>5", "chi2>6", "Pz>5"].
         residuals (list[np.ndarray]): List of residual arrays corresponding to each
             label. Arrays should have shape (n_bins,) and be in the same order as
             labels.
+        residual_errors (list[np.ndarray]): List of residual error arrays corresponding
+            to each label, same shape and order as residuals.
+        significance_threshold (float): Threshold for |residual / error| above which a
+            residual is considered significant.
 
     Returns:
         dict[str, np.ndarray]: Mapping from label to boolean mask array where True
-            indicates the largest residuals for that label's base variable group at each
+            indicates that label has the globally largest significant residual at each
             mass bin.
     """
-    common_base_vars = find_common_base_variables(labels)
-    largest_mask: dict[str, np.ndarray] = {}
+    all_residuals = np.array(residuals)  # shape: (n_variations, n_bins)
+    all_errors = np.array(residual_errors)  # shape: (n_variations, n_bins)
 
-    for base_var, group_labels in common_base_vars.items():
-        group_residuals = np.array(
-            [res for res, label in zip(residuals, labels) if label in group_labels]
-        )
-        max_indices = np.argmax(np.abs(group_residuals), axis=0)
-        for idx, label in enumerate(group_labels):
-            largest_mask[label] = max_indices == idx
+    # only consider bins where the residual is significant
+    sig_mask = np.abs(all_residuals / all_errors) > significance_threshold
 
-    return largest_mask
+    # zero out non-significant residuals so argmax ignores them
+    masked_abs_residuals = np.where(sig_mask, np.abs(all_residuals), 0.0)
+    max_indices = np.argmax(masked_abs_residuals, axis=0)  # shape: (n_bins,)
+
+    # suppress bins where no variation is significant (argmax would pick index 0)
+    any_sig = sig_mask.any(axis=0)
+
+    return {label: (max_indices == idx) & any_sig for idx, label in enumerate(labels)}
 
 
 def parse_args() -> dict[str, Any]:
