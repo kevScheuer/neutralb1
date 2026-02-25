@@ -8,10 +8,6 @@ baseline ring, with radial error bars representing residual uncertainty.
 TODO:
     - only give star marker to largest variation across all systematics, not just
         the one in each subgroup.
-    - phases need to use the circular nature of the variable to compute residuals and
-        significance properly. We also need to account for the sign ambiguity, so
-        must compute residuals of absolute values of phases, then apply circular
-        statistics.
 """
 
 from __future__ import annotations
@@ -68,16 +64,17 @@ def main() -> None:
 
     # for creating the csv of systematic uncertainties. the list is in the same order
     # as the mass bins
-    col_to_sig_unnormalized_residuals: dict[str, list[float]] = {}
+    col_to_max_abs_residuals: dict[str, list[float]] = {}
 
     for col in ["p1p0S", "p1mpP", phase]:
-        normalized_residuals = normalized_residuals_with_errors(
+        residuals, res_errors = residuals_with_errors(
             nominal_result, systematic_results, col
         )
 
         fig = plot(
             mass_bins,
-            normalized_residuals,
+            residuals,
+            res_errors,
             args["labels"],
             t_low,
             t_high,
@@ -92,16 +89,14 @@ def main() -> None:
         print(f"Saved plot to: {args['output']}_{col}_t_{t_low}_{t_high}.pdf")
 
         if args["csv"]:
-            unnormalized_abs_residuals = max_unnormalized_absolute_residuals(
-                nominal_result, systematic_results, col
-            )
-            col_to_sig_unnormalized_residuals[col] = unnormalized_abs_residuals
+            # TODO: check this
+            col_to_max_abs_residuals[col] = np.abs(residuals).max(axis=1).tolist()
 
     if args["csv"]:
         csv_df = pd.DataFrame(
             {
                 "m_center": mass_bins,
-                **col_to_sig_unnormalized_residuals,
+                **col_to_max_abs_residuals,
             }
         )
         csv_df.to_csv(f"{args['output']}_t_{t_low}_{t_high}.csv", index=False)
@@ -134,13 +129,72 @@ def find_common_base_variables(labels: list[str]) -> dict[str, list[str]]:
     return groups
 
 
+def residuals_with_errors(
+    nominal_result: ResultManager, systematic_results: list[ResultManager], column: str
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    """Compute residuals for each systematic result
+
+    This function computes the residuals (nominal - systematic) for a specified column
+    across all mass bins, and returns a list of arrays containing the residuals
+    with propagated uncertainties. Note that only MINUIT errors are used.
+
+    Args:
+        nominal_result (ResultManager): Best fit result to compare to
+        systematic_results (list[ResultManager]): list of systematic results to compare
+        column (str): the column in the fit_df to compute residuals for (e.g. "p1p0S")
+
+    Returns:
+        tuple[list[np.ndarray], list[np.ndarray]]: tuple of lists of residual values and
+            errors across all systematic variations, in order of labels
+    """
+    assert (
+        column in nominal_result.fit_df.columns
+    ), f"Column '{column}' not found in nominal result dataframe"
+
+    # since the columns are amplitudes and phase differences, it is safe
+    # to take the absolute value. This is because amplitudes are always positive by
+    # definition, and the phase differences have a sign ambiguity in the model that we
+    # must account for in the residual calculation
+    nominal_values = np.abs(nominal_result.fit_df[column].to_numpy())
+    nominal_errors = np.abs(nominal_result.fit_df[f"{column}_err"].to_numpy())
+
+    all_residuals: list[np.ndarray] = []
+    all_errors: list[np.ndarray] = []
+
+    vectorized_circular_residual = np.vectorize(utils.circular_residual)
+    for sys_result in systematic_results:
+        assert (
+            column in sys_result.fit_df.columns
+        ), f"Column '{column}' not found in systematic result dataframe"
+
+        sys_values = np.abs(sys_result.fit_df[column].to_numpy())
+        sys_errors = np.abs(sys_result.fit_df[f"{column}_err"].to_numpy())
+
+        if column in nominal_result.phase_differences:
+            # for phase differences, we need to account for its circular nature
+            residual = vectorized_circular_residual(
+                sys_values, nominal_values, in_degrees=True, low=0, high=180
+            )
+        else:
+            residual = sys_values - nominal_values
+        residual_err = np.sqrt(
+            np.abs(np.square(sys_errors) - np.square(nominal_errors))
+        )
+
+        all_residuals.append(residual)
+        all_errors.append(residual_err)
+
+    return all_residuals, all_errors
+
+
+# Deprecated, but keeping for a moment so that it can be transferred to other plotter
 def normalized_residuals_with_errors(
     nominal_result: ResultManager, systematic_results: list[ResultManager], column: str
-) -> list[np.ndarray]:
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Compute normalized residuals for each systematic result
 
     This function computes the normalized residuals (nominal - systematic) / nominal for
-    a specified column across all mass bins, and returns a list of unumpy arrays
+    a specified column across all mass bins, and returns a list of arrays
     containing the residuals with propagated uncertainties.
 
 
@@ -150,8 +204,8 @@ def normalized_residuals_with_errors(
         column (str): the column in the fit_df to compute residuals for (e.g. "p1p0S")
 
     Returns:
-        list[np.ndarray]: list of normalized residual unumpy arrays for each systematic
-            result, in the same order as the input list.
+        tuple[list[np.ndarray], list[np.ndarray]]: tuple of lists of normalized residual
+        values and errors across all systematic variations, in order of labels
     """
 
     assert (
@@ -159,38 +213,59 @@ def normalized_residuals_with_errors(
     ), f"Column '{column}' not found in nominal result dataframe"
 
     # importantly, we use the MINUIT error from the best fits
-    nominal_array = unp.uarray(
-        nominal_result.fit_df[column].to_numpy(),
-        nominal_result.fit_df[f"{column}_err"].to_numpy(),
-    )
+
+    # since the columns are amplitudes and phase differences, it is safe
+    # to take the absolute value. This is because amplitudes are always positive by
+    # definition, and the phase differences have a sign ambiguity in the model that we
+    # must account for in the residual calculation
+    nominal_values = np.abs(nominal_result.fit_df[column].to_numpy())
+    nominal_errors = np.abs(nominal_result.fit_df[f"{column}_err"].to_numpy())
 
     all_residuals: list[np.ndarray] = []
+    all_errors: list[np.ndarray] = []
 
     for sys_result in systematic_results:
         assert (
             column in sys_result.fit_df.columns
         ), f"Column '{column}' not found in systematic result dataframe"
 
-        sys_array = unp.uarray(
-            sys_result.fit_df[column].to_numpy(),
-            sys_result.fit_df[f"{column}_err"].to_numpy(),
-        )
+        sys_values = np.abs(sys_result.fit_df[column].to_numpy())
+        sys_errors = np.abs(sys_result.fit_df[f"{column}_err"].to_numpy())
 
-        # Compute normalized residuals for this systematic variation
+        # get a safe denominator to normalize by
         safe_denom = np.where(
-            np.abs(unp.nominal_values(nominal_array)) > 1e-12,
-            unp.nominal_values(nominal_array),
+            nominal_values > 1e-12,
+            nominal_values,
             np.nan,
         )
-        residual = (nominal_array - sys_array) / safe_denom
-        all_residuals.append(residual)
 
-    return all_residuals
+        if column in nominal_result.phase_differences:
+            # for phase differences, we need to account for its circular nature
+            vectorized_circular_residual = np.vectorize(utils.circular_residual)
+            residual = (
+                vectorized_circular_residual(
+                    nominal_values, sys_values, in_degrees=True, low=0, high=180
+                )
+                / safe_denom
+            )
+        else:
+            residual = (nominal_values - sys_values) / safe_denom
+
+        # TODO: some phase difference that are zero will artificially blow up this normalized error
+        residual_err = (
+            np.sqrt(np.square(nominal_errors) + np.square(sys_errors)) / safe_denom
+        )
+
+        all_residuals.append(residual)
+        all_errors.append(residual_err)
+
+    return all_residuals, all_errors
 
 
 def plot(
     mass_bins: np.ndarray,
-    normalized_residuals: list[np.ndarray],
+    residuals: list[np.ndarray],
+    residual_errors: list[np.ndarray],
     labels: list[str],
     t_low: float,
     t_high: float,
@@ -231,21 +306,16 @@ def plot(
 
     # here we create a mask for each label that identifies the largest residuals across
     # subgroups with the same base variable, for each mass bin
-    largest_mask_dict = largest_residual_mask(labels, normalized_residuals)
+    largest_mask_dict = largest_residual_mask(labels, residuals)
 
     # determine a radial scale factor to keep residuals within a reasonable distance
     # from their baseline rings
     max_ring_excursion = 0.1  # max radial distance from base ring for largest residual
-    largest_abs_residual = max(
-        np.max(np.abs(unp.nominal_values(residual)))
-        for residual in normalized_residuals
-    )
-    radial_scale = (
-        max_ring_excursion / largest_abs_residual if largest_abs_residual > 0 else 1.0
-    )
+    # largest_barlow = max(np.max(np.abs(r)/r_err) for r, r_err in zip(residuals, residual_errors))
+    radial_scale = max_ring_excursion / 4.0
 
     ring_idx = 0
-    for res, label in zip(normalized_residuals, labels):
+    for res, res_err, label in zip(residuals, residual_errors, labels):
         base_r = ring_radius[ring_idx]
 
         # draw baseline ring, denotes zero residual
@@ -256,26 +326,19 @@ def plot(
             linewidth=1.0,
         )
 
-        # draw normalized residuals, with transparent error bands
+        # draw residual / residual_errors
         ax.plot(
             theta,
-            base_r + radial_scale * unp.nominal_values(res),
+            base_r + radial_scale * (res / res_err),
             "-o",
             color=colors[ring_idx],
             linewidth=1.2,
             markersize=2,
         )
-        ax.fill_between(
-            theta,
-            base_r + radial_scale * (unp.nominal_values(res) - unp.std_devs(res)),
-            base_r + radial_scale * (unp.nominal_values(res) + unp.std_devs(res)),
-            color=colors[ring_idx],
-            alpha=0.15,
-        )
 
-        # draw guide lines for significance threshold (e.g. 4 sigma)
+        # draw guide lines for significance threshold
         significance_threshold = 4.0
-        guide_delta = radial_scale * significance_threshold * unp.std_devs(res)
+        guide_delta = np.full_like(res, radial_scale * significance_threshold)
         ax.plot(
             theta,
             base_r + guide_delta,
@@ -309,12 +372,10 @@ def plot(
         # add star markers for largest residuals in subgroups with same base variable,
         # but only where the residual also exceeds the significance threshold
         if label in largest_mask_dict:
-            sig_mask = np.abs(
-                unp.nominal_values(res)
-            ) > significance_threshold * unp.std_devs(res)
+            sig_mask = np.abs(res) > significance_threshold * res_err
             mask = largest_mask_dict[label] & sig_mask
             theta_masked = theta[mask]
-            base_r_masked = base_r + radial_scale * unp.nominal_values(res)[mask]
+            base_r_masked = base_r + (radial_scale * res[mask] / res_err[mask])
             ax.plot(
                 theta_masked,
                 base_r_masked,
@@ -379,155 +440,11 @@ def largest_residual_mask(
         group_residuals = np.array(
             [res for res, label in zip(residuals, labels) if label in group_labels]
         )
-        max_indices = np.argmax(np.abs(unp.nominal_values(group_residuals)), axis=0)
+        max_indices = np.argmax(np.abs(group_residuals), axis=0)
         for idx, label in enumerate(group_labels):
             largest_mask[label] = max_indices == idx
 
     return largest_mask
-
-
-def max_unnormalized_absolute_residuals(
-    nominal_result: ResultManager, systematic_results: list[ResultManager], column: str
-) -> list[float]:
-    """Compute the maximum absolute residual across all variations in each mass bin
-
-    Args:
-        nominal_result (ResultManager): Best fit result to compare to
-        systematic_results (list[ResultManager]): result from a systematic variation
-        column (str): the column in the fit_df to compute residuals for (e.g. "p1p0S")
-
-    Returns:
-        list[float]: list of maximum unnormalized residuals across all systematic
-            variations, in order of mass bins
-    """
-
-    assert (
-        column in nominal_result.fit_df.columns
-    ), f"Column '{column}' not found in nominal result dataframe"
-
-    nominal_array = unp.uarray(
-        nominal_result.fit_df[column].to_numpy(),
-        nominal_result.fit_df[f"{column}_err"].to_numpy(),
-    )
-
-    max_residuals: list[float] = []
-    for i in range(len(nominal_array)):
-        max_res = 0.0
-
-        # find max significant residual across all variations for this mass bin.
-        for sys_result in systematic_results:
-            assert (
-                column in sys_result.fit_df.columns
-            ), f"Column '{column}' not found in systematic result dataframe"
-
-            sys_array = unp.uarray(
-                sys_result.fit_df[column].to_numpy(),
-                sys_result.fit_df[f"{column}_err"].to_numpy(),
-            )
-
-            residual: float = unp.nominal_values(nominal_array - sys_array)[i]
-            significance_threshold = 4.0 * unp.std_devs(nominal_array[i])
-            if abs(residual) > significance_threshold:
-                max_res = max(max_res, abs(residual))
-
-        max_residuals.append(max_res)
-
-    return max_residuals
-
-
-# I've deprecated the function because the table was unnecessary at the end of the day,
-# but I'm keeping the code here in case it becomes useful in the future. It creates a
-# LaTeX table of the maximum significant residuals. The original issue though was that
-# each column had a different, very long, label that produced it that I can't
-# fit into the table.
-def create_latex_table(
-    mass_edges: tuple[tuple[float, float], ...],
-    col_to_normalized_residuals: dict[str, list[np.ndarray]],
-    labels: list[str],
-    t_low: float,
-    t_high: float,
-) -> str:
-
-    # header style is very specific to my style, in future one can just only print
-    # the body of the table
-    table_header = rf"""
-    \begin{{table}}
-        \centering
-        \caption*{{${t_low} \leq -t \leq {t_high}~\unit{{GeV^2}}$}}
-        \begin{{tabular}}{{rl|rr|rr|rr}}
-        \rowcolor{{white}}
-        & & \multicolumn{{2}}{{c|}}{{$\bm{{1^+S_0^{{(+)}}}}$}}
-        & \multicolumn{{2}}{{c|}}{{$\bm{{1^-P_{+1}^{{(+)}}}}$}}
-        & \multicolumn{{2}}{{c}}{{$\bm{{\phi}}$}}
-        \\
-        \rowcolor{{white}}
-        \multirow{{-2}}{{*}}{{\textbf{{Mass Bin}}}}
-        & \multirow{{-2}}{{*}}{{\textbf{{Variation}}}}
-        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
-        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
-        & $\bm{{\Delta'}}$ & $\bm{{\sigma_{{\Delta'}}}}$
-        \\ \hline
-    """
-
-    # fixed columns I know we'll be plotting
-    col_s = "p1p0S"
-    col_p = "p1mpP"
-    col_phi = "phi"
-
-    table_body = ""
-    for i, (m_low, m_high) in enumerate(mass_edges):
-        mass_bin_str = rf"[{m_low:.2f}, {m_high:.2f}]"
-
-        max_res_s = unp.uarray(0.0, 0.0)
-        max_res_s_err = unp.uarray(0.0, 0.0)
-        max_res_p = unp.uarray(0.0, 0.0)
-        max_res_p_err = unp.uarray(0.0, 0.0)
-        max_res_phi = unp.uarray(0.0, 0.0)
-        max_res_phi_err = unp.uarray(0.0, 0.0)
-
-        # for this mass bin, identify the maximum significant residual. If no residuals
-        # are significant, the entry will simply be a "-".
-        for label in labels:
-            res_s = col_to_normalized_residuals[col_s][labels.index(label)][i]
-            res_p = col_to_normalized_residuals[col_p][labels.index(label)][i]
-            res_phi = col_to_normalized_residuals[col_phi][labels.index(label)][i]
-
-            sig_threshold_s = 4.0 * unp.std_devs(res_s)
-            sig_threshold_p = 4.0 * unp.std_devs(res_p)
-            sig_threshold_phi = 4.0 * unp.std_devs(res_phi)
-
-            if abs(unp.nominal_values(res_s)) > sig_threshold_s:
-                if abs(unp.nominal_values(res_s)) > abs(unp.nominal_values(max_res_s)):
-                    max_res_s = unp.nominal_values(res_s)
-                    max_res_s_err = unp.std_devs(res_s)
-            if abs(unp.nominal_values(res_p)) > sig_threshold_p:
-                if abs(unp.nominal_values(res_p)) > abs(unp.nominal_values(max_res_p)):
-                    max_res_p = unp.nominal_values(res_p)
-                    max_res_p_err = unp.std_devs(res_p)
-            if abs(unp.nominal_values(res_phi)) > sig_threshold_phi:
-                if abs(unp.nominal_values(res_phi)) > abs(
-                    unp.nominal_values(max_res_phi)
-                ):
-                    max_res_phi = unp.nominal_values(res_phi)
-                    max_res_phi_err = unp.std_devs(res_phi)
-
-            # the label shown here would be incorrect, as it only applies to one of
-            # residuals for a column, and not all as it implies
-            table_body += (
-                rf"{mass_bin_str} & {label}"
-                rf" & {max_res_s:.3f} & {max_res_s_err:.3f}"
-                rf" & {max_res_p:.3f} & {max_res_p_err:.3f}"
-                rf" & {max_res_phi:.3f} & {max_res_phi_err:.3f} \\ " + "\n"
-            )
-
-    table_footer = r"""
-        \end{tabular}
-        \caption{CAPTION HERE}
-        \label{tab:LABEL HERE}
-    \end{table}
-    """
-
-    return table_header + table_body + table_footer
 
 
 def parse_args() -> dict[str, Any]:
