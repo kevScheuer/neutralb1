@@ -134,7 +134,7 @@ def residuals_with_errors(
 ) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Compute residuals for each systematic result
 
-    This function computes the residuals (nominal - systematic) for a specified column
+    This function computes the residuals (systematic - nominal) for a specified column
     across all mass bins, and returns a list of arrays containing the residuals
     with propagated uncertainties. Note that only MINUIT errors are used.
 
@@ -173,7 +173,7 @@ def residuals_with_errors(
         if column in nominal_result.phase_differences:
             # for phase differences, we need to account for its circular nature
             residual = vectorized_circular_residual(
-                sys_values, nominal_values, in_degrees=True, low=0, high=180
+                sys_values, nominal_values, in_degrees=True, low=-180, high=180
             )
         else:
             residual = sys_values - nominal_values
