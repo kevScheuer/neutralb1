@@ -5,8 +5,6 @@ Each variable is represented as a concentric ring and each mass bin is mapped to
 an angular location. Residuals are shown as radial offsets from each variable's
 baseline ring, with radial error bars representing residual uncertainty.
 
-Todo:
-    - some variations bleed into other rings
 """
 
 from __future__ import annotations
@@ -86,8 +84,13 @@ def main() -> None:
         print(f"Saved plot to: {args['output']}_{col}_t_{t_low}_{t_high}.pdf")
 
         if args["csv"]:
-            # TODO: check this
-            col_to_max_abs_residuals[col] = np.abs(residuals).max(axis=1).tolist()
+            significance_threshold = 4.0
+            all_res = np.array(residuals)  # (n_variations, n_bins)
+            all_err = np.array(res_errors)  # (n_variations, n_bins)
+            sig_mask = np.abs(all_res / all_err) > significance_threshold
+            # largest significant residual per bin; 0 where no variation is significant
+            masked_abs_res = np.where(sig_mask, np.abs(all_res), 0.0)
+            col_to_max_abs_residuals[col] = masked_abs_res.max(axis=0).tolist()
 
     if args["csv"]:
         csv_df = pd.DataFrame(
@@ -237,8 +240,16 @@ def plot(
     # determine a radial scale factor to keep residuals within a reasonable distance
     # from their baseline rings
     max_ring_excursion = 0.1  # max radial distance from base ring for largest residual
-    # largest_barlow = max(np.max(np.abs(r)/r_err) for r, r_err in zip(residuals, residual_errors))
-    radial_scale = max_ring_excursion / 4.0
+    largest_barlow = 4.0
+    # TODO: this allows some mass bins to bleed into other rings, but its rare, and
+    #   implementing this means heavily squishing all the ring guides towards the base
+    # for res, res_err, label in zip(residuals, residual_errors, labels):
+    #     mask = largest_sig_mask_dict[label]
+    #     if np.any(mask):
+    #         max_ratio = np.max(np.abs(res[mask] / res_err[mask]))
+    #         if max_ratio > largest_barlow:
+    #             largest_barlow = max_ratio
+    radial_scale = max_ring_excursion / largest_barlow
 
     ring_idx = 0
     for res, res_err, label in zip(residuals, residual_errors, labels):
