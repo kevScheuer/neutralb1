@@ -181,6 +181,13 @@ def residuals_with_errors(
             np.abs(np.square(sys_errors) - np.square(nominal_errors))
         )
 
+        # since we had to substitute two nominal fits for failing bins to just get the
+        # script to work, we end up with some cases where residual(err) is zero. Zero
+        # residual is fine, but zero error causes problems for the plot since we divide
+        # by the error. In these cases, we can just set the error to a small value so
+        # they show up on the plot zero residual still
+        residual_err = np.where(residual_err == 0.0, 1e-6, residual_err)
+
         all_residuals.append(residual)
         all_errors.append(residual_err)
 
