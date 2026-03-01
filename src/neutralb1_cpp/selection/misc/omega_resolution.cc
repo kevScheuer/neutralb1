@@ -20,6 +20,7 @@
 #include "FSBasic/FSTree.h"
 #include "FSMode/FSModeHistogram.h"
 
+#include "../load_broad_cuts.cc"
 #include "neutralb1/fit_utils.h"
 #include "../fsroot_setup.cc"
 
@@ -27,6 +28,8 @@ void omega_resolution()
 {
     TString NT, CATEGORY;
     std::tie(NT, CATEGORY) = setup(false);
+    std::map<TString, Int_t> cut_color_map = load_broad_cuts();
+    TString cuts = join_keys(cut_color_map);
 
     TString input_files = "/lustre24/expphy/volatile/halld/home/kscheuer/"
         "FSRoot-skimmed-trees/best-chi2/"
@@ -37,16 +40,22 @@ void omega_resolution()
         NT,
         CATEGORY,
         "RMASS(2,3,4)",
-        "(100, 0.5, 1.1)",
-        ""
+        "(100, 0.4, 1.2)",
+        TString::Format(
+            "CUT(%s)*CUTWT(rf)",
+            cuts.Data()
+        )
     );
     TH1F *h_measured_mass_perm2 = FSModeHistogram::getTH1F(
         input_files,
         NT,
         CATEGORY,
         "RMASS(2,3,5)",
-        "(100, 0.5, 1.1)",
-        ""
+        "(100, 0.4, 1.2)",
+        TString::Format(
+            "CUT(%s)*CUTWT(rf)",
+            cuts.Data()
+        )
     );
 
     TH1F *h_kinfit_mass_perm1 = FSModeHistogram::getTH1F(
@@ -54,16 +63,22 @@ void omega_resolution()
         NT,
         CATEGORY,
         "MASS(2,3,4)",
-        "(100, 0.5, 1.1)",
-        ""
+        "(100, 0.4, 1.2)",
+        TString::Format(
+            "CUT(%s)*CUTWT(rf)",
+            cuts.Data()
+        )
     );
      TH1F *h_kinfit_mass_perm2 = FSModeHistogram::getTH1F(
         input_files,
         NT,
         CATEGORY,
         "MASS(2,3,5)",
-        "(100, 0.5, 1.1)",
-        ""
+        "(100, 0.4, 1.2)",
+        TString::Format(
+            "CUT(%s)*CUTWT(rf)",
+            cuts.Data()
+        )
     );
 
     h_measured_mass_perm1->Add(h_measured_mass_perm2);
@@ -75,7 +90,7 @@ void omega_resolution()
     h_kinfit_mass_perm1->Draw("HIST");
 
     h_kinfit_mass_perm1->SetXTitle("#pi^{#plus}#pi^{#minus}#pi^{0}_{i} inv. mass (GeV)");
-    h_kinfit_mass_perm1->SetYTitle("Events / 6 MeV");
+    h_kinfit_mass_perm1->SetYTitle("Events / 8 MeV");
     h_kinfit_mass_perm1->SetTitle("");
 
     h_measured_mass_perm1->SetLineColor(kRed);
