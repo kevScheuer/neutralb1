@@ -84,7 +84,7 @@ def main() -> None:
         print(f"Saved plot to: {args['output']}_{col}_t_{t_low}_{t_high}.pdf")
 
         if args["csv"]:
-            significance_threshold = 4.0
+            significance_threshold = 3.0
             all_res = np.array(residuals)  # (n_variations, n_bins)
             all_err = np.array(res_errors)  # (n_variations, n_bins)
             sig_mask = np.abs(all_res / all_err) > significance_threshold
@@ -239,7 +239,7 @@ def plot(
     # here we create a mask for each label that identifies the largest significant
     # residuals across all variations for each mass bin, so we can mark them with stars
     # on the plot
-    significance_threshold = 4.0
+    significance_threshold = 3.0
     largest_sig_mask_dict = largest_sig_residual_mask(
         labels, residuals, residual_errors, significance_threshold
     )
@@ -247,7 +247,7 @@ def plot(
     # determine a radial scale factor to keep residuals within a reasonable distance
     # from their baseline rings
     max_ring_excursion = 0.1  # max radial distance from base ring for largest residual
-    largest_barlow = 4.0
+    largest_barlow = 3.0
     # TODO: this allows some mass bins to bleed into other rings, but its rare, and
     #   implementing this means heavily squishing all the ring guides towards the base
     # for res, res_err, label in zip(residuals, residual_errors, labels):
