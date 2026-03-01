@@ -154,6 +154,12 @@ plot_sideband_variation(
     zero_line->SetLineColor(kBlack);
     zero_line->SetLineWidth(1);
 
+    TLegend *legend = new TLegend(0.55, 0.55, 0.88, 0.88);
+    legend->SetBorderSize(1);
+    legend->SetFillStyle(0);
+    legend->AddEntry(h_omega, "Data", "L");
+    legend->AddEntry(h_signal, "Signal region", "F");
+
     double line_spacing = h_omega->GetMaximum() * 0.03; // 3% of max height spacing between lines
 
     // vector to store left/right sideband pair, and their pairs of low/high edges
@@ -218,7 +224,20 @@ plot_sideband_variation(
         }
         sideband_right_line->Draw();
         sideband_left_line->Draw();
+
+        // Add legend entry for this sideband variation
+        std::vector<TString> sideband_labels = {
+            "#it{w}_{1/2}", "4#it{w}_{1/2}/3", "5#it{w}_{1/2}/3", "2#it{w}_{1/2}"
+        };
+        TLine *legend_line = new TLine();
+        legend_line->SetLineColor(sideband_colors[i]);
+        legend_line->SetLineWidth(2);
+        legend->AddEntry(
+            legend_line,
+            TString::Format("Sideband: %s", sideband_labels[i].Data()),
+            "L");
     }
+    legend->Draw();
     FSHistogram::dumpHistogramCache();
 
     c->SaveAs(TString::Format("sideband_variation_%d%s.pdf",
@@ -308,9 +327,13 @@ void plot_omega_pi0_sideband_variations(
 {
     const double omega_mass = 0.78266; // PDG omega mass in GeV
 
-    TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);    
+    TCanvas *c = new TCanvas("c_omega_pi0", "c_omega_pi0", 800, 600);
     std::vector<int> sideband_colors = {
         kRed + 3, kRed + 2, kRed + 1, kRed};
+
+    TLegend *legend = new TLegend(0.55, 0.55, 0.88, 0.88);
+    legend->SetBorderSize(1);
+    legend->SetFillStyle(0);
 
     // For accurate comparison, we need to plot both permutations together on the same
     // omega pi0 plot. We'll copy the method in friend_reorder to have a 1:1 methodology
@@ -449,17 +472,28 @@ void plot_omega_pi0_sideband_variations(
     h_omega_pi0[0]->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
     h_omega_pi0[0]->SetTitle("");
     h_omega_pi0[0]->Draw("HIST");
+    legend->AddEntry(h_omega_pi0[0], "Data (no SB)", "L");
 
     h_signal_highlight[0]->SetLineWidth(1);
-    h_signal_highlight[0]->SetLineColor(kGreen + 1);    
+    h_signal_highlight[0]->SetLineColor(kGreen + 1);
     h_signal_highlight[0]->Draw("HIST SAME");
+    legend->AddEntry(h_signal_highlight[0], "Signal region", "L");
 
-    for (int i = 0; i < sideband_subtracted_histograms.size(); ++i)
+    for (int i = 0; i < (int)sideband_subtracted_histograms.size(); ++i)
     {
         sideband_subtracted_histograms[i]->SetLineWidth(1);
         sideband_subtracted_histograms[i]->SetLineColor(sideband_colors[i]);
         sideband_subtracted_histograms[i]->Draw("HIST SAME");
+
+        std::vector<TString> sideband_labels = {
+            "#it{w}_{1/2}", "4#it{w}_{1/2}/3", "5#it{w}_{1/2}/3", "2#it{w}_{1/2}"
+        };
+        legend->AddEntry(
+            sideband_subtracted_histograms[i],
+            TString::Format("%s result", sideband_labels[i].Data()),
+            "L");
     }
+    legend->Draw();
     FSHistogram::dumpHistogramCache();
     c->SaveAs(TString::Format("omega_pi0_sideband_variation_%d%s.pdf",
                               period,
