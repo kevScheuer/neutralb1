@@ -16,6 +16,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TF1.h"
+#include "TText.h"
 #include "TPaveText.h"
 
 #include "FSMode/FSModeHistogram.h"
@@ -89,7 +90,25 @@ void mass_resolution(bool make_file = true)
     double sigma_avg = (sigma1 + sigma2) / 2.0;
     double sigma_avg_err = sqrt(sigma1_err*sigma1_err + sigma2_err*sigma2_err) / 2.0;
     std::cout << "Mass resolution (sigma): " << sigma_avg << " +/- " << sigma_avg_err << " GeV\n";
-    
+
+    // Style the combined fit as solid red
+    fit->SetLineColor(kRed);
+    fit->SetLineStyle(1);
+    fit->SetLineWidth(2);
+
+    // Create individual Gaussians from fitted parameters
+    TF1 *gaus1_func = new TF1("gaus1_func", "gaus", -0.1, 0.1);
+    gaus1_func->SetParameters(amp1, mean1, sigma1);
+    gaus1_func->SetLineStyle(3);       // dotted
+    gaus1_func->SetLineColor(kAzure+7); // light blue
+    gaus1_func->SetLineWidth(2);
+
+    TF1 *gaus2_func = new TF1("gaus2_func", "gaus", -0.1, 0.1);
+    gaus2_func->SetParameters(amp2, mean2, sigma2);
+    gaus2_func->SetLineStyle(2);       // dashed
+    gaus2_func->SetLineColor(kBlue+2); // dark blue
+    gaus2_func->SetLineWidth(2);
+
     // draw histogram with fit and save as PDF
     TCanvas *c = new TCanvas("c_mass_diff", "Mass Resolution", 800, 600);
     h_mass_diff->SetTitle(
@@ -97,22 +116,24 @@ void mass_resolution(bool make_file = true)
     );
     h_mass_diff->Draw();
     fit->Draw("same");
+    gaus1_func->Draw("same");
+    gaus2_func->Draw("same");
     
-    // Add fit parameters to plot
+    // Add fit parameters to plot, colored to match each Gaussian
     TPaveText *pt = new TPaveText(0.58, 0.50, 0.88, 0.89, "NDC");
     pt->SetFillColor(0);
     pt->SetTextAlign(12);
     pt->SetTextSize(0.028);
-    pt->AddText("Double Gaussian Fit");
-    pt->AddText(TString::Format("Gaus 1: A = %.1f #pm %.1f", amp1, amp1_err));
-    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV", mean1, mean1_err));
-    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV", sigma1, sigma1_err));
-    pt->AddText(TString::Format("Gaus 2: A = %.1f #pm %.1f", amp2, amp2_err));
-    pt->AddText(TString::Format("#mu = %.4f #pm %.4f GeV", mean2, mean2_err));
-    pt->AddText(TString::Format("#sigma = %.4f #pm %.4f GeV", sigma2, sigma2_err));
-    pt->AddText(TString::Format("Avg #sigma = %.4f #pm %.4f GeV", sigma_avg, sigma_avg_err));
+    ((TText*)pt->AddText("Double Gaussian Fit"))->SetTextColor(kRed);
+    ((TText*)pt->AddText(TString::Format("Gaus 1: A = %.0f", amp1)))->SetTextColor(kAzure+7);
+    ((TText*)pt->AddText(TString::Format("#mu = %.4f GeV", mean1)))->SetTextColor(kAzure+7);
+    ((TText*)pt->AddText(TString::Format("#sigma = %.2f GeV", sigma1)))->SetTextColor(kAzure+7);
+    ((TText*)pt->AddText(TString::Format("Gaus 2: A = %.0f", amp2)))->SetTextColor(kBlue+2);
+    ((TText*)pt->AddText(TString::Format("#mu = %.4f GeV", mean2)))->SetTextColor(kBlue+2);
+    ((TText*)pt->AddText(TString::Format("#sigma = %.2f GeV", sigma2)))->SetTextColor(kBlue+2);
+    ((TText*)pt->AddText(TString::Format("Avg #sigma = %.2f GeV", sigma_avg)))->SetTextColor(kRed);
     pt->Draw();
-    
+
     c->SaveAs("mass_resolution.pdf");
     delete c;
 
