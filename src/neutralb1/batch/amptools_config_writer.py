@@ -24,10 +24,10 @@ from .config_models import PWAConfig
 #   fractions denote the fraction of the intensity that is polarized in that direction,
 #   whose values are standard in halld
 POL_DICT = {
-    "PARA_0": {"angle": f"{(0 * np.pi/180.0):.6f}", "fraction": 0.35062},
-    "PERP_45": {"angle": f"{(45 * np.pi/180.0):.6f}", "fraction": 0.34230},
-    "PERP_90": {"angle": f"{(90 * np.pi/180.0):.6f}", "fraction": 0.34460},
-    "PARA_135": {"angle": f"{(135 * np.pi/180.0):.6f}", "fraction": 0.35582},
+    "PARA_0": {"angle": f"{(0.0 * np.pi/180.0):.6f}", "fraction": 0.351},
+    "PERP_45": {"angle": f"{(45.0 * np.pi/180.0):.6f}", "fraction": 0.342},
+    "PERP_90": {"angle": f"{(90.0 * np.pi/180.0):.6f}", "fraction": 0.345},
+    "PARA_135": {"angle": f"{(135.0 * np.pi/180.0):.6f}", "fraction": 0.356},
 }
 REFLECTIVITY_DICT = {
     "ImagNegSign": -1,
