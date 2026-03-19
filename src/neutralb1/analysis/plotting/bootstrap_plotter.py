@@ -1186,6 +1186,9 @@ class BootstrapPlotter(BasePWAPlotter):
             zorder = 200
             for col, color in zip(columns, color_list):
                 true_val = truth_data.loc[fit_idx, col]
+                assert (
+                    true_val is float
+                ), f"Expected truth value for {col} to be a single float, got {true_val}"
 
                 ax.plot(
                     [true_val, true_val],
