@@ -600,6 +600,7 @@ class DiagnosticPlotter(BasePWAPlotter):
             sharex=True,
             figsize=figsize,
             dpi=dpi,
+            layout="constrained",
         )
 
         # Handle single wave case (ensure axs is always 2D)
@@ -660,12 +661,8 @@ class DiagnosticPlotter(BasePWAPlotter):
                     )
 
         # Configure figure-wide labels and styling
-        fig.text(
-            0.53, 0.04, rf"${self.channel}$ inv. mass (GeV)", ha="center", fontsize=14
-        )
-        fig.text(
-            0.03,
-            0.55,
+        fig.supxlabel(rf"${self.channel}$ inv. mass (GeV)", ha="center", fontsize=14)
+        fig.supylabel(
             r"Phase Differences ($^{\circ}$)",
             ha="center",
             va="center",
@@ -687,9 +684,6 @@ class DiagnosticPlotter(BasePWAPlotter):
                 bbox_to_anchor=(1.0, 1.08),
                 fontsize=12,
             )
-
-        plt.tight_layout()
-        plt.subplots_adjust(bottom=0.1, left=0.1)
 
         return axs
 
