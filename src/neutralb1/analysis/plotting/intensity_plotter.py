@@ -443,6 +443,7 @@ class IntensityPlotter(BasePWAPlotter):
             sharex=True,
             sharey=sharey,
             squeeze=False,
+            layout="constrained",
         )
 
         for ax, col in zip(axs.flatten(), columns):
@@ -508,7 +509,6 @@ class IntensityPlotter(BasePWAPlotter):
 
         fig.supylabel(y_label, fontsize=16)
 
-        plt.tight_layout()
         plt.minorticks_on()
 
         return axs
