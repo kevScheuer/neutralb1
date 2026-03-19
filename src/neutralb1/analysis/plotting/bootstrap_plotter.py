@@ -807,7 +807,7 @@ class BootstrapPlotter(BasePWAPlotter):
             # Create patch with the color
             legend_handles.append(Patch(facecolor=color, edgecolor="black"))
             legend_labels.append(
-                rf"{mass_low:.3f} $\leq M_{self.channel} \leq$ {mass_high:.3f}"
+                rf"{mass_low:.3f} $\leq M_{{{self.channel}}} \leq$ {mass_high:.3f}"
             )
 
         # Add legend to the right of the figure, outside the plot area
