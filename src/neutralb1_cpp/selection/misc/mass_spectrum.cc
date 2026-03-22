@@ -71,15 +71,20 @@ void mass_spectrum()
     h_omega_pi0_data_total->SetTitle("");
     h_omega_pi0_data_total->SetXTitle("#omega#pi^{0} inv. mass (GeV)");
     h_omega_pi0_data_total->SetYTitle(TString::Format("Events / %.3f GeV", bin_width));
+    h_omega_pi0_data_total->GetXaxis()->SetTitleSize(0.05);
+    h_omega_pi0_data_total->GetYaxis()->SetTitleSize(0.05);
+    h_omega_pi0_data_total->GetXaxis()->SetTitleOffset(0.8);
+    h_omega_pi0_data_total->GetYaxis()->SetTitleOffset(0.8);
     h_omega_pi0_data_total->SetMarkerStyle(1);
     h_omega_pi0_data_total->SetMarkerColor(kBlack);
     h_omega_pi0_data_total->SetLineColor(kBlack);
     h_omega_pi0_data_total->SetMinimum(0);
 
     // create legend
-    TLegend* legend_omega_pi0 = new TLegend(0.65,0.7,0.85,0.88);
+    TLegend* legend_omega_pi0 = new TLegend(0.55,0.78,0.85,0.88);
     legend_omega_pi0->SetFillColorAlpha(kWhite, 0.8);
     legend_omega_pi0->AddEntry(h_omega_pi0_data_total, "GlueX-I Data", "lp");
+    legend_omega_pi0->SetTextSize(0.04);
 
     TCanvas *c = new TCanvas("c", "c", 800, 600);
 
