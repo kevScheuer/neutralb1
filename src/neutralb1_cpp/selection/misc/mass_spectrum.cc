@@ -30,8 +30,7 @@
 void mass_spectrum()
 {
     gStyle->SetOptStat(0);
-    TString tree_dir = "/lustre24/expphy/volatile/halld/home/kscheuer/"
-    "FSRoot-skimmed-trees/final-amptools-trees/";
+    TString tree_dir = "/home/kscheuer/work/neutralb1/data/FSRoot/GlueX/";
 
     // input files 
     TString data_signal = tree_dir + "allPeriods_data_signal.root";
@@ -75,7 +74,8 @@ void mass_spectrum()
     h_omega_pi0_data_total->GetYaxis()->SetTitleSize(0.05);
     h_omega_pi0_data_total->GetXaxis()->SetTitleOffset(0.8);
     h_omega_pi0_data_total->GetYaxis()->SetTitleOffset(0.8);
-    h_omega_pi0_data_total->SetMarkerStyle(1);
+    h_omega_pi0_data_total->SetMarkerStyle(8);
+    h_omega_pi0_data_total->SetMarkerSize(1.02);
     h_omega_pi0_data_total->SetMarkerColor(kBlack);
     h_omega_pi0_data_total->SetLineColor(kBlack);
     h_omega_pi0_data_total->SetMinimum(0);
