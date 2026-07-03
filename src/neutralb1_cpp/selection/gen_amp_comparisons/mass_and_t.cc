@@ -4,12 +4,22 @@
  * @brief Plot the acceptance-corrected mass and -t distributions for data against MC
  * @date 2026-06-19
  * 
- * This script is to quickly check if some gen_amp_V2 Monte Carlo data that we 
- * generated and applied the acceptance to is consistent with the data. The acceptance
- * is, of course, not perfect, but provides some quick estimate for how our MC will be 
- * modified in the full detector simulation. Thus if our MC is very different from 
- * data, we save time by not running the full detector simulation on it, and we 
- * can generate new MC with different parameters instead.
+ * This script is to check if some gen_amp_V2 Monte Carlo data that we generated and
+ * applied the acceptance to is consistent with the data. The acceptance is, of course,
+ * not perfect, but provides some quick estimate for how our MC will be modified in the
+ * full detector simulation. Thus if our MC is very different from data, we save time by
+ * not running the full detector simulation on it, and we can generate new MC with
+ * different parameters instead.
+ * 
+ * It also plots the original phasespace distributions from gen_amp_V2. Even though we
+ * do not want the Breit-Wigners in our final acc/gen phasespace files, as we want the
+ * distributions to be flat to allow our PWA model to weight them, we can use the
+ * weighted events to get the phasespace distributions. gen_amp_V2 will track the
+ * weights of the events, such that when using them it will "undo" the Breit-Wigner
+ * weighting and give us the original phasespace distributions. This provides increased
+ * precision in the areas where the Breit-Wigners are large, improving statistics over a
+ * flat phasespace generation. This script is to plot the original phasespace
+ * distributions 
  */
 
 #include <cmath>
@@ -138,8 +148,15 @@ void mass_and_t(TString gen_amp_V2_file)
         TString::Format("(%i, %f, %f)", n_bins, t_min, t_max),
         ""
     );
+    TH1F* h_t_mc_gen = FSHistogram::getTH1F(
+        gen_amp_V2_file, 
+        "nt", 
+        t_expr,
+        TString::Format("(%i, %f, %f)", n_bins, t_min, t_max),
+        "weight"
+    );
 
-    TString m_expr = "MASS(2,3)";
+    TString m_expr = "MASS(2,3,4,5)";
 
     TH1F* h_m_mc = FSHistogram::getTH1F(
         gen_amp_V2_file, 
@@ -147,6 +164,13 @@ void mass_and_t(TString gen_amp_V2_file)
         m_expr,
         TString::Format("(%i, %f, %f)", n_bins, m_min, m_max),
         ""
+    );
+    TH1F* h_m_mc_gen = FSHistogram::getTH1F(
+        gen_amp_V2_file, 
+        "nt", 
+        m_expr,
+        TString::Format("(%i, %f, %f)", n_bins, m_min, m_max),
+        "weight"        
     );
 
     // modify the MC histograms to account for acceptance
@@ -159,6 +183,45 @@ void mass_and_t(TString gen_amp_V2_file)
 
     h_t_mc->Scale(t_scale);
     h_m_mc->Scale(m_scale);
+
+     // plot the phasespace distributions for data and MC
+    TCanvas *c_t_ps = new TCanvas("c_t_ps", "t distribution", 800, 600);
+    const double t_bin_width_gen = get_bin_width(h_t_mc_gen);
+    
+    h_t_mc_gen->SetTitle("Generated t distribution");
+    h_t_mc_gen->GetXaxis()->SetTitle("t (GeV^{2})");
+    h_t_mc_gen->GetYaxis()->SetTitle(Form("Events / %.3f GeV^{2}", t_bin_width_gen));
+    h_t_mc_gen->GetXaxis()->SetTitleSize(0.05);
+    h_t_mc_gen->GetYaxis()->SetTitleSize(0.05);
+    h_t_mc_gen->GetXaxis()->SetTitleOffset(0.8);
+    h_t_mc_gen->GetYaxis()->SetTitleOffset(0.8);
+    h_t_mc_gen->SetLineColor(kBlack);
+    h_t_mc_gen->SetMarkerStyle(1);
+    h_t_mc_gen->SetMarkerColor(kBlack);
+    h_t_mc_gen->SetMinimum(0.0);
+
+    h_t_mc_gen->Draw("E");
+    c_t_ps->SaveAs("t_gen_amp.pdf");
+    delete c_t_ps;
+
+    TCanvas *c_m_ps = new TCanvas("c_m_ps", "M4Pi distribution", 800, 600);
+    const double m_bin_width_gen = get_bin_width(h_m_mc_gen);
+
+    h_m_mc_gen->SetTitle("Generated #pi^{+}#pi^{-}#pi^{0}#pi^{0} distribution");
+    h_m_mc_gen->GetXaxis()->SetTitle("M_{#pi^{+}#pi^{-}#pi^{0}#pi^{0}} (GeV)");
+    h_m_mc_gen->GetYaxis()->SetTitle(Form("Events / %.3f GeV", m_bin_width_gen));
+    h_m_mc_gen->GetXaxis()->SetTitleSize(0.05);
+    h_m_mc_gen->GetYaxis()->SetTitleSize(0.05);
+    h_m_mc_gen->GetXaxis()->SetTitleOffset(0.8);
+    h_m_mc_gen->GetYaxis()->SetTitleOffset(0.8);
+    h_m_mc_gen->SetLineColor(kBlack);
+    h_m_mc_gen->SetMarkerStyle(1);
+    h_m_mc_gen->SetMarkerColor(kBlack);
+    h_m_mc_gen->SetMinimum(0.0);
+
+    h_m_mc_gen->Draw("E");
+    c_m_ps->SaveAs("m_gen_amp.pdf");
+    delete c_m_ps;
 
     // plot the mass and t distributions for data and MC
     TCanvas *c_t = new TCanvas("c_t", "t distribution", 800, 600);
@@ -193,7 +256,7 @@ void mass_and_t(TString gen_amp_V2_file)
     const double m_bin_width = get_bin_width(h_m_data);   
     h_m_data->SetLineColor(kBlack);
     h_m_data->SetTitle("");
-    h_m_data->GetXaxis()->SetTitle("M4Pi (GeV)");
+    h_m_data->GetXaxis()->SetTitle("M_{#pi^{+}#pi^{-}#pi^{0}#pi^{0}} (GeV)");
     h_m_data->GetYaxis()->SetTitle(Form("Events / %.3f GeV", m_bin_width));
     h_m_data->GetXaxis()->SetTitleSize(0.05);
     h_m_data->GetYaxis()->SetTitleSize(0.05);
