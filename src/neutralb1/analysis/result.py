@@ -668,6 +668,18 @@ class ResultManager:
 
         return (t_low, t_high)
 
+    def get_t_avg_rms(self) -> tuple[float, float]:
+        """Get the average and RMS of the t values from the data DataFrame.
+
+        Returns:
+            tuple[float, float]: The average and RMS of the t values.
+        """
+
+        t_avg = float(self.data_df["t_avg"].mean())
+        t_rms = float(self.data_df["t_rms"].mean())
+
+        return (t_avg, t_rms)
+
     def get_fit_indices(
         self, mass_low: Optional[float] = None, mass_high: Optional[float] = None
     ) -> list[int]:
