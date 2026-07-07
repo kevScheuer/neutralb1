@@ -54,14 +54,16 @@ def main() -> None:
         print(f"\t{res} -> {label}")
 
     mass_bins = nominal_result.data_df["m_center"].to_numpy()
-    phase = nominal_result.phase_difference_dict[("p1p0S", "p1mpP")]
+    phase_sp = nominal_result.phase_difference_dict[("p1p0S", "p1mpP")]
+    phase_sd = nominal_result.phase_difference_dict[("p1p0S", "p1p0D")]
+    phase_dp = nominal_result.phase_difference_dict[("p1p0D", "p1mpP")]
     t_low, t_high = nominal_result.get_t_edges()
 
     # for creating the csv of systematic uncertainties. the list is in the same order
     # as the mass bins
     col_to_max_abs_residuals: dict[str, list[float]] = {}
 
-    for col in ["p1p0S", "p1mpP", phase]:
+    for col in ["p1p0S", "p1mpP", "p1p0D", phase_sp, phase_sd, phase_dp]:
         residuals, res_errors = residuals_with_errors(
             nominal_result, systematic_results, col
         )
