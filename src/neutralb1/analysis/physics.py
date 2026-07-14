@@ -127,3 +127,76 @@ def breit_wigner(
     denominator = complex(np.square(bw_mass) - np.square(mass), -1.0 * bw_mass * width)
 
     return F * numerator / denominator
+
+
+def parametrized_rho_770(
+    mass: float,
+    mass0: float = 0.7696,
+    width0: float = 0.1523,
+    f: float = 0.0,
+    g: float = 0.0,
+) -> complex:
+    """SND Parametrization of the below-threshold rho(770) tail contribution.
+
+    Taken from https://doi.org/10.1103/PhysRevD.88.054013. This assumes an infinitely
+    narrow omega. Also employs the same method of calculating the f and g coupling
+    constants from the relevant decay widths.
+
+    Args:
+        mass (float): mass value to evaluate the parametrized rho(770) function at.
+        mass0 (float): breit-wigner mass of the rho(770) resonance. Defaults to
+            0.7696 GeV, the PDG photoproduction value.
+        width0 (float): breit-wigner width of the rho(770) resonance. Defaults to 0.1523
+            GeV, the PDG photoproduction value.
+        f (float): coupling constant for the photon->rho coupling. Defaults to 0.0,
+            meaning the coupling will be calculated. The calculation uses the same
+            method as SND, which uses the rho -> e+e- decay width (with an intermediate
+            virtual photon) to calculate the coupling.
+        g (float): coupling constant for the rho(770) -> omega pi decay. Defaults to
+            0.0, meaning the coupling will be fixed to the average of SND results.
+
+    Returns:
+        complex: The value of the parametrized rho(770) contribution.
+
+    Todo:
+        - Consider calculating the f coupling constant from the photon - Reggeon
+            coupling instead of the e+e- one.
+    """
+
+    if f == 0.0:
+        # taken from 2026 PDG for neutral only rho0 -> e+e- decays
+        rho_to_ee_width = 147.4  # MeV
+        mass_rho = 775.26  # MeV
+        fine_structure_constant = 1 / 137.035999177
+
+        f = (4 * np.pi * mass_rho * np.square(fine_structure_constant)) / (
+            3 * np.square(rho_to_ee_width)
+        )
+
+    if g == 0.0:
+        # average calculated from the 4 models where g_rho_omega_pi is a free parameter
+        #   10.1103/PhysRevD.94.112001
+        #   10.1103/PhysRevD.88.054013
+        g = (15.6 + 17.4 + 15.9 + 16.5) / 4.0
+
+        # Other resources to consider
+        # https://doi.org/10.1007/s100520200934
+        # https://doi.org/10.1142/S0217751X12501011
+
+    # Using the description of the decay width Eq. 9 in 10.1103/PhysRevD.108.092012
+    q = breakup_momentum(mass, 0.13957039, 0.13957039)  # for rho -> pi+ pi-
+    q0 = breakup_momentum(mass0, 0.13957039, 0.13957039)
+    q_omega = breakup_momentum(mass, 0.78266, 0.1349768)  # for rho -> omega pi0
+
+    special_width = (width0 * np.square(mass0 / mass) * np.power(q / q0, 3)) + (
+        np.square(g) * np.power(q_omega, 3) / (12 * np.pi)
+    )
+
+    numerator = complex(g * np.square(mass0))
+    denominator = complex(
+        f * (np.square(mass0) - np.square(mass)), -1.0 * mass0 * special_width
+    )
+
+    # this parametrization leaves out barrier factors, so we omit them for now
+
+    return numerator / denominator
